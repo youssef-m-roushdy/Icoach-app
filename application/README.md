@@ -1,1 +1,0 @@
-<h1>Application Part</h1>
