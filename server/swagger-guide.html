@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iCoach API Documentation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .api-link {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .api-link:hover {
+            background: #45a049;
+        }
+        .endpoint {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .method {
+            font-weight: bold;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .post { background: #ff9800; }
+        .get { background: #4CAF50; }
+        .put { background: #2196F3; }
+        .delete { background: #f44336; }
+        .code-block {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏋️‍♂️ iCoach API Documentation</h1>
+    
+    <div class="container">
+        <h2>📚 Swagger Documentation Access</h2>
+        <p>Your iCoach API is now fully documented with Swagger OpenAPI 3.0. Access the interactive documentation using the links below:</p>
+        
+        <a href="http://localhost:3000/api-docs" class="api-link" target="_blank">
+            📖 Interactive Swagger UI
+        </a>
+        <br>
+        <a href="http://localhost:3000/api-docs.json" class="api-link" target="_blank">
+            📄 Raw OpenAPI JSON Spec
+        </a>
+        <br>
+        <a href="http://localhost:3000/health" class="api-link" target="_blank">
+            🩺 Health Check Endpoint
+        </a>
+    </div>
+
+    <div class="container">
+        <h2>🔑 Authentication</h2>
+        <p>The API uses JWT Bearer token authentication. To test protected endpoints:</p>
+        <ol>
+            <li>Register a new user or login with existing credentials</li>
+            <li>Copy the <code>accessToken</code> from the response</li>
+            <li>In Swagger UI, click the <strong>"Authorize"</strong> button</li>
+            <li>Enter: <code>Bearer {your-access-token}</code></li>
+            <li>Test protected endpoints</li>
+        </ol>
+    </div>
+
+    <div class="container">
+        <h2>📋 API Endpoints Overview</h2>
+        
+        <h3>🔐 Authentication</h3>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/register</code> - Register new user with comprehensive body data
+        </div>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/login</code> - Login with email/username and password
+        </div>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/refresh-token</code> - Refresh access token
+        </div>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/logout</code> - Logout user
+        </div>
+
+        <h3>👤 User Profile Management</h3>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <code>/api/v1/users/profile</code> - Get current user profile
+        </div>
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <code>/api/v1/users/profile</code> - Update profile including body metrics
+        </div>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/change-password</code> - Change password
+        </div>
+
+        <h3>🔑 Password Management</h3>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/forgot-password</code> - Request password reset
+        </div>
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <code>/api/v1/users/reset-password</code> - Reset password with token
+        </div>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <code>/api/v1/users/verify-email/{token}</code> - Verify email address
+        </div>
+
+        <h3>👨‍💼 Admin Endpoints</h3>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <code>/api/v1/users</code> - Get all users with pagination
+        </div>
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <code>/api/v1/users/{id}</code> - Get user by ID
+        </div>
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <code>/api/v1/users/{id}</code> - Update any user (admin)
+        </div>
+        <div class="endpoint">
+            <span class="method delete">DELETE</span>
+            <code>/api/v1/users/{id}</code> - Soft delete user
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Body Data & Fitness Metrics</h2>
+        <p>The API supports comprehensive body and fitness data tracking:</p>
+        <ul>
+            <li><strong>Body Metrics:</strong> Height, Weight, BMI (auto-calculated), Body Fat %</li>
+            <li><strong>Fitness Goals:</strong> Weight Loss, Muscle Gain, Maintenance</li>
+            <li><strong>Activity Levels:</strong> Sedentary to Extra Active</li>
+            <li><strong>Personal Info:</strong> Age, Gender, Phone, Bio</li>
+            <li><strong>Preferences:</strong> Custom JSON object for app settings</li>
+            <li><strong>Social Profiles:</strong> JSON object for social media links</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>🧪 Testing Examples</h2>
+        
+        <h3>Register New User with Body Data:</h3>
+        <div class="code-block">
+POST /api/v1/users/register
+{
+  "email": "jane.doe@example.com",
+  "username": "janedoe",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "password": "SecurePass123!",
+  "gender": "female",
+  "height": 165.5,
+  "weight": 60.2,
+  "dateOfBirth": "1992-05-15",
+  "fitnessGoal": "weight_loss",
+  "activityLevel": "moderately_active",
+  "bodyFatPercentage": 22.5,
+  "bio": "Fitness enthusiast",
+  "phone": "+1234567890"
+}
+        </div>
+
+        <h3>Update Body Metrics:</h3>
+        <div class="code-block">
+PUT /api/v1/users/profile
+Authorization: Bearer {your-token}
+{
+  "height": 166.0,
+  "weight": 58.5,
+  "bodyFatPercentage": 20.2,
+  "fitnessGoal": "maintenance",
+  "activityLevel": "very_active"
+}
+        </div>
+    </div>
+
+    <div class="highlight">
+        <strong>🎯 Key Features:</strong>
+        <ul>
+            <li>✅ Complete OpenAPI 3.0 specification</li>
+            <li>✅ Interactive Swagger UI with try-it-out functionality</li>
+            <li>✅ JWT Bearer token authentication support</li>
+            <li>✅ Comprehensive request/response examples</li>
+            <li>✅ Body metrics with automatic BMI calculation</li>
+            <li>✅ Detailed error responses with validation messages</li>
+            <li>✅ Admin and user role-based access control</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>🚀 Next Steps</h2>
+        <ol>
+            <li>Open the Swagger UI link above</li>
+            <li>Explore the documented endpoints</li>
+            <li>Test the registration endpoint with body data</li>
+            <li>Login and test protected endpoints</li>
+            <li>Use the bearer token authorization in Swagger</li>
+        </ol>
+    </div>
+</body>
+</html>
