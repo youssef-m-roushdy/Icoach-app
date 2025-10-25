@@ -144,6 +144,26 @@ export class UserController {
   }
 
   /**
+   * Update user body information and fitness profile
+   */
+  static async updateBodyInformation(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = (req as any).user.id;
+      const bodyData = req.body;
+      
+      const result = await UserService.updateBodyInformation(userId, bodyData);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Body information updated successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Change password
    */
   static async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -124,6 +124,51 @@ export class UserService {
   }
 
   /**
+   * Update user body information and fitness profile
+   */
+  static async updateBodyInformation(id: number, bodyData: {
+    gender?: 'male' | 'female' | 'other';
+    dateOfBirth?: Date;
+    height?: number;
+    weight?: number;
+    fitnessGoal?: 'weight_loss' | 'muscle_gain' | 'maintenance';
+    activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
+    bodyFatPercentage?: number;
+  }): Promise<any> {
+    const user = await User.findByPk(id);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    try {
+      // Convert string date to Date if needed
+      const updateData: any = { ...bodyData };
+      if (bodyData.dateOfBirth && typeof bodyData.dateOfBirth === 'string') {
+        updateData.dateOfBirth = new Date(bodyData.dateOfBirth);
+      }
+
+      // Update body information
+      await user.update(updateData);
+      
+      // Return user with calculated fields
+      const updatedUser = user.toJSON();
+      
+      // Add calculated metrics
+      return {
+        ...updatedUser,
+        bmiCategory: user.getBMICategory(),
+        recommendedCalories: user.calculateRecommendedCalories(),
+        profileCompleteness: user.getFitnessProfileCompleteness(),
+      };
+    } catch (error: any) {
+      if (error.name === 'SequelizeValidationError') {
+        throw new ValidationError('Invalid body data', error.errors);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Get all users (with pagination)
    */
   static async getAllUsers(page: number = 1, limit: number = 10, filters: any = {}): Promise<{

@@ -598,9 +598,7 @@ const options = {
     ]
   },
   apis: [
-    './src/routes/v1/*.ts',  // Path to the V1 API routes
-    './src/routes/*.ts',     // Path to the main routes
-    './src/controllers/*.ts', // Path to controllers if needed
+    './src/routes/v1/*.ts',  // Path to the V1 API routes with JSDoc documentation
   ],
 };
 

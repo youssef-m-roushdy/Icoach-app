@@ -185,6 +185,54 @@ export const validateProfileUpdate = [
 ];
 
 /**
+ * Body information validation
+ */
+export const validateBodyInformation = [
+  body('gender')
+    .optional()
+    .isIn(['male', 'female', 'other'])
+    .withMessage('Gender must be male, female, or other'),
+  
+  body('dateOfBirth')
+    .optional()
+    .isISO8601()
+    .withMessage('Date of birth must be a valid date')
+    .custom((value) => {
+      if (new Date(value) >= new Date()) {
+        throw new Error('Date of birth must be in the past');
+      }
+      return true;
+    }),
+  
+  body('height')
+    .optional()
+    .isFloat({ min: 50, max: 300 })
+    .withMessage('Height must be between 50 and 300 cm'),
+  
+  body('weight')
+    .optional()
+    .isFloat({ min: 20, max: 500 })
+    .withMessage('Weight must be between 20 and 500 kg'),
+  
+  body('fitnessGoal')
+    .optional()
+    .isIn(['weight_loss', 'muscle_gain', 'maintenance'])
+    .withMessage('Fitness goal must be weight_loss, muscle_gain, or maintenance'),
+  
+  body('activityLevel')
+    .optional()
+    .isIn(['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'])
+    .withMessage('Activity level must be sedentary, lightly_active, moderately_active, very_active, or extra_active'),
+  
+  body('bodyFatPercentage')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Body fat percentage must be between 0 and 100%'),
+  
+  handleValidationErrors,
+];
+
+/**
  * Password change validation
  */
 export const validatePasswordChange = [

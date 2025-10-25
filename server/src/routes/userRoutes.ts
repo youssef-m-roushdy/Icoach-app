@@ -1,24 +1,23 @@
 import { Router } from 'express';
-import { UserController } from '../../controllers/userController.js';
+import { UserController } from '../controllers/userController.js';
 import { 
   authenticate, 
   authorize, 
   authorizeOwnerOrAdmin,
   optionalAuthenticate 
-} from '../../middleware/auth.js';
+} from '../middleware/auth.js';
 import {
   validateUserRegistration,
   validateUserLogin,
   validateProfileUpdate,
-  validateBodyInformation,
   validatePasswordChange,
   validatePasswordResetRequest,
   validatePasswordReset,
   validateIdParam,
   validateTokenParam,
   validatePagination,
-} from '../../middleware/validation.js';
-import { asyncHandler } from '../../middleware/errorHandler.js';
+} from '../middleware/validation.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -26,7 +25,7 @@ const router = Router();
 
 /**
  * @swagger
- * /v1/users/register:
+ * /users/register:
  *   post:
  *     tags:
  *       - Authentication
@@ -102,7 +101,7 @@ router.post('/register',
 
 /**
  * @swagger
- * /v1/users/login:
+ * /users/login:
  *   post:
  *     tags:
  *       - Authentication
@@ -164,7 +163,7 @@ router.post('/login',
 
 /**
  * @swagger
- * /v1/users/refresh-token:
+ * /users/refresh-token:
  *   post:
  *     tags:
  *       - Authentication
@@ -210,7 +209,7 @@ router.post('/refresh-token',
 
 /**
  * @swagger
- * /v1/users/logout:
+ * /users/logout:
  *   post:
  *     tags:
  *       - Authentication
@@ -241,7 +240,7 @@ router.post('/logout',
 
 /**
  * @swagger
- * /v1/users/forgot-password:
+ * /users/forgot-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -286,7 +285,7 @@ router.post('/forgot-password',
 
 /**
  * @swagger
- * /v1/users/reset-password:
+ * /users/reset-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -330,7 +329,7 @@ router.post('/reset-password',
 
 /**
  * @swagger
- * /v1/users/verify-email/{token}:
+ * /users/verify-email/{token}:
  *   get:
  *     tags:
  *       - Authentication
@@ -377,7 +376,7 @@ router.get('/verify-email/:token',
 
 /**
  * @swagger
- * /v1/users/profile:
+ * /users/profile:
  *   get:
  *     tags:
  *       - User Profile
@@ -423,7 +422,7 @@ router.get('/profile',
 
 /**
  * @swagger
- * /v1/users/profile:
+ * /users/profile:
  *   put:
  *     tags:
  *       - User Profile
@@ -513,148 +512,7 @@ router.put('/profile',
 
 /**
  * @swagger
- * /v1/users/body-information:
- *   put:
- *     tags:
- *       - User Profile
- *     summary: Update body information and fitness profile
- *     description: |
- *       Update user's body measurements and fitness data after registration.
- *       This endpoint is designed for completing fitness profiles post-registration.
- *       Returns calculated metrics including BMI category, recommended calories, and profile completeness percentage.
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               gender:
- *                 type: string
- *                 enum: [male, female, other]
- *                 description: User's biological sex
- *               dateOfBirth:
- *                 type: string
- *                 format: date
- *                 description: User's date of birth (ISO 8601 format)
- *                 example: "1990-01-15"
- *               height:
- *                 type: number
- *                 format: float
- *                 minimum: 50
- *                 maximum: 300
- *                 description: Height in centimeters
- *                 example: 175.5
- *               weight:
- *                 type: number
- *                 format: float
- *                 minimum: 20
- *                 maximum: 500
- *                 description: Weight in kilograms
- *                 example: 70.2
- *               fitnessGoal:
- *                 type: string
- *                 enum: [weight_loss, muscle_gain, maintenance]
- *                 description: Primary fitness objective
- *               activityLevel:
- *                 type: string
- *                 enum: [sedentary, lightly_active, moderately_active, very_active, extra_active]
- *                 description: Daily activity level
- *               bodyFatPercentage:
- *                 type: number
- *                 format: float
- *                 minimum: 0
- *                 maximum: 100
- *                 description: Body fat percentage
- *                 example: 18.5
- *           examples:
- *             complete:
- *               summary: Complete body information
- *               value:
- *                 gender: "male"
- *                 dateOfBirth: "1990-06-15"
- *                 height: 180
- *                 weight: 75
- *                 fitnessGoal: "muscle_gain"
- *                 activityLevel: "moderately_active"
- *                 bodyFatPercentage: 15.5
- *             partial:
- *               summary: Partial update
- *               value:
- *                 height: 182
- *                 weight: 78
- *                 fitnessGoal: "weight_loss"
- *     responses:
- *       200:
- *         description: Body information updated successfully with calculated metrics
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Body information updated successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/User'
- *                     bmiCategory:
- *                       type: string
- *                       enum: [Underweight, Normal, Overweight, Obese]
- *                       description: Calculated BMI category
- *                       example: "Normal"
- *                     recommendedCalories:
- *                       type: number
- *                       description: Daily recommended caloric intake
- *                       example: 2450
- *                     profileCompleteness:
- *                       type: number
- *                       format: float
- *                       minimum: 0
- *                       maximum: 100
- *                       description: Fitness profile completion percentage
- *                       example: 85.5
- *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: Unauthorized - Invalid or missing token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       404:
- *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-router.put('/body-information', 
-  authenticate,
-  validateBodyInformation,
-  asyncHandler(UserController.updateBodyInformation)
-);
-
-/**
- * @swagger
- * /v1/users/change-password:
+ * /users/change-password:
  *   post:
  *     tags:
  *       - User Profile
@@ -710,7 +568,7 @@ router.post('/change-password',
 
 /**
  * @swagger
- * /v1/users:
+ * /users:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -780,7 +638,7 @@ router.get('/',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /users/{id}:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -841,7 +699,7 @@ router.get('/:id',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /users/{id}:
  *   put:
  *     tags:
  *       - Admin - User Management
@@ -947,7 +805,7 @@ router.put('/:id',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /users/{id}:
  *   delete:
  *     tags:
  *       - Admin - User Management

@@ -150,7 +150,9 @@ class User extends Model<
       return null;
     }
 
-    const age = new Date().getFullYear() - this.dateOfBirth.getFullYear();
+    // Ensure dateOfBirth is a Date object
+    const birthDate = this.dateOfBirth instanceof Date ? this.dateOfBirth : new Date(this.dateOfBirth);
+    const age = new Date().getFullYear() - birthDate.getFullYear();
     let bmr: number;
 
     // Calculate BMR (Basal Metabolic Rate)
