@@ -18,18 +18,22 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      throw new UnauthorizedError('Authorization header missing');
+      throw new UnauthorizedError('Authentication required. Please provide a valid authorization token.');
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      throw new UnauthorizedError('Invalid authorization format. Use Bearer token.');
     }
 
     const token = authHeader.split(' ')[1]; // Bearer <token>
     
     if (!token) {
-      throw new UnauthorizedError('Token missing');
+      throw new UnauthorizedError('Authentication token is missing.');
     }
 
     const secret = process.env.JWT_SECRET;
     if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
+      throw new Error('JWT configuration error');
     }
 
     const decoded = jwt.verify(token, secret) as any;
@@ -43,9 +47,9 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
     next();
   } catch (error: any) {
     if (error.name === 'JsonWebTokenError') {
-      next(new UnauthorizedError('Invalid token'));
+      next(new UnauthorizedError('Invalid authentication token. Please login again.'));
     } else if (error.name === 'TokenExpiredError') {
-      next(new UnauthorizedError('Token expired'));
+      next(new UnauthorizedError('Authentication token has expired. Please login again.'));
     } else {
       next(error);
     }
@@ -61,11 +65,11 @@ export const authorize = (...roles: string[]) => {
       const user = (req as AuthenticatedRequest).user;
       
       if (!user) {
-        throw new UnauthorizedError('Authentication required');
+        throw new UnauthorizedError('Authentication required to access this resource.');
       }
 
       if (!roles.includes(user.role)) {
-        throw new ForbiddenError('Insufficient permissions');
+        throw new ForbiddenError(`Access denied. Required role: ${roles.join(' or ')}`);
       }
 
       next();
@@ -84,20 +88,23 @@ export const authorizeOwnerOrAdmin = (req: Request, res: Response, next: NextFun
     const id = req.params.id;
     
     if (!user) {
-      throw new UnauthorizedError('Authentication required');
+      throw new UnauthorizedError('Authentication required to access this resource.');
     }
 
     if (!id) {
-      throw new ForbiddenError('Resource ID required');
+      throw new ForbiddenError('Resource identifier is required.');
     }
 
     const resourceUserId = parseInt(id);
+    if (isNaN(resourceUserId)) {
+      throw new ForbiddenError('Invalid resource identifier.');
+    }
 
     // Allow if user is admin or owns the resource
     if (user.role === 'admin' || user.id === resourceUserId) {
       next();
     } else {
-      throw new ForbiddenError('Access denied');
+      throw new ForbiddenError('Access denied. You can only access your own resources.');
     }
   } catch (error) {
     next(error);

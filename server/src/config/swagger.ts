@@ -21,8 +21,8 @@ const options = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production' 
-          ? 'https://api.icoach.com/api/v1' 
-          : 'http://localhost:3000/api/v1',
+          ? 'https://api.icoach.com/api' 
+          : 'http://localhost:3000/api',
         description: process.env.NODE_ENV === 'production' 
           ? 'Production server' 
           : 'Development server'
@@ -598,7 +598,8 @@ const options = {
     ]
   },
   apis: [
-    './src/routes/*.ts',  // Path to the API routes
+    './src/routes/v1/*.ts',  // Path to the V1 API routes
+    './src/routes/*.ts',     // Path to the main routes
     './src/controllers/*.ts', // Path to controllers if needed
   ],
 };

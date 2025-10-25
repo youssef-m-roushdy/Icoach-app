@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { UserController } from '../controllers/userController.js';
+import { UserController } from '../../controllers/userController.js';
 import { 
   authenticate, 
   authorize, 
   authorizeOwnerOrAdmin,
   optionalAuthenticate 
-} from '../middleware/auth.js';
+} from '../../middleware/auth.js';
 import {
   validateUserRegistration,
   validateUserLogin,
@@ -16,8 +16,8 @@ import {
   validateIdParam,
   validateTokenParam,
   validatePagination,
-} from '../middleware/validation.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
+} from '../../middleware/validation.js';
+import { asyncHandler } from '../../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -25,7 +25,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/v1/users/register:
+ * /v1/users/register:
  *   post:
  *     tags:
  *       - Authentication
@@ -101,7 +101,7 @@ router.post('/register',
 
 /**
  * @swagger
- * /api/v1/users/login:
+ * /v1/users/login:
  *   post:
  *     tags:
  *       - Authentication
@@ -163,7 +163,7 @@ router.post('/login',
 
 /**
  * @swagger
- * /api/v1/users/refresh-token:
+ * /v1/users/refresh-token:
  *   post:
  *     tags:
  *       - Authentication
@@ -209,7 +209,7 @@ router.post('/refresh-token',
 
 /**
  * @swagger
- * /api/v1/users/logout:
+ * /v1/users/logout:
  *   post:
  *     tags:
  *       - Authentication
@@ -240,7 +240,7 @@ router.post('/logout',
 
 /**
  * @swagger
- * /api/v1/users/forgot-password:
+ * /v1/users/forgot-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -285,7 +285,7 @@ router.post('/forgot-password',
 
 /**
  * @swagger
- * /api/v1/users/reset-password:
+ * /v1/users/reset-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -329,7 +329,7 @@ router.post('/reset-password',
 
 /**
  * @swagger
- * /api/v1/users/verify-email/{token}:
+ * /v1/users/verify-email/{token}:
  *   get:
  *     tags:
  *       - Authentication
@@ -376,7 +376,7 @@ router.get('/verify-email/:token',
 
 /**
  * @swagger
- * /api/v1/users/profile:
+ * /v1/users/profile:
  *   get:
  *     tags:
  *       - User Profile
@@ -422,7 +422,7 @@ router.get('/profile',
 
 /**
  * @swagger
- * /api/v1/users/profile:
+ * /v1/users/profile:
  *   put:
  *     tags:
  *       - User Profile
@@ -512,7 +512,7 @@ router.put('/profile',
 
 /**
  * @swagger
- * /api/v1/users/change-password:
+ * /v1/users/change-password:
  *   post:
  *     tags:
  *       - User Profile
@@ -568,7 +568,7 @@ router.post('/change-password',
 
 /**
  * @swagger
- * /api/v1/users:
+ * /v1/users:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -638,7 +638,7 @@ router.get('/',
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /v1/users/{id}:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -699,7 +699,7 @@ router.get('/:id',
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /v1/users/{id}:
  *   put:
  *     tags:
  *       - Admin - User Management
@@ -805,7 +805,7 @@ router.put('/:id',
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /v1/users/{id}:
  *   delete:
  *     tags:
  *       - Admin - User Management
