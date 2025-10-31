@@ -165,6 +165,7 @@ Copy `.env.example` to `.env` and configure:
 
 #### Email Configuration
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
+- See [EMAIL_SETUP.md](./EMAIL_SETUP.md) for detailed email configuration guide
 
 ## 🌐 API Endpoints
 

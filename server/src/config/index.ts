@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+
+// Load environment variables before exporting config
+dotenv.config();
+
 export const config = {
   port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -32,12 +37,12 @@ export const config = {
     destination: './uploads/',
   },
   
-  // Email Configuration
+  // Email Configuration (using Nodemailer with SMTP)
   email: {
     smtp: {
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
+      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASS || '',
@@ -45,6 +50,9 @@ export const config = {
     },
     from: process.env.EMAIL_FROM || 'noreply@icoach.com',
   },
+
+  // Client URL for email links
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
   
   // Logging Configuration
   logging: {

@@ -1,10 +1,10 @@
 'use strict';
 
-import { QueryInterface, DataTypes, Sequelize as SequelizeInstance } from 'sequelize';
+import type { QueryInterface, DataTypes } from 'sequelize';
+import { Sequelize as SequelizeInstance } from 'sequelize';
 
 /** @type {import('sequelize-cli').Migration} */
-module.exports = {
-  async up (queryInterface: QueryInterface, Sequelize: typeof DataTypes) {
+export async function up (queryInterface: QueryInterface, Sequelize: typeof DataTypes) {
     // Create users table
     await queryInterface.createTable('users', {
       id: {
@@ -154,9 +154,9 @@ module.exports = {
     await queryInterface.addIndex('users', ['createdAt'], {
       name: 'users_created_at_idx',
     });
-  },
+}
 
-  async down (queryInterface: QueryInterface, Sequelize: typeof DataTypes) {
+export async function down (queryInterface: QueryInterface, Sequelize: typeof DataTypes) {
     // Drop indexes first
     await queryInterface.removeIndex('users', 'users_created_at_idx');
     await queryInterface.removeIndex('users', 'users_is_active_idx');
@@ -166,5 +166,4 @@ module.exports = {
 
     // Drop the users table
     await queryInterface.dropTable('users');
-  }
-};
+}

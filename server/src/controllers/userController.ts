@@ -231,10 +231,40 @@ export class UserController {
       }
       const user = await UserService.verifyEmail(token);
       
+      // Redirect to frontend with success message
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendUrl}/auth/verify-success?message=Email verified successfully`);
+      
+      // Alternative: Return JSON if you prefer
+      // res.status(200).json({
+      //   success: true,
+      //   message: 'Email verified successfully',
+      //   data: user,
+      // });
+    } catch (error) {
+      // Redirect to frontend with error message
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const errorMessage = error instanceof Error ? error.message : 'Email verification failed';
+      res.redirect(`${frontendUrl}/auth/verify-error?message=${encodeURIComponent(errorMessage)}`);
+    }
+  }
+
+  /**
+   * Resend email verification
+   */
+  static async resendVerificationEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        throw new AppError('Email is required', 400);
+      }
+
+      await UserService.resendVerificationEmail(email);
+      
       res.status(200).json({
         success: true,
-        message: 'Email verified successfully',
-        data: user,
+        message: 'Verification email sent successfully. Please check your inbox.',
       });
     } catch (error) {
       next(error);

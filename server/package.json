@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node dist/app.js",
     "build": "tsc",
-    "dev": "tsc && nodemon dist/app.js",
+    "dev": "tsx watch src/app.ts",
+    "dev:build": "tsc && nodemon dist/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -39,15 +40,14 @@
     "nodemon": "^3.1.10",
     "pg": "^8.16.3",
     "prettier": "^3.6.2",
-    "sequelize-auto-migrations": "^1.0.3",
-    "sequelize-cli": "^6.6.3",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@types/cookie-parser": "^1.4.9",
+    "@types/cookie-parser": "^1.4.10",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -61,7 +61,7 @@
     "mongoose": "^8.19.1",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.9",
+    "nodemailer": "^7.0.10",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
     "passport-github2": "^0.1.12",

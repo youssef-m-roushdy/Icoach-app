@@ -262,6 +262,20 @@ export const validatePasswordResetRequest = [
 ];
 
 /**
+ * Resend verification email validation
+ */
+export const validateResendVerification = [
+  body('email')
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
+  
+  handleValidationErrors,
+];
+
+/**
  * Password reset validation
  */
 export const validatePasswordReset = [

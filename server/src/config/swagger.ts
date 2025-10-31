@@ -21,8 +21,8 @@ const options = {
     servers: [
       {
         url: process.env.NODE_ENV === 'production' 
-          ? 'https://api.icoach.com/api' 
-          : 'http://localhost:3000/api',
+          ? 'https://api.icoach.com' 
+          : 'http://localhost:3000',
         description: process.env.NODE_ENV === 'production' 
           ? 'Production server' 
           : 'Development server'

@@ -4,6 +4,7 @@ import { ValidationError, NotFoundError, ConflictError } from '../utils/errors.j
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { Op } from 'sequelize';
+import { EmailService } from './emailService.js';
 
 export class UserService {
   /**
@@ -32,6 +33,19 @@ export class UserService {
       // Generate email verification token
       const verificationToken = crypto.randomBytes(32).toString('hex');
       await user.update({ emailVerificationToken: verificationToken });
+
+      // Send verification email
+      try {
+        await EmailService.sendVerificationEmail(
+          user.email,
+          user.firstName,
+          verificationToken
+        );
+        console.log(`📧 Verification email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Don't fail user creation if email fails
+      }
 
       return user.toJSON();
     } catch (error: any) {
@@ -267,6 +281,15 @@ export class UserService {
 
     // Update password
     await user.update({ password: newPassword });
+
+    // Send password changed confirmation email
+    try {
+      await EmailService.sendPasswordChangedEmail(user.email, user.firstName);
+      console.log(`📧 Password changed confirmation sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send password changed email:', emailError);
+      // Don't fail password change if email fails
+    }
   }
 
   /**
@@ -286,7 +309,49 @@ export class UserService {
       emailVerificationToken: null,
     });
 
+    // Send welcome email
+    try {
+      await EmailService.sendWelcomeEmail(user.email, user.firstName);
+      console.log(`📧 Welcome email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail verification if welcome email fails
+    }
+
     return user.toJSON();
+  }
+
+  /**
+   * Resend email verification
+   */
+  static async resendVerificationEmail(email: string): Promise<void> {
+    const user = await User.findByEmail(email);
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Check if email is already verified
+    if (user.isEmailVerified) {
+      throw new ValidationError('Email is already verified');
+    }
+
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    await user.update({ emailVerificationToken: verificationToken });
+
+    // Send verification email
+    try {
+      await EmailService.sendVerificationEmail(
+        user.email,
+        user.firstName,
+        verificationToken
+      );
+      console.log(`📧 Verification email resent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to resend verification email:', emailError);
+      throw new Error('Failed to send verification email. Please try again later.');
+    }
   }
 
   /**
@@ -299,12 +364,25 @@ export class UserService {
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await user.update({
       passwordResetToken: resetToken,
       passwordResetExpires: resetExpires,
     });
+
+    // Send password reset email
+    try {
+      await EmailService.sendPasswordResetEmail(
+        user.email,
+        user.firstName,
+        resetToken
+      );
+      console.log(`📧 Password reset email sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      throw new Error('Failed to send password reset email. Please try again later.');
+    }
 
     return resetToken;
   }
@@ -331,6 +409,15 @@ export class UserService {
       passwordResetToken: null,
       passwordResetExpires: null,
     });
+
+    // Send password changed confirmation email
+    try {
+      await EmailService.sendPasswordChangedEmail(user.email, user.firstName);
+      console.log(`📧 Password changed confirmation sent to ${user.email}`);
+    } catch (emailError) {
+      console.error('Failed to send password changed email:', emailError);
+      // Don't fail password reset if email fails
+    }
 
     return user.toJSON();
   }
@@ -408,6 +495,25 @@ export class UserService {
   }
 
   /**
+   * Handle Google OAuth login/signup
+   */
+  static async handleGoogleOAuth(user: UserAttributes): Promise<{
+    user: UserAttributes;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    // Generate tokens
+    const accessToken = this.generateAccessToken(user.id, user.email, user.role);
+    const refreshToken = this.generateRefreshToken(user.id);
+
+    return {
+      user,
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  /**
    * Process user data to ensure all necessary fields are present with defaults
    */
   private static processUserBodyData(userData: any): any {
@@ -432,6 +538,11 @@ export class UserService {
 
     if (processedData.socialProfiles === undefined) {
       processedData.socialProfiles = {};
+    }
+
+    // Set default auth provider to 'regular' for manual registration
+    if (processedData.authProvider === undefined) {
+      processedData.authProvider = 'regular';
     }
 
     // Body/fitness related fields - set to null if not provided

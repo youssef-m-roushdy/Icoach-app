@@ -17,6 +17,7 @@ import {
   validateIdParam,
   validateTokenParam,
   validatePagination,
+  validateResendVerification,
 } from '../../middleware/validation.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 
@@ -26,7 +27,7 @@ const router = Router();
 
 /**
  * @swagger
- * /v1/users/register:
+ * /api/v1/users/register:
  *   post:
  *     tags:
  *       - Authentication
@@ -102,7 +103,7 @@ router.post('/register',
 
 /**
  * @swagger
- * /v1/users/login:
+ * /api/v1/users/login:
  *   post:
  *     tags:
  *       - Authentication
@@ -164,7 +165,7 @@ router.post('/login',
 
 /**
  * @swagger
- * /v1/users/refresh-token:
+ * /api/v1/users/refresh-token:
  *   post:
  *     tags:
  *       - Authentication
@@ -210,7 +211,7 @@ router.post('/refresh-token',
 
 /**
  * @swagger
- * /v1/users/logout:
+ * /api/v1/users/logout:
  *   post:
  *     tags:
  *       - Authentication
@@ -241,7 +242,7 @@ router.post('/logout',
 
 /**
  * @swagger
- * /v1/users/forgot-password:
+ * /api/v1/users/forgot-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -286,7 +287,7 @@ router.post('/forgot-password',
 
 /**
  * @swagger
- * /v1/users/reset-password:
+ * /api/v1/users/reset-password:
  *   post:
  *     tags:
  *       - Authentication
@@ -330,7 +331,7 @@ router.post('/reset-password',
 
 /**
  * @swagger
- * /v1/users/verify-email/{token}:
+ * /api/v1/users/verify-email/{token}:
  *   get:
  *     tags:
  *       - Authentication
@@ -373,11 +374,83 @@ router.get('/verify-email/:token',
   asyncHandler(UserController.verifyEmail)
 );
 
+/**
+ * @swagger
+ * /api/v1/users/resend-verification:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Resend email verification
+ *     description: |
+ *       Request a new verification email. This allows users who skipped verification during registration 
+ *       or lost their verification email to receive a fresh verification token.
+ *       
+ *       The new token will replace any previously generated token for the account.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address to send verification to
+ *                 example: "john.doe@example.com"
+ *     responses:
+ *       200:
+ *         description: Verification email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       example: "Verification email sent successfully. Please check your inbox."
+ *             example:
+ *               success: true
+ *               message: "Verification email sent successfully. Please check your inbox."
+ *       400:
+ *         description: Email is already verified
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "Email is already verified"
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               success: false
+ *               message: "User not found"
+ *       500:
+ *         description: Internal server error or email sending failure
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/resend-verification', 
+  validateResendVerification,
+  asyncHandler(UserController.resendVerificationEmail)
+);
+
 // Protected routes (authentication required)
 
 /**
  * @swagger
- * /v1/users/profile:
+ * /api/v1/users/profile:
  *   get:
  *     tags:
  *       - User Profile
@@ -423,7 +496,7 @@ router.get('/profile',
 
 /**
  * @swagger
- * /v1/users/profile:
+ * /api/v1/users/profile:
  *   put:
  *     tags:
  *       - User Profile
@@ -513,7 +586,7 @@ router.put('/profile',
 
 /**
  * @swagger
- * /v1/users/body-information:
+ * /api/v1/users/body-information:
  *   put:
  *     tags:
  *       - User Profile
@@ -654,7 +727,7 @@ router.put('/body-information',
 
 /**
  * @swagger
- * /v1/users/change-password:
+ * /api/v1/users/change-password:
  *   post:
  *     tags:
  *       - User Profile
@@ -710,7 +783,7 @@ router.post('/change-password',
 
 /**
  * @swagger
- * /v1/users:
+ * /api/v1/users:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -780,7 +853,7 @@ router.get('/',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /api/v1/users/{id}:
  *   get:
  *     tags:
  *       - Admin - User Management
@@ -841,7 +914,7 @@ router.get('/:id',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /api/v1/users/{id}:
  *   put:
  *     tags:
  *       - Admin - User Management
@@ -947,7 +1020,7 @@ router.put('/:id',
 
 /**
  * @swagger
- * /v1/users/{id}:
+ * /api/v1/users/{id}:
  *   delete:
  *     tags:
  *       - Admin - User Management

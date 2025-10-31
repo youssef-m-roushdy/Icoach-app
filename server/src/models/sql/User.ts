@@ -35,6 +35,7 @@ interface UserAttributes {
   passwordResetExpires?: Date;
   lastLogin?: Date;
   role: 'user' | 'coach' | 'admin';
+  authProvider: 'regular' | 'google';
   preferences?: object;
   socialProfiles?: object;
   createdAt: Date;
@@ -63,6 +64,7 @@ interface UserCreationAttributes
     | 'passwordResetToken'
     | 'passwordResetExpires'
     | 'lastLogin'
+    | 'authProvider'
     | 'preferences'
     | 'socialProfiles'
     | 'createdAt'
@@ -80,7 +82,7 @@ class User extends Model<
   declare username: string;
   declare firstName: string;
   declare lastName: string;
-  declare password: string;
+  declare password: string | null; // Null for OAuth users
   declare avatar: string | null;
   declare bio: string | null;
   declare dateOfBirth: Date | null;
@@ -99,6 +101,7 @@ class User extends Model<
   declare passwordResetExpires: Date | null;
   declare lastLogin: Date | null;
   declare role: CreationOptional<'user' | 'coach' | 'admin'>;
+  declare authProvider: CreationOptional<'regular' | 'google'>;
   declare preferences: object | null;
   declare socialProfiles: object | null;
   declare readonly createdAt: CreationOptional<Date>;
@@ -106,6 +109,9 @@ class User extends Model<
 
   // Instance methods
   async comparePassword(candidatePassword: string): Promise<boolean> {
+    if (!this.password) {
+      return false; // OAuth users don't have passwords
+    }
     return bcrypt.compare(candidatePassword, this.password);
   }
 
@@ -278,7 +284,7 @@ User.init(
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true, // Allow null for OAuth users
       validate: {
         len: {
           args: [8, 128],
@@ -453,6 +459,17 @@ User.init(
         isIn: {
           args: [['user', 'coach', 'admin']],
           msg: 'Role must be user, coach, or admin',
+        },
+      },
+    },
+    authProvider: {
+      type: DataTypes.ENUM('regular', 'google'),
+      allowNull: false,
+      defaultValue: 'regular',
+      validate: {
+        isIn: {
+          args: [['regular', 'google']],
+          msg: 'Auth provider must be regular or google',
         },
       },
     },

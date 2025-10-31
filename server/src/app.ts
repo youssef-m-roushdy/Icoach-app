@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import { configurePassport } from './config/passport.js';
 import { initializeDatabases } from './config/database.js';
 import { setupSwagger } from './config/swagger.js';
 import apiRoutes from './routes/index.js';
@@ -12,6 +13,9 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
 dotenv.config();
+
+// Configure passport after environment variables are loaded
+configurePassport();
 
 // Initialize Express app
 const app = express();
