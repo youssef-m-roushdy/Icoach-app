@@ -532,14 +532,6 @@ export class UserService {
       processedData.role = 'user';
     }
 
-    if (processedData.preferences === undefined) {
-      processedData.preferences = {};
-    }
-
-    if (processedData.socialProfiles === undefined) {
-      processedData.socialProfiles = {};
-    }
-
     // Set default auth provider to 'regular' for manual registration
     if (processedData.authProvider === undefined) {
       processedData.authProvider = 'regular';

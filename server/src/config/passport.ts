@@ -63,12 +63,6 @@ export function configurePassport() {
           role: 'user',
           authProvider: 'google',
           lastLogin: new Date(),
-          socialProfiles: {
-            google: {
-              id: profile.id,
-              displayName: profile.displayName,
-            },
-          },
         });
 
         return done(null, user);

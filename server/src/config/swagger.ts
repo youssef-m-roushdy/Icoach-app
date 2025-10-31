@@ -171,18 +171,6 @@ const options = {
               description: 'User role',
               example: 'user'
             },
-            preferences: {
-              type: 'object',
-              nullable: true,
-              description: 'User preferences (JSON object)',
-              example: { theme: 'dark', notifications: true }
-            },
-            socialProfiles: {
-              type: 'object',
-              nullable: true,
-              description: 'Social media profiles (JSON object)',
-              example: { instagram: '@johndoe', twitter: '@johndoe' }
-            },
             createdAt: {
               type: 'string',
               format: 'date-time',
@@ -413,16 +401,6 @@ const options = {
               maximum: 100,
               description: 'Body fat percentage',
               example: 12.3
-            },
-            preferences: {
-              type: 'object',
-              description: 'User preferences (JSON object)',
-              example: { theme: 'light', notifications: false }
-            },
-            socialProfiles: {
-              type: 'object',
-              description: 'Social media profiles (JSON object)',
-              example: { linkedin: 'johndoe', github: 'johndoe' }
             }
           }
         },

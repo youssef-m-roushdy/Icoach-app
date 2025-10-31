@@ -537,10 +537,6 @@ router.get('/profile',
  *                 bodyFatPercentage: 18.5
  *                 fitnessGoal: "maintenance"
  *                 activityLevel: "very_active"
- *                 preferences:
- *                   theme: "dark"
- *                   notifications: true
- *                   units: "metric"
  *     responses:
  *       200:
  *         description: Profile updated successfully

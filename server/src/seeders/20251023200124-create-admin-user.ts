@@ -47,8 +47,6 @@ module.exports = {
         passwordResetExpires: null,
         lastLogin: null,
         role: 'admin',
-        preferences: JSON.stringify({}),
-        socialProfiles: JSON.stringify({}),
         createdAt: new Date(),
         updatedAt: new Date()
       }], {});

@@ -110,16 +110,6 @@ export async function up (queryInterface: QueryInterface, Sequelize: typeof Data
         allowNull: false,
         defaultValue: 'user',
       },
-      preferences: {
-        type: Sequelize.JSONB,
-        allowNull: true,
-        defaultValue: {},
-      },
-      socialProfiles: {
-        type: Sequelize.JSONB,
-        allowNull: true,
-        defaultValue: {},
-      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false,

@@ -36,8 +36,6 @@ interface UserAttributes {
   lastLogin?: Date;
   role: 'user' | 'coach' | 'admin';
   authProvider: 'regular' | 'google';
-  preferences?: object;
-  socialProfiles?: object;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,8 +63,6 @@ interface UserCreationAttributes
     | 'passwordResetExpires'
     | 'lastLogin'
     | 'authProvider'
-    | 'preferences'
-    | 'socialProfiles'
     | 'createdAt'
     | 'updatedAt'
   > {}
@@ -102,8 +98,6 @@ class User extends Model<
   declare lastLogin: Date | null;
   declare role: CreationOptional<'user' | 'coach' | 'admin'>;
   declare authProvider: CreationOptional<'regular' | 'google'>;
-  declare preferences: object | null;
-  declare socialProfiles: object | null;
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
 
@@ -472,16 +466,6 @@ User.init(
           msg: 'Auth provider must be regular or google',
         },
       },
-    },
-    preferences: {
-      type: DataTypes.JSONB,
-      allowNull: true,
-      defaultValue: {},
-    },
-    socialProfiles: {
-      type: DataTypes.JSONB,
-      allowNull: true,
-      defaultValue: {},
     },
     createdAt: {
       type: DataTypes.DATE,
