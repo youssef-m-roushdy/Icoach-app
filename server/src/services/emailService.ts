@@ -87,11 +87,16 @@ The iCoach Team
         .button {
             display: inline-block;
             background: #667eea;
-            color: white;
+            color: #ffffff !important;
             padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
+            text-decoration: none !important;
+            border-radius: 6px;
             margin: 20px 0;
+            font-weight: 600;
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: 0.2px;
+            -webkit-text-size-adjust: none;
         }
         .footer {
             text-align: center;
@@ -110,10 +115,16 @@ The iCoach Team
         <p>Thank you for signing up with iCoach! We're excited to help you on your fitness journey.</p>
         <p>Please verify your email address to activate your account and get started:</p>
         <center>
-            <a href="${verificationUrl}" class="button">Verify Email Address</a>
+            <!-- Inline styles added for better compatibility with email clients -->
+            <a href="${verificationUrl}" class="button" style="display:inline-block;background:#667eea;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Verify Email Address</a>
         </center>
         <p>Or copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #667eea;">${verificationUrl}</p>
+        <p style="word-break: break-all;">
+            <a href="${verificationUrl}"
+               style="color:#1e3a8a; text-decoration:none; background:#f1f5ff; padding:6px 8px; border-radius:4px; display:inline-block; font-family: 'Courier New', monospace; font-size:13px;">
+               ${verificationUrl}
+            </a>
+        </p>
         <p><strong>This link will expire in 24 hours.</strong></p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p style="color: #666; font-size: 14px;">
@@ -194,11 +205,16 @@ The iCoach Team
         .button {
             display: inline-block;
             background: #667eea;
-            color: white;
+            color: #ffffff !important;
             padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 5px;
+            text-decoration: none !important;
+            border-radius: 6px;
             margin: 20px 0;
+            font-weight: 600;
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: 0.2px;
+            -webkit-text-size-adjust: none;
         }
         .warning {
             background: #fff3cd;
@@ -223,10 +239,15 @@ The iCoach Team
         <p>We received a request to reset your password for your iCoach account.</p>
         <p>Click the button below to reset your password:</p>
         <center>
-            <a href="${resetUrl}" class="button">Reset Password</a>
+            <a href="${resetUrl}" class="button" style="display:inline-block;background:#667eea;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Reset Password</a>
         </center>
         <p>Or copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #667eea;">${resetUrl}</p>
+        <p style="word-break: break-all;">
+            <a href="${resetUrl}"
+               style="color:#1e3a8a; text-decoration:none; background:#f1f5ff; padding:6px 8px; border-radius:4px; display:inline-block; font-family: 'Courier New', monospace; font-size:13px;">
+               ${resetUrl}
+            </a>
+        </p>
         <p><strong>This link will expire in 1 hour.</strong></p>
         <div class="warning">
             <strong>⚠️ Security Notice:</strong>
