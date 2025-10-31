@@ -210,4 +210,6 @@ docs/generated/
 # .env.development.local
 # .env.test.local
 # .env.production.local
-.env
+*.env
+.env.docker.example
+.env.development
