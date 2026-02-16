@@ -18,6 +18,16 @@ import {
   LateralRaisesLogic,
   FrontRaisesLogic,
   OverheadPressLogic, 
+  /////////////////////////
+  HighKneesLogic,
+  KneeTapLogic,
+  PikePushupLogic,
+  StaticSplitSquatLogic,
+  ChairSquatLogic,
+  GluteBridgeLogic,
+  BirdDogLogic,
+  ReverseLungeLogic,
+  VUpsLogic
 } from './exercises';
 
 import { ExerciseLogic, ExerciseName } from './types';
@@ -70,6 +80,36 @@ export class AIFitnessEngine {
 
       case 'standing_overhead_press':
         return new OverheadPressLogic();
+      // --- ADDITIONAL EXERCISES ---
+
+        // ...
+      case 'high_knees': 
+        return new HighKneesLogic();
+
+      case 'knee_tap':
+        return new KneeTapLogic();
+
+      case 'pike_pushup':
+        return new PikePushupLogic();
+
+      case 'static_split_squat':
+        return new StaticSplitSquatLogic();
+
+      case 'chair_squat':
+        return new ChairSquatLogic();
+
+      case 'glute_bridge':
+        return new GluteBridgeLogic();
+
+      case 'bird_dog':
+        return new BirdDogLogic();
+
+      case 'reverse_lunge':
+        return new ReverseLungeLogic();
+      
+      case 'v_ups':
+        return new VUpsLogic();
+
 
       default:
         throw new Error(
@@ -97,6 +137,15 @@ export class AIFitnessEngine {
       'lateral_raises',
       'front_raises',
       'standing_overhead_press',
+      'high_knees',
+      'knee_tap',
+      'pike_pushup',
+      'static_split_squat',
+      'chair_squat',
+      'glute_bridge',
+      'bird_dog',
+      'reverse_lunge',
+      'v_ups'
     ];
   }
 

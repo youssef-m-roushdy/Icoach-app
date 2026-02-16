@@ -7,16 +7,25 @@ import { Landmark } from './types';
 
 /**
  * Calculate the angle between three points (in degrees)
- * Uses 2D projection (X, Y) which is standard for most exercises
+ * Supports both [x,y] arrays AND Landmark objects directly.
+ * Formula: B is the center point (vertex).
  */
 export function calculateAngle(
-  a: number[], // Changed from [number, number] to number[] to accept 3D points
-  b: number[],
-  c: number[]
+  a: Landmark | number[], 
+  b: Landmark | number[], 
+  c: Landmark | number[]
 ): number {
-  const radians =
-    Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(a[1] - b[1], a[0] - b[0]);
+  // Extract coordinates dynamically
+  const ax = 'x' in a ? a.x : a[0];
+  const ay = 'y' in a ? a.y : a[1];
 
+  const bx = 'x' in b ? b.x : b[0];
+  const by = 'y' in b ? b.y : b[1];
+
+  const cx = 'x' in c ? c.x : c[0];
+  const cy = 'y' in c ? c.y : c[1];
+
+  const radians = Math.atan2(cy - by, cx - bx) - Math.atan2(ay - by, ax - bx);
   let angle = Math.abs((radians * 180.0) / Math.PI);
 
   if (angle > 180.0) {
@@ -30,20 +39,44 @@ export function calculateAngle(
  * Calculate Euclidean distance between two points (2D)
  */
 export function calculateDistance(
-  a: number[],
-  b: number[]
+  a: Landmark | number[],
+  b: Landmark | number[]
 ): number {
-  const dx = a[0] - b[0];
-  const dy = a[1] - b[1];
+  const ax = 'x' in a ? a.x : a[0];
+  const ay = 'y' in a ? a.y : a[1];
+
+  const bx = 'x' in b ? b.x : b[0];
+  const by = 'y' in b ? b.y : b[1];
+
+  const dx = ax - bx;
+  const dy = ay - by;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
 /**
+ * Calculate Midpoint between two points
+ * Useful for finding body center (e.g., between shoulders)
+ */
+export function midpoint(
+  a: Landmark | number[],
+  b: Landmark | number[]
+): { x: number; y: number } {
+  const ax = 'x' in a ? a.x : a[0];
+  const ay = 'y' in a ? a.y : a[1];
+
+  const bx = 'x' in b ? b.x : b[0];
+  const by = 'y' in b ? b.y : b[1];
+
+  return {
+    x: (ax + bx) / 2,
+    y: (ay + by) / 2
+  };
+}
+
+/**
  * Extract [x, y, z] coordinates from a Landmark object
- * 🔥 Updated to include Z (useful for Front Raises depth check)
  */
 export function toPoint(landmark: Landmark): number[] {
-  // بنرجع Z كمان عشان لو حبينا نستخدمه في اللوجيك، ولو مش موجود بنحط 0
   return [landmark.x, landmark.y, landmark.z || 0];
 }
 
@@ -68,8 +101,14 @@ export class EMA {
     return this.value;
   }
 
+  // القديمة (سيبناها عشان لو كود تاني بيستخدمها)
   getValue(): number | null {
     return this.value;
+  }
+
+  // ✅ الجديدة (عشان KneeTapLogic بيستخدم .get)
+  get(): number {
+    return this.value ?? 0;
   }
 
   reset(): void {

@@ -1,6 +1,5 @@
-
 /**
- * Elbow Plank Logic - TypeScript Implementation (Slightly less strict + Anti-Cheat + Stable)
+ * Elbow Plank Logic - TypeScript Implementation (Easy Mode Supported)
  */
 
 import { Landmark, ElbowPlankResult, ExerciseLogic } from '../types';
@@ -12,49 +11,79 @@ import {
   PoseLandmarks,
 } from '../utils';
 
+type Difficulty = 'easy' | 'normal';
+
 export class ElbowPlankLogic implements ExerciseLogic {
   private timerVal: number = 0;
   private lastTime: number = 0;
   private feedbackCode: string = 'SETUP_POSITION';
   private isCorrect: boolean = false;
 
-  // ✅ Stability window to avoid flicker and make counting easier
+  // stability window
   private correctStableStart: number = 0;
 
-  // -------------------- Tuned Constants (less strict, not loose) --------------------
+  // --------- Configurable constants (NOT readonly) ---------
+  private HIP_CLEARANCE_RATIO!: number;
+  private KNEE_CLEARANCE_RATIO!: number;
+  private ELBOW_MAX_ANGLE!: number;
+  private ELBOW_MIN_ANGLE!: number;
+  private BACK_ANGLE_MIN!: number;
+  private BACK_ANGLE_MAX!: number;
 
-  // was 0.15 -> 0.12 (slightly easier)
-  private readonly HIP_CLEARANCE_RATIO = 0.12;
+  private ANGLE_HYS!: number;
+  private RATIO_HYS!: number;
+  private CORRECT_STABLE_MS!: number;
 
-  // was 0.05 -> 0.04 (slightly easier)
-  private readonly KNEE_CLEARANCE_RATIO = 0.04;
+  // horizontal tolerance multiplier
+  private HORIZONTAL_MULT!: number;
 
-  // elbow plank: elbows should be bent
-  // was max 140 -> 150 (slightly easier)
-  private readonly ELBOW_MAX_ANGLE = 150;
+  constructor(private difficulty: Difficulty = 'easy') {
+    this.applyDifficulty(this.difficulty);
+  }
 
-  // ✅ Anti-cheat: prevent "too bent / collapsed" cases (or landmark noise)
-  private readonly ELBOW_MIN_ANGLE = 70;
+  private applyDifficulty(level: Difficulty) {
+    if (level === 'easy') {
+      // ✅ Easy: forgiving thresholds
+      this.HIP_CLEARANCE_RATIO = 0.08;
+      this.KNEE_CLEARANCE_RATIO = 0.02;
 
-  // back straightness
-  // was min 155 -> 150 (slightly easier)
-  private readonly BACK_ANGLE_MIN = 150;
+      this.ELBOW_MAX_ANGLE = 165;
+      this.ELBOW_MIN_ANGLE = 55;
 
-  // ✅ Anti-cheat: detect pike (hips too high)
-  private readonly BACK_ANGLE_MAX = 205;
+      this.BACK_ANGLE_MIN = 135;
+      this.BACK_ANGLE_MAX = 220;
 
-  // ✅ Hysteresis to reduce toggling
-  private readonly ANGLE_HYS = 4;      // degrees
-  private readonly RATIO_HYS = 0.02;   // ratio margin
+      this.ANGLE_HYS = 6;
+      this.RATIO_HYS = 0.03;
 
-  // ✅ Stability before starting timer (easier than 400ms)
-  private readonly CORRECT_STABLE_MS = 300;
+      this.CORRECT_STABLE_MS = 150;
+
+      this.HORIZONTAL_MULT = 0.65;
+    } else {
+      // ✅ Normal: قريب من إعداداتك الحالية (لكن ممكن تعدّلها)
+      this.HIP_CLEARANCE_RATIO = 0.12;
+      this.KNEE_CLEARANCE_RATIO = 0.04;
+
+      this.ELBOW_MAX_ANGLE = 150;
+      this.ELBOW_MIN_ANGLE = 70;
+
+      this.BACK_ANGLE_MIN = 150;
+      this.BACK_ANGLE_MAX = 205;
+
+      this.ANGLE_HYS = 4;
+      this.RATIO_HYS = 0.02;
+
+      this.CORRECT_STABLE_MS = 300;
+
+      this.HORIZONTAL_MULT = 0.85;
+    }
+  }
 
   analyze(landmarks: Landmark[]): ElbowPlankResult {
-    const currentTime = getCurrentTime(); // assumed seconds (float)
+    const currentTime = getCurrentTime();
     const nowMs = Date.now();
 
-    // ---------- Extract points (Left) ----------
+    // ---------- Extract points ----------
     const lSh = toPoint(landmarks[PoseLandmarks.LEFT_SHOULDER]);
     const lEl = toPoint(landmarks[PoseLandmarks.LEFT_ELBOW]);
     const lWr = toPoint(landmarks[PoseLandmarks.LEFT_WRIST]);
@@ -62,7 +91,6 @@ export class ElbowPlankLogic implements ExerciseLogic {
     const lKnee = toPoint(landmarks[PoseLandmarks.LEFT_KNEE]);
     const lAnk = toPoint(landmarks[PoseLandmarks.LEFT_ANKLE]);
 
-    // ---------- Extract points (Right) ----------
     const rSh = toPoint(landmarks[PoseLandmarks.RIGHT_SHOULDER]);
     const rEl = toPoint(landmarks[PoseLandmarks.RIGHT_ELBOW]);
     const rWr = toPoint(landmarks[PoseLandmarks.RIGHT_WRIST]);
@@ -70,12 +98,12 @@ export class ElbowPlankLogic implements ExerciseLogic {
     const rKnee = toPoint(landmarks[PoseLandmarks.RIGHT_KNEE]);
     const rAnk = toPoint(landmarks[PoseLandmarks.RIGHT_ANKLE]);
 
-    // ---------- Angles (averaged) ----------
+    // ---------- Angles ----------
     const elbowAngleL = calculateAngle(lSh, lEl, lWr);
     const elbowAngleR = calculateAngle(rSh, rEl, rWr);
     const elbowAngle = (elbowAngleL + elbowAngleR) / 2;
 
-    const hipAngleL = calculateAngle(lSh, lHip, lKnee); // shoulder-hip-knee
+    const hipAngleL = calculateAngle(lSh, lHip, lKnee);
     const hipAngleR = calculateAngle(rSh, rHip, rKnee);
     const hipAngle = (hipAngleL + hipAngleR) / 2;
 
@@ -84,16 +112,14 @@ export class ElbowPlankLogic implements ExerciseLogic {
     const torsoSizeR = calculateDistance(rSh, rHip);
     const torsoSize = (torsoSizeL + torsoSizeR) / 2;
 
-    // ground reference using avg ankle Y
     const groundY = (lAnk[1] + rAnk[1]) / 2;
-
     const hipY = (lHip[1] + rHip[1]) / 2;
     const kneeY = (lKnee[1] + rKnee[1]) / 2;
 
     const hipClearance = groundY - hipY;
     const kneeClearance = groundY - kneeY;
 
-    // ---------- Horizontal check (more tolerant) ----------
+    // ---------- Horizontal check ----------
     const shX = (lSh[0] + rSh[0]) / 2;
     const ankX = (lAnk[0] + rAnk[0]) / 2;
     const shY = (lSh[1] + rSh[1]) / 2;
@@ -102,73 +128,63 @@ export class ElbowPlankLogic implements ExerciseLogic {
     const bodyWidthX = Math.abs(shX - ankX);
     const bodyHeightY = Math.abs(shY - ankY);
 
-    // was: width > height ; now: width > height*0.85 (easier)
-    const isHorizontal = bodyWidthX > bodyHeightY * 0.85;
+    const isHorizontal = bodyWidthX > bodyHeightY * this.HORIZONTAL_MULT;
 
-    // -------------------- Decision (with hysteresis) --------------------
+    // -------------------- Decision --------------------
     let wantCorrect = false;
 
-    // Enter vs Exit thresholds (hysteresis)
     const hipEnter = this.HIP_CLEARANCE_RATIO * torsoSize;
-    const hipExit  = (this.HIP_CLEARANCE_RATIO - this.RATIO_HYS) * torsoSize;
+    const hipExit = (this.HIP_CLEARANCE_RATIO - this.RATIO_HYS) * torsoSize;
 
     const kneeEnter = this.KNEE_CLEARANCE_RATIO * torsoSize;
-    const kneeExit  = (this.KNEE_CLEARANCE_RATIO - this.RATIO_HYS) * torsoSize;
+    const kneeExit = (this.KNEE_CLEARANCE_RATIO - this.RATIO_HYS) * torsoSize;
 
     const elbowMaxEnter = this.ELBOW_MAX_ANGLE;
-    const elbowMaxExit  = this.ELBOW_MAX_ANGLE + this.ANGLE_HYS;
+    const elbowMaxExit = this.ELBOW_MAX_ANGLE + this.ANGLE_HYS;
 
     const elbowMinEnter = this.ELBOW_MIN_ANGLE;
-    const elbowMinExit  = this.ELBOW_MIN_ANGLE - this.ANGLE_HYS;
+    const elbowMinExit = this.ELBOW_MIN_ANGLE - this.ANGLE_HYS;
 
     const backMinEnter = this.BACK_ANGLE_MIN;
-    const backMinExit  = this.BACK_ANGLE_MIN - this.ANGLE_HYS;
+    const backMinExit = this.BACK_ANGLE_MIN - this.ANGLE_HYS;
 
     const backMaxEnter = this.BACK_ANGLE_MAX;
-    const backMaxExit  = this.BACK_ANGLE_MAX + this.ANGLE_HYS;
+    const backMaxExit = this.BACK_ANGLE_MAX + this.ANGLE_HYS;
 
-    // 1) Must be horizontal
     if (!isHorizontal) {
       this.feedbackCode = 'SETUP_POSITION';
       wantCorrect = false;
     } else {
-      // 2) Hips must be off ground
       const hipOk = this.isCorrect ? (hipClearance >= hipExit) : (hipClearance >= hipEnter);
       if (!hipOk) {
         this.feedbackCode = 'ERR_HIPS_TOO_LOW';
         wantCorrect = false;
       } else {
-        // 3) Knees must be off ground (prevent kneeling cheat)
         const kneeOk = this.isCorrect ? (kneeClearance >= kneeExit) : (kneeClearance >= kneeEnter);
         if (!kneeOk) {
           this.feedbackCode = 'ERR_KNEES_TOUCHING';
           wantCorrect = false;
         } else {
-          // 4) Elbow must be bent (not too straight = high plank cheat)
           const elbowNotTooStraight = this.isCorrect ? (elbowAngle <= elbowMaxExit) : (elbowAngle <= elbowMaxEnter);
           if (!elbowNotTooStraight) {
             this.feedbackCode = 'ERR_ARMS_TOO_STRAIGHT';
             wantCorrect = false;
           } else {
-            // 4b) Anti-cheat: elbow not extremely folded/collapsed (or noisy)
             const elbowNotTooBent = this.isCorrect ? (elbowAngle >= elbowMinExit) : (elbowAngle >= elbowMinEnter);
             if (!elbowNotTooBent) {
-              this.feedbackCode = 'ERR_BAD_ELBOW_POSITION'; // add mapping: "ثبت كوعك تحت كتفك"
+              this.feedbackCode = 'ERR_BAD_ELBOW_POSITION';
               wantCorrect = false;
             } else {
-              // 5) Back straightness (sagging)
               const backOkMin = this.isCorrect ? (hipAngle >= backMinExit) : (hipAngle >= backMinEnter);
               if (!backOkMin) {
                 this.feedbackCode = 'ERR_BACK_SAG';
                 wantCorrect = false;
               } else {
-                // 6) Anti-cheat: hips too high (pike)
                 const backOkMax = this.isCorrect ? (hipAngle <= backMaxExit) : (hipAngle <= backMaxEnter);
                 if (!backOkMax) {
-                  this.feedbackCode = 'ERR_HIPS_TOO_HIGH'; // add mapping: "وطي الحوض شوية"
+                  this.feedbackCode = 'ERR_HIPS_TOO_HIGH';
                   wantCorrect = false;
                 } else {
-                  // ✅ Candidate correct
                   this.feedbackCode = 'HOLD_FIXED';
                   wantCorrect = true;
                 }
@@ -186,10 +202,7 @@ export class ElbowPlankLogic implements ExerciseLogic {
       const stableFor = nowMs - this.correctStableStart;
       this.isCorrect = stableFor >= this.CORRECT_STABLE_MS;
 
-      if (!this.isCorrect) {
-        // still stabilizing - helps it "start counting easier" without flicker
-        this.feedbackCode = 'HOLD_STEADY';
-      }
+      if (!this.isCorrect) this.feedbackCode = 'HOLD_STEADY';
     } else {
       this.correctStableStart = 0;
       this.isCorrect = false;
@@ -223,4 +236,3 @@ export class ElbowPlankLogic implements ExerciseLogic {
     this.correctStableStart = 0;
   }
 }
-``
