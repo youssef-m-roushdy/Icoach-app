@@ -248,16 +248,23 @@ router.post('/logout',
  *     tags:
  *       - Authentication
  *     summary: Request password reset
- *     description: Generate password reset token and send via email (in development, token is returned in response)
+ *     description: |
+ *       Generate password reset token and send email with link to reset password page.
+ *       The email contains a link to: https://backend.com/reset-password/{token}
+ *       which renders an EJS form for the user to reset their password.
+ *       
+ *       In development mode, the token and full URL are also returned in the response for testing purposes.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/PasswordResetRequest'
+ *           example:
+ *             email: "user@example.com"
  *     responses:
  *       200:
- *         description: Password reset token generated
+ *         description: Password reset email sent successfully
  *         content:
  *           application/json:
  *             schema:
@@ -268,18 +275,18 @@ router.post('/logout',
  *                     resetToken:
  *                       type: string
  *                       description: Reset token (only in development)
+ *                     resetUrl:
+ *                       type: string
+ *                       description: Full reset URL (only in development)
+ *             example:
+ *               success: true
+ *               message: "Password reset email sent. Please check your inbox."
+ *               resetToken: "abc123..."
+ *               resetUrl: "http://localhost:5000/reset-password/abc123..."
  *       404:
- *         description: User not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: User not found (returns success for security)
  *       500:
  *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/forgot-password', 
   validatePasswordResetRequest,
@@ -292,14 +299,22 @@ router.post('/forgot-password',
  *   post:
  *     tags:
  *       - Authentication
- *     summary: Reset password with token
- *     description: Reset user password using the token from forgot-password endpoint
+ *     summary: Reset password with token (API endpoint for mobile)
+ *     description: |
+ *       Reset user password using the token from forgot-password endpoint.
+ *       This is the API version for mobile apps.
+ *       
+ *       Web users should use the web form at GET/POST /reset-password/:token
+ *       which is handled by the viewController.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/PasswordReset'
+ *           example:
+ *             token: "abc123def456..."
+ *             newPassword: "NewSecurePass123!"
  *     responses:
  *       200:
  *         description: Password reset successfully
@@ -314,20 +329,12 @@ router.post('/forgot-password',
  *                       $ref: '#/components/schemas/User'
  *       400:
  *         description: Invalid or expired reset token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.post('/reset-password', 
   validatePasswordReset,
-  asyncHandler(UserController.resetPassword)
+  asyncHandler(UserController.resetPasswordAPI)
 );
 
 /**
@@ -336,8 +343,12 @@ router.post('/reset-password',
  *   get:
  *     tags:
  *       - Authentication
- *     summary: Verify email address
- *     description: Verify user email using the token sent during registration
+ *     summary: Verify email address (redirects to web page)
+ *     description: |
+ *       Verify user email using the token sent during registration.
+ *       This endpoint redirects to the frontend with success/error message.
+ *       
+ *       For API-based verification (mobile apps), use POST /api/v1/users/verify-email
  *     parameters:
  *       - in: path
  *         name: token
@@ -345,6 +356,44 @@ router.post('/reset-password',
  *         schema:
  *           type: string
  *         description: Email verification token
+ *     responses:
+ *       302:
+ *         description: Redirects to frontend with verification result
+ *       400:
+ *         description: Invalid verification token
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/verify-email/:token', 
+  validateTokenParam,
+  asyncHandler(UserController.verifyEmail)
+);
+
+/**
+ * @swagger
+ * /api/v1/users/verify-email:
+ *   post:
+ *     tags:
+ *       - Authentication
+ *     summary: Verify email address (API endpoint for mobile)
+ *     description: |
+ *       Verify user email using the token sent during registration.
+ *       This is the API version for mobile apps that returns JSON.
+ *       
+ *       Web users clicking email links will use GET /verify-email/:token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Email verification token
+ *                 example: "abc123def456..."
  *     responses:
  *       200:
  *         description: Email verified successfully
@@ -370,9 +419,8 @@ router.post('/reset-password',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/verify-email/:token', 
-  validateTokenParam,
-  asyncHandler(UserController.verifyEmail)
+router.post('/verify-email',
+  asyncHandler(UserController.verifyEmailAPI)
 );
 
 /**

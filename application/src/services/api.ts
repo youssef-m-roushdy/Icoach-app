@@ -1,5 +1,5 @@
 // API service for backend communication
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Global reference to auth refresh function (will be set by AuthContext)
 let globalRefreshTokenFunction: (() => Promise<string | null>) | null = null;
@@ -76,6 +76,7 @@ export const authService = {
       const result = await response.json();
       
       if (!response.ok) {
+        console.log('Registration failed:', result);
         throw new Error(result.message || 'Registration failed');
       }
       
@@ -151,7 +152,8 @@ export const authService = {
   },
 
   // Forgot password
-  async forgotPassword(email: string): Promise<void> {
+  // In your authService.ts
+  async forgotPassword(email: string): Promise<{ success: boolean; message?: string; data?: string }> {
     try {
       const response = await fetch(`${API_BASE_URL}/v1/users/forgot-password`, {
         method: 'POST',
@@ -161,10 +163,13 @@ export const authService = {
         body: JSON.stringify({ email }),
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        const result = await response.json();
         throw new Error(result.message || 'Request failed');
       }
+      
+      return result; // Return the full response
     } catch (error) {
       console.error('Forgot password error:', error);
       throw error;
@@ -172,7 +177,7 @@ export const authService = {
   },
 
   // Reset password
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  async resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message?: string; data?: any }> {
     try {
       const response = await fetch(`${API_BASE_URL}/v1/users/reset-password`, {
         method: 'POST',
@@ -182,10 +187,13 @@ export const authService = {
         body: JSON.stringify({ token, newPassword }),
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        const result = await response.json();
         throw new Error(result.message || 'Password reset failed');
       }
+      
+      return result; // Return the full response
     } catch (error) {
       console.error('Reset password error:', error);
       throw error;
@@ -195,27 +203,6 @@ export const authService = {
   // Google OAuth - Get the OAuth URL
   getGoogleOAuthUrl(): string {
     return `${API_BASE_URL}/v1/auth/google`;
-  },
-
-  // Resend verification email
-  async resendVerification(email: string): Promise<void> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/v1/users/resend-verification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-      
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.message || 'Failed to resend verification');
-      }
-    } catch (error) {
-      console.error('Resend verification error:', error);
-      throw error;
-    }
   },
 };
 
@@ -304,6 +291,104 @@ export const userService = {
       return result;
     }, token);
   },
+
+  async updateProfilePicture(avatarUri: string, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const formData = new FormData();
+      const file = {
+        uri: avatarUri,
+        type: 'image/jpeg',
+        name: 'avatar.jpg',
+      };
+      // @ts-ignore - React Native handles file objects differently
+      formData.append('avatar', file);
+      const response = await fetch(`${API_BASE_URL}/v1/users/profile/avatar`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to update profile picture');
+      }
+      return result;
+    }, token);
+  },
+
+  async deleteProfilePicture(token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/users/profile/avatar`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete profile picture');
+      }
+      return result;
+    }, token);
+  },
+
+  async verifyEmail(verifyToken: string, token: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/v1/users/verify-email/${encodeURIComponent(verifyToken)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to verify email');
+      }
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async resendEmailVerification(email: string, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/users/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ email }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to resend verification email');
+      }
+      return result;
+    }, token);
+  },
+
+  async changePassword(currentPassword: string, newPassword: string, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/users/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to change password');
+      }
+      return result;
+    }, token);
+  }
 };
 
 // Workout Service
@@ -455,5 +540,154 @@ export const foodService = {
     } catch (error: any) {
       throw new Error(error.message || 'Failed to identify food. Please try again.');
     }
+  },
+};
+
+// Saved Workouts Service
+export const savedWorkoutService = {
+  // Get saved workouts with filters and pagination
+  async getSavedWorkouts(
+    token: string,
+    params?: {
+      page?: number;
+      limit?: number;
+      bodyPart?: string;
+      level?: string;
+    }
+  ): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const queryParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            queryParams.append(key, value.toString());
+          }
+        });
+      }
+
+      const url = `${API_BASE_URL}/v1/saved-workouts${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to get saved workouts');
+      }
+
+      return result;
+    }, token);
+  },
+
+  // Get saved workout by ID
+  async getSavedWorkoutById(savedWorkoutId: number, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/saved-workouts/${savedWorkoutId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to get saved workout');
+      }
+
+      return result;
+    }, token);
+  },
+
+  // Get saved workout filters
+  async getSavedWorkoutFilters(token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/saved-workouts/filters`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to get saved workout filters');
+      }
+
+      return result;
+    }, token);
+  },
+
+  // Add workout to saved list
+  async AddWorkoutToSaveList(workoutId: number, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/saved-workouts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ workoutId: workoutId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to save workout to saved list');
+      }
+
+      return result;
+    }, token);
+  },
+
+  // delete saved workout
+  async removeWorkoutFromSaveList(savedWorkoutId: number, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/saved-workouts/${savedWorkoutId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to remove workout from saved list');
+      }
+
+      return result;
+    }, token);
+  },
+
+  // Check if workout is in saved list
+  async CheckWorkoutIsInSavedList(savedWorkoutId: number, token: string): Promise<any> {
+    return apiCallWithRefresh(async (accessToken) => {
+      const response = await fetch(`${API_BASE_URL}/v1/saved-workouts/check/${savedWorkoutId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to check workout in saved list');
+      }
+
+      return result;
+    }, token);
   },
 };

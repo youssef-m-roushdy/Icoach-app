@@ -5,7 +5,7 @@ export interface User {
   lastName: string;
   role: 'user' | 'admin' | 'coach';
   isEmailVerified: boolean;
-  avatar?: string;
+  avatar: string | null; // Allow null
   createdAt: Date;
   updatedAt: Date;
 }

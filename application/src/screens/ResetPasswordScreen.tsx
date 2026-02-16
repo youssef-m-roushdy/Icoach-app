@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,34 +12,30 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
-import type { RootStackParamList } from '../types';
-import { CustomButton, GoogleButton } from '../components/common';
-import { AuthHeader } from '../components/auth';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
-import { useAuth } from '../context';
 
-type SignInScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
+type ResetPasswordNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
+type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;
 
-export default function SignUpScreen() {
-  const navigation = useNavigation<SignInScreenNavigationProp>();
+export default function ResetPasswordScreen() {
+  const navigation = useNavigation<ResetPasswordNavigationProp>();
+  const route = useRoute<ResetPasswordRouteProp>();
   const { colors } = useTheme();
-  const { login } = useAuth();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  
+  const { email, resetToken: initialToken } = route.params || {};
+  const [token, setToken] = useState(initialToken || '');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Password visibility toggles
-  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordReset, setPasswordReset] = useState(false);
 
   // SPECIAL CASE: Check if password contains special characters (EXCLUDING underscore)
   const hasSpecialChar = (password: string): boolean => {
@@ -87,64 +83,97 @@ export default function SignUpScreen() {
     return { text: 'Strong', color: COLORS.success };
   };
 
-  const passwordStrength = getPasswordStrength(password);
+  const passwordStrength = getPasswordStrength(newPassword);
 
-  const handleSignUp = async () => {
+  const handleResetPassword = async () => {
     // Validation
-    if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!token) {
+      Alert.alert('Error', 'Please enter the reset token');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
-    const passwordValidation = validatePassword(password);
+    const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.isValid) {
       Alert.alert('Weak Password', passwordValidation.message);
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
-
-    // Username validation (alphanumeric, underscores, hyphens, 3-20 chars)
-    const usernameRegex = /^[a-zA-Z0-9_-]{3,20}$/;
-    if (!usernameRegex.test(username)) {
-      Alert.alert('Error', 'Username must be 3-20 characters and can only contain letters, numbers, underscores, and hyphens');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const response = await authService.register({
-        firstName,
-        lastName,
-        username,
-        email,
-        password,
-      });
-
-      if (response.success && response.data) {
-        await login(
-          response.data.user,
-          response.data.accessToken,
-          response.data.refreshToken
-        );
-        Alert.alert('Success', 'Account created successfully!');
-      }
+      await authService.resetPassword(token, newPassword);
+      
+      setPasswordReset(true);
+      Alert.alert(
+        'Success',
+        'Your password has been reset successfully!',
+        [
+          {
+            text: 'Sign In',
+            onPress: () => navigation.replace('Login'),
+          },
+        ]
+      );
     } catch (error: any) {
-      Alert.alert('Registration Failed', error.message || 'Please try again');
+      console.error('❌ Reset Password Error:', error);
+      
+      // Special cases based on API response
+      const errorMessage = error.message || 'Password reset failed';
+      let displayMessage = errorMessage;
+      
+      if (errorMessage.toLowerCase().includes('invalid') || 
+          errorMessage.toLowerCase().includes('expired') ||
+          errorMessage.toLowerCase().includes('token')) {
+        displayMessage = 'Invalid or expired reset token. Please request a new one.';
+      }
+      
+      Alert.alert('Error', displayMessage);
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (passwordReset) {
+    return (
+      <ImageBackground
+        source={require('../../assets/home.jpeg')}
+        style={styles.background}
+        resizeMode="cover"
+      >
+        <View style={styles.container}>
+          <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
+            <View style={styles.successContainer}>
+              <View style={styles.iconContainer}>
+                <MaterialIcons name="check-circle" size={60} color={COLORS.success} />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>
+                Password Reset Successfully!
+              </Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Your password has been updated successfully. You can now sign in with your new password.
+              </Text>
+              
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => navigation.replace('Login')}
+              >
+                <Text style={styles.buttonText}>Sign In Now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </ImageBackground>
+    );
+  }
 
   return (
     <ImageBackground
@@ -161,106 +190,79 @@ export default function SignUpScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <AuthHeader
-            activeTab="SignIn"
-            onTabPress={(tab) => tab === 'Login' && navigation.navigate('Login')}
-          />
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
+          </TouchableOpacity>
 
           <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
-            <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Join our community today
-            </Text>
+            <View style={styles.headerContainer}>
+              <View style={styles.iconContainer}>
+                <MaterialIcons name="lock-reset" size={50} color={COLORS.primary} />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>Reset Password</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {email ? `Reset password for ${email}` : 'Enter reset token and new password'}
+              </Text>
+            </View>
 
-            <View style={styles.nameContainer}>
-              <View style={styles.nameInput}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>First Name</Text>
+            {/* Token Input (only show if not passed from params) */}
+            {!initialToken && (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.text }]}>Reset Token</Text>
                 <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
-                  <MaterialIcons name="person-outline" size={20} color={colors.textSecondary} />
+                  <MaterialIcons name="vpn-key" size={20} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="John"
+                    placeholder="Enter the reset token from email"
                     placeholderTextColor={colors.textSecondary}
-                    value={firstName}
-                    onChangeText={setFirstName}
-                    autoCapitalize="words"
+                    value={token}
+                    onChangeText={setToken}
+                    autoCapitalize="none"
+                    editable={!isLoading}
                   />
                 </View>
-              </View>
-              <View style={styles.nameInput}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Last Name</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
-                  <MaterialIcons name="person-outline" size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    placeholder="Doe"
-                    placeholderTextColor={colors.textSecondary}
-                    value={lastName}
-                    onChangeText={setLastName}
-                    autoCapitalize="words"
-                  />
+                <View style={styles.noteContainer}>
+                  <MaterialIcons name="info" size={14} color={COLORS.primary} />
+                  <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+                    Check your email for the reset token sent to you
+                  </Text>
                 </View>
               </View>
-            </View>
+            )}
 
+            {/* New Password */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Username</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
-                <MaterialIcons name="alternate-email" size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="johndoe123"
-                  placeholderTextColor={colors.textSecondary}
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
-                <MaterialIcons name="email" size={20} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  placeholder="john@example.com"
-                  placeholderTextColor={colors.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
               <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Create a strong password"
+                  placeholder="Enter new password"
                   placeholderTextColor={colors.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
                   autoCapitalize="none"
                   autoComplete="password-new"
+                  editable={!isLoading}
                 />
                 <TouchableOpacity 
-                  onPress={() => setShowPassword(!showPassword)}
+                  onPress={() => setShowNewPassword(!showNewPassword)}
                   style={styles.visibilityButton}
                 >
                   <MaterialIcons
-                    name={showPassword ? 'visibility' : 'visibility-off'}
+                    name={showNewPassword ? 'visibility' : 'visibility-off'}
                     size={20}
                     color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
-              {password.length > 0 && (
+              {newPassword.length > 0 && (
                 <View style={styles.strengthContainer}>
                   <Text style={[styles.strengthLabel, { color: colors.textSecondary }]}>
                     Strength:
@@ -281,19 +283,21 @@ export default function SignUpScreen() {
               )}
             </View>
 
+            {/* Confirm Password */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
+              <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
               <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Confirm your password"
+                  placeholder="Confirm new password"
                   placeholderTextColor={colors.textSecondary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoComplete="password-new"
+                  editable={!isLoading}
                 />
                 <TouchableOpacity 
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -306,23 +310,23 @@ export default function SignUpScreen() {
                   />
                 </TouchableOpacity>
               </View>
-              {confirmPassword.length > 0 && password !== confirmPassword && (
+              {confirmPassword.length > 0 && newPassword !== confirmPassword && (
                 <Text style={[styles.errorText, { color: COLORS.error }]}>
                   Passwords do not match
                 </Text>
               )}
             </View>
 
-            {/* Password Requirements - Collapsible */}
+            {/* Password Requirements */}
             <View style={styles.requirementsContainer}>
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
-                Password Requirements
+                Password Requirements:
               </Text>
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={password.length >= 8 ? 'check-circle' : 'radio-button-unchecked'}
-                  size={18}
-                  color={password.length >= 8 ? COLORS.success : colors.textSecondary}
+                  name={newPassword.length >= 8 ? 'check-circle' : 'radio-button-unchecked'}
+                  size={16}
+                  color={newPassword.length >= 8 ? COLORS.success : colors.textSecondary}
                 />
                 <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                   At least 8 characters
@@ -330,9 +334,9 @@ export default function SignUpScreen() {
               </View>
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[A-Z]/.test(password) ? 'check-circle' : 'radio-button-unchecked'}
-                  size={18}
-                  color={/[A-Z]/.test(password) ? COLORS.success : colors.textSecondary}
+                  name={/[A-Z]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  size={16}
+                  color={/[A-Z]/.test(newPassword) ? COLORS.success : colors.textSecondary}
                 />
                 <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                   One uppercase letter
@@ -340,9 +344,9 @@ export default function SignUpScreen() {
               </View>
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[a-z]/.test(password) ? 'check-circle' : 'radio-button-unchecked'}
-                  size={18}
-                  color={/[a-z]/.test(password) ? COLORS.success : colors.textSecondary}
+                  name={/[a-z]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  size={16}
+                  color={/[a-z]/.test(newPassword) ? COLORS.success : colors.textSecondary}
                 />
                 <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                   One lowercase letter
@@ -350,9 +354,9 @@ export default function SignUpScreen() {
               </View>
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[0-9]/.test(password) ? 'check-circle' : 'radio-button-unchecked'}
-                  size={18}
-                  color={/[0-9]/.test(password) ? COLORS.success : colors.textSecondary}
+                  name={/[0-9]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  size={16}
+                  color={/[0-9]/.test(newPassword) ? COLORS.success : colors.textSecondary}
                 />
                 <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                   One number
@@ -360,9 +364,9 @@ export default function SignUpScreen() {
               </View>
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={hasSpecialChar(password) ? 'check-circle' : 'radio-button-unchecked'}
-                  size={18}
-                  color={hasSpecialChar(password) ? COLORS.success : colors.textSecondary}
+                  name={hasSpecialChar(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  size={16}
+                  color={hasSpecialChar(newPassword) ? COLORS.success : colors.textSecondary}
                 />
                 <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
                   Special character (optional)
@@ -370,37 +374,38 @@ export default function SignUpScreen() {
               </View>
             </View>
 
-            <View style={styles.buttonContainer}>
+            {/* Reset Button */}
+            <TouchableOpacity
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleResetPassword}
+              disabled={isLoading}
+            >
               {isLoading ? (
-                <ActivityIndicator size="large" color={colors.primary} />
+                <ActivityIndicator size="small" color={COLORS.secondary} />
               ) : (
-                <>
-                  <CustomButton 
-                    title="Create Account" 
-                    variant="primary" 
-                    onPress={handleSignUp}
-                    buttonStyle={styles.signUpButton}
-                  />
-                  <View style={styles.divider}>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.textSecondary }]} />
-                    <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.textSecondary }]} />
-                  </View>
-                  <GoogleButton mode="signup" />
-                </>
+                <Text style={styles.buttonText}>Reset Password</Text>
               )}
-            </View>
+            </TouchableOpacity>
 
-            <View style={styles.loginLinkContainer}>
-              <Text style={[styles.loginText, { color: colors.textSecondary }]}>
-                Already have an account?
+            {/* Back to Forgot Password */}
+            <TouchableOpacity
+              style={styles.forgotLink}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <Text style={[styles.forgotLinkText, { color: colors.primary }]}>
+                Need a new reset token?
               </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={[styles.loginLink, { color: colors.primary }]}>
-                  Sign In
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+
+            {/* Back to Login */}
+            <TouchableOpacity
+              style={styles.loginLink}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={[styles.loginLinkText, { color: colors.primary }]}>
+                Back to Sign In
+              </Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -420,37 +425,52 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 40,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SIZES.lg,
+    paddingTop: SIZES.xl,
+  },
+  backButtonText: {
+    fontSize: SIZES.body,
+    fontWeight: '600',
+    marginLeft: SIZES.xs,
+  },
   formContainer: {
     backgroundColor: COLORS.overlay,
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
-    marginTop: 180,
+    marginTop: 60,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: SIZES.xl,
+  },
+  iconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.inputBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.lg,
+  },
   title: {
     fontSize: SIZES.h1,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: SIZES.sm,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: SIZES.body,
-    marginBottom: SIZES.xl,
     textAlign: 'center',
-  },
-  nameContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: SIZES.md,
-    marginBottom: SIZES.lg,
-  },
-  nameInput: {
-    flex: 1,
+    lineHeight: 22,
   },
   inputGroup: {
     marginBottom: SIZES.lg,
@@ -476,6 +496,20 @@ const styles = StyleSheet.create({
   },
   visibilityButton: {
     padding: SIZES.xs,
+  },
+  noteContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SIZES.sm,
+    marginTop: SIZES.xs,
+    padding: SIZES.sm,
+    backgroundColor: `${COLORS.primary}10`,
+    borderRadius: SIZES.radiusSmall,
+  },
+  noteText: {
+    fontSize: SIZES.small,
+    flex: 1,
+    lineHeight: 16,
   },
   strengthContainer: {
     flexDirection: 'row',
@@ -527,39 +561,41 @@ const styles = StyleSheet.create({
   requirementText: {
     fontSize: SIZES.small,
   },
-  buttonContainer: {
-    width: '100%',
-  },
-  signUpButton: {
-    marginBottom: SIZES.lg,
-  },
-  divider: {
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: SIZES.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    opacity: 0.3,
-  },
-  dividerText: {
-    fontSize: SIZES.small,
-    fontWeight: '600',
-    marginHorizontal: SIZES.md,
-  },
-  loginLinkContainer: {
-    flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: SIZES.xl,
-    gap: SIZES.xs,
+    gap: SIZES.sm,
+    backgroundColor: COLORS.primary,
+    paddingVertical: SIZES.md,
+    borderRadius: SIZES.radiusMedium,
+    marginBottom: SIZES.md,
   },
-  loginText: {
-    fontSize: SIZES.body,
+  buttonDisabled: {
+    opacity: 0.6,
   },
-  loginLink: {
+  buttonText: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
+    color: COLORS.secondary,
+  },
+  forgotLink: {
+    alignItems: 'center',
+    marginBottom: SIZES.md,
+  },
+  forgotLinkText: {
+    fontSize: SIZES.small,
+    fontWeight: '600',
+  },
+  loginLink: {
+    alignItems: 'center',
+  },
+  loginLinkText: {
+    fontSize: SIZES.body,
+    fontWeight: 'bold',
+  },
+  successContainer: {
+    alignItems: 'center',
+    padding: SIZES.xl,
   },
 });

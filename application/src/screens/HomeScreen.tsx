@@ -44,7 +44,7 @@ export default function HomeScreen() {
     return { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=FFD700&color=000&bold=true` };
   }, [user]);
 
-  const INITIAL_MEALS = [t('breakfast'), t('lunch'), 'Workout Meal', t('dinner')];
+  const INITIAL_MEALS = ['Breakfast', 'Lunch', 'Workout Meal', 'Dinner'];
   const EXTRA_MEALS = ['Morning Snack', 'Evening Snack', 'Post-Workout Shake'];
   const displayedMeals = showAll ? [...INITIAL_MEALS, ...EXTRA_MEALS] : INITIAL_MEALS;
 
@@ -53,10 +53,12 @@ export default function HomeScreen() {
       <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
       
       {/* Background Image */}
+      {!(theme === 'light') && (
       <Image 
         source={require('../../assets/Boy.png')} 
         style={styles.backgroundImage} 
       />
+      )}
       
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -96,8 +98,8 @@ export default function HomeScreen() {
                 {[
                     { name: 'Youssef', image: require('../../assets/youssef.jpeg') },
                     { name: 'Omar', image: require('../../assets/omar.jpeg') },
-                    { name: 'Amr', image: require('../../assets/mazen.jpeg') },
-                    { name: 'Mazen', image: require('../../assets/amr.jpeg') },
+                    { name: 'Amr', image: require('../../assets/amr.jpeg') },
+                    { name: 'Mazen', image: require('../../assets/mazen.jpeg') },
                     { name: 'Ziad', image: require('../../assets/ziad.jpeg') },
                     { name: 'Saif', image: require('../../assets/saif.jpeg') }
                 ].map((item, index) => (
@@ -233,9 +235,9 @@ export default function HomeScreen() {
 
       
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Workouts')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SavedWorkouts')}>
           <MaterialCommunityIcons name="dumbbell" size={28} color="#666" />
-          <Text style={styles.navTxt}>Workouts</Text>
+          <Text style={styles.navTxt}>My Workouts</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}><Ionicons name="people" size={28} color="#666" /><Text style={styles.navTxt}>Community</Text></TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Foods')}>

@@ -25,8 +25,9 @@ export class EmailService {
   private static fromEmail = config.email.from;
   private static fromName = 'iCoach';
   private static clientUrl = config.clientUrl;
-  // Use backend API URL for verification since there's no frontend yet
-  private static apiUrl = `http://localhost:${config.port}/api/v1`;
+  // Use backend URL for password reset and email verification pages
+  private static backendUrl = process.env.BACKEND_URL || `http://localhost:${config.port}`;
+  private static apiUrl = `${process.env.BACKEND_URL || `http://localhost:${config.port}`}/api/v1`;
 
   /**
    * Send email verification email
@@ -37,8 +38,8 @@ export class EmailService {
     verificationToken: string
   ): Promise<void> {
     try {
-      // Use backend API endpoint directly for email verification
-      const verificationUrl = `${this.apiUrl}/users/verify-email/${verificationToken}`;
+      // Use backend web endpoint for email verification (renders EJS page)
+      const verificationUrl = `${this.backendUrl}/verify-email/${verificationToken}`;
 
       const mailOptions = {
         from: `"${this.fromName}" <${this.fromEmail}>`,
@@ -73,7 +74,7 @@ The iCoach Team
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -86,7 +87,7 @@ The iCoach Team
         }
         .button {
             display: inline-block;
-            background: #667eea;
+            background: #4CAF50;
             color: #ffffff !important;
             padding: 12px 30px;
             text-decoration: none !important;
@@ -115,8 +116,7 @@ The iCoach Team
         <p>Thank you for signing up with iCoach! We're excited to help you on your fitness journey.</p>
         <p>Please verify your email address to activate your account and get started:</p>
         <center>
-            <!-- Inline styles added for better compatibility with email clients -->
-            <a href="${verificationUrl}" class="button" style="display:inline-block;background:#667eea;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Verify Email Address</a>
+            <a href="${verificationUrl}" class="button" style="display:inline-block;background:#4CAF50;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Verify Email Address</a>
         </center>
         <p>Or copy and paste this link into your browser:</p>
         <p style="word-break: break-all;">
@@ -149,14 +149,16 @@ The iCoach Team
 
   /**
    * Send password reset email
+   * UPDATED: Now points to backend web endpoint (renders EJS page)
    */
   static async sendPasswordResetEmail(
-    to: string,
-    firstName: string,
-    resetToken: string
-  ): Promise<void> {
+    to: string,           // email
+    firstName: string,    // user's first name
+    resetToken: string    // the actual token
+): Promise<void> {
     try {
-      const resetUrl = `${this.clientUrl}/reset-password?token=${resetToken}`;
+      // Use backend web endpoint for password reset (renders EJS page)
+      const resetUrl = `${this.backendUrl}/reset-password/${resetToken}`;
 
       const mailOptions = {
         from: `"${this.fromName}" <${this.fromEmail}>`,
@@ -191,7 +193,7 @@ The iCoach Team
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -204,7 +206,7 @@ The iCoach Team
         }
         .button {
             display: inline-block;
-            background: #667eea;
+            background: #4CAF50;
             color: #ffffff !important;
             padding: 12px 30px;
             text-decoration: none !important;
@@ -239,7 +241,7 @@ The iCoach Team
         <p>We received a request to reset your password for your iCoach account.</p>
         <p>Click the button below to reset your password:</p>
         <center>
-            <a href="${resetUrl}" class="button" style="display:inline-block;background:#667eea;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Reset Password</a>
+            <a href="${resetUrl}" class="button" style="display:inline-block;background:#4CAF50;color:#fff;padding:12px 30px;border-radius:6px;font-weight:600;font-size:16px;text-decoration:none;" target="_blank" rel="noopener noreferrer">Reset Password</a>
         </center>
         <p>Or copy and paste this link into your browser:</p>
         <p style="word-break: break-all;">
@@ -313,7 +315,7 @@ The iCoach Team
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -413,7 +415,7 @@ The iCoach Team
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             color: white;
             padding: 30px;
             text-align: center;

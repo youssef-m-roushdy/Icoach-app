@@ -44,6 +44,9 @@ RUN npm install --only=production && \
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy views directory (EJS templates for password reset, email verification, etc.)
+COPY --from=builder /app/src/views ./dist/views
+
 # Copy config files needed at runtime
 COPY --from=builder /app/config ./config
 

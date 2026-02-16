@@ -17,7 +17,7 @@ interface UserAttributes {
   firstName: string;
   lastName: string;
   password: string;
-  avatar?: string;
+  avatar?: string | null;
   bio?: string;
   dateOfBirth?: Date;
   phone?: string;
@@ -25,7 +25,7 @@ interface UserAttributes {
   height?: number; // in cm
   weight?: number; // in kg
   fitnessGoal?: 'weight_loss' | 'muscle_gain' | 'maintenance';
-  activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
+  activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active';
   bodyFatPercentage?: number;
   bmi?: number;
   isActive: boolean;
@@ -87,7 +87,7 @@ class User extends Model<
   declare height: number | null; // in cm
   declare weight: number | null; // in kg
   declare fitnessGoal: 'weight_loss' | 'muscle_gain' | 'maintenance' | null;
-  declare activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | null;
+  declare activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | null;
   declare bodyFatPercentage: number | null;
   declare bmi: number | null;
   declare isActive: CreationOptional<boolean>;
@@ -168,7 +168,6 @@ class User extends Model<
       lightly_active: 1.375,
       moderately_active: 1.55,
       very_active: 1.725,
-      extra_active: 1.9,
     };
 
     const dailyCalories = bmr * activityMultipliers[this.activityLevel];
@@ -391,12 +390,12 @@ User.init(
       },
     },
     activityLevel: {
-      type: DataTypes.ENUM('sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'),
+      type: DataTypes.ENUM('sedentary', 'lightly_active', 'moderately_active', 'very_active'),
       allowNull: true,
       validate: {
         isIn: {
-          args: [['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active']],
-          msg: 'Activity level must be sedentary, lightly_active, moderately_active, very_active, or extra_active',
+          args: [['sedentary', 'lightly_active', 'moderately_active', 'very_active']],
+          msg: 'Activity level must be sedentary, lightly_active, moderately_active, or very_active',
         },
       },
     },

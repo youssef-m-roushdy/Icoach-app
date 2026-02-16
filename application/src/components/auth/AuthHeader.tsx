@@ -18,7 +18,7 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress })
               activeTab === 'SignIn' ? styles.activeText : styles.inactiveText
             ]}
           >
-            {activeTab === 'SignIn' ? 'Sign Up' : 'Sign In'}
+            Sign Up {/* Always show "Sign Up" for the left tab */}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => onTabPress('Login')}>
@@ -28,7 +28,7 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress })
               activeTab === 'Login' ? styles.activeText : styles.inactiveText
             ]}
           >
-            Sign In
+            Sign In {/* Always show "Sign In" for the right tab */}
           </Text>
         </TouchableOpacity>
       </View>

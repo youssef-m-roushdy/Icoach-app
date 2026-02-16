@@ -122,12 +122,12 @@ export const validateBodyInformation = [
   
   body('fitnessGoal')
     .optional()
-    .isIn(['lose_weight', 'maintain_weight', 'gain_weight', 'build_muscle', 'improve_endurance', 'muscle_gain'])
+    .isIn(['weight_loss', 'muscle_gain', 'maintenance'])
     .withMessage('Invalid fitness goal'),
   
   body('activityLevel')
     .optional()
-    .isIn(['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active'])
+    .isIn(['sedentary', 'lightly_active', 'moderately_active', 'very_active'])
     .withMessage('Invalid activity level'),
   
   body('bodyFatPercentage')

@@ -17,6 +17,11 @@ import FoodsScreen from '../screens/FoodsScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import WorkoutsScreen from '../screens/WorkoutsScreen';
 import LiveWorkoutScreen from '../screens/LiveWorkoutScreen';
+import SavedWorkoutsScreen from '../screens/SavedWorkoutsScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 import { 
   ActivityIndicator, 
@@ -45,6 +50,11 @@ export type RootStackParamList = {
   Messages: undefined;
   Workouts: undefined;
   LiveWorkout: undefined;
+  SavedWorkouts: undefined;
+  EmailVerification: undefined;
+  ChangePassword: undefined;
+  ForgotPassword: undefined; // Add this line
+  ResetPassword: { email?: string; resetToken?: string }; // Add this line
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -134,6 +144,14 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
 
             <TouchableOpacity 
               style={drawerStyles.menuItem}
+              onPress={() => handleNavigate('SavedWorkouts')}
+            >
+              <MaterialIcons name="bookmark" size={24} color={colors.primary} />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>My Workouts</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={drawerStyles.menuItem}
               onPress={() => handleNavigate('LiveWorkout')}
             >
               <MaterialIcons name="videocam" size={24} color={colors.primary} />
@@ -218,6 +236,9 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
               <Stack.Screen name="SignIn" component={SignUpScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Login" component={SignInScreen} options={{ headerShown: false }} />
+              {/* Add Forgot Password screens here - they're for non-authenticated users */}
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: false }} />
               <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} options={{ headerShown: false }} />
             </>
           ) : needsOnboarding ? (
@@ -228,13 +249,11 @@ export const AppNavigator: React.FC = () => {
                 component={HomeScreen} 
                 options={({ navigation }) => ({ 
                   title: 'ICoach',
-                  // add messages button on the right
                   headerRight: () => (
                     <TouchableOpacity
                       style={{ marginRight: 15 }}
                       onPress={() => navigation.navigate('Messages' as any)}
                     >
-                      {/* use MaterialIcons as messages icon */}
                       <MaterialIcons name="message" size={28} color={COLORS.primary} />
                     </TouchableOpacity>
                   ),
@@ -243,10 +262,13 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
               <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
               <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
+              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
               <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
               <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
               <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
               <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
+              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
             </>
           ) : (
             <>
@@ -255,7 +277,6 @@ export const AppNavigator: React.FC = () => {
                 component={HomeScreen} 
                 options={({ navigation }) => ({
                   title: 'ICoach',
-                  // add messages button on the right
                   headerRight: () => (
                     <TouchableOpacity
                       style={{ marginRight: 15 }}
@@ -269,10 +290,13 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
               <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
               <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
+              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
               <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
               <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
               <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
               <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
+              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
             </>
           )}
         </Stack.Navigator>

@@ -3,6 +3,7 @@ import { UserService } from '../services/userService.js';
 import { ImageService } from '../services/imageService.js';
 import { AppError } from '../utils/errors.js';
 import { cookieConfig } from '../config/jwt.js';
+import EmailService from '../services/emailService.js';
 
 export class UserController {
   /**
@@ -203,32 +204,67 @@ export class UserController {
     }
   }
 
-  /**
-   * Request password reset
+   /**
+   * Request password reset (API endpoint)
+   * POST /api/v1/users/forgot-password
    */
   static async requestPasswordReset(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email } = req.body;
+      
+      if (!email) {
+        throw new AppError('Email is required', 400);
+      }
+      
+      // Get user info for personalized email
+      const user = await UserService.getUserByEmail(email);
+      
+      // Generate reset token
       const token = await UserService.requestPasswordReset(email);
       
-      // In production, send email with reset link
-      // For now, return token (remove this in production)
+      // Send password reset email with the token link
+      // The link will be: https://yourbackend.com/reset-password/{token}
+      await EmailService.sendPasswordResetEmail(
+        email,                              // to
+        user?.firstName || user?.username,  // firstName  
+        token                               // resetToken
+      );
+      
       res.status(200).json({
         success: true,
-        message: 'Password reset token generated',
-        ...(process.env.NODE_ENV === 'development' && { resetToken: token }),
+        message: 'Password reset email sent. Please check your inbox.',
+        // Never expose token in production
+        ...(process.env.NODE_ENV === 'development' && { 
+          resetToken: token,
+          resetUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/reset-password/${token}`
+        }),
       });
     } catch (error) {
+      // For security, always return success even if email doesn't exist
+      if (error instanceof AppError && error.message.includes('not found')) {
+        res.status(200).json({
+          success: true,
+          message: 'If that email exists, a password reset link has been sent.',
+        });
+        return;
+      }
       next(error);
     }
   }
 
-  /**
-   * Reset password
+   /**
+   * Reset password via API (for mobile app - optional)
+   * POST /api/v1/users/reset-password
+   * Note: The web version is handled by viewController
    */
-  static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async resetPasswordAPI(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        throw new AppError('Token and new password are required', 400);
+      }
+      
       const user = await UserService.resetPassword(token, newPassword);
       
       res.status(200).json({
@@ -241,8 +277,37 @@ export class UserController {
     }
   }
 
+ 
+
+   /**
+   * Verify email via API (alternative to web view)
+   * This is for mobile apps that want to handle verification in-app
+   * POST /api/v1/users/verify-email
+   */
+  static async verifyEmailAPI(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        throw new AppError('Token is required', 400);
+      }
+      
+      const user = await UserService.verifyEmail(token);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Email verified successfully',
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
-   * Verify email
+   * Verify email via web link (redirects to web view)
+   * GET /verify-email/:token
+   * This is now handled by viewController.renderEmailVerification
    */
   static async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -256,12 +321,6 @@ export class UserController {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       res.redirect(`${frontendUrl}/auth/verify-success?message=Email verified successfully`);
       
-      // Alternative: Return JSON if you prefer
-      // res.status(200).json({
-      //   success: true,
-      //   message: 'Email verified successfully',
-      //   data: user,
-      // });
     } catch (error) {
       // Redirect to frontend with error message
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -477,13 +536,12 @@ export class UserController {
     }
   }
 
-  /**
-   * Delete user profile picture
-   */
   static async deleteAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const authUser = (req as any).user;
       const userId = authUser?.id;
+      
+      console.log('Deleting avatar for user ID:', userId);
       
       if (!userId) {
         throw new AppError('User not authenticated', 401);
@@ -495,20 +553,27 @@ export class UserController {
         throw new AppError('User not found', 404);
       }
 
+      console.log('Current user avatar:', user.avatar);
+      
       // Delete from Cloudinary if exists
       if (user.avatar) {
         try {
+          console.log('Deleting from Cloudinary:', user.avatar);
           await ImageService.deleteImageByUrl(user.avatar);
+          console.log('Cloudinary deletion successful');
         } catch (error) {
           console.warn('Failed to delete image from Cloudinary:', error);
         }
       }
 
       // Remove avatar URL from database
+      console.log('Updating user with avatar set to null');
       const updatedUser = await UserService.updateUser(userId, {
-        avatar: '',
+        avatar: null, // Or undefined
       });
 
+      console.log('User updated successfully:', updatedUser.id);
+      
       res.status(200).json({
         success: true,
         message: 'Profile picture deleted successfully',
@@ -517,6 +582,7 @@ export class UserController {
         },
       });
     } catch (error) {
+      console.error('Error in deleteAvatar:', error);
       next(error);
     }
   }

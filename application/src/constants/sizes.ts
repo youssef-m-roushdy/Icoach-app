@@ -24,4 +24,9 @@ export const SIZES = {
   // Button
   buttonHeight: 50,
   inputHeight: 45,
+  
+  // Border width
+  borderThin: 1,
+  borderMedium: 2,
+  borderThick: 4,
 };
