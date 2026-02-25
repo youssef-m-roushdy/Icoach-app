@@ -82,20 +82,67 @@ export interface VUpsResult extends RepExerciseResult {
   exercise: 'v_ups';
 }
 
-
-// --- NEW EXERCISES RESULTS ---
-export interface HighKneesResult extends RepExerciseResult { exercise: 'high_knees'; }
-export interface KneeTapResult extends RepExerciseResult { exercise: 'knee_tap'; }
-export interface PikePushupResult extends RepExerciseResult { exercise: 'pike_pushup'; }
-export interface StaticSplitSquatResult extends RepExerciseResult { exercise: 'static_split_squat'; } // Rep-counting squat exercise
-export interface ChairSquatResult extends RepExerciseResult { exercise: 'chair_squat'; }
-export interface GluteBridgeResult extends RepExerciseResult { exercise: 'glute_bridge'; }
-export interface BirdDogResult extends RepExerciseResult { exercise: 'bird_dog'; }
-export interface ReverseLungeResult extends RepExerciseResult { 
-  exercise: 'reverse_lunge'; 
-  activeSide: 'LEFT' | 'RIGHT' | 'NONE'; // To show which leg is working
+export interface HighKneesResult extends RepExerciseResult {
+  exercise: 'high_knees';
 }
-export interface VUpsResult extends RepExerciseResult { exercise: 'v_ups'; }
+
+export interface KneeTapResult extends RepExerciseResult {
+  exercise: 'knee_tap';
+}
+
+export interface PikePushupResult extends RepExerciseResult {
+  exercise: 'pike_pushup';
+}
+
+export interface StaticSplitSquatResult extends RepExerciseResult {
+  exercise: 'static_split_squat';
+}
+
+export interface ChairSquatResult extends RepExerciseResult {
+  exercise: 'chair_squat';
+}
+
+export interface GluteBridgeResult extends RepExerciseResult {
+  exercise: 'glute_bridge';
+}
+
+export interface BirdDogResult extends RepExerciseResult {
+  exercise: 'bird_dog';
+}
+
+export interface ReverseLungeResult extends RepExerciseResult {
+  exercise: 'reverse_lunge';
+  activeSide: 'LEFT' | 'RIGHT' | 'NONE';
+}
+
+////////////////////////////////////////////////
+
+
+
+// Dips
+export interface BentKneeDipResult extends RepExerciseResult { exercise: 'bent_knee_dip'; }
+export interface StraightLegDipResult extends RepExerciseResult { exercise: 'straight_leg_dip'; }
+
+// Push Ups
+export interface ClassicPushUpResult extends RepExerciseResult { exercise: 'classic_push_up'; }
+export interface KneePushUpResult extends RepExerciseResult { exercise: 'knee_push_up'; }
+
+// Others
+// في ملف types.ts
+
+export interface ToeTouchResult extends RepExerciseResult {
+  exercise: 'toe_touch';
+  // ✅ ضيف الحالات دي هنا:
+  stage: 'waiting' | 'leg_raised' | 'touched' | 'cooldown'; 
+}
+export interface InchwormResult extends RepExerciseResult {exercise: 'inchworm';stage: 'standing' | 'walking_out' | 'plank' | 'walking_back';}
+export interface SideLyingLegRaiseResult extends RepExerciseResult { exercise: 'side_lying_leg_raise'; activeSide: 'LEFT' | 'RIGHT' | 'NONE'; }
+export interface KneeTucksResult extends RepExerciseResult { exercise: 'knee_tucks'; }
+export interface DonkeyKickResult extends RepExerciseResult { exercise: 'donkey_kick'; activeSide: 'LEFT' | 'RIGHT' | 'NONE'; }
+
+////////////////////////////////////////////////
+
+
 
 // Union type for all possible results
 export type ExerciseResult =
@@ -117,7 +164,16 @@ export type ExerciseResult =
   | GluteBridgeResult
   | BirdDogResult
   | ReverseLungeResult
-  | VUpsResult;
+  | VUpsResult
+  | BentKneeDipResult
+  | StraightLegDipResult
+  | ClassicPushUpResult
+  | KneePushUpResult
+  | ToeTouchResult
+  | InchwormResult
+  | SideLyingLegRaiseResult
+  | KneeTucksResult
+  | DonkeyKickResult;
 
 // Exercise logic interface
 export interface ExerciseLogic {
@@ -145,7 +201,16 @@ export type ExerciseName =
   | 'glute_bridge'
   | 'bird_dog'
   | 'reverse_lunge'
-  | 'v_ups';
+  | 'v_ups'
+  | 'bent_knee_dip'
+  | 'straight_leg_dip'
+  | 'classic_push_up'
+  | 'knee_push_up'
+  | 'toe_touch'
+  | 'inchworm'
+  | 'side_lying_leg_raise'
+  | 'knee_tucks'
+  | 'donkey_kick';
 
 // Feedback codes (for UI mapping)
 export const FeedbackCodes = {
@@ -320,6 +385,49 @@ CMD_STAND_UP_FULLY: 'CMD_STAND_UP_FULLY',
   CMD_FEET_TOGETHER: 'CMD_FEET_TOGETHER', // "Bring feet together"
   SETUP_FULL_BODY_VISIBLE: 'SETUP_FULL_BODY_VISIBLE',
 
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Classic Push Up specific codes
+  ERR_FIX_BACK: 'ERR_FIX_BACK',       // "افرد ظهرك"
+  ERR_KNEES_DROP: 'ERR_KNEES_DROP',   // "ارفع ركبتك من الأرض"
+  ERR_HIPS_BACK: 'ERR_HIPS_BACK',     // Hips piked in knee pushup
+  // ... باقي الأكواد
+  ERR_LIFT_FEET: 'ERR_LIFT_FEET',
+
+
+// Dips (Bent Knee & Straight Leg)
+  ERR_BEND_KNEES: 'ERR_BEND_KNEES',
+  ERR_STRAIGHTEN_LEGS: 'ERR_STRAIGHTEN_LEGS',
+
+
+  // Toe Touch
+  ERR_BEND_STANDING_LEG: 'ERR_BEND_STANDING_LEG',
+  ERR_STRAIGHTEN_KICK_LEG: 'ERR_STRAIGHTEN_KICK_LEG',
+  KICK_HIGH: 'KICK_HIGH',
+  ERR_KEEP_TORSO_STRAIGHT: 'ERR_KEEP_TORSO_STRAIGHT',
+
+  // Inchworm
+  START_WALKING: 'START_WALKING',
+  ERR_FIX_HIPS: 'ERR_FIX_HIPS',       // Sagging hips in plank
+  WALK_BACK: 'WALK_BACK',
+
+  // Side Lying Leg Raise
+  LIFT_LEG: 'LIFT_LEG',
+  CMD_LIFT_HIGHER: 'CMD_LIFT_HIGHER',
+
+  // Knee Tucks
+  TUCK_IN: 'TUCK_IN',
+  EXTEND_LEGS: 'EXTEND_LEGS',
+  SQUEEZE_ABS: 'SQUEEZE_ABS',
+  ERR_EXTEND_FULLY: 'ERR_EXTEND_FULLY',
+  ERR_KEEP_FEET_UP: 'ERR_KEEP_FEET_UP',
+
+  // Donkey Kick
+  ERR_KEEP_KNEE_BENT: 'ERR_KEEP_KNEE_BENT',
+  SQUEEZE_GLUTES: 'SQUEEZE_GLUTES',
+
+  /////////////////////////////////////////////////////
 
 
   // General New Commands

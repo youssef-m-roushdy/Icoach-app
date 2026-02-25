@@ -27,7 +27,19 @@ import {
   GluteBridgeLogic,
   BirdDogLogic,
   ReverseLungeLogic,
-  VUpsLogic
+  VUpsLogic,
+  /////////////////////////
+
+  BentKneeDipLogic,
+  ClassicPushUpLogic,
+  KneePushUpLogic,
+  StraightLegDipLogic,
+  ToeTouchLogic,
+  InchwormLogic,
+  SideLyingLegRaiseLogic,
+  KneeTucksLogic,
+  DonkeyKickLogic
+
 } from './exercises';
 
 import { ExerciseLogic, ExerciseName } from './types';
@@ -110,6 +122,35 @@ export class AIFitnessEngine {
       case 'v_ups':
         return new VUpsLogic();
 
+      
+      case 'bent_knee_dip':
+        return new BentKneeDipLogic();
+      
+      case 'knee_push_up':
+        return new KneePushUpLogic();
+
+      case 'classic_push_up':
+        return new ClassicPushUpLogic();
+
+      case 'straight_leg_dip':
+        return new StraightLegDipLogic();
+
+      case 'toe_touch':
+        return new ToeTouchLogic();
+
+      case 'inchworm':
+        return new InchwormLogic();
+
+      case 'side_lying_leg_raise':
+        return new SideLyingLegRaiseLogic();
+
+      case 'knee_tucks':
+        return new KneeTucksLogic();
+
+      case 'donkey_kick':
+        return new DonkeyKickLogic();
+
+
 
       default:
         throw new Error(
@@ -145,7 +186,16 @@ export class AIFitnessEngine {
       'glute_bridge',
       'bird_dog',
       'reverse_lunge',
-      'v_ups'
+      'v_ups',
+      'bent_knee_dip',
+      'knee_push_up',
+      'classic_push_up',
+      'straight_leg_dip',
+      'toe_touch',
+      'inchworm',
+      'side_lying_leg_raise',
+      'knee_tucks',
+      'donkey_kick',
     ];
   }
 

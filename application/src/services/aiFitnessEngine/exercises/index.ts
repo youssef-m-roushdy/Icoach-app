@@ -27,3 +27,14 @@ export * from './GluteBridgeLogic';
 export * from './BirdDogLogic';
 export * from './ReverseLungeLogic';
 export * from './VUpsLogic';
+
+// --- Additional Exercises ---
+export * from './BentKneeDipLogic';
+export * from './ClassicPushUpLogic';
+export * from './KneePushUpLogic';
+export * from './StraightLegDipLogic';
+export * from './ToeTouchLogic';
+export * from './InchwormLogic';
+export * from './SideLyingLegRaiseLogic';
+export * from './KneeTucksLogic';
+export * from './DonkeyKickLogic';

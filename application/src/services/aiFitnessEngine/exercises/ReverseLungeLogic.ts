@@ -1,10 +1,5 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
+import { ExerciseLogic, RepExerciseResult, Landmark, ReverseLungeResult } from '../types';
 
-// 1. تعريف الـ Interface الخاص بالتمرين
-export interface ReverseLungeResult extends RepExerciseResult {
-  exercise: 'reverse_lunge';
-  activeSide: 'LEFT' | 'RIGHT' | 'NONE';
-}
 
 const LANDMARK_INDICES = {
   LEFT_SHOULDER: 11,

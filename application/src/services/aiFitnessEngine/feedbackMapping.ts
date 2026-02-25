@@ -383,6 +383,159 @@ SETUP_POSITION: { message: 'Stand tall, feet together', voice: 'Reverse Lunge' }
   },
 
   ///////////////////////////////////////////////////////////////////////////////
+
+
+
+  // 1. Bent Knee Dip
+bent_knee_dip: {
+    SETUP_POSITION: { message: 'Sit on edge, knees at 90°', voice: 'Setup' },
+    ERR_CAMERA_VIEW: { message: 'Show full body side view', voice: 'Check Camera' },
+    
+    // تصحيح الركبة
+    ERR_BEND_KNEES: { message: 'Keep knees bent at 90°!', voice: 'Fix Knees' },
+    
+    GO_DOWN: { message: 'Lower your body', voice: 'Down' },
+    PUSH_UP: { message: 'Push back up', voice: 'Up' },
+    GOOD_REP: { message: 'Good Dip!', voice: 'Good' },
+    CMD_GO_LOWER: { message: 'Go Lower! Bend elbows more', voice: 'Lower' },
+  },
+
+  // 2. Classic Push Up
+classic_push_up: {
+    // التعليمات الأولية
+    SETUP_POSITION: { message: 'Plank position, arms straight', voice: 'Plank Position' },
+    ERR_CAMERA_VIEW: { message: 'Show full body side view', voice: 'Check Camera' },
+
+    // تصحيح الأخطاء (Anti-Cheat)
+    ERR_FIX_BACK: { message: "Don't sag! Keep back straight", voice: 'Fix Back' },
+    ERR_KNEES_DROP: { message: 'Keep knees OFF the floor!', voice: 'Knees Up' },
+
+    // التوجيه أثناء الحركة
+    GO_DOWN: { message: 'Lower your chest', voice: 'Down' },
+    CMD_GO_LOWER: { message: 'Go Lower! Hit 90°', voice: 'Lower' }, // لو نزل نص نزلة
+    PUSH_UP: { message: 'Push back up', voice: 'Push Up' },
+
+    // النجاح
+    GOOD_REP: { message: 'Strong Rep!', voice: 'Good' },
+  },
+
+knee_push_up: {
+   SETUP_POSITION: { message: 'Knees on floor, body straight', voice: 'Setup' },
+   ERR_CAMERA_VIEW: { message: 'Show full body side view', voice: 'Check Camera' },
+
+   // رسائل الأخطاء
+   ERR_HIPS_BACK: { message: "Don't stick your hips back!", voice: 'Hips Forward' }, // أهم واحدة
+
+   // رسائل الحركة
+   GO_DOWN: { message: 'Lower your chest', voice: 'Down' },
+   CMD_GO_LOWER: { message: 'Go Lower! Chest to floor', voice: 'Lower' }, // لو نزل نص نزلة
+   PUSH_UP: { message: 'Push back up', voice: 'Push Up' },
+
+   GOOD_REP: { message: 'Perfect!', voice: 'Perfect' },
+
+   ERR_LIFT_FEET: { message: 'Lift your feet off the floor!', voice: 'Feet Up' }, // دي الجديدة
+},
+
+  // 4. Straight Leg Dip
+  straight_leg_dip: {
+    SETUP_POSITION: { message: 'Hands on chair, legs straight', voice: 'Setup' },
+    ERR_CAMERA_VIEW: { message: 'Show full body side view', voice: 'Check Camera' },
+    
+    GO_DOWN: { message: 'Dip down', voice: 'Down' },
+    PUSH_UP: { message: 'Push back up', voice: 'Up' },
+    
+    // الخطأ الخاص بالتمرين ده
+    STRAIGHTEN_LEGS: { message: 'Keep legs fully straight!', voice: 'Straighten Legs' },
+    
+    GOOD_REP: { message: 'Strong Dip!', voice: 'Good' },
+  },
+
+  // 5. Toe Touch
+toe_touch: {
+    ERR_CAMERA_VIEW: { message: 'Show full body', voice: 'Camera' },
+    STAND_TALL: { message: 'Stand tall to start', voice: 'Ready' },
+    KICK_AND_TOUCH: { message: 'Kick & Touch Toes!', voice: 'Kick' },
+    
+    // الأخطاء
+    KICK_HIGHER: { message: 'Kick Higher!', voice: 'Kick Higher' },
+    
+    // النجاح
+    GOOD_REP: { message: 'Nice Touch!', voice: 'Good' },
+  },
+
+  // 6. Inchworm
+inchworm: {
+    SETUP_POSITION: { message: 'Stand tall, feet together', voice: 'Stand Tall' },
+    ERR_CAMERA_VIEW: { message: 'Show full body side view', voice: 'Check Camera' },
+    
+    // المراحل
+    WALK_OUT: { message: 'Walk hands out to Plank', voice: 'Walk Out' },
+    HOLD_PLANK: { message: 'Hold Plank position...', voice: 'Hold' },
+    WALK_BACK: { message: 'Walk hands back to feet', voice: 'Walk Back' },
+    STAND_UP: { message: 'Stand up fully to finish', voice: 'Stand Up' },
+    
+    // الأخطاء (في البلانك)
+    ERR_LOWER_HIPS: { message: 'Lower hips! Body straight', voice: 'Lower Hips' },
+    ERR_LIFT_HIPS: { message: 'Lift hips! Don\'t sag', voice: 'Lift Hips' },
+    
+    GOOD_REP: { message: 'Good Job!', voice: 'Great' },
+  },
+
+  // 7. Side Lying Leg Raise
+side_lying_leg_raise: {
+    SETUP_POSITION: { message: 'Lie on side, legs straight', voice: 'Lie Down' },
+    ERR_CAMERA_VIEW: { message: 'Full body must be visible', voice: 'Check Camera' },
+    
+    // أوامر الحركة
+    LIFT_LEG: { message: 'Lift your top leg', voice: 'Lift' },
+    CMD_LIFT_HIGHER: { message: 'Higher! Squeeze glutes', voice: 'Higher' },
+    LOWER_SLOWLY: { message: 'Lower leg slowly', voice: 'Lower' },
+    
+    // الأخطاء
+    ERR_STRAIGHTEN_LEG: { message: 'Keep knee straight!', voice: 'Straighten Leg' },
+    
+    GOOD_REP: { message: 'Good Lift!', voice: 'Good' },
+  },
+
+  // 8. Knee Tucks
+ knee_tucks: {
+    SETUP_POSITION: { message: 'Sit, lean back, lift legs', voice: 'Setup' },
+    ERR_CAMERA_VIEW: { message: 'Show full side view', voice: 'Check Camera' },
+    
+    // الأوامر
+    TUCK_IN: { message: 'Pull knees to chest', voice: 'Tuck' },
+    EXTEND_LEGS: { message: 'Extend legs out', voice: 'Extend' },
+    SQUEEZE_ABS: { message: 'Squeeze abs!', voice: 'Squeeze' },
+    
+    // الأخطاء
+    ERR_EXTEND_FULLY: { message: 'Straighten legs fully!', voice: 'Extend Fully' },
+    ERR_KEEP_FEET_UP: { message: "Don't let heels touch floor!", voice: 'Feet Up' },
+    
+    GOOD_REP: { message: 'Good Tuck!', voice: 'Good' },
+  },
+
+  // 9. Donkey Kick
+donkey_kick: {
+    SETUP_POSITION: { message: 'Get on all fours', voice: 'Setup' },
+    ERR_CAMERA_VIEW: { message: 'Show full side view', voice: 'Check Camera' },
+    
+    // الأخطاء
+    ERR_KEEP_KNEE_BENT: { message: 'Keep knee bent at 90°!', voice: 'Bend Knee' },
+    ERR_ARCHED_BACK: { message: "Don't arch your back!", voice: 'Fix Back' },
+    
+    // الحركة
+    LIFT_LEG: { message: 'Kick leg back & up', voice: 'Lift' },
+    SQUEEZE_GLUTES: { message: 'Squeeze at top!', voice: 'Squeeze' },
+    LOWER_SLOWLY: { message: 'Lower knee to floor', voice: 'Lower' },
+    
+    GOOD_REP: { message: 'Good Kick!', voice: 'Good' },
+  },
+
+
+////////////////////////////////////////////////////////////////
+
+
+
 };
 
 /**
