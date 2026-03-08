@@ -18,6 +18,28 @@ import {
   LateralRaisesLogic,
   FrontRaisesLogic,
   OverheadPressLogic, 
+  /////////////////////////
+  HighKneesLogic,
+  KneeTapLogic,
+  PikePushupLogic,
+  StaticSplitSquatLogic,
+  ChairSquatLogic,
+  GluteBridgeLogic,
+  BirdDogLogic,
+  ReverseLungeLogic,
+  VUpsLogic,
+  /////////////////////////
+
+  BentKneeDipLogic,
+  ClassicPushUpLogic,
+  KneePushUpLogic,
+  StraightLegDipLogic,
+  ToeTouchLogic,
+  InchwormLogic,
+  SideLyingLegRaiseLogic,
+  KneeTucksLogic,
+  DonkeyKickLogic
+
 } from './exercises';
 
 import { ExerciseLogic, ExerciseName } from './types';
@@ -70,6 +92,65 @@ export class AIFitnessEngine {
 
       case 'standing_overhead_press':
         return new OverheadPressLogic();
+      // --- ADDITIONAL EXERCISES ---
+
+        // ...
+      case 'high_knees': 
+        return new HighKneesLogic();
+
+      case 'knee_tap':
+        return new KneeTapLogic();
+
+      case 'pike_pushup':
+        return new PikePushupLogic();
+
+      case 'static_split_squat':
+        return new StaticSplitSquatLogic();
+
+      case 'chair_squat':
+        return new ChairSquatLogic();
+
+      case 'glute_bridge':
+        return new GluteBridgeLogic();
+
+      case 'bird_dog':
+        return new BirdDogLogic();
+
+      case 'reverse_lunge':
+        return new ReverseLungeLogic();
+      
+      case 'v_ups':
+        return new VUpsLogic();
+
+      
+      case 'bent_knee_dip':
+        return new BentKneeDipLogic();
+      
+      case 'knee_push_up':
+        return new KneePushUpLogic();
+
+      case 'classic_push_up':
+        return new ClassicPushUpLogic();
+
+      case 'straight_leg_dip':
+        return new StraightLegDipLogic();
+
+      case 'toe_touch':
+        return new ToeTouchLogic();
+
+      case 'inchworm':
+        return new InchwormLogic();
+
+      case 'side_lying_leg_raise':
+        return new SideLyingLegRaiseLogic();
+
+      case 'knee_tucks':
+        return new KneeTucksLogic();
+
+      case 'donkey_kick':
+        return new DonkeyKickLogic();
+
+
 
       default:
         throw new Error(
@@ -97,6 +178,24 @@ export class AIFitnessEngine {
       'lateral_raises',
       'front_raises',
       'standing_overhead_press',
+      'high_knees',
+      'knee_tap',
+      'pike_pushup',
+      'static_split_squat',
+      'chair_squat',
+      'glute_bridge',
+      'bird_dog',
+      'reverse_lunge',
+      'v_ups',
+      'bent_knee_dip',
+      'knee_push_up',
+      'classic_push_up',
+      'straight_leg_dip',
+      'toe_touch',
+      'inchworm',
+      'side_lying_leg_raise',
+      'knee_tucks',
+      'donkey_kick',
     ];
   }
 

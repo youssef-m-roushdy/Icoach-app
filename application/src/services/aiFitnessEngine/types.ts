@@ -78,6 +78,72 @@ export interface OverheadPressResult extends RepExerciseResult {
   exercise: 'standing_overhead_press';
 }
 
+export interface VUpsResult extends RepExerciseResult {
+  exercise: 'v_ups';
+}
+
+export interface HighKneesResult extends RepExerciseResult {
+  exercise: 'high_knees';
+}
+
+export interface KneeTapResult extends RepExerciseResult {
+  exercise: 'knee_tap';
+}
+
+export interface PikePushupResult extends RepExerciseResult {
+  exercise: 'pike_pushup';
+}
+
+export interface StaticSplitSquatResult extends RepExerciseResult {
+  exercise: 'static_split_squat';
+}
+
+export interface ChairSquatResult extends RepExerciseResult {
+  exercise: 'chair_squat';
+}
+
+export interface GluteBridgeResult extends RepExerciseResult {
+  exercise: 'glute_bridge';
+}
+
+export interface BirdDogResult extends RepExerciseResult {
+  exercise: 'bird_dog';
+}
+
+export interface ReverseLungeResult extends RepExerciseResult {
+  exercise: 'reverse_lunge';
+  activeSide: 'LEFT' | 'RIGHT' | 'NONE';
+}
+
+////////////////////////////////////////////////
+
+
+
+// Dips
+export interface BentKneeDipResult extends RepExerciseResult { exercise: 'bent_knee_dip'; }
+export interface StraightLegDipResult extends RepExerciseResult { exercise: 'straight_leg_dip'; }
+
+// Push Ups
+export interface ClassicPushUpResult extends RepExerciseResult { exercise: 'classic_push_up'; }
+export interface KneePushUpResult extends RepExerciseResult { exercise: 'knee_push_up'; }
+
+// Others
+// في ملف types.ts
+
+export interface ToeTouchResult extends RepExerciseResult {
+  exercise: 'toe_touch';
+  // ✅ ضيف الحالات دي هنا:
+  stage: 'waiting' | 'leg_raised' | 'touched' | 'cooldown'; 
+}
+export interface InchwormResult extends RepExerciseResult {exercise: 'inchworm';stage: 'standing' | 'walking_out' | 'plank' | 'walking_back';}
+export interface SideLyingLegRaiseResult extends RepExerciseResult { exercise: 'side_lying_leg_raise'; activeSide: 'LEFT' | 'RIGHT' | 'NONE'; }
+export interface KneeTucksResult extends RepExerciseResult { exercise: 'knee_tucks'; }
+export interface DonkeyKickResult extends RepExerciseResult { exercise: 'donkey_kick'; activeSide: 'LEFT' | 'RIGHT' | 'NONE'; }
+
+////////////////////////////////////////////////
+
+
+
 // Union type for all possible results
 export type ExerciseResult =
   | SquatResult
@@ -87,10 +153,27 @@ export type ExerciseResult =
   | ElbowPlankResult
   | CrunchResult
   | LegRaisesResult
-  // New Additions
   | LateralRaisesResult
   | FrontRaisesResult
-  | OverheadPressResult;
+  | OverheadPressResult
+  | HighKneesResult
+  | KneeTapResult
+  | PikePushupResult
+  | StaticSplitSquatResult
+  | ChairSquatResult
+  | GluteBridgeResult
+  | BirdDogResult
+  | ReverseLungeResult
+  | VUpsResult
+  | BentKneeDipResult
+  | StraightLegDipResult
+  | ClassicPushUpResult
+  | KneePushUpResult
+  | ToeTouchResult
+  | InchwormResult
+  | SideLyingLegRaiseResult
+  | KneeTucksResult
+  | DonkeyKickResult;
 
 // Exercise logic interface
 export interface ExerciseLogic {
@@ -109,77 +192,250 @@ export type ExerciseName =
   | 'jumping_jacks'
   | 'lateral_raises'
   | 'front_raises'
-  | 'standing_overhead_press';
+  | 'standing_overhead_press'
+  | 'high_knees'
+  | 'knee_tap'
+  | 'pike_pushup'
+  | 'static_split_squat'
+  | 'chair_squat'
+  | 'glute_bridge'
+  | 'bird_dog'
+  | 'reverse_lunge'
+  | 'v_ups'
+  | 'bent_knee_dip'
+  | 'straight_leg_dip'
+  | 'classic_push_up'
+  | 'knee_push_up'
+  | 'toe_touch'
+  | 'inchworm'
+  | 'side_lying_leg_raise'
+  | 'knee_tucks'
+  | 'donkey_kick';
 
 // Feedback codes (for UI mapping)
 export const FeedbackCodes = {
-  // Setup/System
-  STEP_BACK: 'STEP_BACK',
+  // 1. General & System
+  SYSTEM_READY_GO: 'SYSTEM_READY_GO',
+  START_POSITION: 'START_POSITION',
   SETUP_POSITION: 'SETUP_POSITION',
   SETUP_STAND_STRAIGHT: 'SETUP_STAND_STRAIGHT',
   SETUP_HOLD: 'SETUP_HOLD',
-  SYSTEM_READY_GO: 'SYSTEM_READY_GO',
-  START_POSITION: 'START_POSITION',
+  STEP_BACK: 'STEP_BACK',
   ERR_CAMERA_VIEW: 'ERR_CAMERA_VIEW',
+  ERR_BODY_NOT_VISIBLE: 'ERR_BODY_NOT_VISIBLE',
+  FIX_POSTURE: 'FIX_POSTURE',
 
-  // Commands - General & Legs
+  // 2. Commands (General)
   CMD_GO_DOWN: 'CMD_GO_DOWN',
   CMD_GO_UP: 'CMD_GO_UP',
-  CMD_RAISE_LEGS: 'CMD_RAISE_LEGS',
-  CMD_LOWER_SLOWLY: 'CMD_LOWER_SLOWLY',
-  CMD_JUMP_OPEN: 'CMD_JUMP_OPEN',
-  CMD_JUMP_CLOSE: 'CMD_JUMP_CLOSE',
-
-  // Commands - Arms (New)
-  CMD_RAISE_ARMS: 'CMD_RAISE_ARMS',   // Lateral Raises
-  CMD_RAISE_FRONT: 'CMD_RAISE_FRONT', // Front Raises
-  PUSH_UP: 'PUSH_UP',                 // Overhead Press
-  LOWER_SLOWLY: 'LOWER_SLOWLY',       // Overhead Press
-
-  // Success
   REP_SUCCESS: 'REP_SUCCESS',
+  GOOD_REP: 'GOOD_REP',
+  PERFECT: 'PERFECT',
   HOLD_FIXED: 'HOLD_FIXED',
   HOLD_STABILIZE: 'HOLD_STABILIZE',
-  PERFECT: 'PERFECT',       // Lateral Raises
-  GOOD_REP: 'GOOD_REP',     // Front Raises / Overhead Press
+  HOLD_STEADY: 'HOLD_STEADY',
+  HOLD_POSITION: 'HOLD_POSITION',
 
-  // Errors - Body Visibility
-  ERR_BODY_NOT_VISIBLE: 'ERR_BODY_NOT_VISIBLE',
+  // 3. Squat Specific
+  FIX_LOWER_HIPS: 'FIX_LOWER_HIPS',
 
-  // Errors - Form General
-  ERR_BENT_KNEES: 'ERR_BENT_KNEES',
-  ERR_BENT_ELBOWS: 'ERR_BENT_ELBOWS',
-  ERR_ARMS_TOO_STRAIGHT: 'ERR_ARMS_TOO_STRAIGHT',
-  ERR_ARMS_LAZY: 'ERR_ARMS_LAZY',
-  ERR_HANDS_POSITION: 'ERR_HANDS_POSITION',
-
-  // Errors - Arm Exercises (New)
-  STRAIGHTEN_ARMS: 'STRAIGHTEN_ARMS', // Lateral Raises
-  ERR_TOO_HIGH: 'ERR_TOO_HIGH',       // Lateral Raises
-  ERR_SWINGING: 'ERR_SWINGING',       // Front Raises
-  RAISE_YOUR_ARM: 'RAISE_YOUR_ARM',   // Front Raises
-  ERR_ARCHED_BACK: 'ERR_ARCHED_BACK', // Overhead Press
-  ERR_LOW_ARMS: 'ERR_LOW_ARMS',       // Overhead Press
-
-  // Errors - Position
+  // 4. Plank Specific (High & Elbow)
   ERR_HIPS_TOO_LOW: 'ERR_HIPS_TOO_LOW',
   ERR_HIPS_TOO_HIGH: 'ERR_HIPS_TOO_HIGH',
+  ERR_BACK_SAG: 'ERR_BACK_SAG',
   ERR_KNEES_TOUCHING: 'ERR_KNEES_TOUCHING',
+  ERR_BENT_ELBOWS: 'ERR_BENT_ELBOWS',         // High Plank Error
+  ERR_ARMS_TOO_STRAIGHT: 'ERR_ARMS_TOO_STRAIGHT', // Elbow Plank Error
+  ERR_BAD_ELBOW_POSITION: 'ERR_BAD_ELBOW_POSITION',
+
+  // 5. Leg Exercises (Leg Raises & Jumping Jacks)
+  CMD_RAISE_LEGS: 'CMD_RAISE_LEGS',
+  CMD_LOWER_SLOWLY: 'CMD_LOWER_SLOWLY', // Used in multiple
+  ERR_BENT_KNEES: 'ERR_BENT_KNEES',
   ERR_LEGS_SYNC: 'ERR_LEGS_SYNC',
   ERR_LEGS_WIDTH: 'ERR_LEGS_WIDTH',
-  ERR_BACK_SAG: 'ERR_BACK_SAG',
+  
+  // Jumping Jacks Specific
+  CMD_JUMP_OPEN: 'CMD_JUMP_OPEN',
+  CMD_JUMP_CLOSE: 'CMD_JUMP_CLOSE',
+  CMD_OPEN_LEGS_AND_RAISE_ARMS: 'CMD_OPEN_LEGS_AND_RAISE_ARMS',
+  CMD_CLOSE_LEGS_AND_LOWER_ARMS: 'CMD_CLOSE_LEGS_AND_LOWER_ARMS',
+  ERR_RAISE_ARMS: 'ERR_RAISE_ARMS',
+  CMD_LOWER_ARMS: 'CMD_LOWER_ARMS',
+  ERR_ARMS_LAZY: 'ERR_ARMS_LAZY',
 
-  // Errors - Superman specific
+  // 6. Superman Specific
   ERR_NOT_LYING_FLAT: 'ERR_NOT_LYING_FLAT',
   ERR_LIFT_LEGS: 'ERR_LIFT_LEGS',
   ERR_LIFT_ARMS: 'ERR_LIFT_ARMS',
   ERR_RESET_FULL: 'ERR_RESET_FULL',
 
-  // Errors - Squat specific
-  FIX_LOWER_HIPS: 'FIX_LOWER_HIPS',
+  // 7. Crunch Specific
+  ERR_HANDS_POSITION: 'ERR_HANDS_POSITION',
 
-  // General
-  FIX_POSTURE: 'FIX_POSTURE',
+  // 8. Upper Body (Lateral, Front, Overhead)
+  CMD_RAISE_ARMS: 'CMD_RAISE_ARMS',
+  CMD_RAISE_FRONT: 'CMD_RAISE_FRONT',
+  PUSH_UP: 'PUSH_UP',
+  LOWER_SLOWLY: 'LOWER_SLOWLY', // New generalized slow down command
+  
+  // Errors - Upper Body
+  STRAIGHTEN_ARMS: 'STRAIGHTEN_ARMS',
+  ERR_TOO_HIGH: 'ERR_TOO_HIGH',
+  ERR_SWINGING: 'ERR_SWINGING',
+  RAISE_YOUR_ARM: 'RAISE_YOUR_ARM',
+  ERR_ARCHED_BACK: 'ERR_ARCHED_BACK',
+  ERR_LOW_ARMS: 'ERR_LOW_ARMS',
+  ERR_ARMS_UNSYNC: 'ERR_ARMS_UNSYNC',
+
+  // 9. Commands - New Arm Exercises
+  CMD_RAISE_HIGHER: 'CMD_RAISE_HIGHER',
+  PERFECT_LEVEL: 'PERFECT_LEVEL',
+  CMD_PUSH_HIGHER: 'CMD_PUSH_HIGHER',
+  PERFECT_LOCKOUT: 'PERFECT_LOCKOUT',
+  CONTINUE_RAISING: 'CONTINUE_RAISING',
+
+  // 10. Anti-Cheat / Invalid Rep Codes
+  REP_INVALID_BENT_ELBOW: 'REP_INVALID_BENT_ELBOW',
+  REP_INVALID_TOO_HIGH: 'REP_INVALID_TOO_HIGH',
+  REP_INVALID_UNSYNC: 'REP_INVALID_UNSYNC',
+  REP_INVALID_ARCHED_BACK: 'REP_INVALID_ARCHED_BACK',
+  REP_INVALID_LOW_ARMS: 'REP_INVALID_LOW_ARMS',
+
+  //////////////////////////////////////////////////////////////////////////
+
+  // High Knees
+  CMD_KNEES_HIGHER: 'CMD_KNEES_HIGHER',
+  START_MOVING: 'START_MOVING',   // ابدأ الحركة
+  ERR_STAND_TALL: 'ERR_STAND_TALL', // افرد ضهرك (Anti-Cheat)
+  SETUP_STAND_STILL: 'SETUP_STAND_STILL', // جديد: عشان المعايرة
+
+  // Knee Tap
+  CMD_TOUCH_KNEE: 'CMD_TOUCH_KNEE',
+  CMD_TOUCH_KNEE_NOT_THIGH: 'CMD_TOUCH_KNEE_NOT_THIGH', // لما يلمس الفخد
+  CMD_STRAIGHTEN_BACK: 'CMD_STRAIGHTEN_BACK',           // لما يوطي بضهره
+  ERR_TOUCH_KNEE_NOT_THIGH: 'ERR_TOUCH_KNEE_NOT_THIGH', // المس الركبة مش الفخد
+  ERR_BACK_BENT_CHEATING: 'ERR_BACK_BENT_CHEATING',     // افرد ضهرك (غش)
+  
+  // Success
+
+  // Pike Pushup
+  SETUP_V_SHAPE: 'SETUP_V_SHAPE',   // وضعية البداية غلط
+  FIX_KNEES: 'FIX_KNEES',           // الركبة متنية
+
+  // Glute Bridge
+  CMD_LIFT_HIPS: 'CMD_LIFT_HIPS',
+  CMD_PUSH_HIPS: 'CMD_PUSH_HIPS',     // ابدأ الرفع
+  HOLD_BRIDGE: 'HOLD_BRIDGE',         // اثبت فوق
+  
+  ERR_ARCHING_BACK: 'ERR_ARCHING_BACK', // متقوسش ضهرك (Anti-Cheat)
+
+// Bird Dog Specific
+  SETUP_ALL_FOURS: 'SETUP_ALL_FOURS', // وضعية القطة
+  CMD_EXTEND: 'CMD_EXTEND',           // افرد
+  HOLD_EXTENSION: 'HOLD_EXTENSION',   // اثبت
+  
+  ERR_FLATTEN_BACK: 'ERR_FLATTEN_BACK', // ضهرك مش مفرود
+  ERR_STRAIGHTEN_LEG: 'ERR_STRAIGHTEN_LEG', // ركبتك متنية
+  ERR_LOWER_LEG: 'ERR_LOWER_LEG',       // رجلك عالية أوي (قوست ضهرك)
+  ERR_OPPOSITE_LIMBS: 'ERR_OPPOSITE_LIMBS', // خطأ استخدام نفس الجانب
+  CMD_LIFT_ARM: 'CMD_LIFT_ARM', // "ارفع الايد العكسية"
+  CMD_EXTEND_FULLY: 'CMD_EXTEND_FULLY',
+
+  // V-Ups Specific
+  SETUP_LIE_DOWN: 'SETUP_LIE_DOWN', // نام على ضهرك
+  CMD_UP_V: 'CMD_UP_V',             // اطلع لفوق V
+  CMD_REACH_TOES: 'CMD_REACH_TOES', // حاول تلمس رجلك
+  ERR_KNEES_BENT: 'ERR_KNEES_BENT', // متتنيش ركبتك (الغش)
+
+  // Chair Squat
+  // SETUP_HOLD_1, SETUP_HOLD_2... handled dynamically in UI usually, or add codes
+  
+  CMD_GO_LOWER: 'CMD_GO_LOWER', // انزل كمان (لمستوى الكرسي)
+  CMD_STAND_UP: 'CMD_STAND_UP', // اقف
+  
+  ERR_KNEES_FORWARD: 'ERR_KNEES_FORWARD', // ركبك سابقة مشط رجلك
+  ERR_BACK_BENT: 'ERR_BACK_BENT',         // ضهرك مائل (صدرك واقع)
+  ERR_TOO_DEEP: 'ERR_TOO_DEEP', // نزلت زيادة عن اللزوم
+
+
+ SETUP_SPLIT_STANCE: 'SETUP_SPLIT_STANCE', // "Take a split stance"
+ ERR_KEEP_FEET_FIXED: 'ERR_KEEP_FEET_FIXED', // "Don't move your feet!"
+
+ HOLD_STANCE: 'HOLD_STANCE',                 // "اثبت..."
+  // ...
+CMD_STAND_UP_FULLY: 'CMD_STAND_UP_FULLY',
+
+
+ KEEP_SPLIT_STANCE: 'KEEP_SPLIT_STANCE',   // لما يقرب يضم رجلك بس لسه ملمسوش
+ WARN_KEEP_FEET_FIXED: 'WARN_KEEP_FEET_FIXED',
+  
+ CMD_HOLD: 'CMD_HOLD',           // لما تكون قربت من العمق بس لسه موصلتش
+  
+  HOLD_BOTTOM: 'HOLD_BOTTOM',     // تثبيت تحت (Debounce)
+  HOLD_TOP: 'HOLD_TOP',           // تثبيت فوق (Debounce)
+
+
+
+
+  // Reverse Lunge
+  SETUP_FEET_TOGETHER: 'SETUP_FEET_TOGETHER', // "Start with feet together"
+  ERR_STEP_FURTHER_BACK: 'ERR_STEP_FURTHER_BACK', // "Take a bigger step"
+  CMD_RETURN_START: 'CMD_RETURN_START', // "Push back to start"
+  CMD_FEET_TOGETHER: 'CMD_FEET_TOGETHER', // "Bring feet together"
+  SETUP_FULL_BODY_VISIBLE: 'SETUP_FULL_BODY_VISIBLE',
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Classic Push Up specific codes
+  ERR_FIX_BACK: 'ERR_FIX_BACK',       // "افرد ظهرك"
+  ERR_KNEES_DROP: 'ERR_KNEES_DROP',   // "ارفع ركبتك من الأرض"
+  ERR_HIPS_BACK: 'ERR_HIPS_BACK',     // Hips piked in knee pushup
+  // ... باقي الأكواد
+  ERR_LIFT_FEET: 'ERR_LIFT_FEET',
+
+
+// Dips (Bent Knee & Straight Leg)
+  ERR_BEND_KNEES: 'ERR_BEND_KNEES',
+  ERR_STRAIGHTEN_LEGS: 'ERR_STRAIGHTEN_LEGS',
+
+
+  // Toe Touch
+  ERR_BEND_STANDING_LEG: 'ERR_BEND_STANDING_LEG',
+  ERR_STRAIGHTEN_KICK_LEG: 'ERR_STRAIGHTEN_KICK_LEG',
+  KICK_HIGH: 'KICK_HIGH',
+  ERR_KEEP_TORSO_STRAIGHT: 'ERR_KEEP_TORSO_STRAIGHT',
+
+  // Inchworm
+  START_WALKING: 'START_WALKING',
+  ERR_FIX_HIPS: 'ERR_FIX_HIPS',       // Sagging hips in plank
+  WALK_BACK: 'WALK_BACK',
+
+  // Side Lying Leg Raise
+  LIFT_LEG: 'LIFT_LEG',
+  CMD_LIFT_HIGHER: 'CMD_LIFT_HIGHER',
+
+  // Knee Tucks
+  TUCK_IN: 'TUCK_IN',
+  EXTEND_LEGS: 'EXTEND_LEGS',
+  SQUEEZE_ABS: 'SQUEEZE_ABS',
+  ERR_EXTEND_FULLY: 'ERR_EXTEND_FULLY',
+  ERR_KEEP_FEET_UP: 'ERR_KEEP_FEET_UP',
+
+  // Donkey Kick
+  ERR_KEEP_KNEE_BENT: 'ERR_KEEP_KNEE_BENT',
+  SQUEEZE_GLUTES: 'SQUEEZE_GLUTES',
+
+  /////////////////////////////////////////////////////
+
+
+  // General New Commands
+  CMD_STEP_BACK: 'CMD_STEP_BACK',       // Reverse Lunge
+  CMD_SIT_BACK: 'CMD_SIT_BACK',         // Chair Squat
+  HOLD_SPLIT: 'HOLD_SPLIT',             // Static Split Squat
+
+  ///////////////////////////////////////////////////////////////////////////
 } as const;
 
 export type FeedbackCode = (typeof FeedbackCodes)[keyof typeof FeedbackCodes];

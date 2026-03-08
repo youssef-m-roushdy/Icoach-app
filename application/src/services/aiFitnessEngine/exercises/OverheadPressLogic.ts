@@ -1,139 +1,74 @@
-
 /**
- * Standing Overhead Press Logic - Anti-Cheat + No Random Counting (Both Arms Required)
- * - Counts only on FULL cycle: valid TOP -> valid BOTTOM
- * - Uses BOTH arms (left + right) with sync checks
- * - Anti-cheat: arched back, low elbows, unsynced arms
- * - Prevents random reps: EMA smoothing + stability windows + cooldown + stage hold + invalidation
+ * OverheadPressLogic.ts
+ * * BALANCED VERSION
+ * * Tuned: Easier to count reps, but still requires good form.
+ * * Fixes: "Portrait/Landscape" back arch bug.
  */
 
 import { Landmark, OverheadPressResult, ExerciseLogic } from '../types';
 import { PoseLandmarks } from '../utils';
 
-// ============================================================================
-// 1) EMA helper (smoothing)
-// ============================================================================
+// --- Helper: Exponential Moving Average (Smoothing) ---
 class EMA {
   private alpha: number;
-  private value: number | null = null;
-  constructor(alpha: number = 0.3) { this.alpha = alpha; }
+  private currentValue: number | null = null;
 
-  update(x: number): number {
-    if (this.value === null) this.value = x;
-    else this.value = this.alpha * x + (1 - this.alpha) * this.value;
-    return this.value;
+  constructor(alpha: number = 0.3) {
+    this.alpha = alpha;
   }
 
-  reset() { this.value = null; }
+  update(newValue: number): number {
+    if (this.currentValue === null) {
+      this.currentValue = newValue;
+    } else {
+      this.currentValue = this.alpha * newValue + (1 - this.alpha) * this.currentValue;
+    }
+    return this.currentValue;
+  }
+
+  reset() {
+    this.currentValue = null;
+  }
 }
 
 export class OverheadPressLogic implements ExerciseLogic {
-  private reps = 0;
-  private stage: 'down' | 'up' = 'down';   // start at bottom
+  // State Tracking
+  private reps: number = 0;
+  private stage: 'down' | 'up' = 'down';
   private feedbackCode: string = 'SETUP_POSITION';
-  private isCorrect = false;
+  private isCorrect: boolean = true;
 
-  // timing guards
-  private lastRepTime = 0;
-  private lastStageChangeTime = 0;
-
-  // stability timers
-  private topStableStart = 0;
+  // Timing
+  private lastRepTime: number = 0;
+  private topStableStart: number = 0;
   private bottomStableStart = 0;
 
-  // rep invalidation
-  private repInvalidated = false;
-  private repInvalidReason: string | null = null;
+  // Smoothing
+  private emaElbowL = new EMA(0.3);
+  private emaElbowR = new EMA(0.3);
 
-  // smoothing
-  private emaElbowL = new EMA(0.28);
-  private emaElbowR = new EMA(0.28);
-  private emaLiftL = new EMA(0.30);
-  private emaLiftR = new EMA(0.30);
-  private emaBackLean = new EMA(0.25);
+  // --- BALANCED CONSTANTS (The Sweet Spot) ---
+  
+  private readonly ANGLES = {
+    // ✅ الزوايا الجديدة (أسهل في العد)
+    TOP_THRESHOLD: 150,      // 150 درجة كافية جداً لاعتبار الدراع مفرود
+    TOP_WARNING: 120,        // لو بين 120 و 150 هيقولك ارفع كمان
+    BOTTOM_THRESHOLD: 110,   // النزول لحد مستوى الاذن تقريباً كافي
+    SYNC_TOLERANCE: 30       // زودنا السماحية في فرق التزامن لـ 30 درجة
+  };
 
-  // =========================================================
-  // ⚙️ Tuned constants (balanced: not too strict, not loose)
-  // =========================================================
+  private readonly TIME = {
+    STABILITY_WINDOW: 150,   // لازم تثبت جزء من الثانية (عشان يمنع الرعشة)
+    MIN_REP_TIME: 800        // زمن العدة المنطقي
+  };
 
-  // Elbow angles: shoulder-elbow-wrist
-  // Bottom: elbows bent (near shoulders), Top: arms near straight
-  private readonly ELBOW_TOP_MIN = 155;      // was 160 (easier but still lockout)
-  private readonly ELBOW_BOTTOM_MAX = 95;    // was 75 (easier to detect bottom)
-
-  // Wrist lift relative to shoulder: lift = (shoulderY - wristY)
-  // y increases downwards => larger lift means wrist higher above shoulder
-  private readonly TOP_LIFT_MIN = 0.20;      // wrist clearly above shoulder at top
-  private readonly BOTTOM_LIFT_MAX = 0.06;   // wrist near shoulder at bottom
-
-  // Back lean (anti-arching): avg |shoulder.x - hip.x|
-  private readonly MAX_BACK_LEAN = 0.18;     // was 0.15 (less strict, still safe)
-  private readonly MAX_BACK_LEAN_EXIT = 0.16; // hysteresis (when already error, must recover more)
-
-  // Elbows too low: elbow below shoulder by margin (y bigger => lower)
-  private readonly ELBOW_LOW_MARGIN = 0.14;  // was 0.15 (slightly easier)
-
-  // Sync checks (both arms must be close)
-  private readonly ELBOW_SYNC_TOL = 18;      // degrees difference
-  private readonly LIFT_SYNC_TOL = 0.08;     // wrist height difference
-
-  // Timing (anti-random)
-  private readonly TOP_STABLE_MS = 160;
-  private readonly BOTTOM_STABLE_MS = 160;
-  private readonly REP_COOLDOWN_MS = 850;
-  private readonly MIN_STAGE_HOLD_MS = 160;
-
-  // Visibility threshold (slightly easier)
-  private readonly VIS_MIN = 0.45;
-
-  // =========================================================
-  // Geometry
-  // =========================================================
-  private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
-    const radians =
-      Math.atan2(c.y - b.y, c.x - b.x) -
-      Math.atan2(a.y - b.y, a.x - b.x);
-    let angle = Math.abs((radians * 180.0) / Math.PI);
-    if (angle > 180.0) angle = 360 - angle;
-    return angle;
-  }
-
-  private checkVisibility(landmarks: Landmark[], indices: number[]): boolean {
-    return indices.every(idx => (landmarks[idx]?.visibility || 0) > this.VIS_MIN);
-  }
-
-  private invalidateRep(reason: string) {
-    this.repInvalidated = true;
-    this.repInvalidReason = reason;
-  }
-
-  private resetTransient() {
-    this.topStableStart = 0;
-    this.bottomStableStart = 0;
-    this.repInvalidated = false;
-    this.repInvalidReason = null;
-  }
-
+  /**
+   * Main Analysis Function
+   */
   analyze(landmarks: Landmark[]): OverheadPressResult {
-    const nowMs = Date.now();
+    const now = Date.now();
 
-    // ✅ must see both arms + hips (standing)
-    const indices = [
-      PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.RIGHT_SHOULDER,
-      PoseLandmarks.LEFT_ELBOW, PoseLandmarks.RIGHT_ELBOW,
-      PoseLandmarks.LEFT_WRIST, PoseLandmarks.RIGHT_WRIST,
-      PoseLandmarks.LEFT_HIP, PoseLandmarks.RIGHT_HIP,
-    ];
-
-    if (!this.checkVisibility(landmarks, indices)) {
-      // don't spam counts if tracking lost
-      this.isCorrect = false;
-      this.resetTransient();
-      this.feedbackCode = 'ERR_CAMERA_VIEW';
-      return this.createResult(this.feedbackCode);
-    }
-
-    // Points
+    // 1. Extract Points
     const lSh = landmarks[PoseLandmarks.LEFT_SHOULDER];
     const rSh = landmarks[PoseLandmarks.RIGHT_SHOULDER];
     const lEl = landmarks[PoseLandmarks.LEFT_ELBOW];
@@ -143,189 +78,146 @@ export class OverheadPressLogic implements ExerciseLogic {
     const lHip = landmarks[PoseLandmarks.LEFT_HIP];
     const rHip = landmarks[PoseLandmarks.RIGHT_HIP];
 
-    // Angles (smooth)
-    const elbowAngleL = this.emaElbowL.update(this.calculateAngle(lSh, lEl, lWr));
-    const elbowAngleR = this.emaElbowR.update(this.calculateAngle(rSh, rEl, rWr));
-    const elbowMin = Math.min(elbowAngleL, elbowAngleR);
-    const elbowDiff = Math.abs(elbowAngleL - elbowAngleR);
-
-    // Lift (smooth): shoulderY - wristY
-    const liftL = this.emaLiftL.update(lSh.y - lWr.y);
-    const liftR = this.emaLiftR.update(rSh.y - rWr.y);
-    const liftDiff = Math.abs(liftL - liftR);
-
-    // Back lean (smooth): avg |shoulder.x - hip.x|
-    const backLeanRaw = (Math.abs(lSh.x - lHip.x) + Math.abs(rSh.x - rHip.x)) / 2;
-    const backLean = this.emaBackLean.update(backLeanRaw);
-
-    // Guards
-    const canChangeStage = (nowMs - this.lastStageChangeTime) >= this.MIN_STAGE_HOLD_MS;
-    const repReady = (nowMs - this.lastRepTime) >= this.REP_COOLDOWN_MS;
-
-    // Conditions for top/bottom (BOTH arms)
-    const bothAtTop =
-      elbowMin >= this.ELBOW_TOP_MIN &&
-      liftL >= this.TOP_LIFT_MIN &&
-      liftR >= this.TOP_LIFT_MIN;
-
-    const bothAtBottom =
-      elbowMin <= this.ELBOW_BOTTOM_MAX &&
-      liftL <= this.BOTTOM_LIFT_MAX &&
-      liftR <= this.BOTTOM_LIFT_MAX;
-
-    // Sync requirement (mainly near top to avoid annoyance)
-    const nearTop = (liftL >= this.TOP_LIFT_MIN * 0.75) || (liftR >= this.TOP_LIFT_MIN * 0.75);
-    const syncOk = (!nearTop) || (elbowDiff <= this.ELBOW_SYNC_TOL && liftDiff <= this.LIFT_SYNC_TOL);
-
-    // Anti-cheat: elbows too low (resting)
-    const elbowsLow = (lEl.y > lSh.y + this.ELBOW_LOW_MARGIN) || (rEl.y > rSh.y + this.ELBOW_LOW_MARGIN);
-
-    // Anti-cheat: arched back (with hysteresis)
-    const backLeanLimit = (this.feedbackCode === 'ERR_ARCHED_BACK') ? this.MAX_BACK_LEAN_EXIT : this.MAX_BACK_LEAN;
-    const isArchedBack = backLean > backLeanLimit;
-
-    // Default
-    this.isCorrect = false;
-
-    // =========================================================
-    // Priority: safety / cheat checks
-    // =========================================================
-
-    if (isArchedBack) {
-      // if in rep, invalidate it (prevents counting while leaning)
-      if (this.stage === 'up') this.invalidateRep('REP_INVALID_ARCHED_BACK');
-      this.resetTopBottomStability();
-      this.feedbackCode = 'ERR_ARCHED_BACK';
-      return this.createResult(this.feedbackCode);
+    // Visibility Check (Shoulders & Elbows & Wrists are mandatory)
+    if (!this.checkVisibility([lSh, rSh, lEl, rEl, lWr, rWr])) {
+      return this.createResult('ERR_CAMERA_VIEW', false);
     }
 
-    if (elbowsLow) {
-      if (this.stage === 'up') this.invalidateRep('REP_INVALID_LOW_ARMS');
-      this.resetTopBottomStability();
-      this.feedbackCode = 'ERR_LOW_ARMS';
-      return this.createResult(this.feedbackCode);
-    }
+    // 2. Calculate Angles (Smoothed)
+    const rawLeft = this.calculateAngle(lSh, lEl, lWr);
+    const rawRight = this.calculateAngle(rSh, rEl, rWr);
+    
+    const angleL = this.emaElbowL.update(rawLeft);
+    const angleR = this.emaElbowR.update(rawRight);
+    
+    const minAngle = Math.min(angleL, angleR);
 
-    if (!syncOk) {
-      if (this.stage === 'up') this.invalidateRep('REP_INVALID_UNSYNC');
-      this.resetTopBottomStability();
-      this.feedbackCode = 'ERR_ARMS_UNSYNC';
-      return this.createResult(this.feedbackCode);
+    // 3. Height Check (Lift)
+    // بدل شرط الأنف، بنشوف هل المعصم أعلى من الكتف بمسافة محترمة؟
+    // Y بيقل لما نطلع لفوق
+    const shoulderY = (lSh.y + rSh.y) / 2;
+    const wristY = (lWr.y + rWr.y) / 2;
+    // المسافة 0.2 تعني إن الايد طلعت فوق الكتف بوضوح
+    const isClearlyOverhead = wristY < (shoulderY - 0.2); 
+
+    // 4. Synchronization
+    const angleDiff = Math.abs(angleL - angleR);
+    if (this.stage === 'up' && angleDiff > this.ANGLES.SYNC_TOLERANCE) {
+      return this.createResult('ERR_ARMS_UNSYNC', false);
     }
 
     // =========================================================
-    // Movement logic (stable top -> stable bottom counts)
+    // STATE MACHINE
     // =========================================================
 
-    // 1) TOP detection (go UP)
-    if (bothAtTop) {
-      this.isCorrect = true;
-      if (this.topStableStart === 0) this.topStableStart = nowMs;
+    // --- CASE 1: GOING UP (Top Position) ---
+    // الشرط: زاوية 150 + الايدين عالين عن الكتف
+    if (minAngle > this.ANGLES.TOP_THRESHOLD && isClearlyOverhead) {
+      
+      if (this.topStableStart === 0) this.topStableStart = now;
 
-      const stableFor = nowMs - this.topStableStart;
-      if (stableFor >= this.TOP_STABLE_MS) {
-        if (this.stage === 'down' && canChangeStage) {
+      // Stability Check
+      if (now - this.topStableStart > this.TIME.STABILITY_WINDOW) {
+        if (this.stage === 'down') {
           this.stage = 'up';
-          this.lastStageChangeTime = nowMs;
-
-          // starting a clean rep attempt
-          this.repInvalidated = false;
-          this.repInvalidReason = null;
-
           this.feedbackCode = 'PERFECT_LOCKOUT';
+        }
+      }
+      this.bottomStableStart = 0;
+
+    } 
+    // --- CASE 2: GOING DOWN (Bottom Position) ---
+    else if (minAngle < this.ANGLES.BOTTOM_THRESHOLD) {
+       
+       if (this.bottomStableStart === 0) this.bottomStableStart = now;
+
+       if (now - this.bottomStableStart > this.TIME.STABILITY_WINDOW) {
+         if (this.stage === 'up') {
+            // ✅ Finish Rep Logic
+            
+            // Speed check
+            if (now - this.lastRepTime < this.TIME.MIN_REP_TIME && this.reps > 0) {
+                this.feedbackCode = 'LOWER_SLOWLY'; 
+            } else {
+                this.reps++;
+                this.feedbackCode = 'REP_SUCCESS'; // Voice logic will handle counting
+                this.lastRepTime = now;
+            }
+            this.stage = 'down';
+         } else {
+            // Ready for next rep
+            this.feedbackCode = 'PUSH_UP'; 
+         }
+       }
+       this.topStableStart = 0;
+    } 
+    // --- CASE 3: TRANSITION ---
+    else {
+      this.topStableStart = 0;
+      this.bottomStableStart = 0;
+
+      if (this.stage === 'down') {
+        // Trying to go up
+        if (minAngle > this.ANGLES.TOP_WARNING) {
+           // Almost there (e.g. 140 degrees)
+           this.feedbackCode = 'CMD_PUSH_HIGHER'; 
         } else {
-          this.feedbackCode = 'PERFECT_LOCKOUT';
+           this.feedbackCode = 'PUSH_UP';
         }
       } else {
-        this.feedbackCode = 'HOLD_STEADY';
+        // Going down
+        this.feedbackCode = 'LOWER_SLOWLY';
       }
-
-      // while at top, reset bottom stability
-      this.bottomStableStart = 0;
-      return this.createResult(this.feedbackCode);
-    } else {
-      this.topStableStart = 0;
     }
 
-    // 2) BOTTOM detection (go DOWN + count)
-    if (bothAtBottom) {
-      this.isCorrect = true;
-      if (this.bottomStableStart === 0) this.bottomStableStart = nowMs;
+    // Safety: Back Arch Check (Smart)
+    // لو الكتاف قريبة من بعض أفقياً، يبقى ده وضع جانبي (Side View)
+    // غير كده بنعتبره أمامي (Front View) وبنتجاهل فحص الظهر عشان ميغلطش
+    const shoulderWidth = Math.abs(lSh.x - rSh.x);
+    const isFrontView = shoulderWidth > 0.15; // لو عريض يبقى باصص للكاميرا
 
-      const stableFor = nowMs - this.bottomStableStart;
-      if (stableFor >= this.BOTTOM_STABLE_MS) {
-        if (this.stage === 'up' && repReady && canChangeStage) {
-          // finish rep cycle
-          this.stage = 'down';
-          this.lastStageChangeTime = nowMs;
-          this.lastRepTime = nowMs;
-
-          // if invalidated => don't count
-          if (this.repInvalidated) {
-            this.feedbackCode = this.repInvalidReason || 'REP_INVALID';
-            this.repInvalidated = false;
-            this.repInvalidReason = null;
-            return this.createResult(this.feedbackCode);
-          }
-
-          this.reps++;
-          // ✅ use REP_NUMBER_ so your voice service ALWAYS interrupts and says the number
-          this.feedbackCode = `REP_NUMBER_${this.reps}`;
-          return this.createResult(this.feedbackCode);
+    if (!isFrontView && lHip && rHip && ((lHip.visibility || 0) > 0.5 && (rHip.visibility || 0) > 0.5)) {
+        // فحص الظهر فقط لو باصص بجنبه
+        const lean = Math.abs(((lSh.x + rSh.x)/2) - ((lHip.x + rHip.x)/2));
+        // سمحنا بميلان أكتر (0.25) عشان ميرخمش
+        if (lean > 0.25) { 
+            return this.createResult('ERR_ARCHED_BACK', false);
         }
-
-        // resting at bottom
-        this.feedbackCode = 'PUSH_UP';
-      } else {
-        this.feedbackCode = 'HOLD_STEADY';
-      }
-
-      // while at bottom, reset top stability
-      this.topStableStart = 0;
-      return this.createResult(this.feedbackCode);
-    } else {
-      this.bottomStableStart = 0;
     }
 
-    // 3) Middle zone guidance
-    this.isCorrect = true;
-    this.feedbackCode = (this.stage === 'up') ? 'LOWER_SLOWLY' : 'PUSH_UP';
-    return this.createResult(this.feedbackCode);
+    // Final result
+    this.isCorrect = !this.feedbackCode.startsWith('ERR');
+    return this.createResult(this.feedbackCode, this.isCorrect);
   }
 
-  private resetTopBottomStability() {
-    this.topStableStart = 0;
-    this.bottomStableStart = 0;
+  // --- Helpers ---
+
+  private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
+    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs((radians * 180.0) / Math.PI);
+    if (angle > 180.0) angle = 360 - angle;
+    return angle;
   }
 
-  private createResult(feedback: string): OverheadPressResult {
+  private checkVisibility(lms: Landmark[]): boolean {
+    return lms.every(lm => !!lm && ((lm.visibility || 0) > 0.5));
+  }
+
+  private createResult(feedback: string, isCorrect: boolean): OverheadPressResult {
     return {
       exercise: 'standing_overhead_press',
       reps: this.reps,
       stage: this.stage,
       feedback_code: feedback,
-      is_correct: this.isCorrect,
+      is_correct: isCorrect,
     };
   }
 
-  reset(): void {
+  reset() {
     this.reps = 0;
     this.stage = 'down';
     this.feedbackCode = 'SETUP_POSITION';
-    this.isCorrect = false;
-
-    this.lastRepTime = 0;
-    this.lastStageChangeTime = 0;
-    this.topStableStart = 0;
-    this.bottomStableStart = 0;
-
-    this.repInvalidated = false;
-    this.repInvalidReason = null;
-
     this.emaElbowL.reset();
     this.emaElbowR.reset();
-    this.emaLiftL.reset();
-    this.emaLiftR.reset();
-    this.emaBackLean.reset();
   }
 }

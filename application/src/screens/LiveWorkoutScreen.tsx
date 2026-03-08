@@ -105,6 +105,29 @@ const LiveWorkoutScreen = () => {
     isActiveRef.current = isActive;
   }, [isActive]);
 
+  // INITIALIZE: Create trainer instance on component mount
+  useEffect(() => {
+    const initializeTrainer = () => {
+      try {
+        trainerRef.current = AIFitnessEngine.getTrainer(selectedExercise);
+        
+        // Verify trainer has analyze method
+        if (trainerRef.current && typeof trainerRef.current.analyze === 'function') {
+          trainerRef.current.reset?.();
+          console.log(`✅ Trainer initialized for: ${selectedExercise}`);
+        } else {
+          console.warn(`⚠️ Trainer initialization failed or analyze method missing`);
+          trainerRef.current = null;
+        }
+      } catch (error) {
+        console.error('❌ Error initializing trainer:', error);
+        trainerRef.current = null;
+      }
+    };
+
+    initializeTrainer();
+  }, [selectedExercise]);
+
   // Handle pose detection results
   const handlePoseResults = useCallback((result: PoseDetectionResultBundle, vc: ViewCoordinator) => {
     frameCountRef.current++;
@@ -116,8 +139,14 @@ const LiveWorkoutScreen = () => {
     }
 
     // Only process if workout is active
-    if (!isActiveRef.current || !trainerRef.current) {
+    if (!isActiveRef.current) {
       setDebugInfo(`Frames: ${frameCountRef.current} - Press START`);
+      return;
+    }
+
+    // SAFETY GUARD: Verify trainer is ready before calling analyze
+    if (!trainerRef.current || typeof trainerRef.current.analyze !== 'function') {
+      setDebugInfo(`Trainer not ready - Frame: ${frameCountRef.current}`);
       return;
     }
     

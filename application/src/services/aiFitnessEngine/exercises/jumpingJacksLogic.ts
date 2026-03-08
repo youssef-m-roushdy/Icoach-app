@@ -1,11 +1,10 @@
 /**
- * Jumping Jacks Logic - TypeScript Implementation with ONNX Model
- * On-Device Exercise Analysis
- *
- * Original Python: AI_Fitness_Engine/Logic_Scripts/jumping_jacks_logic.py
- *
- * This version uses the ONNX Runtime for arm position classification.
- * Falls back to geometry-based detection if ONNX is unavailable.
+ * Jumping Jacks Logic - SPEED MODE (Forgiving + Fast Response)
+ * * Modifications for Speed:
+ * 1. CONFIRM_FRAMES = 1 (Zero delay, counts instantly).
+ * 2. Relaxed Angles: Arms need less height, legs need less width.
+ * 3. Faster EMA: Sensors react quicker to fast changes.
+ * 4. Lower Cooldown: Allows for sprinting reps.
  */
 
 import { Landmark, JumpingJacksResult, ExerciseLogic } from '../types';
@@ -16,24 +15,36 @@ let InferenceSession: any = null;
 let Tensor: any = null;
 let onnxAvailable = false;
 
-// Try to load ONNX Runtime
 try {
   const ort = require('onnxruntime-react-native');
   InferenceSession = ort.InferenceSession;
   Tensor = ort.Tensor;
   onnxAvailable = true;
 } catch (e) {
-  console.log('ONNX Runtime not available, using geometry-based detection');
+  // Fallback to geometry-based detection
 }
 
-// Encoder classes from ML_Models/jj_encoder_info.json
 const ENCODER_CLASSES = ['in', 'lazy', 'out'];
+
+/**
+ * Feedback Priority Levels
+ */
+enum FeedbackPriority {
+  LOW = 0,      // General guidance
+  MEDIUM = 1,   // Commands (Jump Open/Close)
+  HIGH = 2,     // Form Errors
+  CRITICAL = 3  // Rep Success / Major Events
+}
 
 export class JumpingJacksLogic implements ExerciseLogic {
   private counter: number = 0;
-  private stage: string = 'down';
+  private stage: 'down' | 'up' = 'down';
+  
+  // Feedback State
   private feedbackCode: string = 'START_POSITION';
-  private isCorrect: boolean = true;
+  private lastFeedbackTime: number = 0;
+  private currentFeedbackPriority: FeedbackPriority = FeedbackPriority.LOW;
+  private readonly STICKY_FEEDBACK_MS = 1000; // قللناها لثانية عشان تلحق تشوف التغييرات
 
   // ONNX Model state
   private model: any = null;
@@ -42,127 +53,98 @@ export class JumpingJacksLogic implements ExerciseLogic {
   private lastArmClass: string | null = null;
   private lastProb: number = 0;
 
-  // Smoothing tools (EMA)
-  private emaAnkleDist: EMA;
-  private emaShoulderDist: EMA;
-  private emaArmAngle: EMA;
-  private emaProb: EMA;
+  // Smoothing tools (EMA) - 🔥 Tuned for SPEED (Higher Alpha = Less Lag)
+  // خليناها 0.6 و 0.7 عشان تستجيب بسرعة للحركة الخاطفة
+  private emaAnkleDist: EMA = new EMA(0.6);
+  private emaShoulderDist: EMA = new EMA(0.5);
+  private emaHipDist: EMA = new EMA(0.6);
+  private emaArmAngle: EMA = new EMA(0.7);
+  private emaProb: EMA = new EMA(0.5);
 
-  // Constants
-  private readonly OPEN_FACTOR = 1.4; // Legs open when ankle distance > shoulder * factor
-  private readonly CLOSE_FACTOR = 0.7; // Legs closed when ankle distance < shoulder * factor
-  private readonly ARM_UP_ANGLE = 150; // Shoulder angle threshold for arms up
-  private readonly ARM_DOWN_ANGLE = 50; // Shoulder angle threshold for arms down
-  private readonly PROB_THRESHOLD = 0.85; // Confidence threshold for model predictions
+  // Anti-Cheat & Timing
+  private lastRepTime: number = 0;
+  // 🔥 Cooldown سريع جداً (200ms) يسمحلك تعمل 5 عدات في الثانية
+  private readonly REP_COOLDOWN_MS = 200; 
+
+  // Confirmation Counters
+  private openUpFrames: number = 0;
+  private closedDownFrames: number = 0;
+  
+  // 🔥 أهم تعديل: 2 فريم للتأكيد (للتأكد من أن الأيدي والأرجل معاً)
+  private readonly CONFIRM_FRAMES = 2;
+
+  // --- THRESHOLDS (MODIFIED TO PREVENT FALSE COUNTS) ---
+  
+  // Leg Thresholds (Normalized)
+  // جعلناها أصعب قليلاً لمنع العد الخاطئ
+  private readonly LEGS_OPEN_ENTRY = 1.30; // زيادتها لمنع العد عند رفع الأيدي فقط
+  private readonly LEGS_OPEN_EXIT = 1.20;  
+  private readonly LEGS_CLOSED_ENTRY = 1.10; // تخفيفها للاستجابة السريعة
+  private readonly LEGS_CLOSED_EXIT = 1.25;
+
+  // Arm Thresholds (Degrees)
+  // جعلناها أصعب قليلاً لمنع العد الخاطئ
+  private readonly ARMS_UP_ENTRY = 140;    // تخفيفها للاستجابة السريعة
+  private readonly ARMS_UP_EXIT = 125;     
+  private readonly ARMS_DOWN_ENTRY = 100;  // تخفيفها للاستجابة السريعة
+  private readonly ARMS_DOWN_EXIT = 115;   
+
+  private readonly STRICT_ARM_PROB = 0.65; // قللنا دقة الموديل المطلوبة
 
   constructor() {
-    // Initialize EMA smoothers
-    this.emaAnkleDist = new EMA(0.3);
-    this.emaShoulderDist = new EMA(0.3);
-    this.emaArmAngle = new EMA(0.4);
-    this.emaProb = new EMA(0.4);
-
-    // Start loading ONNX model asynchronously
     this.loadModel();
   }
 
-  /**
-   * Load the ONNX model asynchronously
-   */
   async loadModel(): Promise<void> {
-    if (!onnxAvailable || this.modelLoading || this.modelLoaded) {
-      return;
-    }
-
+    if (!onnxAvailable || this.modelLoading || this.modelLoaded) return;
     this.modelLoading = true;
-
     try {
-      // Note: In production, you'll need to configure metro to bundle .onnx files
-      // or load from a remote URL / local file system
-      // For now, we'll try to load from the ML_Models directory
-      
-      // Option 1: Load from bundled asset (requires metro config)
-      // const modelAsset = require('../../../ML_Models/jumping_jacks.onnx');
-      // this.model = await InferenceSession.create(modelAsset);
-      
-      // Option 2: Load from file path (React Native file system)
-      // const RNFS = require('react-native-fs');
-      // const modelPath = `${RNFS.MainBundlePath}/ML_Models/jumping_jacks.onnx`;
-      // this.model = await InferenceSession.create(modelPath);
-      
-      console.log('✅ ONNX model loading configured (enable in production)');
-      // For now, we use geometry fallback until model path is configured
-      this.modelLoaded = false;
+      this.modelLoaded = false; 
     } catch (error) {
-      console.warn('⚠️ ONNX model load failed, using geometry fallback:', error);
       this.model = null;
+      this.modelLoaded = false;
     } finally {
       this.modelLoading = false;
     }
   }
 
   /**
-   * Run ONNX model inference for arm position classification
-   * Input: [left_shoulder_angle, right_shoulder_angle, left_hip_angle, right_hip_angle]
-   * Output: ['in', 'lazy', 'out'] with probability
+   * Updates feedback with a priority-based "sticky" mechanism.
    */
-  private async predictArmPosition(
-    angles: [number, number, number, number]
-  ): Promise<[string | null, number]> {
-    if (!this.model || !this.modelLoaded) {
-      return [null, 0];
+  private updateFeedback(newCode: string, priority: FeedbackPriority): void {
+    const now = Date.now();
+    const timeSinceLast = now - this.lastFeedbackTime;
+
+    if (priority > this.currentFeedbackPriority || timeSinceLast >= this.STICKY_FEEDBACK_MS) {
+      this.feedbackCode = newCode;
+      this.lastFeedbackTime = now;
+      this.currentFeedbackPriority = priority;
     }
+  }
 
+  private async predictArmPosition(angles: [number, number, number, number]): Promise<void> {
+    if (!this.model || !this.modelLoaded) return;
     try {
-      // Create input tensor [1, 4]
       const inputTensor = new Tensor('float32', Float32Array.from(angles), [1, 4]);
-
-      // Run inference
-      const feeds = { input: inputTensor };
-      const results = await this.model.run(feeds);
-
-      // Parse output
+      const results = await this.model.run({ input: inputTensor });
       const outputKey = Object.keys(results)[0];
       const outputData = results[outputKey].data;
       const predIdx = Number(outputData[0]);
 
-      // Get probability if available
-      let prob = 0.95;
-      if (results.probabilities) {
-        const probs = results.probabilities.data;
-        prob = probs[predIdx];
-      }
-
-      const className = ENCODER_CLASSES[predIdx] || 'unknown';
-      return [className, prob];
+      this.lastArmClass = ENCODER_CLASSES[predIdx] || 'unknown';
+      this.lastProb = results.probabilities ? results.probabilities.data[predIdx] : 0.95;
     } catch (error) {
-      console.warn('ONNX inference error:', error);
-      return [null, 0];
+      // Silent fail
     }
   }
 
   /**
-   * Geometry-based arm position detection (fallback when ONNX unavailable)
-   * Maps to same classes as ONNX model: 'in', 'lazy', 'out'
-   */
-  private detectArmPositionGeometry(avgShoulderAngle: number): [string, number] {
-    if (avgShoulderAngle > this.ARM_UP_ANGLE) {
-      return ['out', 0.9]; // Arms up/out
-    } else if (avgShoulderAngle < this.ARM_DOWN_ANGLE) {
-      return ['in', 0.9]; // Arms down/in
-    } else {
-      return ['lazy', 0.7]; // Arms in middle (lazy form)
-    }
-  }
-
-  /**
-   * Analyze landmarks and return jumping jacks exercise result
-   *
-   * @param landmarks - Array of MediaPipe pose landmarks
-   * @returns JumpingJacksResult with reps, feedback, and debug info
+   * Core Analysis Logic
    */
   analyze(landmarks: Landmark[]): JumpingJacksResult {
-    // 1. Extract points
+    const now = Date.now();
+
+    // 1. Extract Points
     const lSh = toPoint(landmarks[PoseLandmarks.LEFT_SHOULDER]);
     const rSh = toPoint(landmarks[PoseLandmarks.RIGHT_SHOULDER]);
     const lElb = toPoint(landmarks[PoseLandmarks.LEFT_ELBOW]);
@@ -174,118 +156,75 @@ export class JumpingJacksLogic implements ExerciseLogic {
     const lAnk = toPoint(landmarks[PoseLandmarks.LEFT_ANKLE]);
     const rAnk = toPoint(landmarks[PoseLandmarks.RIGHT_ANKLE]);
 
-    // 2. Calculate angles (for model input)
+    // 2. Angles
     const angLSh = calculateAngle(lElb, lSh, lHip);
     const angRSh = calculateAngle(rElb, rSh, rHip);
     const angLHip = calculateAngle(lSh, lHip, lKnee);
     const angRHip = calculateAngle(rSh, rHip, rKnee);
-    const avgShoulderAngle = (angLSh + angRSh) / 2;
 
-    // Smooth the arm angle
-    const smoothedArmAngle = this.emaArmAngle.update(avgShoulderAngle);
+    const avgShoulderAngle = this.emaArmAngle.update((angLSh + angRSh) / 2);
 
-    // 3. Get arm classification (ONNX model or geometry fallback)
-    let armClass: string | null = null;
-    let prob = 0;
-
-    if (this.modelLoaded && this.model) {
-      // Use ONNX model (async - use cached result for real-time)
-      this.predictArmPosition([angLSh, angRSh, angLHip, angRHip]).then(
-        ([cls, p]) => {
-          if (cls) {
-            this.lastArmClass = cls;
-            this.lastProb = p;
-          }
-        }
-      );
-      // Use last prediction or geometry while waiting
-      armClass = this.lastArmClass;
-      prob = this.lastProb;
-      if (!armClass) {
-        [armClass, prob] = this.detectArmPositionGeometry(smoothedArmAngle);
-      }
-    } else {
-      // Fallback to pure geometry
-      [armClass, prob] = this.detectArmPositionGeometry(smoothedArmAngle);
+    // 3. Arm Class (Hybrid)
+    if (this.modelLoaded) {
+      this.predictArmPosition([angLSh, angRSh, angLHip, angRHip]);
     }
+    const probSmooth = this.emaProb.update(this.lastProb);
 
-    // Smooth probability - only update if prob > 0 to match Python behavior
-    const probSmooth = prob > 0 ? this.emaProb.update(prob) : 0.0;
+    // ✅ شروط صارمة: لازم الأيدي والأرجل يكونوا في الوضع المطلوب معاً
+    const armsUp = avgShoulderAngle >= (this.stage === 'down' ? this.ARMS_UP_ENTRY : this.ARMS_UP_EXIT);
+    const armsDown = avgShoulderAngle <= (this.stage === 'up' ? this.ARMS_DOWN_ENTRY : this.ARMS_DOWN_EXIT);
 
-    // 4. Geometry calculations (leg position)
-    const ankleDistRaw = Math.abs(lAnk[0] - rAnk[0]);
-    const shDistRaw = Math.abs(lSh[0] - rSh[0]);
+    // 4. Leg Distances
+    const ankleDist = this.emaAnkleDist.update(Math.abs(lAnk[0] - rAnk[0]));
+    const hipDist = this.emaHipDist.update(Math.abs(lHip[0] - rHip[0]));
+    const shoulderDist = this.emaShoulderDist.update(Math.abs(lSh[0] - rSh[0]));
+    const baseDist = Math.max(hipDist, shoulderDist * 0.9);
 
-    // Smooth the distances
-    const ankleDist = this.emaAnkleDist.update(ankleDistRaw);
-    const shDist = this.emaShoulderDist.update(shDistRaw);
+    const legsOpen = ankleDist > baseDist * (this.stage === 'down' ? this.LEGS_OPEN_ENTRY : this.LEGS_OPEN_EXIT);
+    const legsClosed = ankleDist < baseDist * (this.stage === 'up' ? this.LEGS_CLOSED_ENTRY : this.LEGS_CLOSED_EXIT);
 
-    // Determine leg status (Open / Middle / Closed)
-    let legStatus: 'open' | 'middle' | 'closed' = 'middle';
-    if (ankleDist > shDist * this.OPEN_FACTOR) {
-      legStatus = 'open';
-    } else if (ankleDist < shDist * this.CLOSE_FACTOR) {
-      legStatus = 'closed';
-    }
+    // 5. State Machine Logic - ✅ التعديل الأساسي هنا
+    // لازم يكون الأرجل مفتوحة والأيدي مرفوعة معاً
+    const isPoseUp = legsOpen && armsUp;
+    // لازم يكون الأرجل مقفولة والأيدي مخفضة معاً
+    const isPoseDown = legsClosed && armsDown;
 
-    // 5. Guidance Logic (using model classes: 'in', 'lazy', 'out')
-    this.feedbackCode = 'FIX_POSTURE';
+    this.openUpFrames = isPoseUp ? this.openUpFrames + 1 : 0;
+    this.closedDownFrames = isPoseDown ? this.closedDownFrames + 1 : 0;
 
-    // Check if we should use ONNX model predictions or geometry fallback
-    const useModelPredictions = this.modelLoaded && this.model !== null;
-
-    // High confidence threshold - only use model predictions when confident AND model is loaded
-    if (useModelPredictions && armClass && probSmooth > this.PROB_THRESHOLD) {
-      // --- Success case (rep counted) ---
-      // Arms IN or LAZY + Legs CLOSED + Was in "up" stage
-      if ((armClass === 'in' || armClass === 'lazy') && legStatus === 'closed') {
-        if (this.stage === 'up') {
-          this.counter += 1;
-          this.stage = 'down';
-          this.feedbackCode = 'REP_SUCCESS'; // "EXCELLENT"
-        } else {
-          this.feedbackCode = 'SYSTEM_READY_GO'; // "READY / JUMP UP"
-        }
-      }
-      // --- Up phase ---
-      // Arms OUT + Legs OPEN
-      else if (armClass === 'out') {
-        if (legStatus === 'open') {
-          this.stage = 'up';
-          this.feedbackCode = 'CMD_JUMP_CLOSE'; // "GREAT! NOW DOWN"
-        } else if (legStatus === 'middle') {
-          this.feedbackCode = 'ERR_LEGS_WIDTH'; // "WIDER LEGS"
-        } else {
-          this.feedbackCode = 'CMD_JUMP_OPEN'; // "OPEN LEGS"
-        }
-      }
-      // --- Error cases ---
-      else if (armClass === 'in' || armClass === 'lazy') {
-        if (legStatus === 'open') {
-          // Legs open but arms not up
-          this.feedbackCode = 'ERR_ARMS_LAZY'; // "ARMS UP HIGHER"
-        } else if (legStatus === 'closed') {
-          this.feedbackCode = 'SYSTEM_READY_GO';
-        }
-      }
-    }
-    // Fallback when model is not loaded - use pure geometry (matches Python: elif self.model is None)
-    // This uses simple threshold checks just like Python
-    else if (!useModelPredictions) {
-      // Python: if ankle_dist > (sh_dist * 1.5) and ang_l_sh > 150:
-      if (ankleDist > shDist * 1.5 && angLSh > 150) {
+    if (this.stage === 'down') {
+      // ✅ لازم يرفع ايديه ويفتح رجليه معاً عشان يتحول لمرحلة "up"
+      if (this.openUpFrames >= this.CONFIRM_FRAMES) {
         this.stage = 'up';
-        this.feedbackCode = 'CMD_JUMP_CLOSE'; // "GREAT! NOW CLOSE"
+        this.updateFeedback('CMD_JUMP_CLOSE', FeedbackPriority.MEDIUM);
+      } else {
+        // Form Feedback
+        if (!legsOpen && !armsUp) {
+          this.updateFeedback('CMD_OPEN_LEGS_AND_RAISE_ARMS', FeedbackPriority.LOW);
+        } else if (!legsOpen) {
+          this.updateFeedback('CMD_JUMP_OPEN', FeedbackPriority.MEDIUM);
+        } else if (!armsUp) {
+          this.updateFeedback('ERR_RAISE_ARMS', FeedbackPriority.HIGH);
+        }
       }
-      // Python: elif ankle_dist < (sh_dist * 1.0) and self.stage == "up":
-      else if (ankleDist < shDist * 1.0 && this.stage === 'up') {
-        this.counter += 1;
-        this.stage = 'down';
-        this.feedbackCode = 'REP_SUCCESS';
-      }
-      // Added: feedback when standing ready
-      else if (this.stage === 'down') {
-        this.feedbackCode = 'SYSTEM_READY_GO'; // "JUMP!"
+    } else if (this.stage === 'up') {
+      // ✅ لازم يقفل رجليه ويخفض ايديه معاً عشان يعد العدة
+      if (this.closedDownFrames >= this.CONFIRM_FRAMES) {
+        if (now - this.lastRepTime > this.REP_COOLDOWN_MS) {
+          this.counter++;
+          this.lastRepTime = now;
+          this.stage = 'down';
+          this.updateFeedback('REP_SUCCESS', FeedbackPriority.CRITICAL);
+        }
+      } else {
+        // Form Feedback
+        if (!legsClosed && !armsDown) {
+          this.updateFeedback('CMD_CLOSE_LEGS_AND_LOWER_ARMS', FeedbackPriority.LOW);
+        } else if (!legsClosed) {
+          this.updateFeedback('CMD_JUMP_CLOSE', FeedbackPriority.MEDIUM);
+        } else if (!armsDown) {
+          this.updateFeedback('CMD_LOWER_ARMS', FeedbackPriority.MEDIUM);
+        }
       }
     }
 
@@ -294,30 +233,30 @@ export class JumpingJacksLogic implements ExerciseLogic {
       reps: this.counter,
       stage: this.stage,
       feedback_code: this.feedbackCode,
-      debug_class: `${armClass}:${probSmooth.toFixed(2)},leg:${legStatus}`,
+      debug_class: `SpeedMode: A:${avgShoulderAngle.toFixed(0)} L:${(ankleDist/baseDist).toFixed(2)}`,
     };
   }
 
-  /**
-   * Reset the logic state for a new session
-   */
   reset(): void {
     this.counter = 0;
     this.stage = 'down';
     this.feedbackCode = 'START_POSITION';
-    this.isCorrect = true;
-    this.lastArmClass = null;
-    this.lastProb = 0;
-    this.emaAnkleDist = new EMA(0.3);
-    this.emaShoulderDist = new EMA(0.3);
-    this.emaArmAngle = new EMA(0.4);
-    this.emaProb = new EMA(0.4);
+    this.currentFeedbackPriority = FeedbackPriority.LOW;
+    this.lastFeedbackTime = 0;
+    this.openUpFrames = 0;
+    this.closedDownFrames = 0;
+    
+    this.emaAnkleDist.reset();
+    this.emaShoulderDist.reset();
+    this.emaHipDist.reset();
+    this.emaArmAngle.reset();
+    this.emaProb.reset();
   }
 
-  /**
-   * Check if ONNX model is loaded and ready
-   */
-  isModelReady(): boolean {
-    return this.modelLoaded && this.model !== null;
+  getRepCount(): number { return this.counter; }
+  isInUpStage(): boolean { return this.stage === 'up'; }
+  forceRep(): void {
+    this.counter++;
+    this.updateFeedback('REP_SUCCESS', FeedbackPriority.CRITICAL);
   }
 }
