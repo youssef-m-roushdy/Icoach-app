@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import MediaPickerSheet from '../components/MediaPickerSheet';
 import { useNavigation } from '@react-navigation/native'; 
+import { useStepCounter } from '../hooks/useStepCounter'; // add this import
 
 const GOLD = '#FFD700';
 const BLACK = '#000000';
@@ -28,6 +29,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const stepData = useStepCounter();
 
   const userImage = useMemo(() => {
     
@@ -117,31 +119,44 @@ export default function HomeScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Daily Steps</Text>
             <View style={styles.stepsCard}>
-              {/* Left: Steps Count and Icon */}
+
+              {/* Left */}
               <View style={styles.stepsLeft}>
                 <View style={[styles.stepsCircle, { borderColor: colors.primary }]}>
-                  <Text style={[styles.stepsCount, { color: colors.primary }]}>0</Text>
+                  <Text style={[styles.stepsCount, { color: colors.primary }]}>
+                    {stepData.isLoading ? '...' : stepData.steps.toLocaleString()}
+                  </Text>
                   <Text style={styles.stepsSmallText}>Steps</Text>
                 </View>
                 <MaterialCommunityIcons name="foot-print" size={40} color={BLUE} />
               </View>
 
-              {/* Right: Progress and Stats */}
+              {/* Right */}
               <View style={styles.stepsRight}>
-                {/* Progress Bar */}
                 <View style={styles.progressContainer}>
                   <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { backgroundColor: colors.primary }]} />
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          backgroundColor: colors.primary,
+                          width: `${stepData.progress * 100}%`,
+                        },
+                      ]}
+                    />
                   </View>
-                  <Text style={[styles.progressText, { color: colors.primary }]}>0 {t('of')} 10000 {t('steps')}</Text>
+                  <Text style={[styles.progressText, { color: colors.primary }]}>
+                    {stepData.steps.toLocaleString()} {t('of')} {stepData.goal.toLocaleString()} {t('steps')}
+                  </Text>
                 </View>
 
-                {/* Stats Row */}
                 <View style={styles.statsRow}>
                   <View style={styles.statItem}>
                     <View style={styles.statBadge}>
                       <Ionicons name="checkmark-circle" size={20} color="#28A745" />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>0</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.steps.toLocaleString()}
+                      </Text>
                     </View>
                     <Text style={styles.statItemLabel}>{t('done')}</Text>
                   </View>
@@ -149,7 +164,9 @@ export default function HomeScreen() {
                   <View style={styles.statItem}>
                     <View style={styles.statBadge}>
                       <Ionicons name="flag" size={20} color={colors.primary} />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>10000</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.goal.toLocaleString()}
+                      </Text>
                     </View>
                     <Text style={styles.statItemLabel}>{t('goal')}</Text>
                   </View>
@@ -157,12 +174,21 @@ export default function HomeScreen() {
                   <View style={styles.statItem}>
                     <View style={styles.statBadge}>
                       <Ionicons name="arrow-forward" size={20} color={colors.primary} />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>10000</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.remaining.toLocaleString()}
+                      </Text>
                     </View>
                     <Text style={styles.statItemLabel}>{t('remaining')}</Text>
                   </View>
                 </View>
+
+                {stepData.error && (
+                  <Text style={{ color: '#FF6B6B', fontSize: 11, marginTop: 8 }}>
+                    ⚠️ {stepData.error}
+                  </Text>
+                )}
               </View>
+
             </View>
           </View>
 

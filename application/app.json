@@ -31,7 +31,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "READ_CONTACTS",
-        "CAMERA"
+        "CAMERA",
+        ["ACTIVITY_RECOGNITION"]
       ]
     },
     "web": {
