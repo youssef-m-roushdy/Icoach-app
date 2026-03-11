@@ -27,7 +27,7 @@ type SignInScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 
 
 export default function SignUpScreen() {
   const navigation = useNavigation<SignInScreenNavigationProp>();
-  const { colors } = useTheme();
+  const { theme, colors } = useTheme();
   const { login } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -73,7 +73,7 @@ export default function SignUpScreen() {
   };
 
   const getPasswordStrength = (password: string): { text: string; color: string } => {
-    if (!password) return { text: '', color: COLORS.gray };
+    if (!password) return { text: '', color: '#999999' };
     
     const hasMinLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
@@ -147,11 +147,14 @@ export default function SignUpScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require('../../assets/home.jpeg')}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={[styles.background, { backgroundColor: colors.background }]}>
+      {theme === 'dark' && (
+        <ImageBackground
+          source={require('../../assets/home.jpeg')}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -166,7 +169,7 @@ export default function SignUpScreen() {
             onTabPress={(tab) => tab === 'Login' && navigation.navigate('Login')}
           />
 
-          <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
+          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
             <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Join our community today
@@ -175,7 +178,7 @@ export default function SignUpScreen() {
             <View style={styles.nameContainer}>
               <View style={styles.nameInput}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>First Name</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+                <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                   <MaterialIcons name="person-outline" size={20} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
@@ -189,7 +192,7 @@ export default function SignUpScreen() {
               </View>
               <View style={styles.nameInput}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Last Name</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+                <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                   <MaterialIcons name="person-outline" size={20} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
@@ -205,7 +208,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Username</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="alternate-email" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -220,7 +223,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="email" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -237,7 +240,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -283,7 +286,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -314,7 +317,7 @@ export default function SignUpScreen() {
             </View>
 
             {/* Password Requirements - Collapsible */}
-            <View style={styles.requirementsContainer}>
+            <View style={[styles.requirementsContainer, { backgroundColor: colors.statBg }]}>
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
                 Password Requirements
               </Text>
@@ -404,7 +407,7 @@ export default function SignUpScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -414,14 +417,12 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flexGrow: 1,
     paddingBottom: 40,
   },
   formContainer: {
-    backgroundColor: COLORS.overlay,
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
@@ -431,6 +432,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+    borderWidth: 1,
   },
   title: {
     fontSize: SIZES.h1,
@@ -508,7 +510,6 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   requirementsContainer: {
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.md,
     borderRadius: SIZES.radiusMedium,
     marginBottom: SIZES.xl,

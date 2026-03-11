@@ -158,8 +158,8 @@ export default function ChangePasswordScreen() {
       >
         <View style={styles.content}>
           {/* Header Icon */}
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="lock-reset" size={60} color={COLORS.primary} />
+          <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
+            <MaterialIcons name="lock-reset" size={60} color={colors.primary} />
           </View>
 
           <Text style={[styles.title, { color: colors.text }]}>Change Password</Text>
@@ -170,7 +170,7 @@ export default function ChangePasswordScreen() {
           {/* Current Password */}
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: colors.text }]}>Current Password</Text>
-            <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <MaterialIcons name="lock-outline" size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
@@ -194,7 +194,7 @@ export default function ChangePasswordScreen() {
           {/* New Password */}
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: colors.text }]}>New Password</Text>
-            <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
@@ -223,7 +223,7 @@ export default function ChangePasswordScreen() {
           {/* Confirm Password */}
           <View style={styles.inputContainer}>
             <Text style={[styles.label, { color: colors.text }]}>Confirm New Password</Text>
-            <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.text }]}
@@ -250,7 +250,7 @@ export default function ChangePasswordScreen() {
           </View>
 
           {/* Password Requirements */}
-          <View style={styles.requirementsContainer}>
+          <View style={[styles.requirementsContainer, { backgroundColor: colors.statBg }]}>
             <Text style={[styles.requirementsTitle, { color: colors.text }]}>
               Password Requirements:
             </Text>
@@ -316,12 +316,12 @@ export default function ChangePasswordScreen() {
 
           {/* Change Password Button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
             onPress={handleChangePassword}
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator size="small" color={COLORS.secondary} />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Change Password</Text>
             )}
@@ -329,7 +329,7 @@ export default function ChangePasswordScreen() {
 
           {/* Cancel Button */}
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.cancelButton, { borderColor: colors.inputBorder }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
@@ -358,7 +358,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SIZES.lg,
@@ -366,13 +365,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: SIZES.h2,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginBottom: SIZES.sm,
     textAlign: 'center',
   },
   description: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     textAlign: 'center',
     marginBottom: SIZES.xl,
     lineHeight: 22,
@@ -383,16 +380,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: SIZES.body,
     fontWeight: '600',
-    color: COLORS.white,
     marginBottom: SIZES.sm,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.inputBackground,
-    borderRadius: SIZES.radiusSmall,
+    borderRadius: SIZES.radiusMedium,
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
     paddingHorizontal: SIZES.md,
     height: SIZES.inputHeight,
     gap: SIZES.sm,
@@ -400,7 +394,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: SIZES.body,
-    color: COLORS.white,
   },
   strengthText: {
     fontSize: SIZES.small,
@@ -413,15 +406,13 @@ const styles = StyleSheet.create({
     marginTop: SIZES.xs,
   },
   requirementsContainer: {
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
+    borderRadius: SIZES.radiusMedium,
     marginBottom: SIZES.xl,
   },
   requirementsTitle: {
     fontSize: SIZES.body,
     fontWeight: '600',
-    color: COLORS.white,
     marginBottom: SIZES.sm,
   },
   requirementItem: {
@@ -432,7 +423,6 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: SIZES.small,
-    color: COLORS.gray,
   },
   noteContainer: {
     flexDirection: 'row',
@@ -453,7 +443,7 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: COLORS.primary,
     paddingVertical: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
+    borderRadius: SIZES.radiusMedium,
     alignItems: 'center',
     marginBottom: SIZES.md,
   },
@@ -463,18 +453,16 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: '#FFFFFF',
   },
   cancelButton: {
     paddingVertical: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
+    borderRadius: SIZES.radiusMedium,
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: SIZES.body,
     fontWeight: '600',
-    color: COLORS.white,
   },
 });

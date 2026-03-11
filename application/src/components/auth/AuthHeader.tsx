@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS, SIZES } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 interface AuthHeaderProps {
   activeTab: 'SignIn' | 'Login';
@@ -8,13 +9,16 @@ interface AuthHeaderProps {
 }
 
 export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress }) => {
+  const { colors } = useTheme();
+  
   return (
     <View style={styles.topRight}>
       <View style={styles.headerTextContainer}>
         <TouchableOpacity onPress={() => onTabPress('SignIn')}>
           <Text 
             style={[
-              styles.headerText, 
+              styles.headerText,
+              { color: colors.primary }, 
               activeTab === 'SignIn' ? styles.activeText : styles.inactiveText
             ]}
           >
@@ -24,7 +28,8 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress })
         <TouchableOpacity onPress={() => onTabPress('Login')}>
           <Text 
             style={[
-              styles.headerText, 
+              styles.headerText,
+              { color: colors.primary }, 
               activeTab === 'Login' ? styles.activeText : styles.inactiveText
             ]}
           >
@@ -34,7 +39,8 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress })
       </View>
       <View 
         style={[
-          styles.underline, 
+          styles.underline,
+          { backgroundColor: colors.text },
           activeTab === 'SignIn' ? styles.underlineLeft : styles.underlineRight
         ]} 
       />
@@ -54,7 +60,6 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   headerText: {
-    color: COLORS.primary,
     fontSize: SIZES.body,
     fontWeight: 'bold',
     textTransform: 'capitalize',
@@ -68,7 +73,6 @@ const styles = StyleSheet.create({
   underline: {
     height: 2,
     width: 45,
-    backgroundColor: COLORS.white,
     marginTop: 4,
   },
   underlineLeft: {

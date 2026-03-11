@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,13 @@ import {
   Image,
   Modal,
   Pressable,
+  StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MaterialIcons, Feather } from '@expo/vector-icons';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
-import ImagePicker from 'react-native-image-crop-picker';
-import { COLORS, SIZES } from '../constants';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { userService } from '../services';
@@ -27,7 +27,7 @@ type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Prof
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { t } = useTranslation();
   const { user: authUser, token, logout, updateUser } = useAuth();
   const [userData, setUserData] = useState<any>(authUser);
@@ -35,7 +35,6 @@ export default function ProfileScreen() {
   const [showImageOptions, setShowImageOptions] = useState(false);
 
   useEffect(() => {
-    // Use auth user data from context
     if (authUser) {
       setUserData(authUser);
     }
@@ -47,119 +46,43 @@ export default function ProfileScreen() {
       return;
     }
 
-    console.log('🔍 ProfileScreen - Loading profile...');
-
     setIsLoading(true);
     try {
       const response = await userService.getProfile(token);
-      console.log('✅ Profile Response:', JSON.stringify(response, null, 2));
-      
-      // Use API response data, which has all the body info
       if (response.data) {
         setUserData(response.data);
-        // Update global auth state so changes persist across screens
         updateUser(response.data);
       }
     } catch (error: any) {
-      console.error('❌ Profile Error:', error);
-      console.error('❌ Error Message:', error.message);
-      
-      // Keep using context user data on error
       Alert.alert('Info', 'Using cached profile data');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const requestPermissions = async () => {
-    // react-native-image-picker handles permissions automatically
-    return {
-      camera: true,
-      media: true,
-    };
+  const handleTakePhoto = () => {
+    setShowImageOptions(false);
+    Alert.alert('Coming Soon', 'Camera feature will be available in a future update.');
   };
 
-  const handleTakePhoto = async () => {
+  const handleChooseFromGallery = () => {
     setShowImageOptions(false);
-
-    try {
-      const image = await ImagePicker.openCamera({
-        width: 400,
-        height: 400,
-        cropping: true,
-        cropperCircleOverlay: true,
-        compressImageMaxWidth: 1000,
-        compressImageMaxHeight: 1000,
-        compressImageQuality: 0.8,
-        includeBase64: false,
-        mediaType: 'photo',
-      });
-
-      if (image && image.path) {
-        await uploadProfilePicture(image.path);
-      }
-    } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
-        console.error('Error taking photo:', error);
-        Alert.alert('Error', 'Failed to take photo');
-      }
-    }
-  };
-
-  const handleChooseFromGallery = async () => {
-    setShowImageOptions(false);
-
-    try {
-      const image = await ImagePicker.openPicker({
-        width: 400,
-        height: 400,
-        cropping: true,
-        cropperCircleOverlay: true,
-        compressImageMaxWidth: 1000,
-        compressImageMaxHeight: 1000,
-        compressImageQuality: 0.8,
-        includeBase64: false,
-        mediaType: 'photo',
-      });
-
-      if (image && image.path) {
-        await uploadProfilePicture(image.path);
-      }
-    } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
-        console.error('Error choosing photo:', error);
-        Alert.alert('Error', 'Failed to choose photo');
-      }
-    }
+    Alert.alert('Coming Soon', 'Gallery feature will be available in a future update.');
   };
 
   const uploadProfilePicture = async (uri: string) => {
-    if (!token) {
-      Alert.alert('Error', 'No authentication token found');
-      return;
-    }
-
+    if (!token) return;
     setIsLoading(true);
     try {
       const response = await userService.updateProfilePicture(uri, token);
-      console.log('✅ Profile picture updated:', response);
-      
-      // Update local state with new avatar
       if (response.data?.avatar) {
-        const updatedUserData = {
-          ...userData,
-          avatar: response.data.avatar,
-        };
+        const updatedUserData = { ...userData, avatar: response.data.avatar };
         setUserData(updatedUserData);
-        // Update global auth state so avatar persists across screens
         updateUser(updatedUserData);
       }
-      
       Alert.alert('Success', 'Profile picture updated successfully');
-      // Reload profile to get the latest data
       await loadProfile();
     } catch (error: any) {
-      console.error('❌ Upload Error:', error);
       Alert.alert('Error', error.message || 'Failed to update profile picture');
     } finally {
       setIsLoading(false);
@@ -168,78 +91,53 @@ export default function ProfileScreen() {
 
   const handleDeleteProfilePicture = () => {
     setShowImageOptions(false);
-    
-    Alert.alert(
-      'Delete Profile Picture',
-      'Are you sure you want to delete your profile picture?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) {
-              Alert.alert('Error', 'No authentication token found');
-              return;
-            }
-
-            setIsLoading(true);
-            try {
-              await userService.deleteProfilePicture(token);
-              console.log('✅ Profile picture deleted');
-              
-              // Update local state to remove avatar
-              const updatedUserData = {
-                ...userData,
-                avatar: null,
-              };
-              setUserData(updatedUserData);
-              // Update global auth state so avatar removal persists across screens
-              updateUser(updatedUserData);
-              
-              Alert.alert('Success', 'Profile picture deleted successfully');
-              // Reload profile to get the latest data
-              await loadProfile();
-            } catch (error: any) {
-              console.error('❌ Delete Error:', error);
-              Alert.alert('Error', error.message || 'Failed to delete profile picture');
-            } finally {
-              setIsLoading(false);
-            }
-          },
+    Alert.alert('Delete Profile Picture', 'Are you sure you want to delete your profile picture?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (!token) return;
+          setIsLoading(true);
+          try {
+            await userService.deleteProfilePicture(token);
+            const updatedUserData = { ...userData, avatar: null };
+            setUserData(updatedUserData);
+            updateUser(updatedUserData);
+            Alert.alert('Success', 'Profile picture deleted successfully');
+            await loadProfile();
+          } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to delete profile picture');
+          } finally {
+            setIsLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (token) {
-                await logout();
-              }
-              navigation.replace('Welcome');
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            if (token) await logout();
+            navigation.replace('Welcome');
+          } catch (error) {
+            console.error('Logout error:', error);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -248,542 +146,754 @@ export default function ProfileScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.text }]}>Failed to load profile</Text>
-        <TouchableOpacity onPress={loadProfile} style={styles.retryButton}>
+        <TouchableOpacity onPress={loadProfile} style={[styles.retryButton, { backgroundColor: COLORS.primary }]}>
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const bmiCategory = userData.bmi 
-    ? userData.bmi < 18.5 ? 'Underweight'
-      : userData.bmi < 25 ? 'Normal'
-      : userData.bmi < 30 ? 'Overweight'
+  const bmiCategory = userData.bmi
+    ? userData.bmi < 18.5
+      ? 'Underweight'
+      : userData.bmi < 25
+      ? 'Normal'
+      : userData.bmi < 30
+      ? 'Overweight'
       : 'Obese'
     : null;
 
+  const getBMIColor = () => {
+    if (!userData.bmi) return colors.textSecondary;
+    if (userData.bmi < 18.5) return '#F59E0B';
+    if (userData.bmi < 25) return '#10B981';
+    if (userData.bmi < 30) return '#F97316';
+    return COLORS.error;
+  };
+
+  const isLight = theme === 'light';
+
   return (
-    <>
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.scrollContent}>
-        {/* Header with Avatar */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.avatarContainer}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile Header — clean, no banner */}
+        <View style={styles.profileHeader}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
             onPress={() => setShowImageOptions(true)}
+            activeOpacity={0.8}
           >
-            {userData.avatar ? (
-              <Image source={{ uri: userData.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.card }]}>
-                <MaterialIcons name="person" size={60} color={colors.primary} />
-              </View>
-            )}
-            {/* Edit Icon Overlay */}
-            <View style={styles.editIconContainer}>
-              <MaterialIcons name="camera-alt" size={20} color={COLORS.white} />
-            </View>
-          </TouchableOpacity>
-          <Text style={[styles.name, { color: colors.text }]}>
-            {userData.firstName} {userData.lastName}
-          </Text>
-          <Text style={styles.username}>@{userData.username}</Text>
-        </View>
-
-        {userData && !userData.isEmailVerified && (
-  <View style={styles.verificationBanner}>
-    <View style={styles.verificationContent}>
-      <MaterialIcons name="warning" size={24} color="#ef4444" />
-      <View style={styles.verificationTextContainer}>
-        <Text style={styles.verificationTitle}>Account Not Activated</Text>
-        <Text style={styles.verificationMessage}>
-          Your email address is not verified. Please verify your email to access all features.
-        </Text>
-      </View>
-    </View>
-    <TouchableOpacity
-      style={styles.verifyButton}
-      onPress={() => navigation.navigate('EmailVerification')}
-    >
-      <Text style={styles.verifyButtonText}>Activate Account</Text>
-      <MaterialIcons name="arrow-forward" size={18} color={COLORS.secondary} />
-    </TouchableOpacity>
-  </View>
-)}
-
-        {/* Personal Information Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditProfile')}
-              style={styles.editButton}
-            >
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
-              <Text style={[styles.editText, { color: colors.primary }]}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="email" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{userData.email}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="phone" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone</Text>
-              <Text style={[styles.infoValue, !userData.phone && styles.notProvided, { color: colors.text }]}>
-                {userData.phone || 'Not provided'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="info" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Bio</Text>
-              <Text style={[styles.infoValue, !userData.bio && styles.notProvided, { color: colors.text }]}>
-                {userData.bio || 'Not provided'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="cake" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Date of Birth</Text>
-              <Text style={[styles.infoValue, !userData.dateOfBirth && styles.notProvided, { color: colors.text }]}>
-                {userData.dateOfBirth || 'Not provided'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="person" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Gender</Text>
-              <Text style={[styles.infoValue, !userData.gender && styles.notProvided, { color: colors.text }]}>
-                {userData.gender ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1) : 'Not provided'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Body Information Section */}
-        <View style={[styles.section, { backgroundColor: COLORS.inputBackground }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Body & Fitness</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditBodyInfo')}
-              style={styles.editButton}
-            >
-              <MaterialIcons name="edit" size={20} color={colors.primary} />
-              <Text style={[styles.editText, { color: colors.primary }]}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <MaterialIcons name="height" size={24} color={colors.primary} />
-              <Text style={[styles.statValue, !userData.height && styles.notProvided, { color: colors.text }]}>
-                {userData.height ? `${userData.height} cm` : 'Not provided'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Height</Text>
-            </View>
-
-            <View style={[styles.statCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <MaterialIcons name="monitor-weight" size={24} color={colors.primary} />
-              <Text style={[styles.statValue, !userData.weight && styles.notProvided, { color: colors.text }]}>
-                {userData.weight ? `${userData.weight} kg` : 'Not provided'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Weight</Text>
-            </View>
-
-            <View style={[styles.statCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <MaterialIcons name="analytics" size={24} color={colors.primary} />
-              <Text style={[styles.statValue, !userData.bmi && styles.notProvided, { color: colors.text }]}>
-                {userData.bmi || 'Not provided'}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>BMI</Text>
-              {bmiCategory && (
-                <Text style={[styles.statSubLabel, { color: colors.primary }]}>{bmiCategory}</Text>
+            <View style={[styles.avatarRing, { borderColor: colors.primary + '40', shadowColor: colors.shadow }]}>
+              {userData.avatar ? (
+                <Image source={{ uri: userData.avatar }} style={styles.avatar} />
+              ) : (
+                <LinearGradient
+                  colors={[colors.primary, isLight ? '#D4AF37' : '#FFD700']}
+                  style={styles.avatarFallback}
+                >
+                  <Text style={styles.avatarInitials}>
+                    {userData.firstName?.[0]}{userData.lastName?.[0]}
+                  </Text>
+                </LinearGradient>
               )}
             </View>
+            <View style={[styles.cameraBtn, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+              <Feather name="camera" size={13} color="#FFF" />
+            </View>
+          </TouchableOpacity>
 
-            <View style={[styles.statCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <MaterialIcons name="fitness-center" size={24} color={colors.primary} />
-              <Text style={[styles.statValue, !userData.bodyFatPercentage && styles.notProvided, { color: colors.text }]}>
-                {userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : 'Not provided'}
+          <Text style={[styles.profileName, { color: colors.text }]}>
+            {userData.firstName} {userData.lastName}
+          </Text>
+          <Text style={[styles.profileUsername, { color: colors.subtleText }]}>
+            @{userData.username}
+          </Text>
+
+          {/* Quick Stats Chips */}
+          <View style={styles.quickStatsRow}>
+            <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+              <MaterialIcons name="height" size={15} color={colors.primary} />
+              <Text style={[styles.quickChipText, { color: colors.text }]}>
+                {userData.height ? `${userData.height} cm` : '-- cm'}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Body Fat</Text>
+            </View>
+            <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+              <MaterialIcons name="monitor-weight" size={15} color={colors.primary} />
+              <Text style={[styles.quickChipText, { color: colors.text }]}>
+                {userData.weight ? `${userData.weight} kg` : '-- kg'}
+              </Text>
+            </View>
+            {userData.bmi ? (
+              <View style={[styles.quickChip, { backgroundColor: getBMIColor() + '12', borderColor: getBMIColor() + '30' }]}>
+                <MaterialIcons name="analytics" size={15} color={getBMIColor()} />
+                <Text style={[styles.quickChipText, { color: getBMIColor() }]}>BMI {userData.bmi}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Verification Banner */}
+        {userData && !userData.isEmailVerified && (
+          <View style={[styles.verifyBanner, { backgroundColor: COLORS.error + '08', borderColor: COLORS.error + '20' }]}>
+            <View style={styles.verifyRow}>
+              <View style={[styles.verifyIcon, { backgroundColor: COLORS.error + '15' }]}>
+                <Ionicons name="warning" size={18} color={COLORS.error} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.verifyTitle, { color: COLORS.error }]}>Email Not Verified</Text>
+                <Text style={[styles.verifyMsg, { color: colors.textSecondary }]}>Verify to unlock all features</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.verifyAction, { backgroundColor: COLORS.error }]}
+                onPress={() => navigation.navigate('EmailVerification')}
+              >
+                <Text style={styles.verifyActionText}>Verify</Text>
+              </TouchableOpacity>
             </View>
           </View>
+        )}
 
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="flag" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Fitness Goal</Text>
-              <Text style={[styles.infoValue, !userData.fitnessGoal && styles.notProvided, { color: colors.text }]}>
-                {userData.fitnessGoal ? userData.fitnessGoal.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Not provided'}
-              </Text>
+        {/* Personal Information */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
             </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditProfile')}
+              style={[styles.editPill, { backgroundColor: colors.iconBg }]}
+            >
+              <Feather name="edit-2" size={13} color={colors.primary} />
+              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={[styles.infoRow, { borderColor: colors.border }]}>
-            <MaterialIcons name="directions-run" size={20} color={colors.textSecondary} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Activity Level</Text>
-              <Text style={[styles.infoValue, !userData.activityLevel && styles.notProvided, { color: colors.text }]}>
-                {userData.activityLevel ? userData.activityLevel.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Not provided'}
-              </Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <View style={styles.infoRow}>
+              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="mail" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Email</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.email}</Text>
+              </View>
+            </View>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <View style={styles.infoRow}>
+              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="phone" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Phone</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.phone || 'Not provided'}</Text>
+              </View>
+            </View>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <View style={styles.infoRow}>
+              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="calendar" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Birthday</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.dateOfBirth || 'Not provided'}</Text>
+              </View>
+            </View>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <View style={styles.infoRow}>
+              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="user" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Gender</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
+                  {userData.gender ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1) : 'Not provided'}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Account Settings */}
-        <View style={[styles.section, { borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ChangePassword')}
+        {/* Body & Fitness */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Body & Fitness</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditBodyInfo')}
+              style={[styles.editPill, { backgroundColor: colors.iconBg }]}
+            >
+              <Feather name="edit-2" size={13} color={colors.primary} />
+              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+              <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
+                <MaterialIcons name="height" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>{userData.height || '--'}</Text>
+              <Text style={[styles.statUnit, { color: colors.subtleText }]}>cm</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Height</Text>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+              <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
+                <MaterialIcons name="monitor-weight" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.statVal, { color: colors.text }]}>{userData.weight || '--'}</Text>
+              <Text style={[styles.statUnit, { color: colors.subtleText }]}>kg</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Weight</Text>
+            </View>
+          </View>
+
+          {/* BMI */}
+          <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <View style={styles.wideCardLeft}>
+              <View style={[styles.statIconBox, { backgroundColor: getBMIColor() + '15' }]}>
+                <MaterialIcons name="analytics" size={20} color={getBMIColor()} />
+              </View>
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.wideCardValue, { color: colors.text }]}>{userData.bmi || '--'}</Text>
+                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>BMI Index</Text>
+              </View>
+            </View>
+            {bmiCategory && (
+              <View style={[styles.bmiBadge, { backgroundColor: getBMIColor() + '15' }]}>
+                <Text style={[styles.bmiBadgeText, { color: getBMIColor() }]}>{bmiCategory}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Body Fat */}
+          <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
+            <View style={styles.wideCardLeft}>
+              <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
+                <MaterialIcons name="fitness-center" size={20} color={colors.primary} />
+              </View>
+              <View style={{ marginLeft: 12 }}>
+                <Text style={[styles.wideCardValue, { color: colors.text }]}>
+                  {userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : '--'}
+                </Text>
+                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>Body Fat</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Goals */}
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
+            <View style={styles.goalRow}>
+              <View style={[styles.goalDot, { backgroundColor: colors.primary }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Fitness Goal</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
+                  {userData.fitnessGoal
+                    ? userData.fitnessGoal.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    : 'Not set'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <View style={styles.goalRow}>
+              <View style={[styles.goalDot, { backgroundColor: '#10B981' }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Activity Level</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
+                  {userData.activityLevel
+                    ? userData.activityLevel.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    : 'Not set'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Settings */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
+            </View>
+          </View>
+
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ChangePassword')}>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="lock" size={17} color={colors.primary} />
+              </View>
+              <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
+              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+            </TouchableOpacity>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity style={styles.menuItem}>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="bell" size={17} color={colors.primary} />
+              </View>
+              <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
+              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+            </TouchableOpacity>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <TouchableOpacity style={styles.menuItem}>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="shield" size={17} color={colors.primary} />
+              </View>
+              <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
+              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.logoutBtn, { backgroundColor: COLORS.error + '0A', borderColor: COLORS.error + '25' }]}
+            onPress={handleLogout}
           >
-            <MaterialIcons name="lock" size={20} color={colors.primary} />
-            <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <MaterialIcons name="notifications" size={20} color={colors.primary} />
-            <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <MaterialIcons name="privacy-tip" size={20} color={colors.primary} />
-            <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
-            <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={20} color="#ef4444" />
-            <Text style={[styles.menuText, { color: '#ef4444' }]}>Logout</Text>
-            <MaterialIcons name="chevron-right" size={20} color="#ef4444" />
+            <Feather name="log-out" size={17} color={COLORS.error} />
+            <Text style={[styles.logoutText, { color: COLORS.error }]}>Logout</Text>
           </TouchableOpacity>
         </View>
+
+        <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
       </ScrollView>
 
       {/* Image Options Modal */}
       <Modal
         visible={showImageOptions}
-        transparent={true}
-        animationType="fade"
+        transparent
+        animationType="slide"
         onRequestClose={() => setShowImageOptions(false)}
       >
-        <Pressable 
-          style={styles.modalOverlay}
-          onPress={() => setShowImageOptions(false)}
-        >
-          <View style={[styles.modalContent, { backgroundColor: COLORS.modalBackground }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
-            
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={handleTakePhoto}
-            >
-              <MaterialIcons name="camera-alt" size={24} color={colors.primary} />
-              <Text style={[styles.modalOptionText, { color: colors.text }]}>Take Photo</Text>
-            </TouchableOpacity>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
+          <View style={styles.modalInner}>
+            <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+              <View style={[styles.modalHandle, { backgroundColor: colors.divider }]} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
 
-            <TouchableOpacity 
-              style={styles.modalOption}
-              onPress={handleChooseFromGallery}
-            >
-              <MaterialIcons name="photo-library" size={24} color={colors.primary} />
-              <Text style={[styles.modalOptionText, { color: colors.text }]}>Choose from Gallery</Text>
-            </TouchableOpacity>
-
-            {userData.avatar && (
-              <TouchableOpacity 
-                style={styles.modalOption}
-                onPress={handleDeleteProfilePicture}
-              >
-                <MaterialIcons name="delete" size={24} color="#ef4444" />
-                <Text style={[styles.modalOptionText, { color: '#ef4444' }]}>Delete Photo</Text>
+              <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
+                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+                  <Feather name="camera" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.modalOptText, { color: colors.text }]}>Take Photo</Text>
               </TouchableOpacity>
-            )}
 
-            <TouchableOpacity 
-              style={[styles.modalOption, styles.modalCancelOption]}
-              onPress={() => setShowImageOptions(false)}
-            >
-              <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOpt} onPress={handleChooseFromGallery}>
+                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+                  <Feather name="image" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.modalOptText, { color: colors.text }]}>Choose from Gallery</Text>
+              </TouchableOpacity>
+
+              {userData.avatar && (
+                <TouchableOpacity style={styles.modalOpt} onPress={handleDeleteProfilePicture}>
+                  <View style={[styles.modalOptIcon, { backgroundColor: COLORS.error + '12' }]}>
+                    <Feather name="trash-2" size={20} color={COLORS.error} />
+                  </View>
+                  <Text style={[styles.modalOptText, { color: COLORS.error }]}>Delete Photo</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.modalCancel, { borderTopColor: colors.divider }]}
+                onPress={() => setShowImageOptions(false)}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Pressable>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
   scrollContent: {
-    paddingBottom: SIZES.xl,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
   },
   errorText: {
-    color: COLORS.white,
-    fontSize: SIZES.body,
-    marginBottom: SIZES.md,
+    fontSize: 15,
+    marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.sm,
-    borderRadius: SIZES.radiusSmall,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   retryText: {
-    color: COLORS.secondary,
-    fontSize: SIZES.body,
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  header: {
+  /* ── Profile Header ── */
+  profileHeader: {
     alignItems: 'center',
-    paddingVertical: SIZES.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
+    paddingTop: 56,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
-  avatarContainer: {
-    marginBottom: SIZES.md,
+  avatarWrapper: {
     position: 'relative',
+    marginBottom: 14,
+  },
+  avatarRing: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 2.5,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: COLORS.primary,
+    width: '100%',
+    height: '100%',
   },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.darkGray,
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.primary,
   },
-  editIconContainer: {
+  avatarInitials: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  cameraBtn: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    borderRadius: 15,
-    width: 30,
-    height: 30,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.background,
+    borderWidth: 2.5,
   },
-  name: {
-    fontSize: SIZES.h2,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: SIZES.xs,
+  profileName: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 2,
   },
-  username: {
-    fontSize: SIZES.body,
-    color: COLORS.gray,
+  profileUsername: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 16,
   },
+  quickStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 5,
+  },
+  quickChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  /* ── Verification ── */
+  verifyBanner: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+  },
+  verifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  verifyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 1,
+  },
+  verifyMsg: {
+    fontSize: 12,
+  },
+  verifyAction: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  verifyActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  /* ── Section ── */
   section: {
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SIZES.md,
+    marginBottom: 12,
   },
-  sectionTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  editButton: {
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SIZES.xs,
+    gap: 8,
   },
-  editText: {
-    color: COLORS.primary,
-    fontSize: SIZES.body,
+  sectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  editPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  editPillText: {
+    fontSize: 12,
     fontWeight: '600',
+  },
+  /* ── Card ── */
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: SIZES.md,
-    gap: SIZES.sm,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
   },
-  infoContent: {
-    flex: 1,
+  infoIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoLabel: {
-    fontSize: SIZES.small,
-    color: COLORS.gray,
-    marginBottom: SIZES.xs,
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 1,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   infoValue: {
-    fontSize: SIZES.body,
-    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
-  notProvided: {
-    color: COLORS.gray,
-    fontStyle: 'italic',
+  rowDivider: {
+    height: 1,
+    marginLeft: 62,
   },
-  statsGrid: {
+  /* ── Stats ── */
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.md,
+    gap: 10,
+    marginBottom: 10,
   },
   statCard: {
-    width: '48%',
-    backgroundColor: COLORS.inputBackground,
-    padding: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
+    flex: 1,
     alignItems: 'center',
-    marginBottom: SIZES.sm,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
   },
-  statValue: {
-    fontSize: SIZES.h2,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginTop: SIZES.xs,
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statVal: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  statUnit: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: -2,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: SIZES.small,
-    color: COLORS.gray,
-    marginTop: SIZES.xs,
+    fontSize: 11,
+    fontWeight: '500',
   },
-  statSubLabel: {
-    fontSize: SIZES.small,
-    color: COLORS.primary,
-    marginTop: SIZES.xs,
+  /* ── Wide card (BMI / Body Fat) ── */
+  wideCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
   },
+  wideCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wideCardValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  wideCardLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  bmiBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  bmiBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  /* ── Goals ── */
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  goalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  /* ── Menu ── */
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SIZES.md,
-    gap: SIZES.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  menuIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   menuText: {
     flex: 1,
-    fontSize: SIZES.body,
-    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '500',
   },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  versionText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  /* ── Modal ── */
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalInner: {
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: COLORS.modalBackground,
-    borderTopLeftRadius: SIZES.radiusLarge,
-    borderTopRightRadius: SIZES.radiusLarge,
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.xl,
-    paddingBottom: SIZES.xl + 20,
+  modalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 34,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
-    color: COLORS.white,
-    marginBottom: SIZES.lg,
+    fontSize: 17,
+    fontWeight: '700',
     textAlign: 'center',
+    marginBottom: 16,
   },
-  modalOption: {
+  modalOpt: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SIZES.md,
-    gap: SIZES.md,
+    paddingVertical: 12,
+    gap: 14,
   },
-  modalOptionText: {
-    fontSize: SIZES.body,
-    color: COLORS.white,
+  modalOptIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOptText: {
+    fontSize: 15,
     fontWeight: '500',
   },
-  modalCancelOption: {
-    marginTop: SIZES.sm,
-    justifyContent: 'center',
+  modalCancel: {
+    marginTop: 8,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: COLORS.darkGray,
-    paddingTop: SIZES.lg,
+    alignItems: 'center',
   },
   modalCancelText: {
-    fontSize: SIZES.body,
-    color: COLORS.gray,
+    fontSize: 15,
     fontWeight: '500',
-  },
-  verificationBanner: {
-    backgroundColor: COLORS.errorBackground,
-    borderLeftWidth: SIZES.borderThick,
-    borderLeftColor: COLORS.error,
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.lg,
-    marginHorizontal: SIZES.lg,
-    marginTop: SIZES.lg,
-    borderRadius: SIZES.radiusSmall,
-  },
-  verificationContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SIZES.sm,
-    marginBottom: SIZES.md,
-  },
-  verificationTextContainer: {
-    flex: 1,
-  },
-  verificationTitle: {
-    fontSize: SIZES.body,
-    fontWeight: 'bold',
-    color: COLORS.error,
-    marginBottom: SIZES.xs,
-  },
-  verificationMessage: {
-    fontSize: SIZES.small,
-    color: COLORS.errorLight,
-    lineHeight: 20,
-  },
-  verifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SIZES.xs,
-    backgroundColor: COLORS.error,
-    paddingVertical: SIZES.sm,
-    paddingHorizontal: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
-  },
-  verifyButtonText: {
-    fontSize: SIZES.body,
-    fontWeight: 'bold',
-    color: COLORS.white,
   },
 });

@@ -175,7 +175,6 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -184,7 +183,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.lg,
     paddingVertical: SIZES.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
   },
   backButton: {
     padding: SIZES.xs,
@@ -192,7 +190,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: SIZES.h3,
     fontWeight: 'bold',
-    color: COLORS.white,
   },
   content: {
     flex: 1,
@@ -202,7 +199,6 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: SIZES.body,
-    color: COLORS.white,
     marginBottom: SIZES.sm,
     marginTop: SIZES.md,
   },

@@ -8,6 +8,7 @@ import {
   TextStyle   
 } from 'react-native';
 import { COLORS, SIZES } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 
 interface CustomButtonProps extends TouchableOpacityProps {
@@ -27,34 +28,52 @@ export const CustomButton: React.FC<CustomButtonProps> = ({
 
   ...props 
 }) => {
+  const { colors } = useTheme();
   
-  
-  const baseButtonStyles = [
-    styles.button, 
-    variant === 'primary' ? styles.primaryButton : 
-    variant === 'outline' ? styles.outlineButton :
-    styles.secondaryButton,
-  ];
+  const getButtonStyle = () => {
+    switch (variant) {
+      case 'primary':
+        return {
+          backgroundColor: colors.primary,
+        };
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderColor: colors.primary,
+        };
+      default:
+        return {
+          backgroundColor: colors.secondary,
+        };
+    }
+  };
 
-  
-  const baseTextStyles = [
-    styles.buttonText, 
-    variant === 'primary' ? styles.primaryText : 
-    variant === 'outline' ? styles.outlineText :
-    styles.secondaryText
-  ];
+  const getTextColor = () => {
+    switch (variant) {
+      case 'primary':
+        // Use white text on gold background for better contrast in both themes
+        return '#FFFFFF';
+      case 'outline':
+        return colors.primary;
+      default:
+        return colors.text;
+    }
+  };
 
   return (
     <TouchableOpacity 
      style={[
-        ...baseButtonStyles,
+        styles.button,
+        getButtonStyle(),
         buttonStyle, 
         props.disabled && styles.disabledButton, 
       ]}
       {...props}
     >
       <Text style={[
-        ...baseTextStyles,
+        styles.buttonText,
+        { color: getTextColor() },
         textStyle, ]}>
         {title}
       </Text>
@@ -76,37 +95,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-  },
-  secondaryButton: {
-    backgroundColor: COLORS.secondary,
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   disabledButton: { 
     opacity: 0.5,
   },
   buttonText: {
     fontWeight: '700',
     letterSpacing: 0.5,
-  },
-  primaryText: {
-    color: COLORS.white,
-    fontSize: 20,
-    textTransform: 'uppercase',
-  },
-  secondaryText: {
-    color: COLORS.lightGray,
-    fontSize: SIZES.h4,
-  },
-  outlineText: {
-    color: COLORS.primary,
-    fontSize: SIZES.h4,
+    fontSize: 16,
   },
 });

@@ -94,8 +94,8 @@ export default function EmailVerificationScreen() {
     >
       <View style={styles.content}>
         {/* Icon */}
-        <View style={styles.iconContainer}>
-          <MaterialIcons name="email" size={80} color={COLORS.primary} />
+        <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
+          <MaterialIcons name="email" size={80} color={colors.primary} />
         </View>
 
         {/* Title */}
@@ -113,7 +113,7 @@ export default function EmailVerificationScreen() {
 
         {/* Email Display */}
         {user?.email && (
-          <View style={styles.emailBox}>
+          <View style={[styles.emailBox, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
             <MaterialIcons name="email" size={20} color={colors.textSecondary} />
             <Text style={[styles.emailText, { color: colors.text }]}>{user.email}</Text>
           </View>
@@ -165,10 +165,10 @@ export default function EmailVerificationScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={COLORS.secondary} />
+                <ActivityIndicator size="small" color={'#FFFFFF'} />
               ) : (
                 <>
-                  <MaterialIcons name="send" size={20} color={COLORS.secondary} />
+                  <MaterialIcons name="send" size={20} color={'#FFFFFF'} />
                   <Text style={styles.buttonText}>
                     {emailSent ? 'Resend Verification Email' : 'Send Verification Email'}
                   </Text>
@@ -185,7 +185,7 @@ export default function EmailVerificationScreen() {
 
         {/* Back Button */}
         <TouchableOpacity
-          style={[styles.backButton, user?.isEmailVerified && styles.verifiedBackButton]}
+          style={[styles.backButton, { borderColor: colors.inputBorder }, user?.isEmailVerified && styles.verifiedBackButton]}
           onPress={() => navigation.goBack()}
         >
           <Text style={[styles.backButtonText, { color: colors.text }]}>
@@ -200,7 +200,6 @@ export default function EmailVerificationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -216,7 +215,6 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: COLORS.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SIZES.xl,
@@ -224,13 +222,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: SIZES.h1,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginBottom: SIZES.md,
     textAlign: 'center',
   },
   description: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     textAlign: 'center',
     marginBottom: SIZES.xl,
     lineHeight: 24,
@@ -239,18 +235,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SIZES.sm,
-    backgroundColor: COLORS.inputBackground,
     paddingHorizontal: SIZES.lg,
     paddingVertical: SIZES.md,
     borderRadius: SIZES.radiusSmall,
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
     marginBottom: SIZES.md,
     width: '100%',
   },
   emailText: {
     fontSize: SIZES.body,
-    color: COLORS.white,
     flex: 1,
   },
   verifiedBadge: {
@@ -277,7 +270,6 @@ const styles = StyleSheet.create({
   benefitsTitle: {
     fontSize: SIZES.h3,
     fontWeight: '600',
-    color: COLORS.white,
     marginBottom: SIZES.md,
   },
   benefitItem: {
@@ -288,7 +280,6 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     flex: 1,
     lineHeight: 22,
   },
@@ -307,11 +298,10 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: '#FFFFFF',
   },
   helpText: {
     fontSize: SIZES.small,
-    color: COLORS.gray,
     textAlign: 'center',
     marginBottom: SIZES.xl,
   },
@@ -320,7 +310,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.xl,
     borderRadius: SIZES.radiusSmall,
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
     width: '100%',
   },
   verifiedBackButton: {
@@ -330,7 +319,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: SIZES.body,
     fontWeight: '600',
-    color: COLORS.white,
     textAlign: 'center',
   },
 });

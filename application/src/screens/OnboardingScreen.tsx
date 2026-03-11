@@ -20,25 +20,16 @@ import { SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// App color palette (matching app theme)
+// Accent colors (these don't change between themes)
 const ONBOARDING_COLORS = {
-  background: '#000000',
-  primary: '#f5c527',
-  primaryLight: 'rgba(245, 197, 39, 0.15)',
-  text: '#FFFFFF',
-  textSecondary: '#999999',
-  textMuted: '#666666',
-  white: '#FFFFFF',
-  border: '#333333',
+  primary: '#C5981B',
+  primaryLight: 'rgba(197, 152, 27, 0.15)',
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
-  cardShadow: 'rgba(0, 0, 0, 0.3)',
-  cardBackground: 'rgba(255, 255, 255, 0.08)',
 };
 
 type OnboardingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
@@ -57,6 +48,7 @@ const DatePickerWheel = ({
   width?: number;
   suffix?: string;
 }) => {
+  const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
   const itemHeight = 50;
   
@@ -87,7 +79,8 @@ const DatePickerWheel = ({
           <View key={index} style={[styles.pickerItem, { height: itemHeight }]}>
             <Text style={[
               styles.pickerItemText,
-              index === selectedIndex && styles.pickerItemTextSelected
+              { color: colors.subtleText },
+              index === selectedIndex && [styles.pickerItemTextSelected, { color: colors.text }]
             ]}>
               {item}{suffix}
             </Text>
@@ -110,6 +103,7 @@ const HeightRuler = ({
   min?: number;
   max?: number;
 }) => {
+  const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
   const tickHeight = 20;
   const rulerHeight = 320;
@@ -154,14 +148,15 @@ const HeightRuler = ({
             <View key={i} style={styles.verticalTickContainer}>
               <View style={styles.verticalTickRow}>
                 {isMajor ? (
-                  <Text style={styles.verticalTickLabel}>{tickValue}</Text>
+                  <Text style={[styles.verticalTickLabel, { color: colors.text }]}>{tickValue}</Text>
                 ) : (
                   <View style={styles.verticalTickLabelSpacer} />
                 )}
                 <View style={[
                   styles.verticalTick,
-                  isMajor && styles.verticalTickMajor,
-                  isMid && styles.verticalTickMid,
+                  { backgroundColor: colors.divider },
+                  isMajor && [styles.verticalTickMajor, { backgroundColor: colors.text }],
+                  isMid && [styles.verticalTickMid, { backgroundColor: colors.subtleText }],
                 ]} />
               </View>
             </View>
@@ -182,6 +177,7 @@ const WeightGauge = ({
   onChange: (val: number) => void;
   height: number;
 }) => {
+  const { colors } = useTheme();
   const scrollViewRef = useRef<ScrollView>(null);
   const tickWidth = 8;
   const min = 30;
@@ -220,22 +216,22 @@ const WeightGauge = ({
       <View style={styles.bmiCategories}>
         <View style={styles.bmiCategory}>
           <View style={[styles.bmiDot, { backgroundColor: ONBOARDING_COLORS.warning }]} />
-          <Text style={[styles.bmiLabel, bmi < 18.5 && styles.bmiLabelActive]}>Underweight</Text>
+          <Text style={[styles.bmiLabel, { color: colors.subtleText }, bmi < 18.5 && [styles.bmiLabelActive, { color: colors.text }]]}>Underweight</Text>
         </View>
         <View style={styles.bmiCategory}>
           <View style={[styles.bmiDot, { backgroundColor: ONBOARDING_COLORS.success }]} />
-          <Text style={[styles.bmiLabel, bmi >= 18.5 && bmi < 25 && styles.bmiLabelActive]}>Normal</Text>
+          <Text style={[styles.bmiLabel, { color: colors.subtleText }, bmi >= 18.5 && bmi < 25 && [styles.bmiLabelActive, { color: colors.text }]]}>Normal</Text>
         </View>
         <View style={styles.bmiCategory}>
           <View style={[styles.bmiDot, { backgroundColor: ONBOARDING_COLORS.warning }]} />
-          <Text style={[styles.bmiLabel, bmi >= 25 && bmi < 30 && styles.bmiLabelActive]}>Overweight</Text>
+          <Text style={[styles.bmiLabel, { color: colors.subtleText }, bmi >= 25 && bmi < 30 && [styles.bmiLabelActive, { color: colors.text }]]}>Overweight</Text>
         </View>
       </View>
 
       {/* Weight Display */}
       <View style={styles.weightDisplay}>
-        <Text style={styles.weightValue}>{value.toFixed(1)}</Text>
-        <Text style={styles.weightUnit}>kg</Text>
+        <Text style={[styles.weightValue, { color: colors.text }]}>{value.toFixed(1)}</Text>
+        <Text style={[styles.weightUnit, { color: colors.textSecondary }]}>kg</Text>
       </View>
 
       {/* Weight Ruler */}
@@ -258,7 +254,8 @@ const WeightGauge = ({
               <View key={i} style={[styles.weightTickContainer, { width: tickWidth }]}>
                 <View style={[
                   styles.weightTick,
-                  isMajor && styles.weightTickMajor,
+                  { backgroundColor: colors.divider },
+                  isMajor && [styles.weightTickMajor, { backgroundColor: colors.text }],
                 ]} />
               </View>
             );
@@ -268,7 +265,7 @@ const WeightGauge = ({
 
       {/* BMI Info */}
       <View style={[styles.bmiInfoBox, { borderColor: bmiInfo.color }]}>
-        <Text style={styles.bmiInfoLabel}>Your BMI shows you are</Text>
+        <Text style={[styles.bmiInfoLabel, { color: colors.textSecondary }]}>Your BMI shows you are</Text>
         <Text style={[styles.bmiInfoValue, { color: bmiInfo.color }]}>{bmiInfo.label}</Text>
       </View>
     </View>
@@ -390,16 +387,16 @@ export default function OnboardingScreen() {
 
   const renderProgressBar = () => (
     <View style={styles.progressContainer}>
-      <View style={styles.progressBar}>
+      <View style={[styles.progressBar, { backgroundColor: colors.divider }]}>
         <View style={[styles.progressFill, { width: `${(currentStep / totalSteps) * 100}%` }]} />
       </View>
-      <Text style={styles.progressText}>{currentStep}/{totalSteps}</Text>
+      <Text style={[styles.progressText, { color: colors.textSecondary }]}>{currentStep}/{totalSteps}</Text>
     </View>
   );
 
   const renderStep1 = () => (
     <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <Text style={styles.stepTitle}>What's Your Gender</Text>
+      <Text style={[styles.stepTitle, { color: colors.text }]}>What's Your Gender</Text>
 
       <View style={styles.genderContainer}>
         {/* Male Option */}
@@ -409,11 +406,12 @@ export default function OnboardingScreen() {
         >
           <View style={[
             styles.genderIconCircle,
+            { borderColor: colors.divider },
             gender === 'male' && styles.genderIconCircleActive,
           ]}>
-            <Ionicons name="male" size={50} color={gender === 'male' ? ONBOARDING_COLORS.background : ONBOARDING_COLORS.white} />
+            <Ionicons name="male" size={50} color={gender === 'male' ? '#FFFFFF' : colors.text} />
           </View>
-          <Text style={styles.genderText}>Male</Text>
+          <Text style={[styles.genderText, { color: colors.text }]}>Male</Text>
         </TouchableOpacity>
 
         {/* Female Option */}
@@ -423,11 +421,12 @@ export default function OnboardingScreen() {
         >
           <View style={[
             styles.genderIconCircle,
+            { borderColor: colors.divider },
             gender === 'female' && styles.genderIconCircleActive,
           ]}>
-            <Ionicons name="female" size={50} color={gender === 'female' ? ONBOARDING_COLORS.background : ONBOARDING_COLORS.white} />
+            <Ionicons name="female" size={50} color={gender === 'female' ? '#FFFFFF' : colors.text} />
           </View>
-          <Text style={styles.genderText}>Female</Text>
+          <Text style={[styles.genderText, { color: colors.text }]}>Female</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -435,10 +434,10 @@ export default function OnboardingScreen() {
 
   const renderStep2 = () => (
     <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <Text style={styles.stepTitle}>What's your Birthday?</Text>
-      <Text style={styles.stepSubtitle}>Your birthday helps us customize your experience based on your age</Text>
+      <Text style={[styles.stepTitle, { color: colors.text }]}>What's your Birthday?</Text>
+      <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>Your birthday helps us customize your experience based on your age</Text>
 
-      <View style={styles.datePickerContainer}>
+      <View style={[styles.datePickerContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
         <DatePickerWheel
           items={days}
           selectedIndex={birthDay - 1}
@@ -463,7 +462,7 @@ export default function OnboardingScreen() {
 
   const renderStep3 = () => (
     <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <Text style={styles.stepTitle}>Your Height</Text>
+      <Text style={[styles.stepTitle, { color: colors.text }]}>Your Height</Text>
 
       {/* Height Display - Professional Layout */}
       <View style={styles.heightScreenContainer}>
@@ -490,9 +489,9 @@ export default function OnboardingScreen() {
         </View>
 
         {/* Height value display at bottom */}
-        <View style={styles.heightValueDisplay}>
+        <View style={[styles.heightValueDisplay, { backgroundColor: colors.surface }]}>
           <Text style={styles.heightValue}>{height}</Text>
-          <Text style={styles.heightUnit}>cm</Text>
+          <Text style={[styles.heightUnit, { color: colors.textSecondary }]}>cm</Text>
         </View>
       </View>
     </Animated.View>
@@ -500,8 +499,8 @@ export default function OnboardingScreen() {
 
   const renderStep4 = () => (
     <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <Text style={styles.stepTitle}>Your Current Weight</Text>
-      <Text style={styles.stepSubtitle}>We use your weight to tailor your fitness goals and track your progress</Text>
+      <Text style={[styles.stepTitle, { color: colors.text }]}>Your Current Weight</Text>
+      <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>We use your weight to tailor your fitness goals and track your progress</Text>
 
       <WeightGauge value={weight} onChange={setWeight} height={height} />
     </Animated.View>
@@ -509,8 +508,8 @@ export default function OnboardingScreen() {
 
   const renderStep5 = () => (
     <Animated.View style={[styles.stepContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <Text style={styles.stepTitle}>Fitness Goals</Text>
-      <Text style={styles.stepSubtitle}>What do you want to achieve?</Text>
+      <Text style={[styles.stepTitle, { color: colors.text }]}>Fitness Goals</Text>
+      <Text style={[styles.stepSubtitle, { color: colors.textSecondary }]}>What do you want to achieve?</Text>
 
       <View style={styles.goalsContainer}>
         {[
@@ -522,6 +521,7 @@ export default function OnboardingScreen() {
             key={goal.id}
             style={[
               styles.goalCard,
+              { backgroundColor: colors.surface, borderColor: colors.divider },
               fitnessGoal === goal.id && styles.goalCardActive,
             ]}
             onPress={() => setFitnessGoal(goal.id as any)}
@@ -529,16 +529,16 @@ export default function OnboardingScreen() {
             <Ionicons 
               name={goal.icon as any} 
               size={28} 
-              color={fitnessGoal === goal.id ? ONBOARDING_COLORS.background : ONBOARDING_COLORS.primary} 
+              color={fitnessGoal === goal.id ? '#FFFFFF' : ONBOARDING_COLORS.primary} 
             />
-            <Text style={[styles.goalText, fitnessGoal === goal.id && styles.goalTextActive]}>
+            <Text style={[styles.goalText, { color: colors.text }, fitnessGoal === goal.id && styles.goalTextActive]}>
               {goal.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={[styles.label, { marginTop: 24 }]}>Activity Level</Text>
+      <Text style={[styles.label, { marginTop: 24, color: colors.text }]}>Activity Level</Text>
       <View style={styles.activityContainer}>
         {[
           { id: 'sedentary', label: 'Sedentary', desc: 'Little to no exercise' },
@@ -550,14 +550,15 @@ export default function OnboardingScreen() {
             key={level.id}
             style={[
               styles.activityCard,
+              { backgroundColor: colors.surface, borderColor: colors.divider },
               activityLevel === level.id && styles.activityCardActive,
             ]}
             onPress={() => setActivityLevel(level.id as any)}
           >
-            <Text style={[styles.activityLabel, activityLevel === level.id && styles.activityLabelActive]}>
+            <Text style={[styles.activityLabel, { color: colors.text }, activityLevel === level.id && styles.activityLabelActive]}>
               {level.label}
             </Text>
-            <Text style={[styles.activityDesc, activityLevel === level.id && styles.activityDescActive]}>
+            <Text style={[styles.activityDesc, { color: colors.textSecondary }, activityLevel === level.id && styles.activityDescActive]}>
               {level.desc}
             </Text>
           </TouchableOpacity>
@@ -567,7 +568,7 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         {currentStep > 1 ? (
@@ -580,7 +581,7 @@ export default function OnboardingScreen() {
         )}
         
         <TouchableOpacity onPress={handleSkip} style={styles.headerButton}>
-          <Text style={styles.skipText}>Skip</Text>
+          <Text style={[styles.skipText, { color: colors.textSecondary }]}>Skip</Text>
         </TouchableOpacity>
       </View>
 
@@ -598,12 +599,12 @@ export default function OnboardingScreen() {
       {/* Bottom Button */}
       <View style={styles.bottomContainer}>
         <TouchableOpacity
-          style={styles.nextButton}
+          style={[styles.nextButton, { backgroundColor: ONBOARDING_COLORS.primary }]}
           onPress={handleNext}
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color={ONBOARDING_COLORS.white} />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.nextButtonText}>
               {currentStep === totalSteps ? 'Get Started' : 'Continue'}
@@ -618,7 +619,6 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ONBOARDING_COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -642,7 +642,6 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: ONBOARDING_COLORS.textSecondary,
     fontWeight: '500',
     textAlign: 'right',
   },
@@ -655,7 +654,6 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: ONBOARDING_COLORS.border,
     borderRadius: 2,
     marginRight: 12,
   },
@@ -666,7 +664,6 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
-    color: ONBOARDING_COLORS.textSecondary,
     fontWeight: '500',
   },
   scrollContent: {
@@ -680,13 +677,11 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: ONBOARDING_COLORS.text,
     textAlign: 'center',
     marginBottom: 12,
   },
   stepSubtitle: {
     fontSize: 16,
-    color: ONBOARDING_COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: 40,
     lineHeight: 24,
@@ -707,7 +702,6 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: ONBOARDING_COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -718,24 +712,20 @@ const styles = StyleSheet.create({
   },
   genderIconCircleInactive: {
     backgroundColor: 'transparent',
-    borderColor: ONBOARDING_COLORS.border,
   },
   genderText: {
     fontSize: 20,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
   },
   // Date picker styles
   datePickerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: ONBOARDING_COLORS.cardBackground,
     borderRadius: 20,
     paddingVertical: 20,
     marginHorizontal: 20,
     borderWidth: 1,
-    borderColor: ONBOARDING_COLORS.border,
   },
   pickerHighlight: {
     position: 'absolute',
@@ -754,12 +744,10 @@ const styles = StyleSheet.create({
   },
   pickerItemText: {
     fontSize: 20,
-    color: ONBOARDING_COLORS.textMuted,
   },
   pickerItemTextSelected: {
     fontSize: 24,
     fontWeight: '700',
-    color: ONBOARDING_COLORS.white,
   },
   // Height styles - Professional Layout
   heightScreenContainer: {
@@ -807,7 +795,6 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     justifyContent: 'center',
     paddingVertical: 20,
-    backgroundColor: ONBOARDING_COLORS.cardBackground,
     borderRadius: 16,
     marginHorizontal: 20,
     marginBottom: 10,
@@ -820,7 +807,6 @@ const styles = StyleSheet.create({
   heightUnit: {
     fontSize: 24,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.textSecondary,
     marginLeft: 8,
   },
   personSilhouette: {
@@ -859,22 +845,18 @@ const styles = StyleSheet.create({
   verticalTick: {
     width: 20,
     height: 1,
-    backgroundColor: ONBOARDING_COLORS.border,
   },
   verticalTickMajor: {
     width: 35,
     height: 2,
-    backgroundColor: ONBOARDING_COLORS.white,
   },
   verticalTickMid: {
     width: 28,
     height: 1.5,
-    backgroundColor: ONBOARDING_COLORS.textMuted,
   },
   verticalTickLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
     marginRight: 8,
     minWidth: 30,
     textAlign: 'right',
@@ -904,10 +886,8 @@ const styles = StyleSheet.create({
   },
   bmiLabel: {
     fontSize: 14,
-    color: ONBOARDING_COLORS.textMuted,
   },
   bmiLabelActive: {
-    color: ONBOARDING_COLORS.text,
     fontWeight: '600',
   },
   weightDisplay: {
@@ -918,12 +898,10 @@ const styles = StyleSheet.create({
   weightValue: {
     fontSize: 72,
     fontWeight: '700',
-    color: ONBOARDING_COLORS.text,
   },
   weightUnit: {
     fontSize: 24,
     fontWeight: '500',
-    color: ONBOARDING_COLORS.textSecondary,
     marginLeft: 8,
   },
   weightRulerContainer: {
@@ -946,12 +924,10 @@ const styles = StyleSheet.create({
   weightTick: {
     width: 1,
     height: 20,
-    backgroundColor: ONBOARDING_COLORS.border,
   },
   weightTickMajor: {
     height: 35,
     width: 2,
-    backgroundColor: ONBOARDING_COLORS.text,
   },
   bmiInfoBox: {
     marginTop: 30,
@@ -963,7 +939,6 @@ const styles = StyleSheet.create({
   },
   bmiInfoLabel: {
     fontSize: 14,
-    color: ONBOARDING_COLORS.textSecondary,
   },
   bmiInfoValue: {
     fontSize: 18,
@@ -974,7 +949,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
     marginBottom: 16,
   },
   goalsContainer: {
@@ -984,12 +958,10 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     flex: 1,
-    backgroundColor: ONBOARDING_COLORS.cardBackground,
     borderRadius: 16,
     paddingVertical: 20,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: ONBOARDING_COLORS.border,
   },
   goalCardActive: {
     backgroundColor: ONBOARDING_COLORS.primary,
@@ -998,21 +970,18 @@ const styles = StyleSheet.create({
   goalText: {
     fontSize: 14,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
     marginTop: 8,
   },
   goalTextActive: {
-    color: ONBOARDING_COLORS.background,
+    color: '#FFFFFF',
   },
   activityContainer: {
     gap: 10,
   },
   activityCard: {
-    backgroundColor: ONBOARDING_COLORS.cardBackground,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: ONBOARDING_COLORS.border,
   },
   activityCardActive: {
     backgroundColor: ONBOARDING_COLORS.primary,
@@ -1021,14 +990,12 @@ const styles = StyleSheet.create({
   activityLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
   },
   activityLabelActive: {
-    color: ONBOARDING_COLORS.background,
+    color: '#FFFFFF',
   },
   activityDesc: {
     fontSize: 13,
-    color: ONBOARDING_COLORS.textSecondary,
     marginTop: 2,
   },
   activityDescActive: {
@@ -1041,17 +1008,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   nextButton: {
-    backgroundColor: ONBOARDING_COLORS.cardBackground,
     borderRadius: 30,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: ONBOARDING_COLORS.border,
   },
   nextButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: ONBOARDING_COLORS.white,
+    color: '#FFFFFF',
   },
 });

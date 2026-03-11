@@ -257,7 +257,6 @@ export default function EditBodyInfoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -266,7 +265,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SIZES.lg,
     paddingVertical: SIZES.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
   },
   backButton: {
     padding: SIZES.xs,
@@ -274,7 +272,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: SIZES.h3,
     fontWeight: 'bold',
-    color: COLORS.white,
   },
   content: {
     flex: 1,
@@ -285,13 +282,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: SIZES.h3,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginTop: SIZES.lg,
     marginBottom: SIZES.md,
   },
   label: {
     fontSize: SIZES.body,
-    color: COLORS.white,
     marginBottom: SIZES.sm,
     marginTop: SIZES.md,
   },
@@ -305,7 +300,6 @@ const styles = StyleSheet.create({
   },
   optionButton: {
     flex: 1,
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.md,
     borderRadius: SIZES.radiusSmall,
     marginHorizontal: 4,
@@ -314,16 +308,13 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   optionButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.secondary,
+    borderColor: 'transparent',
   },
   optionText: {
-    color: COLORS.white,
     textAlign: 'center',
     fontSize: SIZES.body,
   },
   optionTextActive: {
-    color: COLORS.white,
     fontWeight: 'bold',
   },
   buttonContainer: {

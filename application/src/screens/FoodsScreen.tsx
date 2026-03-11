@@ -18,10 +18,12 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import Ion from 'react-native-vector-icons/Ionicons';
 import { COLORS, SIZES } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { foodService } from '../services/api';
 import type { FoodPredictionResponse } from '../services/api';
 
 export default function FoodsScreen() {
+  const { theme, colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -151,62 +153,60 @@ export default function FoodsScreen() {
   });
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Text style={styles.title}>🍎 Food Recognition</Text>
-        <Text style={styles.subtitle}>AI-powered food identification</Text>
+        <Text style={[styles.title, { color: colors.text }]}>🍎 Food Recognition</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>AI-powered food identification</Text>
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Identifying food...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.primary }]}>Identifying food...</Text>
           </View>
         ) : prediction && selectedImage ? (
           <View style={styles.resultContainer}>
             <Image source={{ uri: selectedImage }} style={styles.foodImage} />
             
-            <View style={styles.predictionCard}>
-              <Text style={styles.foodName}>{formatFoodName(prediction.food_data.name)}</Text>
-              <Text style={styles.confidence}>
+            <View style={[styles.predictionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.foodName, { color: colors.primary }]}>{formatFoodName(prediction.food_data.name)}</Text>
+              <Text style={[styles.confidence, { color: colors.textSecondary }]}>
                 Confidence: {(prediction.confidence * 100).toFixed(1)}%
               </Text>
               
               <View style={styles.nutritionGrid}>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Calories</Text>
-                  <Text style={styles.nutritionValue}>{prediction.food_data.calories}</Text>
-                  <Text style={styles.nutritionUnit}>kcal</Text>
+                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Calories</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.calories}</Text>
+                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>kcal</Text>
                 </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Protein</Text>
-                  <Text style={styles.nutritionValue}>{prediction.food_data.protein}</Text>
-                  <Text style={styles.nutritionUnit}>g</Text>
+                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Protein</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.protein}</Text>
+                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
                 </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Carbs</Text>
-                  <Text style={styles.nutritionValue}>{prediction.food_data.carbohydrate}</Text>
-                  <Text style={styles.nutritionUnit}>g</Text>
+                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Carbs</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.carbohydrate}</Text>
+                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
                 </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionLabel}>Fat</Text>
-                  <Text style={styles.nutritionValue}>{prediction.food_data.fat}</Text>
-                  <Text style={styles.nutritionUnit}>g</Text>
+                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Fat</Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.fat}</Text>
+                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
                 </View>
               </View>
             </View>
 
-            <TouchableOpacity style={styles.newScanButton} onPress={clearResult}>
-              <Icon name="camera" size={20} color={COLORS.white} />
-              <Text style={styles.newScanButtonText}>Scan Another Food</Text>
+            <TouchableOpacity style={[styles.newScanButton, { backgroundColor: colors.primary }]} onPress={clearResult}>
+              <Icon name="camera" size={20} color={theme === 'dark' ? COLORS.white : colors.text} />
+              <Text style={[styles.newScanButtonText, { color: theme === 'dark' ? COLORS.white : colors.text }]}>Scan Another Food</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.scanCard} onPress={openSheet}>
-            <Icon name="camera" size={48} color={COLORS.primary} />
-            <Text style={styles.scanTitle}>Scan Your Food</Text>
-            <Text style={styles.scanText}>
-              Take a photo or choose from gallery to identify food and get nutrition info
-            </Text>
+          <TouchableOpacity style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.primary }]} onPress={openSheet}>
+            <Icon name="camera" size={48} color={colors.primary} />
+            <Text style={[styles.scanTitle, { color: colors.text }]}>Scan Your Food</Text>
+            <Text style={[styles.scanText, { color: colors.textSecondary }]}>Take a photo or choose from gallery to identify food and get nutrition info</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -214,25 +214,25 @@ export default function FoodsScreen() {
       {/* ====== BOTTOM SHEET ====== */}
       <Modal transparent visible={modalVisible} animationType="none">
         <TouchableWithoutFeedback onPress={closeSheet}>
-          <View style={styles.modalBackground} />
+          <View style={[styles.modalBackground, { backgroundColor: colors.textSecondary + '80' }]} />
         </TouchableWithoutFeedback>
 
         <Animated.View
           style={[
             styles.bottomSheet,
-            { transform: [{ translateY }] },
+            { backgroundColor: colors.card, transform: [{ translateY }] },
           ]}
         >
-          <View style={styles.handleBar} />
+          <View style={[styles.handleBar, { backgroundColor: colors.textSecondary }]} />
 
           <TouchableOpacity style={styles.option} onPress={openCamera}>
-            <Icon name="camera" size={28} color="#FFD700" />
-            <Text style={styles.optionText}>Take Photo</Text>
+            <Icon name="camera" size={28} color={colors.primary} />
+            <Text style={[styles.optionText, { color: colors.primary }]}>Take Photo</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.option} onPress={openGallery}>
-            <Ion name="images-outline" size={30} color="#FFD700" />
-            <Text style={styles.optionText}>Choose from Gallery</Text>
+            <Ion name="images-outline" size={30} color={colors.primary} />
+            <Text style={[styles.optionText, { color: colors.primary }]}>Choose from Gallery</Text>
           </TouchableOpacity>
         </Animated.View>
       </Modal>
@@ -244,7 +244,6 @@ export default function FoodsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   content: {
     padding: SIZES.lg,
@@ -252,21 +251,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: SIZES.h1,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginBottom: SIZES.sm,
   },
   subtitle: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     marginBottom: SIZES.xl,
   },
   scanCard: {
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.xxl,
     borderRadius: SIZES.radiusMedium,
     marginBottom: SIZES.md,
     borderWidth: 2,
-    borderColor: COLORS.primary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -275,13 +270,11 @@ const styles = StyleSheet.create({
   scanTitle: {
     fontSize: SIZES.h2,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginTop: SIZES.md,
     marginBottom: SIZES.sm,
   },
   scanText: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -293,7 +286,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: SIZES.body,
-    color: COLORS.primary,
     marginTop: SIZES.md,
   },
   resultContainer: {
@@ -306,22 +298,18 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.md,
   },
   predictionCard: {
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.lg,
     borderRadius: SIZES.radiusMedium,
     borderWidth: 1,
-    borderColor: COLORS.darkGray,
     marginBottom: SIZES.md,
   },
   foodName: {
     fontSize: SIZES.h2,
     fontWeight: 'bold',
-    color: COLORS.primary,
     marginBottom: SIZES.xs,
   },
   confidence: {
     fontSize: SIZES.body,
-    color: COLORS.gray,
     marginBottom: SIZES.lg,
   },
   nutritionGrid: {
@@ -331,29 +319,25 @@ const styles = StyleSheet.create({
   },
   nutritionItem: {
     width: '48%',
-    backgroundColor: COLORS.background,
     padding: SIZES.md,
     borderRadius: SIZES.radiusSmall,
     marginBottom: SIZES.sm,
     alignItems: 'center',
+    borderWidth: 1,
   },
   nutritionLabel: {
     fontSize: SIZES.small,
-    color: COLORS.gray,
     marginBottom: SIZES.xs,
   },
   nutritionValue: {
     fontSize: SIZES.h2,
     fontWeight: 'bold',
-    color: COLORS.white,
   },
   nutritionUnit: {
     fontSize: SIZES.small,
-    color: COLORS.gray,
   },
   newScanButton: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
     padding: SIZES.md,
     borderRadius: SIZES.radiusMedium,
     alignItems: 'center',
@@ -362,20 +346,17 @@ const styles = StyleSheet.create({
   newScanButtonText: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
-    color: COLORS.white,
     marginLeft: SIZES.sm,
   },
 
   /* ===== Bottom Sheet ===== */
   modalBackground: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    backgroundColor: '#222', 
     paddingTop: 12,
     paddingBottom: 30,
     borderTopLeftRadius: 20,
@@ -384,7 +365,6 @@ const styles = StyleSheet.create({
   handleBar: {
     width: 45,
     height: 5,
-    backgroundColor: '#666',
     alignSelf: 'center',
     borderRadius: 10,
     marginBottom: 15,
@@ -396,9 +376,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   optionText: {
-    color: '#FFD700',
     fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 15,
+    fontWeight: '600',
+    marginLeft: 12,
   },
 });

@@ -29,7 +29,7 @@ type SignInScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 
 
 export default function SignInScreen() {
   const navigation = useNavigation<SignInScreenNavigationProp>();
-  const { colors } = useTheme();
+  const { theme, colors } = useTheme();
   const { login } = useAuth();
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -85,11 +85,14 @@ export default function SignInScreen() {
   };
 
   return (
-    <ImageBackground
-      source={require('../../assets/home.jpeg')}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={[styles.background, { backgroundColor: colors.background }]}>
+      {theme === 'dark' && (
+        <ImageBackground
+          source={require('../../assets/home.jpeg')}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -108,7 +111,7 @@ export default function SignInScreen() {
             }}
           />
 
-          <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
+          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
             <View style={styles.headerContainer}>
               <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -118,7 +121,7 @@ export default function SignInScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Email or Username</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="person" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -145,7 +148,7 @@ export default function SignInScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -204,7 +207,7 @@ export default function SignInScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -214,7 +217,6 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -222,16 +224,15 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   formContainer: {
-    backgroundColor: COLORS.overlay,
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
     marginTop: 180,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+    borderWidth: 1,
   },
   headerContainer: {
     alignItems: 'center',
