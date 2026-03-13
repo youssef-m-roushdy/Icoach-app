@@ -7,18 +7,117 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../types';
-import { CustomInput, CustomButton } from '../components/common';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 
 type EditProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
+
+const C = {
+  primary: '#C5981B',
+  primaryLight: 'rgba(197,152,27,0.12)',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+};
+
+interface SectionCardProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
+  const { colors } = useTheme();
+  
+  return (
+    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
+          {icon}
+        </View>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      </View>
+      <View style={styles.sectionContent}>
+        {children}
+      </View>
+    </View>
+  );
+};
+
+interface ProfileInputProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  icon: React.ReactNode;
+  placeholder?: string;
+  multiline?: boolean;
+  numberOfLines?: number;
+  editable?: boolean;
+  note?: string;
+}
+
+const ProfileInput: React.FC<ProfileInputProps> = ({
+  label,
+  value,
+  onChangeText,
+  icon,
+  placeholder,
+  multiline,
+  numberOfLines,
+  editable = true,
+  note,
+}) => {
+  const { colors } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <View style={styles.inputContainer}>
+      <View style={styles.inputLabelContainer}>
+        <View style={[styles.inputIcon, { backgroundColor: C.primary + '15' }]}>
+          {icon}
+        </View>
+        <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
+        {note && <Text style={[styles.inputNote, { color: colors.textSecondary }]}>{note}</Text>}
+      </View>
+      <View
+        style={[
+          styles.inputWrapper,
+          {
+            backgroundColor: editable ? colors.background : colors.iconBg,
+            borderColor: isFocused ? C.primary : colors.divider,
+            opacity: editable ? 1 : 0.7,
+          },
+        ]}
+      >
+        <TextInput
+          style={[
+            styles.input,
+            { color: colors.text },
+            multiline && styles.multilineInput,
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          editable={editable}
+        />
+      </View>
+    </View>
+  );
+};
 
 export default function EditProfileScreen() {
   const navigation = useNavigation<EditProfileNavigationProp>();
@@ -28,8 +127,6 @@ export default function EditProfileScreen() {
   
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
 
@@ -37,8 +134,6 @@ export default function EditProfileScreen() {
     if (user) {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
-      setUsername(user.username || '');
-      setEmail(user.email || '');
       setPhone(user.phone || '');
       setBio(user.bio || '');
     }
@@ -61,10 +156,8 @@ export default function EditProfileScreen() {
       
       if (firstName !== user?.firstName) updateData.firstName = firstName.trim();
       if (lastName !== user?.lastName) updateData.lastName = lastName.trim();
-      if (username !== user?.username) updateData.username = username.trim();
-      if (email !== user?.email) updateData.email = email.trim();
-      if (phone !== user?.phone) updateData.phone = phone.trim();
-      if (bio !== user?.bio) updateData.bio = bio.trim();
+      if (phone !== user?.phone) updateData.phone = phone.trim() || null;
+      if (bio !== user?.bio) updateData.bio = bio.trim() || null;
 
       if (Object.keys(updateData).length === 0) {
         Alert.alert('Info', 'No changes to save');
@@ -89,84 +182,136 @@ export default function EditProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerTitleContainer}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Update your personal information
+          </Text>
+        </View>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.label, { color: colors.text }]}>First Name *</Text>
-        <CustomInput
-          placeholder="John"
-          value={firstName}
-          onChangeText={setFirstName}
-        />
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Personal Information Section */}
+        <SectionCard 
+          title="Personal Information" 
+          icon={<Feather name="user" size={20} color={C.primary} />}
+        >
+          <ProfileInput
+            label="First Name"
+            value={firstName}
+            onChangeText={setFirstName}
+            icon={<Feather name="user" size={18} color={C.primary} />}
+            placeholder="John"
+          />
 
-        <Text style={[styles.label, { color: colors.text }]}>Last Name *</Text>
-        <CustomInput
-          placeholder="Doe"
-          value={lastName}
-          onChangeText={setLastName}
-        />
+          <View style={styles.inputSpacer} />
 
-        <Text style={[styles.label, { color: colors.text }]}>Username</Text>
-        <CustomInput
-          placeholder="johndoe"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-        />
+          <ProfileInput
+            label="Last Name"
+            value={lastName}
+            onChangeText={setLastName}
+            icon={<Feather name="user" size={18} color={C.primary} />}
+            placeholder="Doe"
+          />
+        </SectionCard>
 
-        <Text style={[styles.label, { color: colors.text }]}>Email</Text>
-        <CustomInput
-          placeholder="john@example.com"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+        {/* Read-Only Information Section */}
+        <SectionCard 
+          title="Account Details" 
+          icon={<Feather name="settings" size={20} color={C.primary} />}
+        >
+          <ProfileInput
+            label="Username"
+            value={user?.username || ''}
+            onChangeText={() => {}}
+            icon={<Feather name="at-sign" size={18} color={C.primary} />}
+            editable={false}
+            note="Username cannot be changed"
+          />
 
-        <Text style={[styles.label, { color: colors.text }]}>Phone</Text>
-        <CustomInput
-          placeholder="+1234567890"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
+          <View style={styles.inputSpacer} />
 
-        <Text style={[styles.label, { color: colors.text }]}>Bio</Text>
-        <CustomInput
-          placeholder="Tell us about yourself..."
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={4}
-          style={styles.bioInput}
-        />
+          <ProfileInput
+            label="Email"
+            value={user?.email || ''}
+            onChangeText={() => {}}
+            icon={<Feather name="mail" size={18} color={C.primary} />}
+            editable={false}
+            note="Email cannot be changed"
+          />
+        </SectionCard>
 
+        {/* Contact & Bio Section */}
+        <SectionCard 
+          title="Contact & Bio" 
+          icon={<Feather name="phone" size={20} color={C.primary} />}
+        >
+          <ProfileInput
+            label="Phone"
+            value={phone}
+            onChangeText={setPhone}
+            icon={<Feather name="phone" size={18} color={C.primary} />}
+            placeholder="+1234567890"
+          />
+
+          <View style={styles.inputSpacer} />
+
+          <ProfileInput
+            label="Bio"
+            value={bio}
+            onChangeText={setBio}
+            icon={<Feather name="info" size={18} color={C.primary} />}
+            placeholder="Tell us about yourself..."
+            multiline
+            numberOfLines={4}
+          />
+        </SectionCard>
+
+        {/* Info Note */}
+        <View style={[styles.infoNote, { backgroundColor: colors.iconBg }]}>
+          <Feather name="info" size={16} color={colors.textSecondary} />
+          <Text style={[styles.infoNoteText, { color: colors.textSecondary }]}>
+            Only your name, phone, and bio can be edited. Username and email are permanent.
+          </Text>
+        </View>
+
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={C.primary} />
           ) : (
             <>
-              <CustomButton
-                title="Cancel"
-                variant="outline"
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: colors.divider }]}
                 onPress={() => navigation.goBack()}
-                style={styles.cancelButton}
-              />
-              <CustomButton
-                title="Save Changes"
-                variant="secondary"
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: C.primary }]}
                 onPress={handleSave}
-                style={styles.saveButton}
-              />
+                activeOpacity={0.8}
+              >
+                <Feather name="check" size={20} color="#FFF" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
             </>
           )}
         </View>
+
+        {/* Extra bottom padding */}
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -180,42 +325,159 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.md,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingBottom: 16,
     borderBottomWidth: 1,
   },
   backButton: {
-    padding: SIZES.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: SIZES.lg,
+    padding: 20,
   },
-  label: {
-    fontSize: SIZES.body,
-    marginBottom: SIZES.sm,
-    marginTop: SIZES.md,
+  sectionCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  bioInput: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionContent: {
+    marginLeft: 48,
+  },
+  inputContainer: {
+    marginBottom: 8,
+  },
+  inputLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  inputIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginRight: 8,
+  },
+  inputNote: {
+    fontSize: 11,
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  inputWrapper: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    minHeight: 48,
+  },
+  input: {
+    fontSize: 16,
+    padding: 12,
+  },
+  multilineInput: {
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  inputSpacer: {
+    height: 16,
+  },
+  infoNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  infoNoteText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SIZES.xl,
-    gap: SIZES.md,
+    marginTop: 8,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     flex: 1,
+    height: 52,
+    borderRadius: 26,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

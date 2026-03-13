@@ -7,18 +7,212 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import type { RootStackParamList } from '../types';
-import { CustomInput, CustomButton } from '../components/common';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 
 type EditBodyInfoNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditBodyInfo'>;
+
+const C = {
+  primary: '#C5981B',
+  primaryLight: 'rgba(197,152,27,0.12)',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  male: '#3B82F6',
+  female: '#EC4899',
+};
+
+interface SectionCardProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
+  const { colors } = useTheme();
+  
+  return (
+    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
+          {icon}
+        </View>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      </View>
+      <View style={styles.sectionContent}>
+        {children}
+      </View>
+    </View>
+  );
+};
+
+interface OptionChipProps {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  color?: string;
+  icon?: React.ReactNode;
+}
+
+const OptionChip: React.FC<OptionChipProps> = ({ label, selected, onPress, color = C.primary, icon }) => {
+  const { colors } = useTheme();
+  
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={[
+        styles.optionChip,
+        {
+          backgroundColor: selected ? color : colors.iconBg,
+          borderColor: selected ? color : colors.divider,
+        },
+      ]}
+    >
+      {icon && <View style={styles.optionIcon}>{icon}</View>}
+      <Text
+        style={[
+          styles.optionChipText,
+          { color: selected ? '#FFF' : colors.text },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+interface MeasurementInputProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  unit: string;
+  icon: React.ReactNode;
+  placeholder?: string;
+}
+
+const MeasurementInput: React.FC<MeasurementInputProps> = ({
+  label,
+  value,
+  onChangeText,
+  unit,
+  icon,
+  placeholder,
+}) => {
+  const { colors } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <View style={styles.measurementInputContainer}>
+      <View style={styles.measurementLabelContainer}>
+        <View style={[styles.measurementIcon, { backgroundColor: C.primary + '15' }]}>
+          {icon}
+        </View>
+        <Text style={[styles.measurementLabel, { color: colors.text }]}>{label}</Text>
+      </View>
+      <View
+        style={[
+          styles.measurementInputWrapper,
+          {
+            backgroundColor: colors.background,
+            borderColor: isFocused ? C.primary : colors.divider,
+          },
+        ]}
+      >
+        <TextInput
+          style={[styles.measurementInput, { color: colors.text }]}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
+        <View style={[styles.unitBadge, { backgroundColor: colors.iconBg }]}>
+          <Text style={[styles.measurementUnit, { color: colors.textSecondary }]}>{unit}</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+interface DateInputProps {
+  value: string;
+  onChange: (date: Date) => void;
+}
+
+const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
+  const { colors } = useTheme();
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (value) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return new Date(1990, 0, 1);
+  });
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowPicker(Platform.OS === 'ios');
+    if (date) {
+      setSelectedDate(date);
+      onChange(date);
+    }
+  };
+
+  return (
+    <View style={styles.dateInputContainer}>
+      <View style={[styles.dateIconContainer, { backgroundColor: C.primary + '15' }]}>
+        <Feather name="calendar" size={18} color={C.primary} />
+      </View>
+      <TouchableOpacity
+        style={[
+          styles.dateInputWrapper,
+          {
+            backgroundColor: colors.background,
+            borderColor: colors.divider,
+          },
+        ]}
+        onPress={() => setShowPicker(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.dateInputText, { color: value ? colors.text : colors.textSecondary }]}>
+          {value || 'Select date'}
+        </Text>
+        <Feather name="chevron-down" size={18} color={colors.textSecondary} />
+      </TouchableOpacity>
+
+      {showPicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+          minimumDate={new Date(1900, 0, 1)}
+        />
+      )}
+    </View>
+  );
+};
 
 export default function EditBodyInfoScreen() {
   const navigation = useNavigation<EditBodyInfoNavigationProp>();
@@ -36,7 +230,6 @@ export default function EditBodyInfoScreen() {
 
   useEffect(() => {
     if (user) {
-      // Only set gender if it's 'male' or 'female', ignore 'other'
       const userGender = user.gender;
       if (userGender === 'male' || userGender === 'female') {
         setGender(userGender);
@@ -93,162 +286,222 @@ export default function EditBodyInfoScreen() {
     }
   };
 
+  const getBMICategory = () => {
+    const h = parseFloat(height);
+    const w = parseFloat(weight);
+    if (!h || !w || h <= 0 || w <= 0) return null;
+    
+    const bmi = w / Math.pow(h / 100, 2);
+    if (bmi < 18.5) return { label: 'Underweight', color: C.warning };
+    if (bmi < 25) return { label: 'Normal', color: C.success };
+    if (bmi < 30) return { label: 'Overweight', color: C.warning };
+    return { label: 'Obese', color: C.error };
+  };
+
+  const bmiCategory = getBMICategory();
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Body Info</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerTitleContainer}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Body Info</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Update your fitness profile
+          </Text>
+        </View>
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Details</Text>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Personal Details Section */}
+        <SectionCard 
+          title="Personal Details" 
+          icon={<Feather name="user" size={20} color={C.primary} />}
+        >
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Gender</Text>
+          <View style={styles.genderRow}>
+            <OptionChip
+              label="Male"
+              selected={gender === 'male'}
+              onPress={() => setGender('male')}
+              color={C.male}
+              icon={<Ionicons name="male" size={18} color={gender === 'male' ? '#FFF' : C.male} />}
+            />
+            <OptionChip
+              label="Female"
+              selected={gender === 'female'}
+              onPress={() => setGender('female')}
+              color={C.female}
+              icon={<Ionicons name="female" size={18} color={gender === 'female' ? '#FFF' : C.female} />}
+            />
+          </View>
 
-        <Text style={[styles.label, { color: colors.text }]}>Gender</Text>
-        <View style={styles.optionsRow}>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: gender === 'male' ? colors.primary : 'transparent' }, gender === 'male' && styles.optionButtonActive]}
-            onPress={() => setGender('male')}
-          >
-            <Text style={[styles.optionText, { color: gender === 'male' ? colors.background : colors.text }]}>Male</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: gender === 'female' ? colors.primary : 'transparent' }, gender === 'female' && styles.optionButtonActive]}
-            onPress={() => setGender('female')}
-          >
-            <Text style={[styles.optionText, { color: gender === 'female' ? colors.background : colors.text }]}>Female</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.inputSpacer} />
+          
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Date of Birth</Text>
+          <DateInput 
+            value={dateOfBirth} 
+            onChange={(date) => {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              setDateOfBirth(`${year}-${month}-${day}`);
+            }} 
+          />
+        </SectionCard>
 
-        <Text style={[styles.label, { color: colors.text }]}>Date of Birth (YYYY-MM-DD)</Text>
-        <CustomInput
-          placeholder="1990-01-01"
-          value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-        />
+        {/* Body Measurements Section */}
+        <SectionCard 
+          title="Body Measurements" 
+          icon={<MaterialIcons name="straighten" size={20} color={C.primary} />}
+        >
+          <MeasurementInput
+            label="Height"
+            value={height}
+            onChangeText={setHeight}
+            unit="cm"
+            icon={<MaterialIcons name="height" size={18} color={C.primary} />}
+            placeholder="170"
+          />
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Body Measurements</Text>
+          <View style={styles.inputSpacer} />
 
-        <Text style={[styles.label, { color: colors.text }]}>Height (cm)</Text>
-        <CustomInput
-          placeholder="170"
-          value={height}
-          onChangeText={setHeight}
-          keyboardType="numeric"
-        />
+          <MeasurementInput
+            label="Weight"
+            value={weight}
+            onChangeText={setWeight}
+            unit="kg"
+            icon={<MaterialIcons name="monitor-weight" size={18} color={C.primary} />}
+            placeholder="70"
+          />
 
-        <Text style={[styles.label, { color: colors.text }]}>Weight (kg)</Text>
-        <CustomInput
-          placeholder="70"
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-        />
+          {bmiCategory && (
+            <View style={[styles.bmiPreview, { backgroundColor: bmiCategory.color + '15', borderColor: bmiCategory.color + '30' }]}>
+              <View style={[styles.bmiDot, { backgroundColor: bmiCategory.color }]} />
+              <Text style={[styles.bmiPreviewText, { color: colors.text }]}>
+                Your BMI indicates you are <Text style={{ color: bmiCategory.color, fontWeight: '700' }}>{bmiCategory.label}</Text>
+              </Text>
+            </View>
+          )}
 
-        <Text style={[styles.label, { color: colors.text }]}>Body Fat Percentage</Text>
-        <CustomInput
-          placeholder="15"
-          value={bodyFatPercentage}
-          onChangeText={setBodyFatPercentage}
-          keyboardType="numeric"
-        />
+          <View style={styles.inputSpacer} />
 
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Fitness Profile</Text>
+          <MeasurementInput
+            label="Body Fat"
+            value={bodyFatPercentage}
+            onChangeText={setBodyFatPercentage}
+            unit="%"
+            icon={<MaterialIcons name="fitness-center" size={18} color={C.primary} />}
+            placeholder="15"
+          />
+        </SectionCard>
 
-        <Text style={[styles.label, { color: colors.text }]}>Fitness Goal</Text>
-        <View style={styles.optionsColumn}>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: fitnessGoal === 'weight_loss' ? colors.primary : 'transparent' }, fitnessGoal === 'weight_loss' && styles.optionButtonActive]}
-            onPress={() => setFitnessGoal('weight_loss')}
-          >
-            <Text style={[styles.optionText, { color: fitnessGoal === 'weight_loss' ? colors.background : colors.text }]}>
-              Weight Loss
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: fitnessGoal === 'muscle_gain' ? colors.primary : 'transparent' }, fitnessGoal === 'muscle_gain' && styles.optionButtonActive]}
-            onPress={() => setFitnessGoal('muscle_gain')}
-          >
-            <Text style={[styles.optionText, { color: fitnessGoal === 'muscle_gain' ? colors.background : colors.text }]}>
-              Muscle Gain
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: fitnessGoal === 'maintenance' ? colors.primary : 'transparent' }, fitnessGoal === 'maintenance' && styles.optionButtonActive]}
-            onPress={() => setFitnessGoal('maintenance')}
-          >
-            <Text style={[styles.optionText, { color: fitnessGoal === 'maintenance' ? colors.background : colors.text }]}>
-              Maintenance
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Fitness Profile Section */}
+        <SectionCard 
+          title="Fitness Profile" 
+          icon={<Ionicons name="fitness" size={20} color={C.primary} />}
+        >
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Fitness Goal</Text>
+          <View style={styles.goalsContainer}>
+            <OptionChip
+              label="Weight Loss"
+              selected={fitnessGoal === 'weight_loss'}
+              onPress={() => setFitnessGoal('weight_loss')}
+              icon={<Feather name="trending-down" size={16} color={fitnessGoal === 'weight_loss' ? '#FFF' : C.primary} />}
+            />
+            <OptionChip
+              label="Muscle Gain"
+              selected={fitnessGoal === 'muscle_gain'}
+              onPress={() => setFitnessGoal('muscle_gain')}
+              icon={<Feather name="activity" size={16} color={fitnessGoal === 'muscle_gain' ? '#FFF' : C.primary} />}
+            />
+            <OptionChip
+              label="Maintenance"
+              selected={fitnessGoal === 'maintenance'}
+              onPress={() => setFitnessGoal('maintenance')}
+              icon={<Feather name="heart" size={16} color={fitnessGoal === 'maintenance' ? '#FFF' : C.primary} />}
+            />
+          </View>
 
-        <Text style={[styles.label, { color: colors.text }]}>Activity Level</Text>
-        <View style={styles.optionsColumn}>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: activityLevel === 'sedentary' ? colors.primary : 'transparent' }, activityLevel === 'sedentary' && styles.optionButtonActive]}
-            onPress={() => setActivityLevel('sedentary')}
-          >
-            <Text style={[styles.optionText, { color: activityLevel === 'sedentary' ? colors.background : colors.text }]}>
-              Sedentary
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: activityLevel === 'lightly_active' ? colors.primary : 'transparent' }, activityLevel === 'lightly_active' && styles.optionButtonActive]}
-            onPress={() => setActivityLevel('lightly_active')}
-          >
-            <Text style={[styles.optionText, { color: activityLevel === 'lightly_active' ? colors.background : colors.text }]}>
-              Lightly Active
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: activityLevel === 'moderately_active' ? colors.primary : 'transparent' }, activityLevel === 'moderately_active' && styles.optionButtonActive]}
-            onPress={() => setActivityLevel('moderately_active')}
-          >
-            <Text style={[styles.optionText, { color: activityLevel === 'moderately_active' ? colors.background : colors.text }]}>
-              Moderately Active
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: activityLevel === 'very_active' ? colors.primary : 'transparent' }, activityLevel === 'very_active' && styles.optionButtonActive]}
-            onPress={() => setActivityLevel('very_active')}
-          >
-            <Text style={[styles.optionText, { color: activityLevel === 'very_active' ? colors.background : colors.text }]}>
-              Very Active
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, { borderColor: colors.border, backgroundColor: activityLevel === 'extra_active' ? colors.primary : 'transparent' }, activityLevel === 'extra_active' && styles.optionButtonActive]}
-            onPress={() => setActivityLevel('extra_active')}
-          >
-            <Text style={[styles.optionText, { color: activityLevel === 'extra_active' ? colors.background : colors.text }]}>
-              Extra Active
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.inputSpacer} />
 
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Activity Level</Text>
+          <View style={styles.activityContainer}>
+            <OptionChip
+              label="Sedentary"
+              selected={activityLevel === 'sedentary'}
+              onPress={() => setActivityLevel('sedentary')}
+            />
+            <OptionChip
+              label="Light"
+              selected={activityLevel === 'lightly_active'}
+              onPress={() => setActivityLevel('lightly_active')}
+            />
+            <OptionChip
+              label="Moderate"
+              selected={activityLevel === 'moderately_active'}
+              onPress={() => setActivityLevel('moderately_active')}
+            />
+            <OptionChip
+              label="Active"
+              selected={activityLevel === 'very_active'}
+              onPress={() => setActivityLevel('very_active')}
+            />
+            <OptionChip
+              label="Extra"
+              selected={activityLevel === 'extra_active'}
+              onPress={() => setActivityLevel('extra_active')}
+            />
+          </View>
+
+          {activityLevel && (
+            <View style={[styles.activityDescription, { backgroundColor: colors.iconBg }]}>
+              <Text style={[styles.activityDescriptionText, { color: colors.textSecondary }]}>
+                {activityLevel === 'sedentary' && 'Little to no exercise, desk job'}
+                {activityLevel === 'lightly_active' && 'Light exercise 1-3 days/week'}
+                {activityLevel === 'moderately_active' && 'Moderate exercise 3-5 days/week'}
+                {activityLevel === 'very_active' && 'Hard exercise 6-7 days/week'}
+                {activityLevel === 'extra_active' && 'Very hard exercise, physical job'}
+              </Text>
+            </View>
+          )}
+        </SectionCard>
+
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           {isLoading ? (
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={C.primary} />
           ) : (
             <>
-              <CustomButton
-                title="Cancel"
-                variant="outline"
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: colors.divider }]}
                 onPress={() => navigation.goBack()}
-                style={styles.cancelButton}
-              />
-              <CustomButton
-                title="Save Changes"
-                variant="secondary"
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: C.primary }]}
                 onPress={handleSave}
-                style={styles.saveButton}
-              />
+                activeOpacity={0.8}
+              >
+                <Feather name="check" size={20} color="#FFF" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
             </>
           )}
         </View>
+
+        {/* Extra bottom padding */}
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -262,72 +515,236 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.md,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingBottom: 16,
     borderBottomWidth: 1,
   },
   backButton: {
-    padding: SIZES.xs,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: SIZES.lg,
+    padding: 20,
+  },
+  sectionCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   sectionTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
-    marginTop: SIZES.lg,
-    marginBottom: SIZES.md,
+    fontSize: 16,
+    fontWeight: '600',
   },
-  label: {
-    fontSize: SIZES.body,
-    marginBottom: SIZES.sm,
-    marginTop: SIZES.md,
+  sectionContent: {
+    marginLeft: 48,
   },
-  optionsRow: {
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  genderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SIZES.md,
+    gap: 12,
   },
-  optionsColumn: {
-    marginBottom: SIZES.md,
+  optionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 25,
+    borderWidth: 1,
+    gap: 6,
   },
-  optionButton: {
+  optionIcon: {
+    marginRight: 2,
+  },
+  optionChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  inputSpacer: {
+    height: 16,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dateIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateInputWrapper: {
     flex: 1,
-    padding: SIZES.md,
-    borderRadius: SIZES.radiusSmall,
-    marginHorizontal: 4,
-    marginVertical: 4,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
   },
-  optionButtonActive: {
-    borderColor: 'transparent',
+  dateInputText: {
+    fontSize: 16,
   },
-  optionText: {
+  measurementInputContainer: {
+    marginBottom: 8,
+  },
+  measurementLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  measurementIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  measurementLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  measurementInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  measurementInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  unitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 4,
+  },
+  measurementUnit: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bmiPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 8,
+  },
+  bmiDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  bmiPreviewText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  goalsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  activityContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  activityDescription: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+  },
+  activityDescriptionText: {
+    fontSize: 13,
     textAlign: 'center',
-    fontSize: SIZES.body,
-  },
-  optionTextActive: {
-    fontWeight: 'bold',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SIZES.xl,
-    marginBottom: SIZES.xl,
-    gap: SIZES.md,
+    marginTop: 8,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   saveButton: {
     flex: 1,
+    height: 52,
+    borderRadius: 26,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

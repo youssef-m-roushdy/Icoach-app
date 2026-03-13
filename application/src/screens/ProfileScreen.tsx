@@ -16,7 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants';
+import ImagePicker from 'react-native-image-crop-picker';
+import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { userService } from '../services';
@@ -46,43 +47,103 @@ export default function ProfileScreen() {
       return;
     }
 
+    console.log('🔍 ProfileScreen - Loading profile...');
     setIsLoading(true);
     try {
       const response = await userService.getProfile(token);
+      console.log('✅ Profile Response:', JSON.stringify(response, null, 2));
+      
       if (response.data) {
         setUserData(response.data);
         updateUser(response.data);
       }
     } catch (error: any) {
+      console.error('❌ Profile Error:', error);
+      console.error('❌ Error Message:', error.message);
       Alert.alert('Info', 'Using cached profile data');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleTakePhoto = () => {
+  const handleTakePhoto = async () => {
     setShowImageOptions(false);
-    Alert.alert('Coming Soon', 'Camera feature will be available in a future update.');
+
+    try {
+      const image = await ImagePicker.openCamera({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageMaxWidth: 1000,
+        compressImageMaxHeight: 1000,
+        compressImageQuality: 0.8,
+        includeBase64: false,
+        mediaType: 'photo',
+      });
+
+      if (image && image.path) {
+        await uploadProfilePicture(image.path);
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.error('Error taking photo:', error);
+        Alert.alert('Error', 'Failed to take photo');
+      }
+    }
   };
 
-  const handleChooseFromGallery = () => {
+  const handleChooseFromGallery = async () => {
     setShowImageOptions(false);
-    Alert.alert('Coming Soon', 'Gallery feature will be available in a future update.');
+
+    try {
+      const image = await ImagePicker.openPicker({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageMaxWidth: 1000,
+        compressImageMaxHeight: 1000,
+        compressImageQuality: 0.8,
+        includeBase64: false,
+        mediaType: 'photo',
+      });
+
+      if (image && image.path) {
+        await uploadProfilePicture(image.path);
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.error('Error choosing photo:', error);
+        Alert.alert('Error', 'Failed to choose photo');
+      }
+    }
   };
 
   const uploadProfilePicture = async (uri: string) => {
-    if (!token) return;
+    if (!token) {
+      Alert.alert('Error', 'No authentication token found');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await userService.updateProfilePicture(uri, token);
+      console.log('✅ Profile picture updated:', response);
+      
       if (response.data?.avatar) {
-        const updatedUserData = { ...userData, avatar: response.data.avatar };
+        const updatedUserData = {
+          ...userData,
+          avatar: response.data.avatar,
+        };
         setUserData(updatedUserData);
         updateUser(updatedUserData);
       }
+      
       Alert.alert('Success', 'Profile picture updated successfully');
       await loadProfile();
     } catch (error: any) {
+      console.error('❌ Upload Error:', error);
       Alert.alert('Error', error.message || 'Failed to update profile picture');
     } finally {
       setIsLoading(false);
@@ -91,47 +152,69 @@ export default function ProfileScreen() {
 
   const handleDeleteProfilePicture = () => {
     setShowImageOptions(false);
-    Alert.alert('Delete Profile Picture', 'Are you sure you want to delete your profile picture?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          if (!token) return;
-          setIsLoading(true);
-          try {
-            await userService.deleteProfilePicture(token);
-            const updatedUserData = { ...userData, avatar: null };
-            setUserData(updatedUserData);
-            updateUser(updatedUserData);
-            Alert.alert('Success', 'Profile picture deleted successfully');
-            await loadProfile();
-          } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to delete profile picture');
-          } finally {
-            setIsLoading(false);
-          }
+    
+    Alert.alert(
+      'Delete Profile Picture',
+      'Are you sure you want to delete your profile picture?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token) {
+              Alert.alert('Error', 'No authentication token found');
+              return;
+            }
+
+            setIsLoading(true);
+            try {
+              await userService.deleteProfilePicture(token);
+              console.log('✅ Profile picture deleted');
+              
+              const updatedUserData = {
+                ...userData,
+                avatar: null,
+              };
+              setUserData(updatedUserData);
+              updateUser(updatedUserData);
+              
+              Alert.alert('Success', 'Profile picture deleted successfully');
+              await loadProfile();
+            } catch (error: any) {
+              console.error('❌ Delete Error:', error);
+              Alert.alert('Error', error.message || 'Failed to delete profile picture');
+            } finally {
+              setIsLoading(false);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (token) await logout();
-            navigation.replace('Welcome');
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (token) {
+                await logout();
+              }
+              navigation.replace('Welcome');
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   if (isLoading) {
@@ -180,7 +263,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile Header — clean, no banner */}
+        {/* Profile Header */}
         <View style={styles.profileHeader}>
           <TouchableOpacity
             style={styles.avatarWrapper}
@@ -290,7 +373,21 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Phone</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.phone || 'Not provided'}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
+                  {userData.phone || 'Not provided'}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+            <View style={styles.infoRow}>
+              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="info" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Bio</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={2}>
+                  {userData.bio || 'Not provided'}
+                </Text>
               </View>
             </View>
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
@@ -300,7 +397,9 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Birthday</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.dateOfBirth || 'Not provided'}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
+                  {userData.dateOfBirth || 'Not provided'}
+                </Text>
               </View>
             </View>
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
@@ -394,7 +493,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Fitness Goal</Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.fitnessGoal
-                    ? userData.fitnessGoal.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    ? userData.fitnessGoal.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
                     : 'Not set'}
                 </Text>
               </View>
@@ -406,7 +505,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Activity Level</Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.activityLevel
-                    ? userData.activityLevel.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    ? userData.activityLevel.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
                     : 'Not set'}
                 </Text>
               </View>
