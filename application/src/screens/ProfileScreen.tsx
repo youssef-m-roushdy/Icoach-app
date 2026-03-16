@@ -11,13 +11,15 @@ import {
   Modal,
   Pressable,
   StatusBar,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ImagePicker from 'react-native-image-crop-picker';
-import { COLORS, SIZES } from '../constants';
+import { COLORS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { userService } from '../services';
@@ -25,6 +27,14 @@ import { useAuth } from '../context';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+
+function getNavBarHeight(): number {
+  if (Platform.OS !== 'android') return 0;
+  const screenH = Dimensions.get('screen').height;
+  const windowH = Dimensions.get('window').height;
+  const sbH = StatusBar.currentHeight ?? 0;
+  return Math.max(screenH - windowH - sbH, 0);
+}
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
@@ -35,186 +45,102 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
 
+  const navBarHeight = getNavBarHeight();
+  const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
+
   useEffect(() => {
-    if (authUser) {
-      setUserData(authUser);
-    }
+    if (authUser) setUserData(authUser);
   }, [authUser]);
 
   const loadProfile = async () => {
-    if (!token) {
-      Alert.alert('Error', 'No authentication token found');
-      return;
-    }
-
-    console.log('🔍 ProfileScreen - Loading profile...');
+    if (!token) { Alert.alert('Error', 'No authentication token found'); return; }
     setIsLoading(true);
     try {
       const response = await userService.getProfile(token);
-      console.log('✅ Profile Response:', JSON.stringify(response, null, 2));
-      
-      if (response.data) {
-        setUserData(response.data);
-        updateUser(response.data);
-      }
+      if (response.data) { setUserData(response.data); updateUser(response.data); }
     } catch (error: any) {
-      console.error('❌ Profile Error:', error);
-      console.error('❌ Error Message:', error.message);
       Alert.alert('Info', 'Using cached profile data');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   const handleTakePhoto = async () => {
     setShowImageOptions(false);
-
     try {
       const image = await ImagePicker.openCamera({
-        width: 400,
-        height: 400,
-        cropping: true,
-        cropperCircleOverlay: true,
-        compressImageMaxWidth: 1000,
-        compressImageMaxHeight: 1000,
-        compressImageQuality: 0.8,
-        includeBase64: false,
-        mediaType: 'photo',
+        width: 400, height: 400, cropping: true, cropperCircleOverlay: true,
+        compressImageMaxWidth: 1000, compressImageMaxHeight: 1000,
+        compressImageQuality: 0.8, includeBase64: false, mediaType: 'photo',
       });
-
-      if (image && image.path) {
-        await uploadProfilePicture(image.path);
-      }
+      if (image?.path) await uploadProfilePicture(image.path);
     } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
-        console.error('Error taking photo:', error);
-        Alert.alert('Error', 'Failed to take photo');
-      }
+      if (error.code !== 'E_PICKER_CANCELLED') Alert.alert('Error', 'Failed to take photo');
     }
   };
 
   const handleChooseFromGallery = async () => {
     setShowImageOptions(false);
-
     try {
       const image = await ImagePicker.openPicker({
-        width: 400,
-        height: 400,
-        cropping: true,
-        cropperCircleOverlay: true,
-        compressImageMaxWidth: 1000,
-        compressImageMaxHeight: 1000,
-        compressImageQuality: 0.8,
-        includeBase64: false,
-        mediaType: 'photo',
+        width: 400, height: 400, cropping: true, cropperCircleOverlay: true,
+        compressImageMaxWidth: 1000, compressImageMaxHeight: 1000,
+        compressImageQuality: 0.8, includeBase64: false, mediaType: 'photo',
       });
-
-      if (image && image.path) {
-        await uploadProfilePicture(image.path);
-      }
+      if (image?.path) await uploadProfilePicture(image.path);
     } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
-        console.error('Error choosing photo:', error);
-        Alert.alert('Error', 'Failed to choose photo');
-      }
+      if (error.code !== 'E_PICKER_CANCELLED') Alert.alert('Error', 'Failed to choose photo');
     }
   };
 
   const uploadProfilePicture = async (uri: string) => {
-    if (!token) {
-      Alert.alert('Error', 'No authentication token found');
-      return;
-    }
-
+    if (!token) { Alert.alert('Error', 'No authentication token found'); return; }
     setIsLoading(true);
     try {
       const response = await userService.updateProfilePicture(uri, token);
-      console.log('✅ Profile picture updated:', response);
-      
       if (response.data?.avatar) {
-        const updatedUserData = {
-          ...userData,
-          avatar: response.data.avatar,
-        };
-        setUserData(updatedUserData);
-        updateUser(updatedUserData);
+        const updated = { ...userData, avatar: response.data.avatar };
+        setUserData(updated); updateUser(updated);
       }
-      
       Alert.alert('Success', 'Profile picture updated successfully');
       await loadProfile();
     } catch (error: any) {
-      console.error('❌ Upload Error:', error);
       Alert.alert('Error', error.message || 'Failed to update profile picture');
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   };
 
   const handleDeleteProfilePicture = () => {
     setShowImageOptions(false);
-    
-    Alert.alert(
-      'Delete Profile Picture',
-      'Are you sure you want to delete your profile picture?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) {
-              Alert.alert('Error', 'No authentication token found');
-              return;
-            }
-
-            setIsLoading(true);
-            try {
-              await userService.deleteProfilePicture(token);
-              console.log('✅ Profile picture deleted');
-              
-              const updatedUserData = {
-                ...userData,
-                avatar: null,
-              };
-              setUserData(updatedUserData);
-              updateUser(updatedUserData);
-              
-              Alert.alert('Success', 'Profile picture deleted successfully');
-              await loadProfile();
-            } catch (error: any) {
-              console.error('❌ Delete Error:', error);
-              Alert.alert('Error', error.message || 'Failed to delete profile picture');
-            } finally {
-              setIsLoading(false);
-            }
-          },
+    Alert.alert('Delete Profile Picture', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          if (!token) { Alert.alert('Error', 'No authentication token found'); return; }
+          setIsLoading(true);
+          try {
+            await userService.deleteProfilePicture(token);
+            const updated = { ...userData, avatar: null };
+            setUserData(updated); updateUser(updated);
+            Alert.alert('Success', 'Profile picture deleted successfully');
+            await loadProfile();
+          } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to delete profile picture');
+          } finally { setIsLoading(false); }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (token) {
-                await logout();
-              }
-              navigation.replace('Welcome');
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout', style: 'destructive',
+        onPress: async () => {
+          try { if (token) await logout(); navigation.replace('Welcome'); }
+          catch (error) { console.error('Logout error:', error); }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   if (isLoading) {
@@ -237,20 +163,17 @@ export default function ProfileScreen() {
   }
 
   const bmiCategory = userData.bmi
-    ? userData.bmi < 18.5
-      ? 'Underweight'
-      : userData.bmi < 25
-      ? 'Normal'
-      : userData.bmi < 30
-      ? 'Overweight'
-      : 'Obese'
+    ? userData.bmi < 18.5 ? 'Underweight'
+    : userData.bmi < 25   ? 'Normal'
+    : userData.bmi < 30   ? 'Overweight'
+    : 'Obese'
     : null;
 
   const getBMIColor = () => {
-    if (!userData.bmi) return colors.textSecondary;
+    if (!userData.bmi)       return colors.textSecondary;
     if (userData.bmi < 18.5) return '#F59E0B';
-    if (userData.bmi < 25) return '#10B981';
-    if (userData.bmi < 30) return '#F97316';
+    if (userData.bmi < 25)   return '#10B981';
+    if (userData.bmi < 30)   return '#F97316';
     return COLORS.error;
   };
 
@@ -259,28 +182,18 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Profile Header */}
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* ── Profile Header ── */}
         <View style={styles.profileHeader}>
-          <TouchableOpacity
-            style={styles.avatarWrapper}
-            onPress={() => setShowImageOptions(true)}
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity style={styles.avatarWrapper} onPress={() => setShowImageOptions(true)} activeOpacity={0.8}>
             <View style={[styles.avatarRing, { borderColor: colors.primary + '40', shadowColor: colors.shadow }]}>
               {userData.avatar ? (
                 <Image source={{ uri: userData.avatar }} style={styles.avatar} />
               ) : (
-                <LinearGradient
-                  colors={[colors.primary, isLight ? '#D4AF37' : '#FFD700']}
-                  style={styles.avatarFallback}
-                >
-                  <Text style={styles.avatarInitials}>
-                    {userData.firstName?.[0]}{userData.lastName?.[0]}
-                  </Text>
+                <LinearGradient colors={[colors.primary, isLight ? '#D4AF37' : '#FFD700']} style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitials}>{userData.firstName?.[0]}{userData.lastName?.[0]}</Text>
                 </LinearGradient>
               )}
             </View>
@@ -289,26 +202,17 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
 
-          <Text style={[styles.profileName, { color: colors.text }]}>
-            {userData.firstName} {userData.lastName}
-          </Text>
-          <Text style={[styles.profileUsername, { color: colors.subtleText }]}>
-            @{userData.username}
-          </Text>
+          <Text style={[styles.profileName, { color: colors.text }]}>{userData.firstName} {userData.lastName}</Text>
+          <Text style={[styles.profileUsername, { color: colors.subtleText }]}>@{userData.username}</Text>
 
-          {/* Quick Stats Chips */}
           <View style={styles.quickStatsRow}>
             <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
               <MaterialIcons name="height" size={15} color={colors.primary} />
-              <Text style={[styles.quickChipText, { color: colors.text }]}>
-                {userData.height ? `${userData.height} cm` : '-- cm'}
-              </Text>
+              <Text style={[styles.quickChipText, { color: colors.text }]}>{userData.height ? `${userData.height} cm` : '-- cm'}</Text>
             </View>
             <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
               <MaterialIcons name="monitor-weight" size={15} color={colors.primary} />
-              <Text style={[styles.quickChipText, { color: colors.text }]}>
-                {userData.weight ? `${userData.weight} kg` : '-- kg'}
-              </Text>
+              <Text style={[styles.quickChipText, { color: colors.text }]}>{userData.weight ? `${userData.weight} kg` : '-- kg'}</Text>
             </View>
             {userData.bmi ? (
               <View style={[styles.quickChip, { backgroundColor: getBMIColor() + '12', borderColor: getBMIColor() + '30' }]}>
@@ -319,7 +223,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Verification Banner */}
+        {/* ── Verification Banner ── */}
         {userData && !userData.isEmailVerified && (
           <View style={[styles.verifyBanner, { backgroundColor: COLORS.error + '08', borderColor: COLORS.error + '20' }]}>
             <View style={styles.verifyRow}>
@@ -330,129 +234,78 @@ export default function ProfileScreen() {
                 <Text style={[styles.verifyTitle, { color: COLORS.error }]}>Email Not Verified</Text>
                 <Text style={[styles.verifyMsg, { color: colors.textSecondary }]}>Verify to unlock all features</Text>
               </View>
-              <TouchableOpacity
-                style={[styles.verifyAction, { backgroundColor: COLORS.error }]}
-                onPress={() => navigation.navigate('EmailVerification')}
-              >
+              <TouchableOpacity style={[styles.verifyAction, { backgroundColor: COLORS.error }]} onPress={() => navigation.navigate('EmailVerification')}>
                 <Text style={styles.verifyActionText}>Verify</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Personal Information */}
+        {/* ── Personal Information ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditProfile')}
-              style={[styles.editPill, { backgroundColor: colors.iconBg }]}
-            >
+            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} style={[styles.editPill, { backgroundColor: colors.iconBg }]}>
               <Feather name="edit-2" size={13} color={colors.primary} />
               <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
             </TouchableOpacity>
           </View>
-
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="mail" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Email</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.email}</Text>
-              </View>
-            </View>
-            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="phone" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Phone</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
-                  {userData.phone || 'Not provided'}
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="info" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Bio</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={2}>
-                  {userData.bio || 'Not provided'}
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="calendar" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Birthday</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
-                  {userData.dateOfBirth || 'Not provided'}
-                </Text>
-              </View>
-            </View>
-            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
-            <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="user" size={16} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Gender</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
-                  {userData.gender ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1) : 'Not provided'}
-                </Text>
-              </View>
-            </View>
+            {[
+              { icon: 'mail',     label: 'Email',    value: userData.email },
+              { icon: 'phone',    label: 'Phone',    value: userData.phone || 'Not provided' },
+              { icon: 'info',     label: 'Bio',      value: userData.bio || 'Not provided' },
+              { icon: 'calendar', label: 'Birthday', value: userData.dateOfBirth || 'Not provided' },
+              { icon: 'user',     label: 'Gender',   value: userData.gender ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1) : 'Not provided' },
+            ].map((row, i, arr) => (
+              <React.Fragment key={row.label}>
+                <View style={styles.infoRow}>
+                  <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
+                    <Feather name={row.icon as any} size={16} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.infoLabel, { color: colors.subtleText }]}>{row.label}</Text>
+                    <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={2}>{row.value}</Text>
+                  </View>
+                </View>
+                {i < arr.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />}
+              </React.Fragment>
+            ))}
           </View>
         </View>
 
-        {/* Body & Fitness */}
+        {/* ── Body & Fitness ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Body & Fitness</Text>
             </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('EditBodyInfo')}
-              style={[styles.editPill, { backgroundColor: colors.iconBg }]}
-            >
+            <TouchableOpacity onPress={() => navigation.navigate('EditBodyInfo')} style={[styles.editPill, { backgroundColor: colors.iconBg }]}>
               <Feather name="edit-2" size={13} color={colors.primary} />
               <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-              <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="height" size={20} color={colors.primary} />
+            {[
+              { icon: 'height',         label: 'Height', value: userData.height || '--', unit: 'cm' },
+              { icon: 'monitor-weight', label: 'Weight', value: userData.weight || '--', unit: 'kg' },
+            ].map((s) => (
+              <View key={s.label} style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
+                  <MaterialIcons name={s.icon as any} size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.statVal, { color: colors.text }]}>{s.value}</Text>
+                <Text style={[styles.statUnit, { color: colors.subtleText }]}>{s.unit}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{s.label}</Text>
               </View>
-              <Text style={[styles.statVal, { color: colors.text }]}>{userData.height || '--'}</Text>
-              <Text style={[styles.statUnit, { color: colors.subtleText }]}>cm</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Height</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-              <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="monitor-weight" size={20} color={colors.primary} />
-              </View>
-              <Text style={[styles.statVal, { color: colors.text }]}>{userData.weight || '--'}</Text>
-              <Text style={[styles.statUnit, { color: colors.subtleText }]}>kg</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Weight</Text>
-            </View>
+            ))}
           </View>
 
-          {/* BMI */}
           <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             <View style={styles.wideCardLeft}>
               <View style={[styles.statIconBox, { backgroundColor: getBMIColor() + '15' }]}>
@@ -470,31 +323,25 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Body Fat */}
           <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
             <View style={styles.wideCardLeft}>
               <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="fitness-center" size={20} color={colors.primary} />
               </View>
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.wideCardValue, { color: colors.text }]}>
-                  {userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : '--'}
-                </Text>
+                <Text style={[styles.wideCardValue, { color: colors.text }]}>{userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : '--'}</Text>
                 <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>Body Fat</Text>
               </View>
             </View>
           </View>
 
-          {/* Goals */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
             <View style={styles.goalRow}>
               <View style={[styles.goalDot, { backgroundColor: colors.primary }]} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Fitness Goal</Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {userData.fitnessGoal
-                    ? userData.fitnessGoal.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-                    : 'Not set'}
+                  {userData.fitnessGoal ? userData.fitnessGoal.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Not set'}
                 </Text>
               </View>
             </View>
@@ -504,16 +351,14 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Activity Level</Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {userData.activityLevel
-                    ? userData.activityLevel.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-                    : 'Not set'}
+                  {userData.activityLevel ? userData.activityLevel.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Not set'}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Settings */}
+        {/* ── Settings ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
@@ -521,37 +366,26 @@ export default function ProfileScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
             </View>
           </View>
-
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ChangePassword')}>
-              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="lock" size={17} color={colors.primary} />
-              </View>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}><Feather name="lock" size={17} color={colors.primary} /></View>
               <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
             <TouchableOpacity style={styles.menuItem}>
-              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="bell" size={17} color={colors.primary} />
-              </View>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}><Feather name="bell" size={17} color={colors.primary} /></View>
               <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
             <TouchableOpacity style={styles.menuItem}>
-              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="shield" size={17} color={colors.primary} />
-              </View>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}><Feather name="shield" size={17} color={colors.primary} /></View>
               <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[styles.logoutBtn, { backgroundColor: COLORS.error + '0A', borderColor: COLORS.error + '25' }]}
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: COLORS.error + '0A', borderColor: COLORS.error + '25' }]} onPress={handleLogout}>
             <Feather name="log-out" size={17} color={COLORS.error} />
             <Text style={[styles.logoutText, { color: COLORS.error }]}>Logout</Text>
           </TouchableOpacity>
@@ -560,17 +394,25 @@ export default function ProfileScreen() {
         <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
       </ScrollView>
 
-      {/* Image Options Modal */}
+      {/* ── Image Options Modal ── */}
       <Modal
         visible={showImageOptions}
         transparent
         animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => setShowImageOptions(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
-          <View style={styles.modalInner}>
-            <View style={[styles.modalSheet, { backgroundColor: colors.modalBg }]}>
-              <View style={[styles.modalHandle, { backgroundColor: colors.divider }]} />
+        <View style={styles.modalRoot}>
+          {/* Overlay — tap outside to close */}
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowImageOptions(false)} />
+
+          {/* Sheet + black filler stacked — sheetWrapper sits at bottom */}
+          <View style={styles.sheetWrapper}>
+            <Pressable
+              style={[styles.modalSheet, { backgroundColor: modalSheetBg }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={[styles.modalHandle, { backgroundColor: colors.divider ?? '#C0C0C0' }]} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
 
               <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
@@ -596,403 +438,122 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={[styles.modalCancel, { borderTopColor: colors.divider }]}
-                onPress={() => setShowImageOptions(false)}
-              >
+              <View style={[styles.modalDivider, { backgroundColor: colors.divider ?? '#E0E0E0' }]} />
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowImageOptions(false)}>
                 <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
               </TouchableOpacity>
-            </View>
+            </Pressable>
+
+            {/*
+              THE FIX:
+              This View is a sibling of the sheet, NOT inside it.
+              It sits directly below the sheet's rounded corners,
+              filling the Android nav bar zone with pure black.
+              Because it is outside the sheet's borderRadius,
+              there are no gaps or transparency — just solid black
+              that blends perfectly with the system nav bar.
+            */}
+            <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  loadingContainer: {
+  scrollContent: { paddingBottom: 40 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorText: { fontSize: 15, marginBottom: 16 },
+  retryButton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
+  retryText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+
+  profileHeader: { alignItems: 'center', paddingTop: 56, paddingBottom: 20, paddingHorizontal: 20 },
+  avatarWrapper: { position: 'relative', marginBottom: 14 },
+  avatarRing: { width: 92, height: 92, borderRadius: 46, borderWidth: 2.5, overflow: 'hidden', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 6 },
+  avatar: { width: '100%', height: '100%' },
+  avatarFallback: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
+  avatarInitials: { fontSize: 30, fontWeight: '700', color: '#FFF' },
+  cameraBtn: { position: 'absolute', bottom: 0, right: -2, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2.5 },
+  profileName: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 2 },
+  profileUsername: { fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  quickStatsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, flexWrap: 'wrap' },
+  quickChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, gap: 5 },
+  quickChipText: { fontSize: 12, fontWeight: '600' },
+
+  verifyBanner: { marginHorizontal: 20, marginBottom: 16, borderRadius: 12, borderWidth: 1, padding: 14 },
+  verifyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  verifyIcon: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
+  verifyTitle: { fontSize: 13, fontWeight: '700', marginBottom: 1 },
+  verifyMsg: { fontSize: 12 },
+  verifyAction: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8 },
+  verifyActionText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
+
+  section: { paddingHorizontal: 20, marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionDot: { width: 8, height: 8, borderRadius: 4 },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  editPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16 },
+  editPillText: { fontSize: 12, fontWeight: '600' },
+
+  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
+  infoIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  infoLabel: { fontSize: 11, fontWeight: '500', marginBottom: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
+  infoValue: { fontSize: 14, fontWeight: '600' },
+  rowDivider: { height: 1, marginLeft: 62 },
+
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  statCard: { flex: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1 },
+  statIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  statVal: { fontSize: 22, fontWeight: '800' },
+  statUnit: { fontSize: 12, fontWeight: '500', marginTop: -2, marginBottom: 2 },
+  statLabel: { fontSize: 11, fontWeight: '500' },
+
+  wideCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 14, borderWidth: 1 },
+  wideCardLeft: { flexDirection: 'row', alignItems: 'center' },
+  wideCardValue: { fontSize: 18, fontWeight: '800' },
+  wideCardLabel: { fontSize: 12, fontWeight: '500' },
+  bmiBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  bmiBadgeText: { fontSize: 12, fontWeight: '700' },
+
+  goalRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
+  goalDot: { width: 8, height: 8, borderRadius: 4 },
+
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
+  menuIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  menuText: { flex: 1, fontSize: 14, fontWeight: '500' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
+  logoutText: { fontSize: 15, fontWeight: '600' },
+  versionText: { fontSize: 12, textAlign: 'center', marginBottom: 20 },
+
+  /* Modal */
+  modalRoot: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  errorText: {
-    fontSize: 15,
-    marginBottom: 16,
-  },
-  retryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  /* ── Profile Header ── */
-  profileHeader: {
-    alignItems: 'center',
-    paddingTop: 56,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    marginBottom: 14,
-  },
-  avatarRing: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 2.5,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarFallback: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  cameraBtn: {
+  // sheetWrapper stacks sheet + black bar — sits at bottom because modalRoot is flex
+  sheetWrapper: {
     position: 'absolute',
     bottom: 0,
-    right: -2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2.5,
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  profileUsername: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  quickStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  quickChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 5,
-  },
-  quickChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  /* ── Verification ── */
-  verifyBanner: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-  },
-  verifyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  verifyIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  verifyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 1,
-  },
-  verifyMsg: {
-    fontSize: 12,
-  },
-  verifyAction: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  verifyActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  /* ── Section ── */
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  editPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
-  },
-  editPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  /* ── Card ── */
-  card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  infoIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginBottom: 1,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rowDivider: {
-    height: 1,
-    marginLeft: 62,
-  },
-  /* ── Stats ── */
-  statsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  statIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statVal: {
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  statUnit: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: -2,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  /* ── Wide card (BMI / Body Fat) ── */
-  wideCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  wideCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  wideCardValue: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  wideCardLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  bmiBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  bmiBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  /* ── Goals ── */
-  goalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  goalDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  /* ── Menu ── */
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  menuIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  versionText: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  /* ── Modal ── */
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalInner: {
-    justifyContent: 'flex-end',
+    left: 0,
+    right: 0,
   },
   modalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
+    width: '100%',
     paddingTop: 12,
-    paddingBottom: 34,
+    paddingBottom: 8,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
   },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  modalOpt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 14,
-  },
-  modalOptIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalOptText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  modalCancel: {
-    marginTop: 8,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
+  modalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
+  modalOpt: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },
+  modalOptIcon: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  modalOptText: { fontSize: 15, fontWeight: '500' },
+  modalDivider: { height: 1, marginTop: 8 },
+  modalCancel: { paddingVertical: 16, alignItems: 'center' },
+  modalCancelText: { fontSize: 15, fontWeight: '500' },
 });
