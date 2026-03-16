@@ -8,9 +8,7 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  StatusBar,
   Image,
-  SafeAreaView,
 } from 'react-native';
 import Svg, {
   Polygon,
@@ -21,6 +19,9 @@ import Svg, {
   RadialGradient,
   Stop,
 } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,8 +29,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 //  TYPES
 // ─────────────────────────────────────────────
 type MetricKey = 'strength' | 'endurance' | 'consistency' | 'volume' | 'progress' | 'habits';
-
 type Metrics = Record<MetricKey, number>;
+type TextAnchor = 'start' | 'middle' | 'end';
+type TabName = 'fitness' | 'training';
 
 interface PersonalBest {
   exercise: string;
@@ -52,13 +54,12 @@ interface UserData {
   currentPoints: number;
   maxPoints: number;
   badgeLevel: number;
-  fitnessScore: number;
   metrics: Metrics;
   trainingData: TrainingData;
 }
 
 // ─────────────────────────────────────────────
-//  DUMMY USER DATA — Replace with your API call
+//  DUMMY DATA — replace with real API call
 // ─────────────────────────────────────────────
 const userData: UserData = {
   name: 'Monk',
@@ -67,14 +68,13 @@ const userData: UserData = {
   currentPoints: 600,
   maxPoints: 1000,
   badgeLevel: 1,
-  fitnessScore: 5000,
   metrics: {
-    strength: 10.0,
-    endurance: 10.0,
-    consistency: 10.0,
-    volume: 10.0,
-    progress: 10.0,
-    habits: 10.0,
+    strength: 8.0,
+    endurance: 6.5,
+    consistency: 9.0,
+    volume: 7.0,
+    progress: 8.5,
+    habits: 7.5,
   },
   trainingData: {
     totalWorkouts: 48,
@@ -93,6 +93,10 @@ const userData: UserData = {
 // ─────────────────────────────────────────────
 //  CALCULATIONS
 // ─────────────────────────────────────────────
+const metricKeys: MetricKey[] = [
+  'strength', 'endurance', 'consistency', 'volume', 'progress', 'habits',
+];
+
 const calculateFitnessScore = (metrics: Metrics): number => {
   const weights: Metrics = {
     strength: 0.25,
@@ -126,21 +130,23 @@ const getMetricLabel = (key: MetricKey): string => {
 };
 
 // ─────────────────────────────────────────────
-//  HEXAGONAL RADAR CHART  (spider-web + animation)
+//  SPIDER RADAR CHART
 // ─────────────────────────────────────────────
 interface HexRadarChartProps {
   metrics: Metrics;
   size?: number;
+  primaryColor: string;
+  gridColor: string;
+  labelColor: string;
 }
 
-type TextAnchor = 'start' | 'middle' | 'end';
-
-const metricKeys: MetricKey[] = [
-  'strength', 'endurance', 'consistency', 'volume', 'progress', 'habits',
-];
-
-const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) => {
-  // Animation: 0 → 1 drives the data polygon from center outward
+const HexRadarChart: React.FC<HexRadarChartProps> = ({
+  metrics,
+  size = 220,
+  primaryColor,
+  gridColor,
+  labelColor,
+}) => {
   const animProgress = useRef(new Animated.Value(0)).current;
   const [animValue, setAnimValue] = useState(0);
 
@@ -161,7 +167,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
   const maxRadius = size * 0.38;
   const numAxes = metricKeys.length;
 
-  const getPoint = (index: number, radius: number): { x: number; y: number } => {
+  const getPoint = (index: number, radius: number) => {
     const angle = (Math.PI * 2 * index) / numAxes - Math.PI / 2;
     return {
       x: center + radius * Math.cos(angle),
@@ -178,15 +184,12 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
       })
       .join(' ');
 
-  // Spider-web background rings: 5 concentric hex rings
   const gridLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
 
-  // Animated data polygon — each point lerps from center (0) to its real value (1)
   const animatedDataPoints = buildPolygonPoints(
     (key) => (metrics[key] / 10) * maxRadius * animValue
   );
 
-  // Dot positions also driven by animation
   const animatedDotPositions = metricKeys.map((key, i) => {
     const r = (metrics[key] / 10) * maxRadius * animValue;
     return { key, i, ...getPoint(i, r) };
@@ -202,66 +205,54 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
     <Svg width={canvasSize} height={canvasSize} viewBox={`0 0 ${canvasSize} ${canvasSize}`}>
       <Defs>
         <RadialGradient id="hexFill" cx="50%" cy="50%" r="50%">
-          <Stop offset="0%" stopColor="#7dc832" stopOpacity="0.55" />
-          <Stop offset="100%" stopColor="#2d5a0a" stopOpacity="0.30" />
+          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.50" />
+          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.10" />
         </RadialGradient>
       </Defs>
 
-      {/* ── Spider-web grid rings (hexagonal) ── */}
+      {/* Spider-web rings */}
       {gridLevels.map((level, li) => (
         <Polygon
           key={`ring-${li}`}
           points={buildPolygonPoints(() => level * maxRadius)}
           fill="none"
-          stroke="#3a5a1a"
+          stroke={gridColor}
           strokeWidth={li === gridLevels.length - 1 ? 1.5 : 0.8}
-          opacity={li === gridLevels.length - 1 ? 0.9 : 0.45}
+          opacity={li === gridLevels.length - 1 ? 0.8 : 0.4}
         />
       ))}
 
-      {/* ── Spoke lines from center to each vertex (spider legs) ── */}
+      {/* Spoke lines */}
       {metricKeys.map((_, i) => {
         const outer = getPoint(i, maxRadius);
         return (
           <Line
             key={`spoke-${i}`}
-            x1={center}
-            y1={center}
-            x2={outer.x}
-            y2={outer.y}
-            stroke="#3a5a1a"
+            x1={center} y1={center}
+            x2={outer.x} y2={outer.y}
+            stroke={gridColor}
             strokeWidth="0.8"
-            opacity="0.6"
+            opacity="0.5"
           />
         );
       })}
 
-      {/* ── Animated data fill polygon ── */}
+      {/* Animated data fill */}
       <Polygon
         points={animatedDataPoints}
         fill="url(#hexFill)"
-        stroke="#7dc832"
+        stroke={primaryColor}
         strokeWidth="2"
         opacity="0.95"
       />
 
-      {/* ── Animated dots at each data point ── */}
+      {/* Animated dots */}
       {animatedDotPositions.map(({ key, x, y }) => (
         <React.Fragment key={`dot-${key}`}>
-          {/* Outer glow ring */}
+          <Circle cx={x} cy={y} r="7" fill={primaryColor} opacity={0.2 * animValue} />
           <Circle
-            cx={x}
-            cy={y}
-            r="6"
-            fill="#a3e635"
-            opacity={0.25 * animValue}
-          />
-          {/* Main dot */}
-          <Circle
-            cx={x}
-            cy={y}
-            r="4"
-            fill="#a3e635"
+            cx={x} cy={y} r="4"
+            fill={primaryColor}
             stroke="#ffffff"
             strokeWidth="1.5"
             opacity={animValue}
@@ -269,7 +260,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
         </React.Fragment>
       ))}
 
-      {/* ── Labels (always fully visible, not animated) ── */}
+      {/* Labels */}
       {labelPositions.map(({ key, x, y }) => {
         let anchor: TextAnchor = 'middle';
         if (x < center - 10) anchor = 'end';
@@ -277,24 +268,10 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
         const val = metrics[key].toFixed(1);
         return (
           <React.Fragment key={`label-${key}`}>
-            <SvgText
-              x={x}
-              y={y - 5}
-              fontSize="9"
-              fill="#cccccc"
-              textAnchor={anchor}
-              fontWeight="500"
-            >
+            <SvgText x={x} y={y - 5} fontSize="9" fill={labelColor} textAnchor={anchor} fontWeight="500">
               {getMetricLabel(key)}
             </SvgText>
-            <SvgText
-              x={x}
-              y={y + 7}
-              fontSize="9"
-              fill="#7dc832"
-              textAnchor={anchor}
-              fontWeight="700"
-            >
+            <SvgText x={x} y={y + 7} fontSize="9" fill={primaryColor} textAnchor={anchor} fontWeight="700">
               {val}/10
             </SvgText>
           </React.Fragment>
@@ -305,13 +282,14 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({ metrics, size = 220 }) =>
 };
 
 // ─────────────────────────────────────────────
-//  ANIMATED SCORE NUMBER
+//  ANIMATED SCORE
 // ─────────────────────────────────────────────
 interface AnimatedScoreProps {
   score: number;
+  color: string;
 }
 
-const AnimatedScore: React.FC<AnimatedScoreProps> = ({ score }) => {
+const AnimatedScore: React.FC<AnimatedScoreProps> = ({ score, color }) => {
   const animVal = useRef(new Animated.Value(0)).current;
   const [displayScore, setDisplayScore] = useState(0);
 
@@ -321,27 +299,27 @@ const AnimatedScore: React.FC<AnimatedScoreProps> = ({ score }) => {
       duration: 1800,
       useNativeDriver: false,
     }).start();
-    const listenerId = animVal.addListener(({ value }) =>
-      setDisplayScore(Math.round(value))
-    );
-    return () => animVal.removeListener(listenerId);
+    const id = animVal.addListener(({ value }) => setDisplayScore(Math.round(value)));
+    return () => animVal.removeListener(id);
   }, [score]);
 
   return (
-    <Text style={styles.fitnessScoreNumber}>
+    <Text style={[styles.fitnessScoreNumber, { color }]}>
       {displayScore.toLocaleString()}
     </Text>
   );
 };
 
 // ─────────────────────────────────────────────
-//  TRAINING TAB CONTENT
+//  TRAINING TAB
 // ─────────────────────────────────────────────
 interface TrainingTabProps {
   data: TrainingData;
 }
 
 const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
+  const { colors } = useTheme();
+
   const stats: Array<{ label: string; value: string | number }> = [
     { label: 'Total Workouts', value: data.totalWorkouts },
     { label: 'Weekly Avg', value: data.weeklyAvg.toFixed(1) },
@@ -350,30 +328,33 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
   ];
 
   return (
-    <View style={styles.trainingContainer}>
+    <View>
       <View style={styles.statsGrid}>
         {stats.map((stat, i) => (
-          <View key={i} style={styles.statCard}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+          <View
+            key={i}
+            style={[styles.statCard, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}
+          >
+            <Text style={[styles.statValue, { color: colors.primary }]}>{stat.value}</Text>
+            <Text style={[styles.statLabel, { color: colors.subtleText }]}>{stat.label}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.pbSection}>
-        <Text style={styles.pbTitle}>Personal Bests</Text>
+      <View style={[styles.pbSection, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>Personal Bests</Text>
         {data.personalBests.map((pb: PersonalBest, i: number) => (
           <View key={i} style={styles.pbRow}>
-            <View style={styles.pbDot} />
-            <Text style={styles.pbExercise}>{pb.exercise}</Text>
-            <Text style={styles.pbValue}>{pb.value}</Text>
+            <View style={[styles.pbDot, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.pbExercise, { color: colors.text }]}>{pb.exercise}</Text>
+            <Text style={[styles.pbValue, { color: colors.primary }]}>{pb.value}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.volumeBar}>
-        <Text style={styles.volumeLabel}>Total Volume Lifted</Text>
-        <Text style={styles.volumeValue}>
+      <View style={[styles.volumeBar, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
+        <Text style={[styles.volumeValue, { color: colors.primary }]}>
           {(data.totalVolume / 1000).toFixed(1)}k kg
         </Text>
       </View>
@@ -384,115 +365,89 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 // ─────────────────────────────────────────────
 //  MAIN SCREEN
 // ─────────────────────────────────────────────
-type TabName = 'fitness' | 'training';
-
 export default function GymProgressScreen() {
+  const { colors } = useTheme();
+  const { user } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<TabName>('fitness');
   const headerFade = useRef(new Animated.Value(0)).current;
   const cardSlide = useRef(new Animated.Value(40)).current;
 
   const computedScore = calculateFitnessScore(userData.metrics);
-  const pointsPercent = calculatePointsPercentage(
-    userData.currentPoints,
-    userData.maxPoints
-  );
+  const pointsPercent = calculatePointsPercentage(userData.currentPoints, userData.maxPoints);
+
+  // Same avatar resolution logic as HomeScreen
+  const rawAvatar = user?.photoURL || user?.avatar;
+  const avatarSource =
+    rawAvatar && typeof rawAvatar === 'string' && rawAvatar.startsWith('http')
+      ? { uri: rawAvatar }
+      : {
+          uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            user?.firstName || user?.username || 'U'
+          )}&background=FFD700&color=000&bold=true`,
+        };
 
   useEffect(() => {
     Animated.stagger(150, [
-      Animated.timing(headerFade, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardSlide, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
+      Animated.timing(headerFade, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(cardSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  const switchTab = (tab: TabName): void => {
-    setActiveTab(tab);
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+    <View style={[styles.main, { backgroundColor: colors.background }]}>
+      {/* Same gradient as HomeScreen */}
+      <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+
         {/* ── HERO HEADER ── */}
         <Animated.View style={[styles.heroSection, { opacity: headerFade }]}>
-          <View style={styles.heroGlowContainer}>
-            <View style={styles.heroGlow} />
-          </View>
-
           <View style={styles.profileRow}>
-            <View style={styles.avatarWrapper}>
-              <View style={styles.avatar}>
-                {userData.avatarUrl ? (
-                  <Image
-                    source={{ uri: userData.avatarUrl }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarInitial}>
-                      {userData.name[0]}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity style={styles.addBtn}>
-                <Text style={styles.addBtnText}>+</Text>
-              </TouchableOpacity>
+            <View style={[styles.avatarRing, { borderColor: colors.primary }]}>
+              <Image source={avatarSource} style={styles.avatarImage} />
             </View>
-
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{userData.name}</Text>
-              <View style={styles.joinedRow}>
-                <View style={styles.calendarIcon}>
-                  <Text style={styles.calendarDot}>|</Text>
-                </View>
-                <Text style={styles.joinedText}>
-                  Joined {userData.joinedDate}
-                </Text>
-              </View>
+              <Text style={[styles.profileName, { color: colors.text }]}>
+                {user?.firstName || user?.username || userData.name}
+              </Text>
+              <Text style={[styles.joinedText, { color: colors.subtleText }]}>
+                Joined {userData.joinedDate}
+              </Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── POINTS BAR ── */}
+        {/* ── POINTS CARD ── */}
         <Animated.View
           style={[
-            styles.pointsCard,
+            styles.card,
             {
+              backgroundColor: colors.surface,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.shadow,
               opacity: headerFade,
               transform: [{ translateY: cardSlide }],
             },
           ]}
         >
           <View style={styles.pointsRow}>
-            <Text style={styles.pointsText}>
+            <Text style={[styles.pointsText, { color: colors.text }]}>
               {userData.currentPoints} / {userData.maxPoints} points
             </Text>
             <View style={styles.badgeContainer}>
-              <View style={styles.badgeIcon}>
-                <Text style={styles.badgeIconText}>*</Text>
+              <View style={[styles.badgeIcon, { backgroundColor: colors.iconBg }]}>
+                <Text style={styles.badgeIconText}>★</Text>
               </View>
-              <Text style={styles.badgeLevel}>{userData.badgeLevel}</Text>
+              <Text style={styles.badgeLevelText}>{userData.badgeLevel}</Text>
             </View>
           </View>
 
-          <View style={styles.progressTrack}>
+          {/* Progress bar — uses same pattern as HomeScreen's progressBarBg */}
+          <View style={[styles.progressTrack, { backgroundColor: colors.progressBg }]}>
             <View
               style={[
-                styles.progressFillAnimated,
-                { width: `${pointsPercent}%` },
+                styles.progressFill,
+                { width: `${pointsPercent}%`, backgroundColor: colors.primary },
               ]}
             />
           </View>
@@ -501,83 +456,85 @@ export default function GymProgressScreen() {
         {/* ── PROGRESS CARD ── */}
         <Animated.View
           style={[
-            styles.progressCard,
+            styles.card,
             {
+              backgroundColor: colors.surface,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.shadow,
               opacity: headerFade,
               transform: [{ translateY: cardSlide }],
             },
           ]}
         >
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Progress</Text>
-            <View style={styles.trendIcon}>
-              <Text style={styles.trendArrow}>↗</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Progress</Text>
+            <View style={[styles.trendBadge, { backgroundColor: colors.iconBg }]}>
+              <Text style={[styles.trendArrow, { color: colors.primary }]}>↗</Text>
             </View>
           </View>
 
-          <View style={styles.tabRow}>
-            <TouchableOpacity
-              onPress={() => switchTab('fitness')}
-              style={[
-                styles.tabBtn,
-                activeTab === 'fitness' && styles.tabBtnActive,
-              ]}
-            >
-              <Text
+          {/* Tab switcher — matches HomeScreen sectionHeader pill style */}
+          <View style={[styles.tabRow, { backgroundColor: colors.statBg }]}>
+            {(['fitness', 'training'] as TabName[]).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
                 style={[
-                  styles.tabText,
-                  activeTab === 'fitness' && styles.tabTextActive,
+                  styles.tabBtn,
+                  activeTab === tab && {
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                  },
                 ]}
               >
-                Fitness Score
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => switchTab('training')}
-              style={[
-                styles.tabBtn,
-                activeTab === 'training' && styles.tabBtnActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'training' && styles.tabTextActive,
-                ]}
-              >
-                Training
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: colors.subtleText },
+                    activeTab === tab && { color: colors.primary, fontWeight: '700' },
+                  ]}
+                >
+                  {tab === 'fitness' ? 'Fitness Score' : 'Training'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {activeTab === 'fitness' ? (
             <View style={styles.fitnessTabContent}>
-              <Text style={styles.fitnessScoreLabel}>Fitness Score</Text>
-              <AnimatedScore score={computedScore} />
+              <Text style={[styles.fitnessScoreLabel, { color: colors.primary }]}>
+                Fitness Score
+              </Text>
+              <AnimatedScore score={computedScore} color={colors.text} />
 
               <View style={styles.radarWrapper}>
-                <HexRadarChart metrics={userData.metrics} size={260} />
+                <HexRadarChart
+                  metrics={userData.metrics}
+                  size={260}
+                  primaryColor={colors.primary}
+                  gridColor={colors.cardBorder}
+                  labelColor={colors.subtleText}
+                />
               </View>
 
+              {/* Mini breakdown bars */}
               <View style={styles.breakdownRow}>
-                {(Object.entries(userData.metrics) as [MetricKey, number][]).map(
-                  ([key, val]) => (
-                    <View key={key} style={styles.breakdownItem}>
-                      <View style={styles.breakdownBarTrack}>
-                        <View
-                          style={[
-                            styles.breakdownBarFill,
-                            { height: `${(val / 10) * 100}%` },
-                          ]}
-                        />
-                      </View>
-                      <Text style={styles.breakdownItemLabel}>
-                        {getMetricLabel(key).slice(0, 3)}
-                      </Text>
+                {(Object.entries(userData.metrics) as [MetricKey, number][]).map(([key, val]) => (
+                  <View key={key} style={styles.breakdownItem}>
+                    <View style={[styles.breakdownBarTrack, { backgroundColor: colors.statBg }]}>
+                      <View
+                        style={[
+                          styles.breakdownBarFill,
+                          { height: `${(val / 10) * 100}%`, backgroundColor: colors.primary },
+                        ]}
+                      />
                     </View>
-                  )
-                )}
+                    <Text style={[styles.breakdownItemLabel, { color: colors.subtleText }]}>
+                      {getMetricLabel(key).slice(0, 3)}
+                    </Text>
+                  </View>
+                ))}
               </View>
             </View>
           ) : (
@@ -585,223 +542,98 @@ export default function GymProgressScreen() {
           )}
         </Animated.View>
 
-        <View style={{ height: 32 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 // ─────────────────────────────────────────────
-//  STYLES
+//  STYLES — zero hardcoded colors
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
+  main: { flex: 1 },
 
   // Hero
   heroSection: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 8,
-  },
-  heroGlowContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  heroGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: '#3a6b0a',
-    opacity: 0.08,
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarWrapper: {
-    position: 'relative',
-    marginRight: 14,
-  },
-  avatar: {
+  avatarRing: {
     width: 64,
     height: 64,
     borderRadius: 32,
     borderWidth: 2,
-    borderColor: '#2a2a2a',
     overflow: 'hidden',
+    marginRight: 14,
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
-  avatarPlaceholder: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    color: '#7dc832',
-    fontSize: 26,
-    fontWeight: '700',
-  },
-  addBtn: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#141414',
-    borderWidth: 1.5,
-    borderColor: '#444',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addBtnText: {
-    color: '#aaa',
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: '600',
-  },
-  profileInfo: {
-    flex: 1,
-  },
+  profileInfo: { flex: 1 },
   profileName: {
-    color: '#ffffff',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    letterSpacing: 0.3,
     marginBottom: 4,
   },
-  joinedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  calendarIcon: {
-    opacity: 0.5,
-    marginRight: 5,
-  },
-  calendarDot: {
-    color: '#888',
-    fontSize: 12,
-  },
   joinedText: {
-    color: '#888',
     fontSize: 13,
     fontWeight: '400',
   },
 
-  // Points Card
-  pointsCard: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    backgroundColor: '#141414',
-    borderRadius: 14,
+  // Shared card — mirrors HomeScreen stepsCard / waterCard
+  card: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#222',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
+
+  // Points
   pointsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  pointsText: {
-    color: '#cccccc',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  pointsText: { fontSize: 14, fontWeight: '500' },
+  badgeContainer: { flexDirection: 'row', alignItems: 'center' },
   badgeIcon: {
     width: 26,
     height: 26,
-    backgroundColor: '#8B6914',
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 5,
   },
-  badgeIconText: {
-    color: '#FFD700',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  badgeLevel: {
-    color: '#FFD700',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFillAnimated: {
-    height: '100%',
-    backgroundColor: '#7dc832',
-    borderRadius: 4,
-    opacity: 0.9,
-  },
+  badgeIconText: { color: '#FFD700', fontSize: 14, fontWeight: '800' },
+  badgeLevelText: { color: '#FFD700', fontSize: 16, fontWeight: '700' },
+  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
 
-  // Progress Card
-  progressCard: {
-    marginHorizontal: 16,
-    marginTop: 14,
-    backgroundColor: '#141414',
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1e1e1e',
-  },
+  // Card header
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
   },
-  cardTitle: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginRight: 8,
-  },
-  trendIcon: {
-    backgroundColor: '#1a2a0a',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  trendArrow: {
-    color: '#7dc832',
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  cardTitle: { fontSize: 20, fontWeight: '700', marginRight: 8 },
+  trendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  trendArrow: { fontSize: 13, fontWeight: '700' },
 
   // Tabs
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
     borderRadius: 10,
     padding: 3,
     marginBottom: 20,
@@ -814,34 +646,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 1.5,
   },
-  tabBtnActive: {
-    backgroundColor: '#1e3a08',
-    borderWidth: 1,
-    borderColor: '#3a6b12',
-  },
-  tabText: {
-    color: '#666',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: '#a3e635',
-    fontWeight: '700',
-  },
+  tabText: { fontSize: 13, fontWeight: '500' },
 
-  // Fitness Tab
-  fitnessTabContent: {
-    alignItems: 'center',
-  },
+  // Fitness tab
+  fitnessTabContent: { alignItems: 'center' },
   fitnessScoreLabel: {
-    color: '#7dc832',
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   fitnessScoreNumber: {
-    color: '#ffffff',
     fontSize: 56,
     fontWeight: '900',
     letterSpacing: -1,
@@ -861,116 +676,52 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'flex-end',
   },
-  breakdownItem: {
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
+  breakdownItem: { alignItems: 'center', marginHorizontal: 5 },
   breakdownBarTrack: {
     width: 22,
     height: 36,
-    backgroundColor: '#1e1e1e',
     borderRadius: 4,
     justifyContent: 'flex-end',
     overflow: 'hidden',
     marginBottom: 4,
   },
-  breakdownBarFill: {
-    width: '100%',
-    backgroundColor: '#4a8a14',
-    borderRadius: 4,
-  },
-  breakdownItemLabel: {
-    color: '#555',
-    fontSize: 9,
-    fontWeight: '500',
-  },
+  breakdownBarFill: { width: '100%', borderRadius: 4 },
+  breakdownItemLabel: { fontSize: 9, fontWeight: '500' },
 
-  // Training Tab
-  trainingContainer: {},
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
+  // Training tab
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   statCard: {
     width: '48%',
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#252525',
     alignItems: 'center',
     margin: '1%',
   },
-  statValue: {
-    color: '#a3e635',
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 3,
-  },
-  statLabel: {
-    color: '#666',
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  pbSection: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#252525',
-    marginBottom: 16,
-  },
-  pbTitle: {
-    color: '#888',
+  statValue: { fontSize: 24, fontWeight: '800', marginBottom: 3 },
+  statLabel: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
+
+  pbSection: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
+  sectionLabel: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 10,
   },
-  pbRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  pbDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#7dc832',
-    marginRight: 10,
-  },
-  pbExercise: {
-    flex: 1,
-    color: '#cccccc',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  pbValue: {
-    color: '#a3e635',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  pbRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  pbDot: { width: 6, height: 6, borderRadius: 3, marginRight: 10 },
+  pbExercise: { flex: 1, fontSize: 14, fontWeight: '500' },
+  pbValue: { fontSize: 14, fontWeight: '700' },
+
   volumeBar: {
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#252525',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  volumeLabel: {
-    color: '#888',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  volumeValue: {
-    color: '#a3e635',
-    fontSize: 20,
-    fontWeight: '800',
-  },
+  volumeLabel: { fontSize: 13, fontWeight: '500' },
+  volumeValue: { fontSize: 20, fontWeight: '800' },
 });

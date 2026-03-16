@@ -86,13 +86,6 @@ export default function SignInScreen() {
 
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
-      {theme === 'dark' && (
-        <ImageBackground
-          source={require('../../assets/home.jpeg')}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      )}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

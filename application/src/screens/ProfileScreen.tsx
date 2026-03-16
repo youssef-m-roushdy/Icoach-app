@@ -569,7 +569,7 @@ export default function ProfileScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
           <View style={styles.modalInner}>
-            <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalSheet, { backgroundColor: colors.modalBg }]}>
               <View style={[styles.modalHandle, { backgroundColor: colors.divider }]} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
 
