@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context';
 import { COLORS, SIZES } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 import { AntDesign } from '@expo/vector-icons';
 
 interface GoogleButtonProps {
@@ -15,6 +16,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
   const [isInProgress, setIsInProgress] = useState(false);
   const navigation = useNavigation();
   const { setAuthState } = useAuth();
+  const { colors } = useTheme();
 
   const buttonText = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google';
 
@@ -107,19 +109,23 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
 
   return (
     <TouchableOpacity 
-      style={[styles.button, isInProgress && styles.buttonDisabled]} 
+      style={[
+        styles.button, 
+        { backgroundColor: colors.card, borderColor: colors.border },
+        isInProgress && styles.buttonDisabled
+      ]} 
       onPress={handleGoogleLogin}
       disabled={isInProgress}
       activeOpacity={0.8}
     >
       {isInProgress ? (
-        <ActivityIndicator color="#fff" size="small" />
+        <ActivityIndicator color={colors.primary} size="small" />
       ) : (
         <>
           <View style={styles.iconContainer}>
-            <AntDesign name="google" size={20} color={COLORS.primary} />
+            <AntDesign name="google" size={20} color={colors.primary} />
           </View>
-          <Text style={styles.buttonText}>{buttonText}</Text>
+          <Text style={[styles.buttonText, { color: colors.text }]}>{buttonText}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -131,10 +137,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: SIZES.radiusLarge,
+    borderWidth: 1,
     marginTop: 16,
     width: '100%',
   },
@@ -147,7 +153,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

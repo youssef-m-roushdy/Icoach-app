@@ -556,28 +556,23 @@ const WorkoutsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
   },
   listContent: {
     padding: 16,
   },
   workoutCard: {
-    backgroundColor: '#000000',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     marginHorizontal: 12,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    shadowColor: '#FFD700',
+    borderWidth: 1.5,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -586,7 +581,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 16,
-    backgroundColor: '#1a1a1a',
   },
   workoutInfo: {
     marginBottom: 8,
@@ -600,7 +594,6 @@ const styles = StyleSheet.create({
   workoutName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
     letterSpacing: 0.3,
     flex: 1,
   },
@@ -610,12 +603,10 @@ const styles = StyleSheet.create({
   },
   workoutDetail: {
     fontSize: 14,
-    color: '#E0E0E0',
     marginBottom: 6,
   },
   workoutDescription: {
     fontSize: 13,
-    color: '#B0B0B0',
     marginTop: 12,
     lineHeight: 20,
   },
@@ -627,7 +618,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
     marginTop: 16,
   },
   paginationContainer: {
@@ -635,9 +625,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#000000',
     borderTopWidth: 1,
-    borderTopColor: '#FFD700',
   },
   pageNumbersContainer: {
     flexDirection: 'row',
@@ -656,35 +644,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginHorizontal: 2,
     borderRadius: 6,
-    backgroundColor: '#FFD700',
   },
-  pageNumberActive: {
-    backgroundColor: '#FFD700',
-  },
+  pageNumberActive: {},
   pageNumberText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   pageNumberTextActive: {
-    color: '#000000',
+    color: '#FFFFFF',
   },
   pageNumberDots: {
     paddingHorizontal: 8,
-    color: '#FFD700',
   },
   pageInfo: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#FFFFFF',
     paddingBottom: 16,
-    backgroundColor: '#000000',
   },
   filtersContainer: {
-    backgroundColor: '#000000',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFD700',
   },
   filtersHeader: {
     flexDirection: 'row',
@@ -695,7 +675,6 @@ const styles = StyleSheet.create({
   filtersTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   clearText: {
     fontSize: 14,
@@ -710,7 +689,6 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFD700',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
@@ -720,7 +698,6 @@ const styles = StyleSheet.create({
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#000000',
     marginRight: 6,
     flexShrink: 1,
   },
@@ -730,7 +707,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#000000',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -741,12 +717,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFD700',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   modalScroll: {
     maxHeight: 400,
@@ -757,11 +731,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFD700',
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#FFFFFF',
   },
 });
 

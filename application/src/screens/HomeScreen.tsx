@@ -14,12 +14,9 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import MediaPickerSheet from '../components/MediaPickerSheet';
 import { useNavigation } from '@react-navigation/native'; 
+import { useStepCounter } from '../hooks/useStepCounter'; // add this import
 
-const GOLD = '#FFD700';
-const BLACK = '#000000';
-const WHITE = '#FFFFFF';
 const BLUE = '#007BFF'; 
-const BG_GRADIENT = ['#0F0F0F', '#1A1A1A', '#000000'] as const;
 
 export default function HomeScreen() {
   const { user } = useAuth() as any;
@@ -28,6 +25,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
+  const stepData = useStepCounter();
 
   const userImage = useMemo(() => {
     
@@ -65,14 +63,14 @@ export default function HomeScreen() {
           
           <View style={styles.headerTop}>
              <View>
-                <Text style={[styles.welcomeTxt, { color: colors.textSecondary }]}>{t('hello')}</Text>
+                <Text style={[styles.welcomeTxt, { color: colors.subtleText }]}>{t('hello')}</Text>
                 <Text style={[styles.nameTxt, { color: colors.text }]}>{t('champion')}</Text>
              </View>
              <View style={styles.headerBtnsContainer}>
-                <TouchableOpacity style={styles.chatbotBtn}>
+                <TouchableOpacity style={[styles.chatbotBtn, { backgroundColor: colors.iconBg, borderColor: colors.cardBorder }]}>
                    <MaterialCommunityIcons name="robot-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.notifBtn}>
+                <TouchableOpacity style={[styles.notifBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
                    <Ionicons name="notifications-outline" size={22} color={colors.primary} />
                 </TouchableOpacity>
              </View>
@@ -83,15 +81,15 @@ export default function HomeScreen() {
                 
                 {/* My Story */}
                 <TouchableOpacity style={storyStyles.container} onPress={() => setIsSheetVisible(true)} activeOpacity={0.8}>
-                    <View style={[storyStyles.ring, { borderColor: 'rgba(45, 14, 88, 0.1)' }]}>
+                    <View style={[storyStyles.ring, { borderColor: colors.cardBorder }]}>
                         <Image 
                             source={userImage} 
-                            style={storyStyles.img}
+                            style={[storyStyles.img, { backgroundColor: colors.surface }]}
                             key={userImage.uri} 
                         />
-                        <View style={storyStyles.add}><Ionicons name="add" size={14} color={colors.background} /></View>
+                        <View style={[storyStyles.add, { backgroundColor: colors.primary, borderColor: colors.background }]}><Ionicons name="add" size={14} color="#FFFFFF" /></View>
                     </View>
-                    <Text style={storyStyles.txt}>My Story</Text>
+                    <Text style={[storyStyles.txt, { color: colors.subtleText }]}>My Story</Text>
                 </TouchableOpacity>
 
                 
@@ -105,9 +103,9 @@ export default function HomeScreen() {
                 ].map((item, index) => (
                     <View key={index} style={storyStyles.container}>
                         <View style={[storyStyles.ring, { borderColor: colors.primary }]}>
-                            <Image source={item.image} style={storyStyles.img} />
+                            <Image source={item.image} style={[storyStyles.img, { backgroundColor: colors.surface }]} />
                         </View>
-                        <Text style={storyStyles.txt}>{item.name}</Text>
+                        <Text style={[storyStyles.txt, { color: colors.subtleText }]}>{item.name}</Text>
                     </View>
                 ))}
             </ScrollView>
@@ -115,62 +113,86 @@ export default function HomeScreen() {
 
           {/* Daily Steps Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Daily Steps</Text>
-            <View style={styles.stepsCard}>
-              {/* Left: Steps Count and Icon */}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Daily Steps</Text>
+            <View style={[styles.stepsCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
+
+              {/* Left */}
               <View style={styles.stepsLeft}>
-                <View style={[styles.stepsCircle, { borderColor: colors.primary }]}>
-                  <Text style={[styles.stepsCount, { color: colors.primary }]}>0</Text>
-                  <Text style={styles.stepsSmallText}>Steps</Text>
+                <View style={[styles.stepsCircle, { borderColor: colors.primary, backgroundColor: colors.iconBg }]}>
+                  <Text style={[styles.stepsCount, { color: colors.primary }]}>
+                    {stepData.isLoading ? '...' : stepData.steps.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.stepsSmallText, { color: colors.subtleText }]}>Steps</Text>
                 </View>
                 <MaterialCommunityIcons name="foot-print" size={40} color={BLUE} />
               </View>
 
-              {/* Right: Progress and Stats */}
+              {/* Right */}
               <View style={styles.stepsRight}>
-                {/* Progress Bar */}
                 <View style={styles.progressContainer}>
-                  <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { backgroundColor: colors.primary }]} />
+                  <View style={[styles.progressBarBg, { backgroundColor: colors.progressBg }]}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          backgroundColor: colors.primary,
+                          width: `${stepData.progress * 100}%`,
+                        },
+                      ]}
+                    />
                   </View>
-                  <Text style={[styles.progressText, { color: colors.primary }]}>0 {t('of')} 10000 {t('steps')}</Text>
+                  <Text style={[styles.progressText, { color: colors.primary }]}>
+                    {stepData.steps.toLocaleString()} {t('of')} {stepData.goal.toLocaleString()} {t('steps')}
+                  </Text>
                 </View>
 
-                {/* Stats Row */}
                 <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
+                  <View style={[styles.statItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <View style={styles.statBadge}>
                       <Ionicons name="checkmark-circle" size={20} color="#28A745" />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>0</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.steps.toLocaleString()}
+                      </Text>
                     </View>
-                    <Text style={styles.statItemLabel}>{t('done')}</Text>
+                    <Text style={[styles.statItemLabel, { color: colors.subtleText }]}>{t('done')}</Text>
                   </View>
 
-                  <View style={styles.statItem}>
+                  <View style={[styles.statItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <View style={styles.statBadge}>
                       <Ionicons name="flag" size={20} color={colors.primary} />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>10000</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.goal.toLocaleString()}
+                      </Text>
                     </View>
-                    <Text style={styles.statItemLabel}>{t('goal')}</Text>
+                    <Text style={[styles.statItemLabel, { color: colors.subtleText }]}>{t('goal')}</Text>
                   </View>
 
-                  <View style={styles.statItem}>
+                  <View style={[styles.statItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <View style={styles.statBadge}>
                       <Ionicons name="arrow-forward" size={20} color={colors.primary} />
-                      <Text style={[styles.statItemValue, { color: colors.primary }]}>10000</Text>
+                      <Text style={[styles.statItemValue, { color: colors.primary }]}>
+                        {stepData.remaining.toLocaleString()}
+                      </Text>
                     </View>
-                    <Text style={styles.statItemLabel}>{t('remaining')}</Text>
+                    <Text style={[styles.statItemLabel, { color: colors.subtleText }]}>{t('remaining')}</Text>
                   </View>
                 </View>
+
+                {stepData.error && (
+                  <Text style={{ color: '#FF6B6B', fontSize: 11, marginTop: 8 }}>
+                    ⚠️ {stepData.error}
+                  </Text>
+                )}
               </View>
+
             </View>
           </View>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{t('dailyRoutine')}</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dailyRoutine')}</Text>
                 <TouchableOpacity onPress={() => setShowAll(!showAll)}>
-                    <Text style={styles.seeAll}>{showAll ? t('showLess') : t('showMore')}</Text>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>{showAll ? t('showLess') : t('showMore')}</Text>
                 </TouchableOpacity>
             </View>
             
@@ -181,11 +203,11 @@ export default function HomeScreen() {
 
           {/* Daily Water Intake */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('dailyWaterIntake')}</Text>
-            <View style={styles.waterCard}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('dailyWaterIntake')}</Text>
+            <View style={[styles.waterCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.shadow }]}>
               {/* Left: Water Count */}
               <View style={styles.waterLeft}>
-                <View style={[styles.waterCircle, { borderColor: colors.primary }]}>
+                <View style={[styles.waterCircle, { borderColor: colors.primary, backgroundColor: colors.iconBg }]}>
                   <Text style={[styles.waterCount, { color: colors.primary }]}>0</Text>
                 <MaterialCommunityIcons name="water" size={28} color={BLUE} />
                 </View>
@@ -196,36 +218,36 @@ export default function HomeScreen() {
                 {/* Progress Bar */}
                 <View style={styles.waterProgressContainer}>
                   <Text style={[styles.waterProgressLabel, { color: colors.primary }]}>0 {t('cups')} | 8 {t('cups')} {t('total')}</Text>
-                  <View style={styles.waterProgressBarBg}>
+                  <View style={[styles.waterProgressBarBg, { backgroundColor: colors.progressBg }]}>
                     <View style={[styles.waterProgressBarFill, { backgroundColor: colors.primary }]} />
                   </View>
                 </View>
 
                 {/* Stats Row */}
                 <View style={styles.waterStatsRow}>
-                  <View style={styles.waterStatItem}>
+                  <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <Text style={[styles.waterStatValue, { color: colors.primary }]}>2000</Text>
                     <Text style={[styles.waterStatLabel, { color: colors.primary }]}>Goal</Text>
-                    <Text style={styles.waterStatUnit}>ml</Text>
+                    <Text style={[styles.waterStatUnit, { color: colors.subtleText }]}>ml</Text>
                   </View>
 
-                  <View style={styles.waterStatItem}>
+                  <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <Text style={[styles.waterStatValue, { color: colors.primary }]}>0</Text>
                     <Text style={[styles.waterStatLabel, { color: colors.primary }]}>Drank</Text>
-                    <Text style={styles.waterStatUnit}>ml</Text>
+                    <Text style={[styles.waterStatUnit, { color: colors.subtleText }]}>ml</Text>
                   </View>
 
-                  <View style={styles.waterStatItem}>
+                  <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                     <Text style={[styles.waterStatValue, { color: colors.primary }]}>2000</Text>
                     <Text style={[styles.waterStatLabel, { color: colors.primary }]}>Remaining</Text>
-                    <Text style={styles.waterStatUnit}>ml</Text>
+                    <Text style={[styles.waterStatUnit, { color: colors.subtleText }]}>ml</Text>
                   </View>
                 </View>
 
                 {/* Add Glass Button */}
                 <TouchableOpacity style={[styles.addGlassBtn, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="add-circle" size={20} color={colors.text === '#FFFFFF' ? '#000000' : '#FFFFFF'} />
-                  <Text style={[styles.addGlassBtnText, { color: colors.text === '#FFFFFF' ? '#000000' : '#FFFFFF' }]}>Add Glass</Text>
+                  <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                  <Text style={[styles.addGlassBtnText, { color: '#FFFFFF' }]}>Add Glass</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -234,23 +256,23 @@ export default function HomeScreen() {
         </ScrollView>
 
       
-      <View style={styles.bottomNav}>
+      <View style={[styles.bottomNav, { backgroundColor: colors.navBar, borderColor: colors.navBarBorder, shadowColor: colors.shadow }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SavedWorkouts')}>
-          <MaterialCommunityIcons name="dumbbell" size={28} color="#666" />
-          <Text style={styles.navTxt}>My Workouts</Text>
+          <MaterialCommunityIcons name="dumbbell" size={28} color={colors.navIcon} />
+          <Text style={[styles.navTxt, { color: colors.navIcon }]}>My Workouts</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}><Ionicons name="people" size={28} color="#666" /><Text style={styles.navTxt}>Community</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="people" size={28} color={colors.navIcon} /><Text style={[styles.navTxt, { color: colors.navIcon }]}>Community</Text></TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Foods')}>
             <LinearGradient colors={[colors.primary, colors.secondary] as any} style={styles.centerCircle}>
-                <MaterialCommunityIcons name="food-apple" size={30} color={colors.text === '#FFFFFF' ? '#000000' : '#FFFFFF'} /> 
+                <MaterialCommunityIcons name="food-apple" size={30} color="#FFFFFF" /> 
             </LinearGradient>
-            <Text style={styles.navTxt}>Food</Text>
+            <Text style={[styles.navTxt, { color: colors.text }]}>Food</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={toggleTheme}>
           <MaterialCommunityIcons name={theme === 'dark' ? 'white-balance-sunny' : 'moon-waning-crescent'} size={28} color={colors.primary} />
-          <Text style={styles.navTxt}>{theme === 'dark' ? 'Light' : 'Dark'}</Text>
+          <Text style={[styles.navTxt, { color: colors.primary }]}>{theme === 'dark' ? 'Light' : 'Dark'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}><Ionicons name="settings-sharp" size={26} color="#666" /><Text style={styles.navTxt}>Settings</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="settings-sharp" size={26} color={colors.navIcon} /><Text style={[styles.navTxt, { color: colors.navIcon }]}>Settings</Text></TouchableOpacity>
       </View>
 
       <MediaPickerSheet isVisible={isSheetVisible} onClose={() => setIsSheetVisible(false)} onSelectMedia={() => {}} />
@@ -260,7 +282,7 @@ export default function HomeScreen() {
 
 
 const MealCard = ({ title }: { title: string }) => {
-    const { colors } = useTheme();
+    const { colors, theme } = useTheme();
     const [open, setOpen] = useState(false);
 
   
@@ -473,7 +495,7 @@ const MealCard = ({ title }: { title: string }) => {
     const foodItems = mealDetails[title as keyof typeof mealDetails] || [];
 
     return (
-        <TouchableOpacity style={[mealStyles.card, open && { borderColor: colors.primary }]} onPress={() => setOpen(!open)} activeOpacity={0.9}>
+        <TouchableOpacity style={[mealStyles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.shadow }, open && { borderColor: colors.primary }]} onPress={() => setOpen(!open)} activeOpacity={0.9}>
             <View style={mealStyles.header}>
                 <View>
                   <Text style={[mealStyles.title, { color: colors.text }]}>{title}</Text>
@@ -482,14 +504,14 @@ const MealCard = ({ title }: { title: string }) => {
                 <Feather name={open ? "chevron-up" : "chevron-right"} size={20} color={colors.primary} />
             </View>
             {open && (
-                <View style={mealStyles.content}>
+                <View style={[mealStyles.content, { borderTopColor: colors.divider }]}>
                     {/* Image Gallery - First 3 images */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={mealStyles.imageGallery}>
                         {foodItems.slice(0, 3).map((food, index) => (
                             <View key={`gallery-${index}`} style={mealStyles.galleryItem}>
                                 <Image 
                                     source={{ uri: food.imageUrl }} 
-                                    style={mealStyles.galleryImg} 
+                                    style={[mealStyles.galleryImg, { backgroundColor: colors.statBg }]} 
                                 />
                             </View>
                         ))}
@@ -497,29 +519,29 @@ const MealCard = ({ title }: { title: string }) => {
 
                     {/* Detailed List */}
                     {foodItems.map((food, index) => (
-                        <View key={index} style={[mealStyles.foodItem, { backgroundColor: colors.background }]}>
+                        <View key={index} style={[mealStyles.foodItem, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
                             <Image 
                                 source={{ uri: food.imageUrl }} 
-                                style={mealStyles.foodImg} 
+                                style={[mealStyles.foodImg, { backgroundColor: colors.statBg }]} 
                             />
                             <View style={mealStyles.foodDetails}>
                                 <Text style={[mealStyles.foodName, { color: colors.primary }]}>{food.name}</Text>
                                 <Text style={[mealStyles.foodDescription, { color: colors.textSecondary }]}>{food.description}</Text>
                                 <View style={mealStyles.nutritionRow}>
-                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                                        <Text style={[mealStyles.nutritionLabel, { color: colors.textSecondary }]}>Cal</Text>
+                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.surface, borderColor: colors.statBorder }]}>
+                                        <Text style={[mealStyles.nutritionLabel, { color: colors.subtleText }]}>Cal</Text>
                                         <Text style={[mealStyles.nutritionValue, { color: colors.primary }]}>{food.calories}</Text>
                                     </View>
-                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                                        <Text style={[mealStyles.nutritionLabel, { color: colors.textSecondary }]}>P</Text>
+                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.surface, borderColor: colors.statBorder }]}>
+                                        <Text style={[mealStyles.nutritionLabel, { color: colors.subtleText }]}>P</Text>
                                         <Text style={[mealStyles.nutritionValue, { color: colors.primary }]}>{food.protein}</Text>
                                     </View>
-                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                                        <Text style={[mealStyles.nutritionLabel, { color: colors.textSecondary }]}>C</Text>
+                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.surface, borderColor: colors.statBorder }]}>
+                                        <Text style={[mealStyles.nutritionLabel, { color: colors.subtleText }]}>C</Text>
                                         <Text style={[mealStyles.nutritionValue, { color: colors.primary }]}>{food.carbs}</Text>
                                     </View>
-                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                                        <Text style={[mealStyles.nutritionLabel, { color: colors.textSecondary }]}>F</Text>
+                                    <View style={[mealStyles.nutritionItem, { backgroundColor: colors.surface, borderColor: colors.statBorder }]}>
+                                        <Text style={[mealStyles.nutritionLabel, { color: colors.subtleText }]}>F</Text>
                                         <Text style={[mealStyles.nutritionValue, { color: colors.primary }]}>{food.fat}</Text>
                                     </View>
                                 </View>
@@ -533,7 +555,7 @@ const MealCard = ({ title }: { title: string }) => {
 };
 
 const styles = StyleSheet.create({
-    main: { flex: 1, backgroundColor: '#000' },
+    main: { flex: 1 },
     backgroundImage: { 
       position: 'absolute', 
       top: 0, 
@@ -544,32 +566,42 @@ const styles = StyleSheet.create({
       resizeMode: 'contain',
     },
     headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20 },
-    welcomeTxt: { color: '#888', fontSize: 16 },
-    nameTxt: { color: '#FFF', fontSize: 24, fontWeight: '800' },
+    welcomeTxt: { fontSize: 16 },
+    nameTxt: { fontSize: 24, fontWeight: '800' },
     emojiIcon: { fontSize: 28, marginLeft: 8, fontWeight: '800' },
     headerBtnsContainer: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    notifBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)' },
-    chatbotBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,215,0,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: 'rgba(255,215,0,0.2)' },
+    notifBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
+    chatbotBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5 },
     storiesContainer: { marginVertical: 25 },
     section: { paddingHorizontal: 20, marginBottom: 20, gap: 12 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15 },
-    sectionTitle: { color: '#FFF', fontSize: 20, fontWeight: '700' },
-    seeAll: { color: GOLD, fontSize: 14, fontWeight: '500' },
-    bottomNav: { position: 'absolute', bottom: 25, left: 20, right: 20, height: 75, backgroundColor: 'rgba(25, 25, 25, 0.95)', borderRadius: 25, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    sectionTitle: { fontSize: 20, fontWeight: '700' },
+    seeAll: { fontSize: 14, fontWeight: '600' },
+    bottomNav: { 
+      position: 'absolute', bottom: 25, left: 20, right: 20, height: 75, 
+      borderRadius: 25, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', 
+      borderWidth: 1,
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      elevation: 12,
+    },
     navItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
-    navTxt: { color: WHITE, fontSize: 10, marginTop: 4, fontWeight: '600' },
+    navTxt: { fontSize: 10, marginTop: 4, fontWeight: '600' },
     navItemCenter: { top: -20 },
-    centerCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
+    centerCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 6, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6 },
     // Daily Steps Styles
     stepsCard: {
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
       borderRadius: 20,
       padding: 20,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 20,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
     },
     stepsLeft: {
       alignItems: 'center',
@@ -580,7 +612,6 @@ const styles = StyleSheet.create({
       width: 70,
       height: 70,
       borderRadius: 35,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       borderWidth: 2,
       justifyContent: 'center',
       alignItems: 'center',
@@ -592,7 +623,6 @@ const styles = StyleSheet.create({
       lineHeight: 30,
     },
     stepsSmallText: {
-      color: '#AAA',
       fontSize: 10,
       fontWeight: '600',
     },
@@ -606,13 +636,13 @@ const styles = StyleSheet.create({
       width: '100%',
       height: 8,
       borderRadius: 4,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
       overflow: 'hidden',
       marginBottom: 8,
     },
     progressBarFill: {
       width: '0%',
       height: '100%',
+      borderRadius: 4,
     },
     progressText: {
       fontSize: 11,
@@ -626,11 +656,9 @@ const styles = StyleSheet.create({
     statItem: {
       flex: 1,
       alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
       borderRadius: 12,
       padding: 12,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     statBadge: {
       alignItems: 'center',
@@ -642,20 +670,21 @@ const styles = StyleSheet.create({
       marginTop: 4,
     },
     statItemLabel: {
-      color: '#888',
       fontSize: 10,
       fontWeight: '600',
     },
     // Daily Water Intake Styles
     waterCard: {
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
       borderRadius: 20,
       padding: 20,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.1)',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 20,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 4,
     },
     waterLeft: {
       alignItems: 'center',
@@ -665,7 +694,6 @@ const styles = StyleSheet.create({
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       borderWidth: 2,
       justifyContent: 'center',
       alignItems: 'center',
@@ -691,12 +719,12 @@ const styles = StyleSheet.create({
       width: '100%',
       height: 8,
       borderRadius: 4,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
       overflow: 'hidden',
     },
     waterProgressBarFill: {
       width: '0%',
       height: '100%',
+      borderRadius: 4,
     },
     waterStatsRow: {
       flexDirection: 'row',
@@ -707,11 +735,9 @@ const styles = StyleSheet.create({
     waterStatItem: {
       flex: 1,
       alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
       borderRadius: 12,
       padding: 10,
       borderWidth: 1,
-      borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     waterStatValue: {
       fontSize: 14,
@@ -724,7 +750,6 @@ const styles = StyleSheet.create({
       marginBottom: 2,
     },
     waterStatUnit: {
-      color: '#888',
       fontSize: 8,
       fontWeight: '500',
     },
@@ -737,7 +762,6 @@ const styles = StyleSheet.create({
       gap: 8,
     },
     addGlassBtnText: {
-      color: BLACK,
       fontSize: 13,
       fontWeight: '700',
     },
@@ -746,33 +770,33 @@ const styles = StyleSheet.create({
 const storyStyles = StyleSheet.create({
     container: { alignItems: 'center', marginRight: 18 },
     ring: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-    img: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#222' },
-    txt: { color: 'rgba(187, 187, 187, 0.7)', fontSize: 11, fontWeight: '500' },
-    add: { position: 'absolute', bottom: 2, right: 2, backgroundColor: GOLD, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#1A1A1A' }
+    img: { width: 60, height: 60, borderRadius: 30 },
+    txt: { fontSize: 11, fontWeight: '500' },
+    add: { position: 'absolute', bottom: 2, right: 2, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2 }
 });
 
 const mealStyles = StyleSheet.create({
-    card: { backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    card: { borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    title: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+    title: { fontSize: 17, fontWeight: '700' },
     subTitle: { fontSize: 12, marginTop: 2 },
-    content: { marginTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 15, gap: 12 },
+    content: { marginTop: 15, borderTopWidth: 1, paddingTop: 15, gap: 12 },
     mealImg: { width: 110, height: 110, borderRadius: 15, marginRight: 12 },
     
     // Image Gallery Styles
     imageGallery: { marginBottom: 12, paddingVertical: 8 },
     galleryItem: { marginRight: 10, borderRadius: 15, overflow: 'hidden' },
-    galleryImg: { width: 130, height: 130, borderRadius: 15, backgroundColor: '#222' },
+    galleryImg: { width: 130, height: 130, borderRadius: 15 },
     
-    foodItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', borderRadius: 15, padding: 12, borderWidth: 1, borderColor: 'rgba(255,215,0,0.15)' },
-    foodImg: { width: 100, height: 100, borderRadius: 12, marginRight: 12, backgroundColor: '#222' },
+    foodItem: { flexDirection: 'row', alignItems: 'center', borderRadius: 15, padding: 12, borderWidth: 1 },
+    foodImg: { width: 100, height: 100, borderRadius: 12, marginRight: 12 },
     foodDetails: { flex: 1 },
-    foodName: { color: GOLD, fontSize: 14, fontWeight: '700', marginBottom: 8 },
+    foodName: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
     
     
     nutritionRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 2, marginTop: 4 },
-    nutritionItem: { flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 6, padding: 4, alignItems: 'center' },
-    nutritionLabel: { color: '#888', fontSize: 8, fontWeight: '600', marginBottom: 1 },
-    nutritionValue: { color: '#FFF', fontSize: 9, fontWeight: '700' },
-    foodDescription: { color: '#AAA', fontSize: 11, marginTop: 2, marginBottom: 4, fontStyle: 'italic' }
+    nutritionItem: { flex: 1, borderRadius: 6, padding: 4, alignItems: 'center', borderWidth: 1 },
+    nutritionLabel: { fontSize: 8, fontWeight: '600', marginBottom: 1 },
+    nutritionValue: { fontSize: 9, fontWeight: '700' },
+    foodDescription: { fontSize: 11, marginTop: 2, marginBottom: 4, fontStyle: 'italic' }
 });

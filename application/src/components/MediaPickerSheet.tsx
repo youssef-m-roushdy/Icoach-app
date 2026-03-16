@@ -13,6 +13,7 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import Ion from 'react-native-vector-icons/Ionicons';
 import { COLORS, SIZES } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 
 interface MediaPickerSheetProps {
   isVisible: boolean;
@@ -22,6 +23,7 @@ interface MediaPickerSheetProps {
 
 export default function MediaPickerSheet({ isVisible, onClose, onSelectMedia }: MediaPickerSheetProps) {
   const [slideAnim] = useState(new Animated.Value(0));
+  const { colors } = useTheme();
 
   React.useEffect(() => {
     Animated.timing(slideAnim, {
@@ -63,25 +65,25 @@ export default function MediaPickerSheet({ isVisible, onClose, onSelectMedia }: 
   return (
     <Modal transparent visible={isVisible} animationType="none">
         <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.modalBackground} />
+          <View style={[styles.modalBackground, { backgroundColor: colors.textSecondary + '80' }]} />
         </TouchableWithoutFeedback>
 
         <Animated.View
           style={[
             styles.bottomSheet,
-            { transform: [{ translateY }] },
+            { backgroundColor: colors.card, transform: [{ translateY }] },
           ]}
         >
-          <View style={styles.handleBar} />
+          <View style={[styles.handleBar, { backgroundColor: colors.textSecondary }]} />
 
           <TouchableOpacity style={styles.option} onPress={openCamera}>
-            <Icon name="camera" size={28} color={COLORS.primary} />
-            <Text style={styles.optionText}>Open Camera</Text>
+            <Icon name="camera" size={28} color={colors.primary} />
+            <Text style={[styles.optionText, { color: colors.primary }]}>Open Camera</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.option} onPress={openGallery}>
-            <Ion name="images-outline" size={30} color={COLORS.primary} />
-            <Text style={styles.optionText}>Choose from Device</Text>
+            <Ion name="images-outline" size={30} color={colors.primary} />
+            <Text style={[styles.optionText, { color: colors.primary }]}>Choose from Device</Text>
           </TouchableOpacity>
         </Animated.View>
       </Modal>
@@ -92,13 +94,11 @@ export default function MediaPickerSheet({ isVisible, onClose, onSelectMedia }: 
 const styles = StyleSheet.create({
   modalBackground: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    backgroundColor: '#222', 
     paddingTop: 12,
     paddingBottom: 30,
     borderTopLeftRadius: 20,
@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
   handleBar: {
     width: 45,
     height: 5,
-    backgroundColor: '#666',
     alignSelf: 'center',
     borderRadius: 10,
     marginBottom: 15,
@@ -119,7 +118,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   optionText: {
-    color: COLORS.primary,
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 15,

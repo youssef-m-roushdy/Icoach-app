@@ -12,6 +12,19 @@ export const COLORS = {
   modalOverlay: 'rgba(0,0,0,0.7)',
   modalBackground: '#222',
   
+  // Light Mode Colors (Soft Cream + Gold theme)
+  lightPrimary: '#D4AF37',
+  lightSecondary: '#EFE66D',
+  lightBackground: '#FEF9F3',
+  lightCard: '#F8F5F0',
+  lightText: '#4A3728',
+  lightTextSecondary: '#8B7355',
+  lightBorder: '#D4AF37',
+  lightInputBackground: 'rgba(212, 175, 55, 0.1)',
+  lightModalOverlay: 'rgba(74, 55, 40, 0.7)',
+  lightModalBackground: '#F8F5F0',
+  lightOverlay: 'rgba(74, 55, 40, 0.15)',
+  
   // Warning/Error colors
   error: '#ef4444',
   errorLight: '#fca5a5',

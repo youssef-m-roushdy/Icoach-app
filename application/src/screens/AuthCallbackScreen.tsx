@@ -3,7 +3,6 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { COLORS } from '../constants';
 import type { RootStackParamList } from '../types/navigation';
 
 type AuthCallbackRouteProp = RouteProp<RootStackParamList, 'AuthCallback'>;
@@ -63,12 +62,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
   },
   text: {
     marginTop: 16,
     fontSize: 16,
-    color: COLORS.textSecondary,
   },
 });
 

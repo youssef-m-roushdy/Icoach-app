@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '../../../i18n/i18n';
 import { COLORS, SIZES } from '../../constants';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Language {
   code: string;
@@ -28,6 +29,7 @@ const languages: Language[] = [
 
 export const LanguageSelector: React.FC = () => {
   const { i18n: i18nInstance } = useTranslation();
+  const { colors } = useTheme();
   const [language, setLanguage] = useState('English');
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -74,12 +76,12 @@ export const LanguageSelector: React.FC = () => {
   return (
     <>
       <TouchableOpacity onPress={() => setModalVisible(true)}>
-        <Text style={styles.languageText}>{language}</Text>
+        <Text style={[styles.languageText, { color: colors.primary }]}>{language}</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.textSecondary + '80' }]}>
+          <View style={[styles.modalBox, { backgroundColor: colors.card }]}>
             <FlatList
               data={languages}
               keyExtractor={(item) => item.code}
@@ -88,15 +90,15 @@ export const LanguageSelector: React.FC = () => {
                   style={styles.languageOption}
                   onPress={() => selectLanguage(item)}
                 >
-                  <Text style={styles.languageOptionText}>{item.label}</Text>
+                  <Text style={[styles.languageOptionText, { color: colors.text }]}>{item.label}</Text>
                 </TouchableOpacity>
               )}
             />
             <TouchableOpacity
               onPress={() => setModalVisible(false)}
-              style={styles.closeButton}
+              style={[styles.closeButton, { backgroundColor: colors.primary }]}
             >
-              <Text style={styles.closeText}>Close</Text>
+              <Text style={[styles.closeText, { color: colors.text }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -107,18 +109,15 @@ export const LanguageSelector: React.FC = () => {
 
 const styles = StyleSheet.create({
   languageText: {
-    color: COLORS.primary,
     fontSize: SIZES.body,
     fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.modalOverlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: COLORS.modalBackground,
     borderRadius: 10,
     padding: 20,
     width: 250,
@@ -130,7 +129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   languageOptionText: {
-    color: COLORS.primary,
     fontSize: SIZES.h4,
   },
   closeButton: {
@@ -138,7 +136,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   closeText: {
-    color: COLORS.white,
-    fontSize: SIZES.body,
+    fontWeight: 'bold',
   },
 });
+ 

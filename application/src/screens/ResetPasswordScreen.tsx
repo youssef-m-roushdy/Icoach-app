@@ -26,7 +26,7 @@ type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;
 export default function ResetPasswordScreen() {
   const navigation = useNavigation<ResetPasswordNavigationProp>();
   const route = useRoute<ResetPasswordRouteProp>();
-  const { colors } = useTheme();
+  const { theme, colors } = useTheme();
   
   const { email, resetToken: initialToken } = route.params || {};
   const [token, setToken] = useState(initialToken || '');
@@ -69,7 +69,7 @@ export default function ResetPasswordScreen() {
   };
 
   const getPasswordStrength = (password: string): { text: string; color: string } => {
-    if (!password) return { text: '', color: COLORS.gray };
+    if (!password) return { text: '', color: '#999999' };
     
     const hasMinLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
@@ -144,15 +144,18 @@ export default function ResetPasswordScreen() {
 
   if (passwordReset) {
     return (
-      <ImageBackground
-        source={require('../../assets/home.jpeg')}
-        style={styles.background}
-        resizeMode="cover"
-      >
+      <View style={[styles.background, { backgroundColor: colors.background }]}>
+        {theme === 'dark' && (
+          <ImageBackground
+            source={require('../../assets/home.jpeg')}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        )}
         <View style={styles.container}>
-          <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
+          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
             <View style={styles.successContainer}>
-              <View style={styles.iconContainer}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="check-circle" size={60} color={COLORS.success} />
               </View>
               <Text style={[styles.title, { color: colors.text }]}>
@@ -171,16 +174,19 @@ export default function ResetPasswordScreen() {
             </View>
           </View>
         </View>
-      </ImageBackground>
+      </View>
     );
   }
 
   return (
-    <ImageBackground
-      source={require('../../assets/home.jpeg')}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={[styles.background, { backgroundColor: colors.background }]}>
+      {theme === 'dark' && (
+        <ImageBackground
+          source={require('../../assets/home.jpeg')}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      )}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -199,9 +205,9 @@ export default function ResetPasswordScreen() {
             <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
           </TouchableOpacity>
 
-          <View style={[styles.formContainer, { backgroundColor: colors.background + 'CC' }]}>
+          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
             <View style={styles.headerContainer}>
-              <View style={styles.iconContainer}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="lock-reset" size={50} color={COLORS.primary} />
               </View>
               <Text style={[styles.title, { color: colors.text }]}>Reset Password</Text>
@@ -214,7 +220,7 @@ export default function ResetPasswordScreen() {
             {!initialToken && (
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>Reset Token</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+                <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                   <MaterialIcons name="vpn-key" size={20} color={colors.textSecondary} />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
@@ -238,7 +244,7 @@ export default function ResetPasswordScreen() {
             {/* New Password */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -286,7 +292,7 @@ export default function ResetPasswordScreen() {
             {/* Confirm Password */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: COLORS.inputBackground, borderColor: COLORS.darkGray }]}>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
                 <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
@@ -318,7 +324,7 @@ export default function ResetPasswordScreen() {
             </View>
 
             {/* Password Requirements */}
-            <View style={styles.requirementsContainer}>
+            <View style={[styles.requirementsContainer, { backgroundColor: colors.statBg }]}>
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
                 Password Requirements:
               </Text>
@@ -381,7 +387,7 @@ export default function ResetPasswordScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={COLORS.secondary} />
+                <ActivityIndicator size="small" color={'#FFFFFF'} />
               ) : (
                 <Text style={styles.buttonText}>Reset Password</Text>
               )}
@@ -409,7 +415,7 @@ export default function ResetPasswordScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -419,7 +425,6 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -437,16 +442,15 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   formContainer: {
-    backgroundColor: COLORS.overlay,
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
     marginTop: 60,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+    borderWidth: 1,
   },
   headerContainer: {
     alignItems: 'center',
@@ -456,7 +460,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SIZES.lg,
@@ -542,7 +545,6 @@ const styles = StyleSheet.create({
     marginLeft: SIZES.xs,
   },
   requirementsContainer: {
-    backgroundColor: COLORS.inputBackground,
     padding: SIZES.md,
     borderRadius: SIZES.radiusMedium,
     marginBottom: SIZES.xl,
@@ -577,7 +579,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: '#FFFFFF',
   },
   forgotLink: {
     alignItems: 'center',

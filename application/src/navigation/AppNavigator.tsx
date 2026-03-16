@@ -339,23 +339,20 @@ const drawerStyles = StyleSheet.create({
   },
   drawer: {
     width: SCREEN_WIDTH * 0.75,
-    backgroundColor: COLORS.background,
-    // Fix the drawer to the left
+    // backgroundColor set dynamically via inline style
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    zIndex: 10, // ensure it's above the overlayTouchable
+    zIndex: 10,
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     padding: SIZES.lg,
-    // paddingTop is now set dynamically using insets
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.darkGray,
+    // borderBottomColor set dynamically via inline style
   },
   closeButton: {
     alignSelf: 'flex-start',
@@ -373,14 +370,13 @@ const drawerStyles = StyleSheet.create({
   },
   menuText: {
     fontSize: SIZES.h3,
-    color: COLORS.white,
+    // color set dynamically via inline style
     fontWeight: '600',
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.darkGray,
+    // borderTopColor set dynamically via inline style
     padding: SIZES.lg,
-    // paddingBottom is now set dynamically using insets
   },
   logoutButton: {
     flexDirection: 'row',
@@ -401,6 +397,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
   },
 });

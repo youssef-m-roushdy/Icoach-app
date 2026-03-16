@@ -5,6 +5,7 @@ import { AuthProvider, ThemeProvider } from './src/context';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import i18n from './i18n/i18n';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import './i18n/i18n';
 import { StyleSheet, ActivityIndicator, View } from 'react-native';
@@ -15,19 +16,17 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Initialize Google Sign-In
         GoogleSignin.configure({
           webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
           offlineAccess: true,
           forceCodeForRefreshToken: true,
         });
 
-        // Load saved language
         const savedLang = await AsyncStorage.getItem('appLanguage');
         if (savedLang) {
           await i18n.changeLanguage(savedLang);
         }
-        
+
         setAppReady(true);
       } catch (error) {
         console.error('App initialization error:', error);
@@ -40,27 +39,33 @@ export default function App() {
 
   if (!appReady) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#FFD700" />
-      </View>
+      <GestureHandlerRootView style={styles.flex}>
+        <View style={[styles.flex, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }]}>
+          <ActivityIndicator size="large" color="#FFD700" />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top', 'right', 'left', 'bottom']}>
-      <AuthProvider>
-        <ThemeProvider>
-          <AppNavigator />
-        </ThemeProvider>
-      </AuthProvider>
-      </SafeAreaView>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.flex}>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container} edges={['top', 'right', 'left', 'bottom']}>
+          <AuthProvider>
+            <ThemeProvider>
+              <AppNavigator />
+            </ThemeProvider>
+          </AuthProvider>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
-
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#000',
