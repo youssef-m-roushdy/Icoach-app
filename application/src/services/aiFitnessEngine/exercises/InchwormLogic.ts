@@ -1,11 +1,17 @@
-import { ExerciseLogic, InchwormResult, Landmark } from '../types';
+import {
+  ExerciseLogic,
+  InchwormResult,
+  Landmark,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 const LANDMARK_INDICES = {
-  LEFT_SHOULDER: 11,  RIGHT_SHOULDER: 12,
-  LEFT_WRIST: 15,     RIGHT_WRIST: 16,
-  LEFT_HIP: 23,       RIGHT_HIP: 24,
-  LEFT_KNEE: 25,      RIGHT_KNEE: 26,
-  LEFT_ANKLE: 27,     RIGHT_ANKLE: 28,
+  LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
+  LEFT_WRIST: 15, RIGHT_WRIST: 16,
+  LEFT_HIP: 23, RIGHT_HIP: 24,
+  LEFT_KNEE: 25, RIGHT_KNEE: 26,
+  LEFT_ANKLE: 27, RIGHT_ANKLE: 28,
 } as const;
 
 const THRESHOLDS = {
@@ -13,7 +19,7 @@ const THRESHOLDS = {
   STANDING_ANGLE_ENTER: 38,
   STANDING_ANGLE_EXIT: 30,
 
-  // 🟢 البلانك (بوابة صارمة + مقاومة للـ Portrait)
+  // 🟢 البلانك
   PLANK_TORSO_ANGLE: 62,
   PLANK_BODY_LINE: 165,
   PLANK_HIP_SHOULDER_DY: 0.18,
@@ -28,11 +34,11 @@ const THRESHOLDS = {
   EXIT_PLANK_HIP_SHOULDER_DY: 0.25,
   EXIT_PLANK_HIP_ANKLE_DY: 0.34,
 
-  // 🔥 منع الغش بالركبة (الآن أكثر دقة ومقاومة للـ side)
+  // 🔥 منع الغش بالركبة
   KNEE_TOUCH_VIS: 0.45,
-  KNEE_ANKLE_DY_NEAR: 0.085,     // رفعتها شوية عشان تقلل الـ false
+  KNEE_ANKLE_DY_NEAR: 0.085,
   KNEE_ANKLE_DIST_NEAR: 0.14,
-  KNEE_BENT_ANGLE_MAX: 158,      // أكثر صرامة عشان الثني البسيط ما يفعلش
+  KNEE_BENT_ANGLE_MAX: 158,
 
   STABLE_FRAMES: 4,
 } as const;
@@ -44,7 +50,7 @@ type State = 'standing' | 'walking_out' | 'plank' | 'walking_back';
 export class InchwormLogic implements ExerciseLogic {
   private state: State = 'standing';
   private reps = 0;
-  private feedback_code = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct = true;
 
   private standStableFrames = 0;
@@ -53,7 +59,18 @@ export class InchwormLogic implements ExerciseLogic {
   private smTorsoAngle = 0;
   private smBodyLine = 180;
 
+  /**
+   * True if any knee touched the floor during the current cycle.
+   * This invalidates the whole rep.
+   */
   private kneeTouchedDuringRep = false;
+
+  /**
+   * Once a rep is aborted, the user must return to standing
+   * before starting a new cycle.
+   */
+  private repAborted = false;
+
   private xScale = 1;
 
   public setAspectRatio(width: number, height: number): void {
@@ -71,6 +88,7 @@ export class InchwormLogic implements ExerciseLogic {
     this.smTorsoAngle = 0;
     this.smBodyLine = 180;
     this.kneeTouchedDuringRep = false;
+    this.repAborted = false;
     this.xScale = 1;
   }
 
@@ -88,7 +106,10 @@ export class InchwormLogic implements ExerciseLogic {
     const ax = a.x * this.xScale, ay = a.y;
     const bx = b.x * this.xScale, by = b.y;
     const cx = c.x * this.xScale, cy = c.y;
-    const radians = Math.atan2(cy - by, cx - bx) - Math.atan2(ay - by, ax - bx);
+    const radians =
+      Math.atan2(cy - by, cx - bx) -
+      Math.atan2(ay - by, ax - bx);
+
     let angle = Math.abs((radians * 180.0) / Math.PI);
     if (angle > 180.0) angle = 360 - angle;
     return angle;
@@ -104,8 +125,10 @@ export class InchwormLogic implements ExerciseLogic {
     return EMA_ALPHA * curr + (1 - EMA_ALPHA) * prev;
   }
 
-  /** 🔥 الكشف عن الركبة — الآن يشتغل فقط على الجانب الأوضح (يمنع الـ false تمامًا) */
-  private detectKneeTouch(landmarks: Landmark[], isLeft: boolean): boolean {
+  /**
+   * Detect knee touch on a specific side.
+   */
+  private detectKneeTouchForSide(landmarks: Landmark[], isLeft: boolean): boolean {
     const hipIdx = isLeft ? LANDMARK_INDICES.LEFT_HIP : LANDMARK_INDICES.RIGHT_HIP;
     const kneeIdx = isLeft ? LANDMARK_INDICES.LEFT_KNEE : LANDMARK_INDICES.RIGHT_KNEE;
     const ankleIdx = isLeft ? LANDMARK_INDICES.LEFT_ANKLE : LANDMARK_INDICES.RIGHT_ANKLE;
@@ -118,7 +141,12 @@ export class InchwormLogic implements ExerciseLogic {
 
     const kneeVis = knee.visibility ?? 0;
     const ankleVis = ankle.visibility ?? 0;
-    if (kneeVis < THRESHOLDS.KNEE_TOUCH_VIS || ankleVis < THRESHOLDS.KNEE_TOUCH_VIS) return false;
+    if (
+      kneeVis < THRESHOLDS.KNEE_TOUCH_VIS ||
+      ankleVis < THRESHOLDS.KNEE_TOUCH_VIS
+    ) {
+      return false;
+    }
 
     const kneeAnkleDY = Math.abs(knee.y - ankle.y);
     const kneeAnkleDist = this.distance2D(knee, ankle);
@@ -131,24 +159,45 @@ export class InchwormLogic implements ExerciseLogic {
     );
   }
 
-  analyze(landmarks: Landmark[]): InchwormResult {
+  /**
+   * Detect knee touch on ANY leg.
+   */
+  private detectAnyKneeTouch(landmarks: Landmark[]): boolean {
+    return (
+      this.detectKneeTouchForSide(landmarks, true) ||
+      this.detectKneeTouchForSide(landmarks, false)
+    );
+  }
+
+  analyze(
+    landmarks: Landmark[],
+    context?: ExerciseAnalysisContext
+  ): InchwormResult {
+    // استفد من context لو موجود
+    if (context?.frame_width && context?.frame_height) {
+      this.setAspectRatio(context.frame_width, context.frame_height);
+    }
+
     const lSh = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
     const rSh = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
     const leftVis = lSh?.visibility ?? 0;
     const rightVis = rSh?.visibility ?? 0;
+
     const isLeft = leftVis > rightVis;
 
-    const idx = isLeft ? {
-      sh: LANDMARK_INDICES.LEFT_SHOULDER,
-      wrist: LANDMARK_INDICES.LEFT_WRIST,
-      hip: LANDMARK_INDICES.LEFT_HIP,
-      ankle: LANDMARK_INDICES.LEFT_ANKLE,
-    } : {
-      sh: LANDMARK_INDICES.RIGHT_SHOULDER,
-      wrist: LANDMARK_INDICES.RIGHT_WRIST,
-      hip: LANDMARK_INDICES.RIGHT_HIP,
-      ankle: LANDMARK_INDICES.RIGHT_ANKLE,
-    };
+    const idx = isLeft
+      ? {
+          sh: LANDMARK_INDICES.LEFT_SHOULDER,
+          wrist: LANDMARK_INDICES.LEFT_WRIST,
+          hip: LANDMARK_INDICES.LEFT_HIP,
+          ankle: LANDMARK_INDICES.LEFT_ANKLE,
+        }
+      : {
+          sh: LANDMARK_INDICES.RIGHT_SHOULDER,
+          wrist: LANDMARK_INDICES.RIGHT_WRIST,
+          hip: LANDMARK_INDICES.RIGHT_HIP,
+          ankle: LANDMARK_INDICES.RIGHT_ANKLE,
+        };
 
     const shVis = landmarks[idx.sh]?.visibility ?? 0;
     const hipVis = landmarks[idx.hip]?.visibility ?? 0;
@@ -173,16 +222,58 @@ export class InchwormLogic implements ExerciseLogic {
     this.smTorsoAngle = this.ema(this.smTorsoAngle, rawTorsoAngle);
     this.smBodyLine = this.ema(this.smBodyLine, rawBodyLine);
 
-    // ✅ كشف الركبة — فقط على الجانب الأوضح
-    const kneeTouchNow = (this.state === 'walking_out' || this.state === 'plank' || this.state === 'walking_back')
-      ? this.detectKneeTouch(landmarks, isLeft)
-      : false;
+    // ✅ كشف الركبة: أي ركبة أثناء أي جزء من الدورة
+    const kneeTouchNow =
+      this.state === 'walking_out' ||
+      this.state === 'plank' ||
+      this.state === 'walking_back'
+        ? this.detectAnyKneeTouch(landmarks)
+        : false;
 
     if (kneeTouchNow) {
       this.kneeTouchedDuringRep = true;
+      this.repAborted = true;
       this.is_correct = false;
-    } else {
-      this.is_correct = true;
+
+      // أول ما الركبة تلمس الأرض أثناء الدورة، نعتبر إننا لازم نرجع نقف
+      if (this.state !== 'standing') {
+        this.state = 'walking_back';
+      }
+    }
+
+    // لو اللفة اتلغت، لازم يرجع يقف بالكامل قبل ما يبدأ من جديد
+    if (this.repAborted) {
+      this.plankStableFrames = 0;
+
+      if (kneeTouchNow) {
+        this.feedback_code = 'ERR_KNEES_TOUCHING';
+      } else {
+        this.feedback_code = 'STAND_UP';
+      }
+
+      if (this.smTorsoAngle < THRESHOLDS.STANDING_ANGLE_EXIT) {
+        this.standStableFrames++;
+        if (this.standStableFrames >= THRESHOLDS.STABLE_FRAMES) {
+          // ✅ رجع وقف تمامًا → ابدأ دورة جديدة من الصفر بدون عد
+          this.state = 'standing';
+          this.feedback_code = 'SETUP_POSITION';
+          this.is_correct = true;
+          this.kneeTouchedDuringRep = false;
+          this.repAborted = false;
+          this.standStableFrames = 0;
+          this.plankStableFrames = 0;
+        }
+      } else {
+        this.standStableFrames = 0;
+      }
+
+      return {
+        exercise: 'inchworm',
+        reps: this.reps,
+        stage: this.state,
+        feedback_code: this.feedback_code,
+        is_correct: false,
+      };
     }
 
     // بوابة البلانك
@@ -190,13 +281,13 @@ export class InchwormLogic implements ExerciseLogic {
     const ankleVis = ankle?.visibility ?? 0;
     const hipShoulderDY = Math.abs((hip?.y ?? 0) - (sh?.y ?? 0));
     const hipAnkleDY = Math.abs((hip?.y ?? 0) - (ankle?.y ?? 0));
-    const wristAnkleDist = (wrist && ankle) ? this.distance2D(wrist, ankle) : 0;
-    const wristAnkleDX = (wrist && ankle) ? Math.abs((wrist.x ?? 0) - (ankle.x ?? 0)) : 0;
-    const shoulderWristDX = (wrist && sh) ? Math.abs((sh.x - wrist.x) * this.xScale) : 999;
+    const wristAnkleDist = wrist && ankle ? this.distance2D(wrist, ankle) : 0;
+    const wristAnkleDX = wrist && ankle ? Math.abs((wrist.x ?? 0) - (ankle.x ?? 0)) : 0;
+    const shoulderWristDX = wrist && sh ? Math.abs((sh.x - wrist.x) * this.xScale) : 999;
 
     const hasPlankVisibility = wristVis > 0.45 && ankleVis > 0.45;
 
-    const isPlankPose = !kneeTouchNow && !this.kneeTouchedDuringRep &&
+    const isPlankPose =
       hasPlankVisibility &&
       this.smTorsoAngle > THRESHOLDS.PLANK_TORSO_ANGLE &&
       this.smBodyLine > THRESHOLDS.PLANK_BODY_LINE &&
@@ -206,7 +297,8 @@ export class InchwormLogic implements ExerciseLogic {
       wristAnkleDX > THRESHOLDS.PLANK_WRIST_ANKLE_DX &&
       shoulderWristDX < THRESHOLDS.PLANK_SHOULDER_WRIST_DX;
 
-    const isExitPlank = this.smTorsoAngle < THRESHOLDS.EXIT_PLANK_TORSO ||
+    const isExitPlank =
+      this.smTorsoAngle < THRESHOLDS.EXIT_PLANK_TORSO ||
       this.smBodyLine < THRESHOLDS.EXIT_PLANK_BODYLINE ||
       hipShoulderDY > THRESHOLDS.EXIT_PLANK_HIP_SHOULDER_DY ||
       hipAnkleDY > THRESHOLDS.EXIT_PLANK_HIP_ANKLE_DY;
@@ -219,6 +311,9 @@ export class InchwormLogic implements ExerciseLogic {
       resetStandStable();
       resetPlankStable();
       this.kneeTouchedDuringRep = false;
+      this.repAborted = false;
+      this.is_correct = true;
+
       if (this.smTorsoAngle > THRESHOLDS.STANDING_ANGLE_ENTER) {
         this.state = 'walking_out';
         this.feedback_code = 'WALK_OUT';
@@ -229,12 +324,11 @@ export class InchwormLogic implements ExerciseLogic {
 
     else if (this.state === 'walking_out') {
       resetStandStable();
-      if (kneeTouchNow) {
-        resetPlankStable();
-        this.feedback_code = 'LIFT_KNEES';
-      } else if (isPlankPose) {
+
+      if (isPlankPose) {
         this.plankStableFrames++;
         this.feedback_code = 'HOLD_PLANK';
+
         if (this.plankStableFrames >= THRESHOLDS.STABLE_FRAMES) {
           this.state = 'plank';
           this.feedback_code = 'WALK_BACK';
@@ -242,6 +336,7 @@ export class InchwormLogic implements ExerciseLogic {
         }
       } else {
         resetPlankStable();
+
         if (this.smTorsoAngle < THRESHOLDS.STANDING_ANGLE_EXIT) {
           this.state = 'standing';
           this.feedback_code = 'SETUP_POSITION';
@@ -252,38 +347,28 @@ export class InchwormLogic implements ExerciseLogic {
     }
 
     else if (this.state === 'plank') {
-      if (kneeTouchNow) {
-        this.state = 'walking_out';
-        resetPlankStable();
-        this.feedback_code = 'LIFT_KNEES';
-      } else {
-        this.feedback_code = 'WALK_BACK';
-        if (isExitPlank) {
-          this.state = 'walking_back';
-          resetStandStable();
-        }
+      this.feedback_code = 'WALK_BACK';
+      if (isExitPlank) {
+        this.state = 'walking_back';
+        resetStandStable();
       }
     }
 
     else if (this.state === 'walking_back') {
-      if (kneeTouchNow) {
-        this.feedback_code = 'LIFT_KNEES';
-      } else {
-        this.feedback_code = 'STAND_UP';
-      }
+      this.feedback_code = 'STAND_UP';
+
       if (this.smTorsoAngle < THRESHOLDS.STANDING_ANGLE_EXIT) {
         this.standStableFrames++;
         if (this.standStableFrames >= THRESHOLDS.STABLE_FRAMES) {
-          if (!this.kneeTouchedDuringRep) {
-            this.reps++;
-            this.feedback_code = 'GOOD_REP';
-          } else {
-            this.feedback_code = 'LIFT_KNEES';
-          }
+          this.reps++;
+          this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
+
           this.state = 'standing';
           resetStandStable();
           resetPlankStable();
           this.kneeTouchedDuringRep = false;
+          this.repAborted = false;
+          this.is_correct = true;
         }
       } else {
         resetStandStable();
@@ -295,7 +380,7 @@ export class InchwormLogic implements ExerciseLogic {
       reps: this.reps,
       stage: this.state,
       feedback_code: this.feedback_code,
-      is_correct: this.is_correct && !kneeTouchNow,
+      is_correct: this.is_correct,
     };
   }
 }

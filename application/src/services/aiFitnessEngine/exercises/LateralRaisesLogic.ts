@@ -1,4 +1,3 @@
-
 /**
  * Lateral Raises Logic - Smart Coach (Strict ROM Window + No overlap cues + Anti-cheat)
  * - يقول "ارفع أكتر" لو الرفع أقل من مستوى الكتف
@@ -8,7 +7,7 @@
  * - يقلّل تداخل الصوت (feedback throttling)
  */
 
-import { Landmark, LateralRaisesResult, ExerciseLogic } from '../types';
+import { Landmark, LateralRaisesResult, ExerciseLogic, FeedbackSignal } from '../types';
 import { PoseLandmarks } from '../utils';
 
 // ============================================================================
@@ -31,7 +30,7 @@ class EMA {
 export class LateralRaisesLogic implements ExerciseLogic {
   private counter = 0;
   private stage: 'down' | 'up' = 'down';
-  private feedbackCode: string = 'CMD_RAISE_ARMS';
+  private feedbackCode: FeedbackSignal = 'CMD_RAISE_ARMS';
 
   // --- Anti-random counting / stability ---
   private lastRepTime = 0;
@@ -40,11 +39,11 @@ export class LateralRaisesLogic implements ExerciseLogic {
 
   // --- Prevent "cheat rep" ---
   private repInvalidated = false;
-  private repInvalidReason: string | null = null;
+  private repInvalidReason: FeedbackSignal | null = null;
 
   // --- Feedback throttling (reduce audio overlap) ---
   private lastFeedbackEmitTime = 0;
-  private lastFeedbackEmitted = '';
+  private lastFeedbackEmitted: FeedbackSignal = 'CMD_RAISE_ARMS';
   private readonly FEEDBACK_COOLDOWN_MS = 900; // يمنع تغيير التعليمات بسرعة
 
   // Smoothing
@@ -109,7 +108,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
    * - العدّ (COUNT_) لازم يطلع فوراً
    * - الأخطاء الحرجة ممكن تطلع فوراً (force)
    */
-  private setFeedback(code: string, nowMs: number, force = false) {
+  private setFeedback(code: FeedbackSignal, nowMs: number, force = false) {
     const isCount = code.startsWith('COUNT_');
     const isForceImportant =
       force ||
@@ -270,7 +269,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
 
         if (this.repInvalidated) {
           // ❌ do not count
-          const reason = this.repInvalidReason || 'REP_INVALID';
+          const reason = this.repInvalidReason || 'HOLD_POSITION';
           // رجّع كود واحد ثابت أو حسب السبب
           this.setFeedback(reason, nowMs, true);
 
@@ -304,7 +303,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
     return this.createResult(this.feedbackCode);
   }
 
-  private createResult(feedback: string): LateralRaisesResult {
+  private createResult(feedback: FeedbackSignal): LateralRaisesResult {
     return {
       exercise: 'lateral_raises',
       reps: this.counter,
@@ -327,7 +326,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
     this.repInvalidReason = null;
 
     this.lastFeedbackEmitTime = 0;
-    this.lastFeedbackEmitted = '';
+    this.lastFeedbackEmitted = 'CMD_RAISE_ARMS';
 
     this.emaLift.reset();
     this.emaStraightness.reset();

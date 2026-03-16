@@ -1,112 +1,134 @@
-import { Landmark, SquatResult } from '../types';
+import {
+  Landmark,
+  SquatResult,
+  FeedbackCode,
+  DynamicFeedbackCode,
+} from '../types';
+import { EMA } from '../utils';
 
-// ============================================================================
-// 1) Helper Class: EMA (Exponential Moving Average for Smoothing)
-// ============================================================================
-class EMA {
-  private alpha: number;
-  private value: number | null = null;
-
-  constructor(alpha: number = 0.3) {
-    this.alpha = alpha;
-  }
-
-  update(x: number): number {
-    if (this.value === null) {
-      this.value = x;
-    } else {
-      this.value = this.alpha * x + (1 - this.alpha) * this.value;
-    }
-    return this.value;
-  }
-
-  reset(): void {
-    this.value = null;
-  }
-}
-
-// ============================================================================
-// 2) Squat Logic Class (Strict Lock System with Anti-Cheat)
-// ============================================================================
+/**
+ * Squat Logic
+ *
+ * UX / stability improvements:
+ * - Uses shared EMA from utils
+ * - Adds brief visibility tolerance to reduce camera flicker
+ * - Adds upright stability before unlock to avoid accidental double counting
+ * - Adds minimum delay between reps as an anti-bounce safeguard
+ * - Keeps feedback calmer in transition zones
+ */
 export class SquatLogic {
-  // --- Counters & State ---
-  private counter: number = 0;
-  private feedbackCode: string = 'STEP_BACK';
+  // -------------------------------------------------
+  // State
+  // -------------------------------------------------
+  private counter = 0;
+  private feedbackCode: FeedbackCode | DynamicFeedbackCode = 'STEP_BACK';
   private stage: 'up' | 'down' | 'unknown' = 'unknown';
 
-  // --- The Lock System (Crucial for Anti-Cheat) ---
-  // true = Rep already counted, must stand up to unlock
-  // false = Unlocked, ready to count next rep
-  private repLocked: boolean = false;
+  /**
+   * Rep lock:
+   * - false => ready to count next rep
+   * - true  => current rep already counted; user must return upright to unlock
+   */
+  private repLocked = false;
 
-  // --- System Activation ---
-  private isSystemActive: boolean = false;
+  /**
+   * Setup / system activation
+   */
+  private isSystemActive = false;
   private standStableStart: number | null = null;
 
-  // --- Feedback Throttling ---
-  private lastFeedbackTime: number = 0;
-  private lastFixLowerHipsTime: number = 0; // Separate tracker for guidance feedback
+  /**
+   * Upright stability after active phase:
+   * used to unlock safely and reduce jitter-based accidental unlocks.
+   */
+  private uprightStableStart: number | null = null;
 
-  // --- Smoothing ---
+  /**
+   * Visibility debounce:
+   * prevents brief landmark drops from instantly switching to ERR_BODY_NOT_VISIBLE.
+   */
+  private bodyMissingStart: number | null = null;
+
+  /**
+   * Feedback / rep timing
+   */
+  private lastFixLowerHipsTime = 0;
+  private lastRepCountTime = 0;
+
+  /**
+   * Smoothing
+   */
   private emaLeftKnee = new EMA(0.3);
   private emaRightKnee = new EMA(0.3);
 
-  // --- Constants (Strict Rules) ---
-  private readonly STAND_STABLE_MS = 600;
-  private readonly FEEDBACK_COOLDOWN_MS = 1000;
+  // -------------------------------------------------
+  // Tunable Constants
+  // -------------------------------------------------
+  private readonly VISIBILITY_THRESHOLD = 0.6;
+  private readonly BODY_LOST_TOLERANCE_MS = 250;
 
-  // Angle thresholds
-  private readonly ANGLE_STAND_THRESHOLD = 160; // Must stand straight to unlock
-  private readonly ANGLE_SQUAT_DEPTH = 85;      // Must squat deep to count
-  private readonly ANGLE_WARNING_ZONE = 130;    // Guidance zone upper bound
+  private readonly SETUP_STABLE_MS = 650;
+  private readonly UNLOCK_STABLE_MS = 180;
+  private readonly FEEDBACK_COOLDOWN_MS = 1200;
+  private readonly MIN_TIME_BETWEEN_REPS_MS = 550;
 
-  // --- MediaPipe Pose Landmarks Indices ---
+  /**
+   * Angle thresholds (degrees)
+   *
+   * Notes:
+   * - STAND_THRESHOLD: user is clearly upright
+   * - COUNT_DEPTH: user is deep enough to count a valid squat
+   * - GUIDANCE_ZONE_MAX: user is descending but still not deep enough
+   *
+   * Using separated thresholds gives a bit of hysteresis and calmer transitions.
+   */
+  private readonly ANGLE_STAND_THRESHOLD = 160;
+
+  // ✅ التعديل الأول:
+  // زودنا العمق المطلوب شوية بسيطة
+  // كان 92 وبقى 88 => لازم ينزل أعمق سنة صغيرة قبل العد
+  private readonly ANGLE_COUNT_DEPTH = 88;
+
+  // ✅ التعديل الثاني:
+  // خلّينا "انزل أكتر" تظهر بدري شوية
+  // كان 150 وبقى 158 => التوجيه يبدأ من بدري حتى مع نزول بسيط
+  private readonly ANGLE_GUIDANCE_ZONE_MAX = 158;
+
+  // -------------------------------------------------
+  // Landmark indices
+  // -------------------------------------------------
   private readonly IDX = {
-    NOSE: 0,
     L_HIP: 23,
     R_HIP: 24,
     L_KNEE: 25,
     R_KNEE: 26,
     L_ANKLE: 27,
     R_ANKLE: 28,
-  };
+  } as const;
 
-  // ============================================================================
-  // Private Helper Methods
-  // ============================================================================
-
-  /**
-   * Calculates the angle (in degrees) between three points.
-   * Points are expected to have x, y coordinates.
-   */
+  // -------------------------------------------------
+  // Helpers
+  // -------------------------------------------------
   private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
     const radians =
       Math.atan2(c.y - b.y, c.x - b.x) -
       Math.atan2(a.y - b.y, a.x - b.x);
-    
-    let angle = Math.abs((radians * 180.0) / Math.PI);
-    
-    if (angle > 180.0) {
+
+    let angle = Math.abs((radians * 180) / Math.PI);
+
+    if (angle > 180) {
       angle = 360 - angle;
     }
-    
+
     return angle;
   }
 
-  /**
-   * Safely extracts visibility value from a landmark.
-   * Defaults to 1 (fully visible) if visibility is not defined.
-   */
   private getVis(lm: Landmark | undefined): number {
     if (!lm) return 0;
     return typeof lm.visibility === 'number' ? lm.visibility : 1;
   }
 
-  /**
-   * Checks if all required body parts (hips, knees, ankles) are sufficiently visible.
-   */
-  private checkVisibility(landmarks: Landmark[]): boolean {
-    const visThreshold = 0.6;
+  private hasRequiredLandmarks(landmarks: Landmark[]): boolean {
     const requiredIndices = [
       this.IDX.L_HIP,
       this.IDX.R_HIP,
@@ -116,35 +138,49 @@ export class SquatLogic {
       this.IDX.R_ANKLE,
     ];
 
-    return requiredIndices.every((idx) => this.getVis(landmarks[idx]) > visThreshold);
+    return requiredIndices.every(
+      (idx) => this.getVis(landmarks[idx]) > this.VISIBILITY_THRESHOLD
+    );
   }
 
   /**
-   * Determines the smoothed knee angle using EMA on both legs.
+   * Visibility debounce:
+   * - brief drops are ignored to avoid flicker
+   * - if missing persists long enough, we switch to body-not-visible state
    */
+  private isBodyVisibleStable(landmarks: Landmark[], now: number): boolean {
+    const visible = this.hasRequiredLandmarks(landmarks);
+
+    if (visible) {
+      this.bodyMissingStart = null;
+      return true;
+    }
+
+    if (this.bodyMissingStart === null) {
+      this.bodyMissingStart = now;
+      return true; // tolerate first brief miss
+    }
+
+    return now - this.bodyMissingStart < this.BODY_LOST_TOLERANCE_MS;
+  }
+
   private getSmoothedKneeAngle(landmarks: Landmark[]): number {
     const lHip = landmarks[this.IDX.L_HIP];
     const rHip = landmarks[this.IDX.R_HIP];
     const lKnee = landmarks[this.IDX.L_KNEE];
     const rKnee = landmarks[this.IDX.R_KNEE];
-    const lAnk = landmarks[this.IDX.L_ANKLE];
-    const rAnk = landmarks[this.IDX.R_ANKLE];
+    const lAnkle = landmarks[this.IDX.L_ANKLE];
+    const rAnkle = landmarks[this.IDX.R_ANKLE];
 
-    // Calculate raw angles
-    const rawAngleL = this.calculateAngle(lHip, lKnee, lAnk);
-    const rawAngleR = this.calculateAngle(rHip, rKnee, rAnk);
+    const rawAngleL = this.calculateAngle(lHip, lKnee, lAnkle);
+    const rawAngleR = this.calculateAngle(rHip, rKnee, rAnkle);
 
-    // Apply smoothing
     const smoothAngleL = this.emaLeftKnee.update(rawAngleL);
     const smoothAngleR = this.emaRightKnee.update(rawAngleR);
 
-    // Return average of both knees
     return (smoothAngleL + smoothAngleR) / 2;
   }
 
-  /**
-   * Builds the result object with current state.
-   */
   private buildResult(): SquatResult {
     return {
       exercise: 'squat',
@@ -156,160 +192,184 @@ export class SquatLogic {
     };
   }
 
-  // ============================================================================
-  // Public API
-  // ============================================================================
+  private markUnknownBodyState(): SquatResult {
+    this.feedbackCode = 'ERR_BODY_NOT_VISIBLE';
+    this.stage = 'unknown';
+    this.standStableStart = null;
+    this.uprightStableStart = null;
+    return this.buildResult();
+  }
 
-  /**
-   * Main analysis entry point.
-   * Processes MediaPipe landmarks and determines squat state, reps, and feedback.
-   */
-  analyze(landmarks: Landmark[]): SquatResult {
-    const now = Date.now();
+  private handleSetupPhase(now: number, kneeAngle: number): SquatResult {
+    if (kneeAngle >= this.ANGLE_STAND_THRESHOLD) {
+      if (this.standStableStart === null) {
+        this.standStableStart = now;
+      }
 
-    // Step 1: Visibility Check
-    if (!this.checkVisibility(landmarks)) {
-      this.feedbackCode = 'ERR_BODY_NOT_VISIBLE';
+      const elapsed = now - this.standStableStart;
+
+      if (elapsed >= this.SETUP_STABLE_MS) {
+        this.isSystemActive = true;
+        this.repLocked = false;
+        this.stage = 'up';
+        this.feedbackCode = 'SYSTEM_READY_GO';
+        this.uprightStableStart = now;
+      } else {
+        this.stage = 'unknown';
+        this.feedbackCode = 'SETUP_STAND_STILL';
+      }
+    } else {
       this.standStableStart = null;
       this.stage = 'unknown';
-      return this.buildResult();
-    }
-
-    // Step 2: Calculate smoothed knee angle
-    const kneeAngle = this.getSmoothedKneeAngle(landmarks);
-
-    // ==========================================
-    // Setup Phase (System Calibration)
-    // ==========================================
-    if (!this.isSystemActive) {
-      if (kneeAngle >= this.ANGLE_STAND_THRESHOLD) {
-        // User is standing straight, start/continue stability timer
-        if (this.standStableStart === null) {
-          this.standStableStart = now;
-        }
-
-        const elapsed = now - this.standStableStart;
-        
-        if (elapsed >= this.STAND_STABLE_MS) {
-          // Activation successful!
-          this.isSystemActive = true;
-          this.feedbackCode = 'SYSTEM_READY_GO';
-          this.repLocked = false; // Ensure unlocked on start
-          this.stage = 'up';
-        } else {
-          // Still waiting for stability
-          this.feedbackCode = 'SETUP_STAND_STILL';
-        }
-      } else {
-        // Not standing straight, reset timer
-        this.standStableStart = null;
-        this.feedbackCode = 'SETUP_STAND_STRAIGHT';
-      }
-
-      return this.buildResult();
-    }
-
-    // ==========================================
-    // Active Exercise Logic (The Lock Mechanism)
-    // ==========================================
-
-    // --- State 1: Standing Straight (Unlock / Reset) ---
-    if (kneeAngle >= this.ANGLE_STAND_THRESHOLD) {
-      this.repLocked = false; // 🔓 UNLOCK: Ready for next rep
-      this.stage = 'up';
-      this.feedbackCode = 'CMD_GO_DOWN';
-    }
-
-    // --- State 2: Deep Squat (Count / Lock) ---
-    else if (kneeAngle <= this.ANGLE_SQUAT_DEPTH) {
-      this.stage = 'down';
-
-      if (!this.repLocked) {
-        // 🎉 New Rep Counted!
-        this.counter++;
-        this.repLocked = true; // 🔒 LOCK: Prevent double counting
-        this.feedbackCode = `REP_NUMBER_${this.counter}`;
-        
-        // Log the rep number feedback time separately if needed
-        this.lastFeedbackTime = now;
-      } else {
-        // Already counted this rep, encourage going up
-        this.feedbackCode = 'CMD_GO_UP';
-      }
-    }
-
-    // --- State 3: Descending / Guidance Zone ---
-    else if (kneeAngle < this.ANGLE_WARNING_ZONE && kneeAngle > this.ANGLE_SQUAT_DEPTH) {
-      // User is in the "warning zone" - not deep enough yet
-      this.stage = 'down';
-
-      if (!this.repLocked) {
-        // Only give guidance feedback once per cooldown to avoid spam
-        if (now - this.lastFixLowerHipsTime > this.FEEDBACK_COOLDOWN_MS) {
-          this.feedbackCode = 'FIX_LOWER_HIPS'; // "Go Deeper"
-          this.lastFixLowerHipsTime = now;
-        }
-        // Else: Keep previous feedback code to avoid UI flicker
-      } else {
-        // Coming back up but still in zone
-        this.feedbackCode = 'CMD_GO_UP';
-      }
-    }
-
-    // --- State 4: Between Warning and Standing (Transition Zone) ---
-    else {
-      // Angle is between 130 and 160 degrees
-      // This is the "up" phase but not fully standing yet
-      
-      if (this.repLocked) {
-        this.stage = 'up';
-        this.feedbackCode = 'CMD_GO_UP'; // Encourage full extension
-      } else {
-        // Unlocked but not fully standing - edge case
-        this.stage = 'up';
-        this.feedbackCode = 'CMD_GO_DOWN';
-      }
+      this.feedbackCode = 'SETUP_STAND_STRAIGHT';
     }
 
     return this.buildResult();
   }
 
-  /**
-   * Resets all counters and state to initial values.
-   * Call this when starting a new set or resetting the exercise.
-   */
+  private handleStandingState(now: number): void {
+    this.stage = 'up';
+
+    if (this.uprightStableStart === null) {
+      this.uprightStableStart = now;
+    }
+
+    if (this.repLocked) {
+      const uprightElapsed = now - this.uprightStableStart;
+
+      if (uprightElapsed >= this.UNLOCK_STABLE_MS) {
+        this.repLocked = false;
+        this.feedbackCode = 'CMD_GO_DOWN';
+      } else {
+        // still finishing the rep cleanly
+        this.feedbackCode = 'CMD_GO_UP';
+      }
+    } else {
+      this.feedbackCode = 'CMD_GO_DOWN';
+    }
+  }
+
+  private handleDeepSquat(now: number): void {
+    this.stage = 'down';
+    this.uprightStableStart = null;
+
+    if (
+      !this.repLocked &&
+      now - this.lastRepCountTime >= this.MIN_TIME_BETWEEN_REPS_MS
+    ) {
+      this.counter += 1;
+      this.repLocked = true;
+      this.lastRepCountTime = now;
+      this.feedbackCode = `COUNT_${this.counter}`;
+      return;
+    }
+
+    this.feedbackCode = 'CMD_GO_UP';
+  }
+
+  private handleGuidanceZone(now: number): void {
+    this.stage = 'down';
+    this.uprightStableStart = null;
+
+    if (this.repLocked) {
+      this.feedbackCode = 'CMD_GO_UP';
+      return;
+    }
+
+    if (now - this.lastFixLowerHipsTime >= this.FEEDBACK_COOLDOWN_MS) {
+      this.feedbackCode = 'FIX_LOWER_HIPS';
+      this.lastFixLowerHipsTime = now;
+    }
+    // else: keep previous feedback to reduce flicker / spam
+  }
+
+  private handleTransitionZone(): void {
+    this.uprightStableStart = null;
+    this.stage = 'up';
+
+    if (this.repLocked) {
+      this.feedbackCode = 'CMD_GO_UP';
+    } else {
+      this.feedbackCode = 'CMD_GO_DOWN';
+    }
+  }
+
+  // -------------------------------------------------
+  // Public API
+  // -------------------------------------------------
+  analyze(landmarks: Landmark[]): SquatResult {
+    const now = Date.now();
+
+    // 1) Visibility handling with debounce
+    if (!this.isBodyVisibleStable(landmarks, now)) {
+      return this.markUnknownBodyState();
+    }
+
+    // If currently tolerated missing landmarks, don't mutate state aggressively.
+    // Just keep returning the latest stable state until tolerance expires.
+    if (!this.hasRequiredLandmarks(landmarks)) {
+      return this.buildResult();
+    }
+
+    // 2) Compute smoothed knee angle
+    const kneeAngle = this.getSmoothedKneeAngle(landmarks);
+
+    // 3) Setup / activation phase
+    if (!this.isSystemActive) {
+      return this.handleSetupPhase(now, kneeAngle);
+    }
+
+    // 4) Active squat state machine
+
+    // Fully upright => unlock / prepare next rep
+    if (kneeAngle >= this.ANGLE_STAND_THRESHOLD) {
+      this.handleStandingState(now);
+      return this.buildResult();
+    }
+
+    // Deep enough => count if unlocked
+    if (kneeAngle <= this.ANGLE_COUNT_DEPTH) {
+      this.handleDeepSquat(now);
+      return this.buildResult();
+    }
+
+    // Descending but not deep enough yet => guidance
+    if (
+      kneeAngle > this.ANGLE_COUNT_DEPTH &&
+      kneeAngle < this.ANGLE_GUIDANCE_ZONE_MAX
+    ) {
+      this.handleGuidanceZone(now);
+      return this.buildResult();
+    }
+
+    // Transition zone between guidance and full stand
+    this.handleTransitionZone();
+    return this.buildResult();
+  }
+
   reset(): void {
     this.counter = 0;
     this.feedbackCode = 'STEP_BACK';
     this.stage = 'unknown';
-    
-    // Lock system reset
+
     this.repLocked = false;
-    
-    // System activation reset
     this.isSystemActive = false;
+
     this.standStableStart = null;
-    
-    // Feedback timers reset
-    this.lastFeedbackTime = 0;
+    this.uprightStableStart = null;
+    this.bodyMissingStart = null;
+
     this.lastFixLowerHipsTime = 0;
-    
-    // Smoothing filters reset
+    this.lastRepCountTime = 0;
+
     this.emaLeftKnee.reset();
     this.emaRightKnee.reset();
   }
 
-  /**
-   * Returns current rep count without processing frames.
-   * Useful for UI display.
-   */
   getRepCount(): number {
     return this.counter;
   }
 
-  /**
-   * Returns whether the system is currently active (past setup phase).
-   */
   isActive(): boolean {
     return this.isSystemActive;
   }

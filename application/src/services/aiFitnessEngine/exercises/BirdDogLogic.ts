@@ -1,53 +1,58 @@
-/**
- * BirdDogLogic.ts
- * ✅ STRICT & FAST VERSION
- * - Stricter angles (Must fully extend)
- * - Specific feedback for partial reps (Bent knee / Low hip)
- * - Faster feedback response (Reduced delay)
- * - Keeps Arm Latching & Side-View safety
- */
-
-import { Landmark, BirdDogResult, ExerciseLogic } from '../types';
+import {
+  Landmark,
+  BirdDogResult,
+  ExerciseLogic,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 import { PoseLandmarks, calculateAngle, EMA } from '../utils';
 
 type Stage = 'setup' | 'neutral' | 'extended';
+type Side  = 'LEFT' | 'RIGHT' | 'NONE';
 
 export class BirdDogLogic implements ExerciseLogic {
-  private reps = 0;
+  private reps  = 0;
   private stage: Stage = 'setup';
 
-  private displayedFeedback = 'SETUP_ALL_FOURS';
+  private displayedFeedback: FeedbackSignal = 'SETUP_ALL_FOURS' as FeedbackSignal;
   private isCorrect = true;
 
-  // 🧠 Arm latch logic
-  private oppositeArmLatched = false;
+  private activeSide: Side = 'NONE';
 
-  // ⏳ Feedback debounce (Updated for Speed)
-  private pendingFeedback: string | null = null;
+  private pendingFeedback: FeedbackSignal | null = null;
   private pendingFrames = 0;
-  // قللناه لـ 10 عشان يكون سريع بس ماسك نفسه (حوالي 0.3 ثانية)
-  private readonly FEEDBACK_DELAY = 10; 
+  private readonly FEEDBACK_DELAY = 4;
 
-  // ─── SMOOTHING ─────────────────────────────
-  private emaHip = new EMA(0.3);
-  private emaKnee = new EMA(0.3);
-  private emaTorso = new EMA(0.3);
-
-  // ─── STRICTER THRESHOLDS ───────────────────
-  // علينا الزاوية لـ 160 عشان نضمن الفرد الكامل
-  private readonly EXTENSION = 160; 
-  // علينا استقامة الركبة لـ 155 (ممنوع الركبة المتنية)
-  private readonly KNEE_STRAIGHT = 155; 
-  
-  private readonly RETURN = 130;
-  private readonly MAX_TORSO = 30;
-  private readonly VIS = 0.5;
-
-  // ─── REP CONFIRMATION ──────────────────────
+  private postureBadFrames = 0;
+  private setupFrames  = 0;
   private stableFrames = 0;
-  private readonly CONFIRM = 5; // زودنا فريم واحد للثبات عشان الصرامة
 
-  analyze(lm: Landmark[]): BirdDogResult {
+  private readonly SETUP_CONFIRM = 3;
+  private readonly CONFIRM       = 2;
+
+  private emaHip   = new EMA(0.35);
+  private emaKnee  = new EMA(0.35);
+  private emaTorso = new EMA(0.28);
+
+  // ----------------------------------------
+  // Thresholds
+  // ----------------------------------------
+  private readonly EXTENSION     = 145;
+  private readonly KNEE_STRAIGHT = 138;
+  private readonly RETURN        = 145;
+  private readonly MAX_TORSO     = 45;
+  private readonly VIS           = 0.40;
+
+  private readonly KNEE_DOWN_MARGIN            = 0.010;
+  private readonly WRIST_BELOW_SHOULDER_MARGIN = 0.025;
+  private readonly WRIST_SHOULDER_X_TOL        = 0.22;
+  private readonly LEG_LIFT_MARGIN             = 0.16;
+
+  // ✅ للأيدي: threshold خفيف جداً للـ feedback فقط (مش للعد)
+  private readonly ARM_LIFT_MARGIN  = 0.20;
+  private readonly WRIST_VIS_SOFT   = 0.15;
+
+  analyze(lm: Landmark[], _context?: ExerciseAnalysisContext): BirdDogResult {
     const lS = lm[PoseLandmarks.LEFT_SHOULDER];
     const rS = lm[PoseLandmarks.RIGHT_SHOULDER];
     const lH = lm[PoseLandmarks.LEFT_HIP];
@@ -58,141 +63,260 @@ export class BirdDogLogic implements ExerciseLogic {
     const rA = lm[PoseLandmarks.RIGHT_ANKLE];
     const lW = lm[PoseLandmarks.LEFT_WRIST];
     const rW = lm[PoseLandmarks.RIGHT_WRIST];
+    const lE = lm[PoseLandmarks.LEFT_ELBOW];
+    const rE = lm[PoseLandmarks.RIGHT_ELBOW];
 
-    if (!this.visible([lH, rH, lK, rK, lA, rA])) {
-      return this.commit('ERR_BODY_NOT_VISIBLE', false);
-    }
-
-    // ─── LEG DETECTION ───────────────────────
-    const leftLegUp = lA.y < lH.y + 0.12;
-    const rightLegUp = rA.y < rH.y + 0.12;
-
-    if (!leftLegUp && !rightLegUp) {
-      this.stage = 'neutral';
-      this.oppositeArmLatched = false;
+    // ----------------------------------------
+    // 1) Visibility — جسم أساسي فقط بدون رسغين
+    // ----------------------------------------
+    if (!this.visible([lS, rS, lH, rH, lK, rK, lA, rA])) {
+      this.stage       = 'setup';
+      this.activeSide  = 'NONE';
       this.stableFrames = 0;
-      return this.commit('CMD_EXTEND', true);
+      this.setupFrames  = 0;
+      return this.commit('ERR_BODY_NOT_VISIBLE' as FeedbackSignal, false, true);
     }
 
-    const activeLeg: 'LEFT' | 'RIGHT' = leftLegUp ? 'LEFT' : 'RIGHT';
+    // ----------------------------------------
+    // 2) Setup / all-fours detection
+    // ----------------------------------------
+    const leftKneeDown  = lK.y > lH.y + this.KNEE_DOWN_MARGIN;
+    const rightKneeDown = rK.y > rH.y + this.KNEE_DOWN_MARGIN;
 
-    // ─── ARM DETECTION (SOFT) ─────────────────
-    const leftArmUp = (lW.visibility || 0) > 0.4 && lW.y < lS.y + 0.15;
-    const rightArmUp = (rW.visibility || 0) > 0.4 && rW.y < rS.y + 0.15;
+    // ✅ Wrist placement: رسغ أو مرفق كـ fallback
+    const leftWristPlaced  = this.isHandPlaced(lW, lE, lS);
+    const rightWristPlaced = this.isHandPlaced(rW, rE, rS);
 
-    // ❌ Same-side arm → Error
-    if (
-      (activeLeg === 'LEFT' && leftArmUp) ||
-      (activeLeg === 'RIGHT' && rightArmUp)
-    ) {
-      this.oppositeArmLatched = false;
-      return this.commit('ERR_OPPOSITE_LIMBS', false);
-    }
+    const allFoursReady =
+      leftKneeDown && rightKneeDown && leftWristPlaced && rightWristPlaced;
 
-    // ✅ Latch opposite arm ONCE
-    if (!this.oppositeArmLatched) {
-      const oppositeArmUp = activeLeg === 'LEFT' ? rightArmUp : leftArmUp;
-      if (!oppositeArmUp) {
-        return this.commit('CMD_RAISE_OPPOSITE_ARM', true);
+    if (this.stage === 'setup') {
+      if (allFoursReady) {
+        this.setupFrames++;
+        if (this.setupFrames >= this.SETUP_CONFIRM) {
+          this.stage       = 'neutral';
+          this.setupFrames = 0;
+          this.activeSide  = 'NONE';
+          return this.commit('CMD_EXTEND' as FeedbackSignal, true, true);
+        }
+        return this.commit('SETUP_ALL_FOURS' as FeedbackSignal, true);
       }
-      this.oppositeArmLatched = true;
+      this.setupFrames = 0;
+      return this.commit('SETUP_ALL_FOURS' as FeedbackSignal, true);
     }
 
-    // ─── SELECT JOINTS ───────────────────────
-    const hip = activeLeg === 'LEFT' ? lH : rH;
-    const knee = activeLeg === 'LEFT' ? lK : rK;
-    const ankle = activeLeg === 'LEFT' ? lA : rA;
-    const shoulder = activeLeg === 'LEFT' ? rS : lS;
+    // ----------------------------------------
+    // 3) Detect active leg
+    // ----------------------------------------
+    const leftLegUp  = lA.y < lH.y + this.LEG_LIFT_MARGIN;
+    const rightLegUp = rA.y < rH.y + this.LEG_LIFT_MARGIN;
 
-    // ─── ANGLES ──────────────────────────────
-    const hipAngle = this.emaHip.update(calculateAngle(shoulder, hip, knee));
+    if ((leftLegUp && rightLegUp) || (!leftLegUp && !rightLegUp)) {
+      this.stage        = 'neutral';
+      this.activeSide   = 'NONE';
+      this.stableFrames = 0;
+      return this.commit('CMD_EXTEND' as FeedbackSignal, true);
+    }
+
+    const activeLeg: Side = leftLegUp ? 'LEFT' : 'RIGHT';
+    this.activeSide = activeLeg;
+
+    // ----------------------------------------
+    // 4) ✅ Arm feedback فقط — مش بيأثر على العد
+    //    لو الأيدي ظاهرة وشايف غلطة نقول للمستخدم بس مانوقفش العد
+    // ----------------------------------------
+    const leftArmUp  = this.isArmRaised(lW, lE, lS);
+    const rightArmUp = this.isArmRaised(rW, rE, rS);
+
+    // لو شايف نفس الجانب مرفوع (غلطة واضحة ومتأكد منها)
+    const sameArmVisible =
+      activeLeg === 'LEFT'
+        ? (lW?.visibility || 0) > 0.35
+        : (rW?.visibility || 0) > 0.35;
+
+    if (sameArmVisible) {
+      const sameArmUp = activeLeg === 'LEFT' ? leftArmUp : rightArmUp;
+      if (sameArmUp) {
+        this.stableFrames = 0;
+        return this.commit('ERR_OPPOSITE_LIMBS' as FeedbackSignal, false, true);
+      }
+    }
+
+    // ----------------------------------------
+    // 5) Working joints
+    // ----------------------------------------
+    const hip   = activeLeg === 'LEFT' ? lH : rH;
+    const knee  = activeLeg === 'LEFT' ? lK : rK;
+    const ankle = activeLeg === 'LEFT' ? lA : rA;
+    const oppSh = activeLeg === 'LEFT' ? rS : lS;
+
+    // ----------------------------------------
+    // 6) Angles
+    // ----------------------------------------
+    const hipAngle  = this.emaHip.update(calculateAngle(oppSh, hip, knee));
     const kneeAngle = this.emaKnee.update(calculateAngle(hip, knee, ankle));
 
-    // ─── TORSO CHECK ─────────────────────────
-    const dx = Math.abs(lS.x - lH.x);
-    const dy = Math.abs(lS.y - lH.y);
-    const torso = this.emaTorso.update(Math.atan2(dy, dx) * (180 / Math.PI));
+    // ----------------------------------------
+    // 7) Torso check
+    // ----------------------------------------
+    const midShoulderX = (lS.x + rS.x) / 2;
+    const midShoulderY = (lS.y + rS.y) / 2;
+    const midHipX      = (lH.x + rH.x) / 2;
+    const midHipY      = (lH.y + rH.y) / 2;
+
+    const torso = this.emaTorso.update(
+      Math.atan2(
+        Math.abs(midShoulderY - midHipY),
+        Math.abs(midShoulderX - midHipX) + 1e-6
+      ) * (180 / Math.PI)
+    );
 
     if (torso > this.MAX_TORSO) {
-      return this.commit('ERR_FLATTEN_BACK', false);
+      this.stableFrames = 0;
+      return this.commit('ERR_FLATTEN_BACK' as FeedbackSignal, false);
     }
 
-    // ─── STATE MACHINE (STRICT CHECKING) ──────
+    // ----------------------------------------
+    // 8) ✅ State machine — بيعتمد على الرجل فقط
+    // ----------------------------------------
     if (this.stage === 'neutral') {
-      // Check specific cheat conditions BEFORE counting
-      const isHipGood = hipAngle > this.EXTENSION;
+      const isHipGood  = hipAngle  > this.EXTENSION;
       const isKneeGood = kneeAngle > this.KNEE_STRAIGHT;
 
       if (isHipGood && isKneeGood) {
         this.stableFrames++;
         if (this.stableFrames >= this.CONFIRM) {
           this.reps++;
-          this.stage = 'extended';
+          this.stage        = 'extended';
           this.stableFrames = 0;
-          return this.commit('REP_SUCCESS', true, true); // Immediate Success
+          return this.commit(`COUNT_${this.reps}` as FeedbackSignal, true, true);
         }
       } else {
         this.stableFrames = 0;
-        // ⚠️ Specific Feedback for partial reps
-        if (!isKneeGood) {
-           return this.commit('ERR_STRAIGHTEN_LEG', false);
-        }
-        if (!isHipGood) {
-           return this.commit('CMD_EXTEND_FULLY', false); // New Code
-        }
+        if (!isKneeGood) return this.commit('ERR_STRAIGHTEN_LEG'  as FeedbackSignal, false);
+        if (!isHipGood)  return this.commit('CMD_EXTEND_FULLY'    as FeedbackSignal, false);
       }
-      // If moving but not quite there yet
-      return this.commit('CMD_EXTEND', true);
+
+      // ✅ لو شايف الأيدي المعاكسة مش مرفوعة، نقول له يرفعها (feedback بس مش بلوكر)
+      const oppositeArmUp = activeLeg === 'LEFT' ? rightArmUp : leftArmUp;
+      const oppositeVisible =
+        activeLeg === 'LEFT'
+          ? (rW?.visibility || 0) > this.WRIST_VIS_SOFT || (rE?.visibility || 0) > 0.25
+          : (lW?.visibility || 0) > this.WRIST_VIS_SOFT || (lE?.visibility || 0) > 0.25;
+
+      if (oppositeVisible && !oppositeArmUp) {
+        return this.commit('CMD_RAISE_OPPOSITE_ARM' as FeedbackSignal, true);
+      }
+
+      return this.commit('CMD_EXTEND' as FeedbackSignal, true);
     }
 
     if (this.stage === 'extended') {
       if (hipAngle < this.RETURN) {
-        this.stage = 'neutral';
-        this.oppositeArmLatched = false;
-        return this.commit('CMD_EXTEND', true);
+        this.stage        = 'neutral';
+        this.activeSide   = 'NONE';
+        this.stableFrames = 0;
+        return this.commit('CMD_EXTEND' as FeedbackSignal, true);
       }
-      return this.commit('HOLD_EXTENSION', true);
+      return this.commit('HOLD_EXTENSION' as FeedbackSignal, true);
     }
 
     return this.commit(this.displayedFeedback, this.isCorrect);
   }
 
-  // ─── FEEDBACK DEBOUNCE ─────────────────────
-  private commit(code: string, correct: boolean, immediate = false): BirdDogResult {
-    // Immediate overrides (like Success) bypass the delay
-    if (immediate) {
+  // ----------------------------------------
+  // Helpers
+  // ----------------------------------------
+
+  /** هل اليد موضوعة على الأرض؟ (رسغ أو مرفق كـ fallback) */
+  private isHandPlaced(
+    wrist: Landmark | undefined,
+    elbow: Landmark | undefined,
+    shoulder: Landmark
+  ): boolean {
+    if ((wrist?.visibility || 0) > 0.20) {
+      return (
+        wrist!.y > shoulder.y - this.WRIST_BELOW_SHOULDER_MARGIN &&
+        Math.abs(wrist!.x - shoulder.x) < this.WRIST_SHOULDER_X_TOL
+      );
+    }
+    if ((elbow?.visibility || 0) > 0.30) {
+      return elbow!.y > shoulder.y - 0.05;
+    }
+    return true; // مش شايف → افترض موضوعة عشان متمنعش الـ setup
+  }
+
+  /** هل الأيدي مرفوعة؟ (رسغ أو مرفق كـ fallback) */
+  private isArmRaised(
+    wrist: Landmark | undefined,
+    elbow: Landmark | undefined,
+    shoulder: Landmark
+  ): boolean {
+    if ((wrist?.visibility || 0) > this.WRIST_VIS_SOFT) {
+      return wrist!.y < shoulder.y + this.ARM_LIFT_MARGIN;
+    }
+    if ((elbow?.visibility || 0) > 0.30) {
+      return elbow!.y < shoulder.y + 0.08;
+    }
+    return false;
+  }
+
+  private commit(code: FeedbackSignal, correct: boolean, immediate = false): BirdDogResult {
+    const isCritical =
+      immediate || code.startsWith('COUNT_') || code.startsWith('ERR_');
+
+    if (isCritical) {
       this.displayedFeedback = code;
-      this.pendingFeedback = null;
-      this.pendingFrames = 0;
-      this.isCorrect = correct;
+      this.pendingFeedback   = null;
+      this.pendingFrames     = 0;
+      this.isCorrect         = correct;
       return this.out();
     }
 
-    // Debounce logic
     if (this.pendingFeedback !== code) {
       this.pendingFeedback = code;
-      this.pendingFrames = 0;
+      this.pendingFrames   = 0;
     } else {
       this.pendingFrames++;
       if (this.pendingFrames >= this.FEEDBACK_DELAY) {
         this.displayedFeedback = code;
-        this.isCorrect = correct;
+        this.isCorrect         = correct;
       }
     }
+
     return this.out();
   }
 
-  private visible(lms: Landmark[]) {
-    return lms.every(l => (l.visibility || 0) > this.VIS);
+  private visible(lms: Array<Landmark | undefined>): boolean {
+    return lms.every((l) => (l?.visibility || 0) > this.VIS);
   }
 
   private out(): BirdDogResult {
     return {
-      exercise: 'bird_dog',
-      reps: this.reps,
-      stage: this.stage,
+      exercise:      'bird_dog',
+      reps:          this.reps,
+      stage:         this.stage,
       feedback_code: this.displayedFeedback,
-      is_correct: this.isCorrect,
+      is_correct:    this.isCorrect,
     };
+  }
+
+  reset(): void {
+    this.reps  = 0;
+    this.stage = 'setup';
+
+    this.displayedFeedback = 'SETUP_ALL_FOURS' as FeedbackSignal;
+    this.isCorrect         = true;
+
+    this.activeSide       = 'NONE';
+    this.pendingFeedback  = null;
+    this.pendingFrames    = 0;
+    this.setupFrames      = 0;
+    this.stableFrames     = 0;
+    this.postureBadFrames = 0;
+
+    this.emaHip.reset();
+    this.emaKnee.reset();
+    this.emaTorso.reset();
   }
 }

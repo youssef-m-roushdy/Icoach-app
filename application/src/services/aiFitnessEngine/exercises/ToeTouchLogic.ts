@@ -1,4 +1,10 @@
-import { ExerciseLogic, ToeTouchResult, Landmark } from '../types';
+import {
+  ExerciseLogic,
+  ToeTouchResult,
+  Landmark,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 const LANDMARK_INDICES = {
   LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
@@ -6,26 +12,35 @@ const LANDMARK_INDICES = {
   LEFT_HIP: 23,      RIGHT_HIP: 24,
   LEFT_KNEE: 25,     RIGHT_KNEE: 26,
   LEFT_ANKLE: 27,    RIGHT_ANKLE: 28,
+  LEFT_FOOT_INDEX: 31,
+  RIGHT_FOOT_INDEX: 32,
 } as const;
 
 const THRESHOLDS = {
-  // 🟢 مسافة اللمس (زودناها شوية عشان اللمسة الخفيفة تحسب فورًا)
-  TOUCH_DISTANCE: 0.20,
+  TOUCH_DISTANCE: 0.22,
+  BACK_ANGLE_WARNING: 155,
+  BACK_CHEAT_ANGLE: 145,
+  KNEE_ANGLE_WARNING: 150,
+  MIN_LEG_LIFT: -0.15,
+  COOLDOWN_FRAMES: 5,
 
-  // 🟢 ارتفاع واقعي (الرجل لازم ترفع لمستوى منتصف الفخذ أو أعلى)
-  // لو رفعت حتة صغيرة → KICK_HIGHER
-  KICK_TOLERANCE: 0.15,
-
-  // 🟢 وقت الـ cooldown (سريع جدًا)
-  COOLDOWN_FRAMES: 6,
+  // لو الكتف اتحرك للأمام بأكتر من 4% من عرض الإطار أمام الورك → غش
+  SHOULDER_FORWARD_LIMIT: 0.04,
 } as const;
+
+function calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
+  if (!a || !b || !c) return 180;
+  const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+  let angle = Math.abs(radians * 180.0 / Math.PI);
+  if (angle > 180.0) angle = 360 - angle;
+  return angle;
+}
 
 export class ToeTouchLogic implements ExerciseLogic {
   private state: 'waiting' | 'cooldown' = 'waiting';
   private reps: number = 0;
-  private feedback_code: string = 'STAND_TALL';
+  private feedback_code: FeedbackSignal = 'STAND_TALL';
   private is_correct: boolean = false;
-  
   private cooldownTimer: number = 0;
   private activeSide: 'right_hand_left_leg' | 'left_hand_right_leg' | null = null;
 
@@ -43,23 +58,27 @@ export class ToeTouchLogic implements ExerciseLogic {
     return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
   }
 
-  analyze(landmarks: Landmark[]): ToeTouchResult {
-    // 1. استخراج النقاط
-    const lSh = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
-    const rSh = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
-    const lw = landmarks[LANDMARK_INDICES.LEFT_WRIST];
-    const rw = landmarks[LANDMARK_INDICES.RIGHT_WRIST];
-    const la = landmarks[LANDMARK_INDICES.LEFT_ANKLE];
-    const ra = landmarks[LANDMARK_INDICES.RIGHT_ANKLE];
-    const lHip = landmarks[LANDMARK_INDICES.LEFT_HIP];
-    const rHip = landmarks[LANDMARK_INDICES.RIGHT_HIP];
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): ToeTouchResult {
+    const lSh   = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
+    const rSh   = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
+    const lw    = landmarks[LANDMARK_INDICES.LEFT_WRIST];
+    const rw    = landmarks[LANDMARK_INDICES.RIGHT_WRIST];
+    const lHip  = landmarks[LANDMARK_INDICES.LEFT_HIP];
+    const rHip  = landmarks[LANDMARK_INDICES.RIGHT_HIP];
+    const lKnee = landmarks[LANDMARK_INDICES.LEFT_KNEE];
+    const rKnee = landmarks[LANDMARK_INDICES.RIGHT_KNEE];
+    const lFoot = landmarks[LANDMARK_INDICES.LEFT_FOOT_INDEX];
+    const rFoot = landmarks[LANDMARK_INDICES.RIGHT_FOOT_INDEX];
 
-    // التأكد من الرؤية
     const minVisibility = Math.min(
-      lSh?.visibility ?? 0, rSh?.visibility ?? 0,
-      lw?.visibility ?? 0, rw?.visibility ?? 0,
-      la?.visibility ?? 0, ra?.visibility ?? 0,
-      lHip?.visibility ?? 0, rHip?.visibility ?? 0
+      lSh?.visibility  ?? 0, rSh?.visibility  ?? 0,
+      lw?.visibility   ?? 0, rw?.visibility   ?? 0,
+      lHip?.visibility ?? 0, rHip?.visibility ?? 0,
+      lKnee?.visibility ?? 0, rKnee?.visibility ?? 0,
+      lFoot?.visibility ?? 0, rFoot?.visibility ?? 0
     );
 
     if (minVisibility < 0.5) {
@@ -72,67 +91,104 @@ export class ToeTouchLogic implements ExerciseLogic {
       };
     }
 
-    // حساب مركز الجسم
     const bodyCenterX = (lHip.x + rHip.x) / 2;
 
-    // مسافات اللمس للأصابع فقط
-    const distRightHandToLeftToes = this.getDistance(rw, la);
-    const distLeftHandToRightToes = this.getDistance(lw, ra);
+    const distRightHandToLeftFoot = this.getDistance(rw, lFoot);
+    const distLeftHandToRightFoot = this.getDistance(lw, rFoot);
 
-    // 3. المنطق
+    const backAngleLeft  = calculateAngle(lSh, lHip, lKnee);
+    const backAngleRight = calculateAngle(rSh, rHip, rKnee);
+    const avgBackAngle   = (backAngleLeft + backAngleRight) / 2;
+
+    // ✅ فحص إضافي: هل الكتف اتحرك للأمام أمام الورك؟
+    const avgShoulderX = (lSh.x + rSh.x) / 2;
+    const avgHipX      = (lHip.x + rHip.x) / 2;
+    const shoulderForward = avgHipX - avgShoulderX > THRESHOLDS.SHOULDER_FORWARD_LIMIT;
+
+    const backWarning = avgBackAngle < THRESHOLDS.BACK_ANGLE_WARNING;
+
+    // زاوية كبيرة (انحناء واضح) أو كتف متحرك للأمام = غش
+    const backCheat = avgBackAngle < THRESHOLDS.BACK_CHEAT_ANGLE || shoulderForward;
+
+    const kneeAngleLeft  = calculateAngle(lHip, lKnee, lFoot);
+    const kneeAngleRight = calculateAngle(rHip, rKnee, rFoot);
+
+    const leftKneeWarning  = kneeAngleLeft  < THRESHOLDS.KNEE_ANGLE_WARNING;
+    const rightKneeWarning = kneeAngleRight < THRESHOLDS.KNEE_ANGLE_WARNING;
+    const legLiftedWarningLeft  = lFoot.y < lHip.y - THRESHOLDS.MIN_LEG_LIFT;
+    const legLiftedWarningRight = rFoot.y < rHip.y - THRESHOLDS.MIN_LEG_LIFT;
+
     if (this.state === 'waiting') {
       this.feedback_code = 'KICK_AND_TOUCH';
       this.is_correct = true;
 
-      // --- الجانب الأول: إيد يمين + رجل شمال ---
-      if (
-        distRightHandToLeftToes < THRESHOLDS.TOUCH_DISTANCE &&
-        rw.x < bodyCenterX + 0.08 &&                    // opposite hand مع تسامح بسيط
-        la.y < (lHip.y + THRESHOLDS.KICK_TOLERANCE)     // الارتفاع الصحيح (مصحح)
-      ) {
-        this.reps++;
-        this.state = 'cooldown';
-        this.cooldownTimer = 0;
-        this.activeSide = 'right_hand_left_leg';
-        this.feedback_code = 'GOOD_REP';
-        this.is_correct = true;
-      }
+      const rightHandLeftFootTouch = distRightHandToLeftFoot < THRESHOLDS.TOUCH_DISTANCE;
+      const leftHandRightFootTouch = distLeftHandToRightFoot < THRESHOLDS.TOUCH_DISTANCE;
+      const rightHandOpposite = rw.x < bodyCenterX + 0.1;
+      const leftHandOpposite  = lw.x > bodyCenterX - 0.1;
 
-      // --- الجانب الثاني: إيد شمال + رجل يمين ---
-      if (
-        this.state === 'waiting' &&
-        distLeftHandToRightToes < THRESHOLDS.TOUCH_DISTANCE &&
-        lw.x > bodyCenterX - 0.08 &&                    // opposite hand مع تسامح بسيط
-        ra.y < (rHip.y + THRESHOLDS.KICK_TOLERANCE)
-      ) {
-        this.reps++;
-        this.state = 'cooldown';
-        this.cooldownTimer = 0;
-        this.activeSide = 'left_hand_right_leg';
-        this.feedback_code = 'GOOD_REP';
-        this.is_correct = true;
-      }
-
-      // لو قربت تلمس بس الرجل مش مرفوعة كفاية
-      if (this.feedback_code === 'KICK_AND_TOUCH') {
-        if (distRightHandToLeftToes < THRESHOLDS.TOUCH_DISTANCE + 0.08 ||
-            distLeftHandToRightToes < THRESHOLDS.TOUCH_DISTANCE + 0.08) {
-          this.feedback_code = 'KICK_HIGHER';
+      if (rightHandLeftFootTouch && rightHandOpposite) {
+        if (backCheat) {
+          this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
           this.is_correct = false;
+        } else {
+          this.reps++;
+          this.state = 'cooldown';
+          this.cooldownTimer = 0;
+          this.activeSide = 'right_hand_left_leg';
+          this.feedback_code = 'GOOD_REP';
+          this.is_correct = true;
+        }
+      } else if (leftHandRightFootTouch && leftHandOpposite) {
+        if (backCheat) {
+          this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
+          this.is_correct = false;
+        } else {
+          this.reps++;
+          this.state = 'cooldown';
+          this.cooldownTimer = 0;
+          this.activeSide = 'left_hand_right_leg';
+          this.feedback_code = 'GOOD_REP';
+          this.is_correct = true;
+        }
+      } else {
+        if (backWarning) {
+          this.feedback_code = 'STRAIGHTEN_BACK' as FeedbackSignal;
+          this.is_correct = false;
+        } else if (
+          (rightHandLeftFootTouch && !rightHandOpposite) ||
+          (leftHandRightFootTouch && !leftHandOpposite)
+        ) {
+          this.feedback_code = 'OPPOSITE_HAND' as FeedbackSignal;
+          this.is_correct = false;
+        } else if (rightHandLeftFootTouch || leftHandRightFootTouch) {
+          if (
+            (rightHandLeftFootTouch && !legLiftedWarningLeft) ||
+            (leftHandRightFootTouch && !legLiftedWarningRight)
+          ) {
+            this.feedback_code = 'KICK_HIGHER';
+            this.is_correct = false;
+          } else if (
+            (rightHandLeftFootTouch && rightKneeWarning) ||
+            (leftHandRightFootTouch && leftKneeWarning)
+          ) {
+            this.feedback_code = 'STRAIGHTEN_LEG' as FeedbackSignal;
+            this.is_correct = false;
+          } else {
+            this.feedback_code = 'KICK_AND_TOUCH';
+          }
+        } else {
+          this.feedback_code = 'KICK_AND_TOUCH';
         }
       }
-    } 
-    
-    // حالة الراحة
-    else if (this.state === 'cooldown') {
+    } else if (this.state === 'cooldown') {
       this.cooldownTimer++;
-
       if (this.cooldownTimer > THRESHOLDS.COOLDOWN_FRAMES) {
         this.state = 'waiting';
         this.activeSide = null;
         this.feedback_code = 'KICK_AND_TOUCH';
-      } else if (this.is_correct) {
-        this.feedback_code = 'GOOD_REP';
+      } else {
+        this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
       }
     }
 

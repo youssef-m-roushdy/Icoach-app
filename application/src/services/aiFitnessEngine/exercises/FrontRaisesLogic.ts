@@ -1,107 +1,110 @@
-import { Landmark, FrontRaisesResult, ExerciseLogic } from '../types';
-import { PoseLandmarks } from '../utils';
+import type {
+  Landmark,
+  FrontRaisesResult,
+  ExerciseLogic,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+  ExerciseQuality,
+  FeedbackSeverity,
+} from '../types';
 
-// ============================================================================
-// 1. Helper Class: EMA (Exponential Moving Average for Smoothing)
-// ============================================================================
-class EMA {
-  private alpha: number;
-  private value: number | null = null;
+import {
+  PoseLandmarks,
+  EMA,
+  calculateAngle,
+  getCurrentTimeMs,
+  hasVisibility,
+} from '../utils';
 
-  constructor(alpha: number = 0.3) {
-    this.alpha = alpha;
-  }
+type Stage = 'up' | 'down' | 'unknown';
 
-  update(x: number): number {
-    if (this.value === null) {
-      this.value = x;
-    } else {
-      this.value = this.alpha * x + (1 - this.alpha) * this.value;
-    }
-    return this.value;
-  }
-
-  reset(): void {
-    this.value = null;
-  }
-}
-
-// ============================================================================
-// 2. Front Raises Logic Class (Strict Symmetrical Form)
-// ============================================================================
 export class FrontRaisesLogic implements ExerciseLogic {
-  // --- Counters & State ---
-  private counter: number = 0;
-  private feedbackCode: string = 'CMD_RAISE_FRONT';
-  private stage: 'up' | 'down' | 'unknown' = 'down';
+  // -------------------------------------------------
+  // State
+  // -------------------------------------------------
+  private counter = 0;
+  private feedbackCode: FeedbackSignal = 'CMD_RAISE_FRONT';
+  private stage: Stage = 'down';
 
-  // --- The Lock System (Prevents Double Counting) ---
-  // true = Rep already counted, must lower arms to unlock
-  // false = Unlocked, ready to count next rep
-  private repLocked: boolean = false;
+  /**
+   * Rep lock system:
+   * - false => ready to count next rep
+   * - true  => current rep already counted (or invalidated), user must lower to reset
+   */
+  private repLocked = false;
 
-  // --- Smoothing Tools ---
-  // Separate EMA for each arm to maintain independent smoothing
+  /**
+   * Tracks if current rep has failed due to bad form
+   */
+  private hasFailedRep = false;
+  private currentInvalidCode: Extract<
+    FeedbackSignal,
+    'REP_INVALID_BENT_ELBOW' | 'REP_INVALID_UNSYNC' | 'REP_INVALID_TOO_HIGH'
+  > | null = null;
+
+  /**
+   * Smoothing
+   */
   private emaLiftL = new EMA(0.3);
   private emaLiftR = new EMA(0.3);
   private emaLeftElbow = new EMA(0.3);
   private emaRightElbow = new EMA(0.3);
 
-  // --- Last Feedback Tracking (for throttling if needed) ---
-  private lastFeedbackTime: number = 0;
-  private readonly FEEDBACK_COOLDOWN_MS = 500;
+  /**
+   * Visibility debounce
+   */
+  private bodyMissingStart: number | null = null;
+
+  /**
+   * Feedback pacing
+   */
+  private lastGuidanceFeedbackTime = 0;
+  private lastRepCountTime = 0;
+
+  /**
+   * Last frame metadata
+   */
+  private lastTimestampMs = 0;
+  private lastBodyVisible = false;
 
   // =========================================================
-  // ⚙️ Strict Constants
+  // Tuned Constants
   // =========================================================
 
-  // Form Requirements
-  private readonly ELBOW_MIN_ANGLE = 145; // Must be nearly straight
-  
-  // Height Thresholds (Angles relative to torso)
-  private readonly ANGLE_START_RESET = 25;  // Arms must lower here to unlock
-  private readonly ANGLE_GUIDANCE_START = 45; // Start checking form
-  private readonly ANGLE_TARGET_MIN = 80;   // Shoulder level (minimum to count)
-  private readonly ANGLE_TARGET_MAX = 115;  // Eye level (maximum safe height)
-  
-  // Symmetry Requirements
-  private readonly SYNC_TOLERANCE = 20; // Max allowed difference between arms
+  /**
+   * Form requirements
+   */
+  private readonly ELBOW_MIN_ANGLE = 140;
+
+  /**
+   * Height thresholds (angles relative to torso)
+   */
+  private readonly ANGLE_START_RESET = 22;
+  private readonly ANGLE_GUIDANCE_START = 42;
+  private readonly ANGLE_TARGET_MIN = 78;
+  private readonly ANGLE_TARGET_MAX = 112;
+
+  /**
+   * Symmetry
+   */
+  private readonly SYNC_TOLERANCE = 18;
+
+  /**
+   * Timing
+   */
+  private readonly FEEDBACK_COOLDOWN_MS = 700;
+  private readonly MIN_TIME_BETWEEN_REPS_MS = 450;
+
+  /**
+   * Visibility
+   */
+  private readonly VISIBILITY_THRESHOLD = 0.6;
+  private readonly BODY_LOST_TOLERANCE_MS = 250;
 
   // =========================================================
   // Private Helper Methods
   // =========================================================
 
-  /**
-   * Calculates the angle (in degrees) between three points.
-   * Returns the smaller angle (0-180 degrees).
-   */
-  private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
-    const radians =
-      Math.atan2(c.y - b.y, c.x - b.x) -
-      Math.atan2(a.y - b.y, a.x - b.x);
-    
-    let angle = Math.abs((radians * 180.0) / Math.PI);
-    
-    if (angle > 180.0) {
-      angle = 360 - angle;
-    }
-    
-    return angle;
-  }
-
-  /**
-   * Safely extracts visibility value from a landmark.
-   * Returns 0 if landmark is undefined or visibility is not set.
-   */
-  private getVisibility(lm: Landmark | undefined): number {
-    if (!lm) return 0;
-    return typeof lm.visibility === 'number' ? lm.visibility : 0;
-  }
-
-  /**
-   * Validates that all required landmarks are sufficiently visible.
-   * Checks shoulders, elbows, and wrists for both arms.
-   */
   private checkVisibility(landmarks: Landmark[]): boolean {
     const requiredIndices = [
       PoseLandmarks.LEFT_SHOULDER,
@@ -114,62 +117,145 @@ export class FrontRaisesLogic implements ExerciseLogic {
       PoseLandmarks.RIGHT_HIP,
     ];
 
-    return requiredIndices.every(
-      (idx) => this.getVisibility(landmarks[idx]) > 0.6
+    return requiredIndices.every((idx) =>
+      hasVisibility(landmarks[idx], this.VISIBILITY_THRESHOLD)
     );
   }
 
-  /**
-   * Determines if we should throttle feedback to avoid UI spam.
-   */
-  private shouldThrottleFeedback(now: number): boolean {
-    return now - this.lastFeedbackTime < this.FEEDBACK_COOLDOWN_MS;
-  }
+  private isBodyVisibleStable(landmarks: Landmark[], now: number): boolean {
+    const visible = this.checkVisibility(landmarks);
 
-  /**
-   * Updates feedback code with throttling check.
-   * Returns true if feedback was updated, false if throttled.
-   */
-  private updateFeedback(code: string, now: number, force: boolean = false): boolean {
-    if (!force && this.shouldThrottleFeedback(now)) {
-      return false;
+    if (visible) {
+      this.bodyMissingStart = null;
+      return true;
     }
-    this.feedbackCode = code;
-    this.lastFeedbackTime = now;
-    return true;
+
+    if (this.bodyMissingStart === null) {
+      this.bodyMissingStart = now;
+      return true; // tolerate brief miss
+    }
+
+    return now - this.bodyMissingStart < this.BODY_LOST_TOLERANCE_MS;
   }
 
-  /**
-   * Builds the result object with current state.
-   */
-  private createResult(): FrontRaisesResult {
+  private shouldThrottleGuidance(now: number): boolean {
+    return now - this.lastGuidanceFeedbackTime < this.FEEDBACK_COOLDOWN_MS;
+  }
+
+  private setGuidanceFeedback(code: FeedbackSignal, now: number): void {
+    if (this.feedbackCode === code) return;
+
+    if (!this.shouldThrottleGuidance(now)) {
+      this.feedbackCode = code;
+      this.lastGuidanceFeedbackTime = now;
+    }
+  }
+
+  private setImmediateFeedback(code: FeedbackSignal): void {
+    this.feedbackCode = code;
+  }
+
+  private resolveQualityAndSeverity(): {
+    is_correct: boolean;
+    quality: ExerciseQuality;
+    severity: FeedbackSeverity;
+  } {
+    const code = this.feedbackCode;
+
+    if (code === 'ERR_BODY_NOT_VISIBLE' || code === 'ERR_CAMERA_VIEW') {
+      return {
+        is_correct: false,
+        quality: 'invalid',
+        severity: 'critical',
+      };
+    }
+
+    if (
+      code.startsWith('ERR_') ||
+      code.startsWith('FIX_') ||
+      code.startsWith('WARN_') ||
+      code.startsWith('REP_INVALID_')
+    ) {
+      return {
+        is_correct: false,
+        quality: 'warning',
+        severity: 'warning',
+      };
+    }
+
+    if (
+      code.startsWith('COUNT_') ||
+      code.startsWith('REP_NUMBER_') ||
+      code === 'GOOD_REP' ||
+      code === 'REP_SUCCESS' ||
+      code === 'PERFECT'
+    ) {
+      return {
+        is_correct: true,
+        quality: 'correct',
+        severity: 'success',
+      };
+    }
+
+    return {
+      is_correct: this.lastBodyVisible,
+      quality: 'correct',
+      severity: 'info',
+    };
+  }
+
+  private createResult(debug?: Record<string, unknown>): FrontRaisesResult {
+    const { is_correct, quality, severity } = this.resolveQualityAndSeverity();
+
     return {
       exercise: 'front_raises',
       reps: this.counter,
       stage: this.stage,
       feedback_code: this.feedbackCode,
-      is_correct: true,
+      is_correct,
+      quality,
+      severity,
+      timestamp_ms: this.lastTimestampMs,
+      is_body_visible: this.lastBodyVisible,
+      debug,
     };
+  }
+
+  private markBodyNotVisible(): FrontRaisesResult {
+    this.stage = 'unknown';
+    this.setImmediateFeedback('ERR_BODY_NOT_VISIBLE');
+    return this.createResult({
+      reason: 'body_not_visible',
+    });
   }
 
   // =========================================================
   // Public API
   // =========================================================
 
-  /**
-   * Main analysis entry point.
-   * Processes MediaPipe landmarks and determines front raise state, reps, and feedback.
-   */
-  analyze(landmarks: Landmark[]): FrontRaisesResult {
-    const now = Date.now();
+  analyze(
+    landmarks: Landmark[],
+    context?: ExerciseAnalysisContext
+  ): FrontRaisesResult {
+    const now = context?.timestamp_ms ?? getCurrentTimeMs();
+    this.lastTimestampMs = now;
 
-    // 1. Visibility Check
-    if (!this.checkVisibility(landmarks)) {
-      this.feedbackCode = 'ERR_BODY_NOT_VISIBLE';
-      return this.createResult();
+    // 1) Visibility handling
+    const bodyVisibleStable = this.isBodyVisibleStable(landmarks, now);
+    this.lastBodyVisible = bodyVisibleStable;
+
+    if (!bodyVisibleStable) {
+      return this.markBodyNotVisible();
     }
 
-    // 2. Extract Points
+    // During tolerated visibility loss, keep last stable state
+    if (!this.checkVisibility(landmarks)) {
+      return this.createResult({
+        phase: 'visibility_tolerance',
+      });
+    }
+
+    // 2) Extract landmarks
     const lSh = landmarks[PoseLandmarks.LEFT_SHOULDER];
     const rSh = landmarks[PoseLandmarks.RIGHT_SHOULDER];
     const lElbow = landmarks[PoseLandmarks.LEFT_ELBOW];
@@ -179,145 +265,213 @@ export class FrontRaisesLogic implements ExerciseLogic {
     const lHip = landmarks[PoseLandmarks.LEFT_HIP];
     const rHip = landmarks[PoseLandmarks.RIGHT_HIP];
 
-    // 3. Calculate Raw Angles
-    
-    // A. Shoulder Flexion (Lift Angles)
-    // Measured between Hip-Shoulder-Elbow to track arm elevation
-    const lLiftRaw = this.calculateAngle(lHip, lSh, lElbow);
-    const rLiftRaw = this.calculateAngle(rHip, rSh, rElbow);
-    
-    // B. Elbow Straightness
-    // Measured between Shoulder-Elbow-Wrist
-    const lElbowRaw = this.calculateAngle(lSh, lElbow, lWr);
-    const rElbowRaw = this.calculateAngle(rSh, rElbow, rWr);
+    // 3) Raw angles
+    const lLiftRaw = calculateAngle(lHip, lSh, lElbow);
+    const rLiftRaw = calculateAngle(rHip, rSh, rElbow);
 
-    // 4. Apply Smoothing (EMA)
+    const lElbowRaw = calculateAngle(lSh, lElbow, lWr);
+    const rElbowRaw = calculateAngle(rSh, rElbow, rWr);
+
+    // 4) Smoothing
     const lLift = this.emaLiftL.update(lLiftRaw);
     const rLift = this.emaLiftR.update(rLiftRaw);
     const lElbowSmoothed = this.emaLeftElbow.update(lElbowRaw);
     const rElbowSmoothed = this.emaRightElbow.update(rElbowRaw);
 
-    // 5. Calculate Derived Metrics
+    // 5) Derived metrics
     const avgLift = (lLift + rLift) / 2;
     const minElbow = Math.min(lElbowSmoothed, rElbowSmoothed);
     const armDiff = Math.abs(lLift - rLift);
 
     // =========================================================
-    // 🧠 LOGIC FLOW (Priority Order - Strict to Lenient)
+    // Phase A: RESET / UNLOCK
     // =========================================================
-
-    // Priority 1: Elbow Form (Fatal Error)
-    // Arms must be straight throughout the movement
-    if (minElbow < this.ELBOW_MIN_ANGLE) {
-      this.feedbackCode = 'STRAIGHTEN_ARMS';
-      // Even if they're in the success zone, don't count if elbows are bent
-      return this.createResult();
-    }
-
-    // Priority 2: Sync Check (Symmetry Error)
-    // Only check when arms are actually lifting (above guidance threshold)
-    if (armDiff > this.SYNC_TOLERANCE && avgLift > this.ANGLE_GUIDANCE_START) {
-      this.feedbackCode = 'ERR_SWINGING';
-      return this.createResult();
-    }
-
-    // Priority 3: Height Safety (Too High)
-    // Prevent shoulder impingement
-    if (avgLift > this.ANGLE_TARGET_MAX) {
-      this.feedbackCode = 'ERR_TOO_HIGH';
-      return this.createResult();
-    }
-
-    // =========================================================
-    // 🔒 The Lock & Key Counting Mechanism
-    // =========================================================
-
-    // Phase A: RESET / UNLOCK (Arms fully lowered)
-    // User must return to starting position to enable next rep
     if (avgLift < this.ANGLE_START_RESET) {
-      this.repLocked = false; // 🔓 UNLOCK: Ready for next rep
+      this.repLocked = false;
+      this.hasFailedRep = false;
+      this.currentInvalidCode = null;
       this.stage = 'down';
-      this.feedbackCode = 'CMD_RAISE_FRONT';
-      return this.createResult();
+      this.setImmediateFeedback('CMD_RAISE_FRONT');
+
+      return this.createResult({
+        phase: 'reset_zone',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+      });
     }
 
-    // Phase B: GUIDANCE (Ascending but not at target)
-    // Arms are lifting but haven't reached minimum height yet
-    if (avgLift >= this.ANGLE_GUIDANCE_START && avgLift < this.ANGLE_TARGET_MIN) {
-      this.stage = 'up';
-      
-      // Only give guidance if we're not locked and not throttled
-      if (!this.repLocked) {
-        this.updateFeedback('RAISE_YOUR_ARM', now);
-      } else {
-        // Coming back down through this zone
-        this.feedbackCode = 'CMD_LOWER_SLOWLY';
-      }
-      return this.createResult();
-    }
-
-    // Phase C: SUCCESS ZONE (Target Height Reached)
-    // Arms are at shoulder to eye level (85° - 115°)
-    if (avgLift >= this.ANGLE_TARGET_MIN && avgLift <= this.ANGLE_TARGET_MAX) {
-      this.stage = 'up';
-
-      if (!this.repLocked) {
-        // ✅ SUCCESS: All conditions met, count the rep!
-        this.counter++;
-        this.repLocked = true; // 🔒 LOCK: Prevent double counting
-        
-        // Immediate feedback with rep number
-        this.feedbackCode = `COUNT_${this.counter}`;
-        this.lastFeedbackTime = now;
-      } else {
-        // Already counted this rep, encourage hold/lower
-        this.feedbackCode = 'HOLD_POSITION';
-      }
-      return this.createResult();
-    }
-
-    // Phase D: Between Reset and Guidance (Transition zone: 25° - 45°)
-    // Arms are moving but not yet in active range
+    // We are moving upward / active range
     this.stage = 'up';
-    if (!this.repLocked) {
-      this.feedbackCode = 'CONTINUE_RAISING';
-    } else {
-      this.feedbackCode = 'CMD_LOWER_SLOWLY';
+
+    // =========================================================
+    // Priority 1: Elbow Form
+    // =========================================================
+    if (minElbow < this.ELBOW_MIN_ANGLE && avgLift > this.ANGLE_GUIDANCE_START) {
+      this.hasFailedRep = true;
+      this.currentInvalidCode = 'REP_INVALID_BENT_ELBOW';
+      this.setImmediateFeedback('STRAIGHTEN_ARMS');
+
+      return this.createResult({
+        phase: 'invalid_elbow',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+      });
     }
 
-    return this.createResult();
+    // =========================================================
+    // Priority 2: Sync Check
+    // =========================================================
+    if (armDiff > this.SYNC_TOLERANCE && avgLift > this.ANGLE_GUIDANCE_START) {
+      this.hasFailedRep = true;
+      this.currentInvalidCode = 'REP_INVALID_UNSYNC';
+      this.setImmediateFeedback('ERR_SWINGING');
+
+      return this.createResult({
+        phase: 'invalid_sync',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+      });
+    }
+
+    // =========================================================
+    // Priority 3: Too High
+    // =========================================================
+    if (avgLift > this.ANGLE_TARGET_MAX) {
+      this.hasFailedRep = true;
+      this.currentInvalidCode = 'REP_INVALID_TOO_HIGH';
+      this.setImmediateFeedback('ERR_TOO_HIGH');
+
+      return this.createResult({
+        phase: 'invalid_too_high',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+      });
+    }
+
+    // =========================================================
+    // Phase B: Guidance Zone
+    // =========================================================
+    if (
+      avgLift >= this.ANGLE_GUIDANCE_START &&
+      avgLift < this.ANGLE_TARGET_MIN
+    ) {
+      if (!this.repLocked) {
+        this.setGuidanceFeedback('RAISE_YOUR_ARM', now);
+      } else {
+        this.setImmediateFeedback('CMD_LOWER_SLOWLY');
+      }
+
+      return this.createResult({
+        phase: 'guidance_zone',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+      });
+    }
+
+    // =========================================================
+    // Phase C: Success Zone
+    // =========================================================
+    if (
+      avgLift >= this.ANGLE_TARGET_MIN &&
+      avgLift <= this.ANGLE_TARGET_MAX
+    ) {
+      if (!this.repLocked) {
+        if (
+          !this.hasFailedRep &&
+          now - this.lastRepCountTime >= this.MIN_TIME_BETWEEN_REPS_MS
+        ) {
+          this.counter += 1;
+          this.repLocked = true;
+          this.lastRepCountTime = now;
+          this.setImmediateFeedback(`COUNT_${this.counter}`);
+        } else {
+          // Reached target but rep was invalid
+          this.repLocked = true;
+          this.setImmediateFeedback(this.currentInvalidCode ?? 'CMD_LOWER_SLOWLY');
+        }
+      } else {
+        this.setImmediateFeedback('HOLD_POSITION');
+      }
+
+      return this.createResult({
+        phase: 'success_zone',
+        leftLift: lLift,
+        rightLift: rLift,
+        avgLift,
+        leftElbowAngle: lElbowSmoothed,
+        rightElbowAngle: rElbowSmoothed,
+        armDiff,
+        hasFailedRep: this.hasFailedRep,
+      });
+    }
+
+    // =========================================================
+    // Phase D: Transition Zone (between reset and active guidance)
+    // =========================================================
+    if (!this.repLocked) {
+      this.setGuidanceFeedback('CONTINUE_RAISING', now);
+    } else {
+      this.setImmediateFeedback('CMD_LOWER_SLOWLY');
+    }
+
+    return this.createResult({
+      phase: 'transition_zone',
+      leftLift: lLift,
+      rightLift: rLift,
+      avgLift,
+      leftElbowAngle: lElbowSmoothed,
+      rightElbowAngle: rElbowSmoothed,
+      armDiff,
+      hasFailedRep: this.hasFailedRep,
+    });
   }
 
-  /**
-   * Resets all counters and state to initial values.
-   * Call this when starting a new set or resetting the exercise.
-   */
   reset(): void {
     this.counter = 0;
     this.repLocked = false;
+    this.hasFailedRep = false;
+    this.currentInvalidCode = null;
+
     this.feedbackCode = 'CMD_RAISE_FRONT';
     this.stage = 'down';
-    this.lastFeedbackTime = 0;
 
-    // Reset all EMA filters
+    this.lastGuidanceFeedbackTime = 0;
+    this.lastRepCountTime = 0;
+
+    this.lastTimestampMs = 0;
+    this.lastBodyVisible = false;
+    this.bodyMissingStart = null;
+
     this.emaLiftL.reset();
     this.emaLiftR.reset();
     this.emaLeftElbow.reset();
     this.emaRightElbow.reset();
   }
 
-  /**
-   * Returns current rep count without processing frames.
-   * Useful for UI display or testing.
-   */
   getRepCount(): number {
     return this.counter;
   }
 
-  /**
-   * Returns whether a rep is currently locked (in 'up' position).
-   * Useful for UI state indicators.
-   */
   isRepLocked(): boolean {
     return this.repLocked;
   }

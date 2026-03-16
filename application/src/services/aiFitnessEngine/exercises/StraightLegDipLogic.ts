@@ -1,8 +1,10 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
-
-export interface StraightLegDipResult extends RepExerciseResult {
-  exercise: 'straight_leg_dip';
-}
+import {
+  ExerciseLogic,
+  Landmark,
+  StraightLegDipResult,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 const LANDMARK_INDICES = {
   LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
@@ -26,7 +28,7 @@ const EMA_ALPHA = 0.4;
 export class StraightLegDipLogic implements ExerciseLogic {
   private state: 'setup' | 'up' | 'down' = 'setup';
   private reps: number = 0;
-  private feedback_code: string = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct: boolean = false;
 
   private stableFrames: number = 0;
@@ -50,8 +52,11 @@ export class StraightLegDipLogic implements ExerciseLogic {
 
   private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
     if (!a || !b || !c) return 180;
-    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
-    let angle = Math.abs(radians * 180.0 / Math.PI);
+    const radians =
+      Math.atan2(c.y - b.y, c.x - b.x) -
+      Math.atan2(a.y - b.y, a.x - b.x);
+
+    let angle = Math.abs((radians * 180.0) / Math.PI);
     if (angle > 180.0) angle = 360 - angle;
     return angle;
   }
@@ -60,8 +65,10 @@ export class StraightLegDipLogic implements ExerciseLogic {
     return EMA_ALPHA * curr + (1 - EMA_ALPHA) * prev;
   }
 
-  analyze(landmarks: Landmark[]): StraightLegDipResult {
-
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): StraightLegDipResult {
     // ✅ 1. تحديد الجانب بشكل ذكي (visibility + x position)
     const lSh = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
     const rSh = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
@@ -79,7 +86,7 @@ export class StraightLegDipLogic implements ExerciseLogic {
       isLeft = lDist > rDist;
     }
 
-    // ✅ 2. حساب الزاوايا من الجانبين واختيار الجانب الصح
+    // ✅ 2. حساب الزوايا من الجانبين واختيار الجانب الصح
     const leftElbowAngle = this.calculateAngle(
       landmarks[LANDMARK_INDICES.LEFT_SHOULDER],
       landmarks[LANDMARK_INDICES.LEFT_ELBOW],
@@ -102,33 +109,41 @@ export class StraightLegDipLogic implements ExerciseLogic {
     );
 
     const rawElbowAngle = isLeft ? leftElbowAngle : rightElbowAngle;
-    const rawKneeAngle  = isLeft ? leftKneeAngle  : rightKneeAngle;
+    const rawKneeAngle = isLeft ? leftKneeAngle : rightKneeAngle;
 
     // ✅ 3. التحقق من الـ visibility للجانب المختار
-    const indices = isLeft ? {
-      sh: LANDMARK_INDICES.LEFT_SHOULDER,
-      el: LANDMARK_INDICES.LEFT_ELBOW,
-      wr: LANDMARK_INDICES.LEFT_WRIST,
-      hip: LANDMARK_INDICES.LEFT_HIP,
-      knee: LANDMARK_INDICES.LEFT_KNEE,
-      ank: LANDMARK_INDICES.LEFT_ANKLE,
-    } : {
-      sh: LANDMARK_INDICES.RIGHT_SHOULDER,
-      el: LANDMARK_INDICES.RIGHT_ELBOW,
-      wr: LANDMARK_INDICES.RIGHT_WRIST,
-      hip: LANDMARK_INDICES.RIGHT_HIP,
-      knee: LANDMARK_INDICES.RIGHT_KNEE,
-      ank: LANDMARK_INDICES.RIGHT_ANKLE,
-    };
+    const indices = isLeft
+      ? {
+          sh: LANDMARK_INDICES.LEFT_SHOULDER,
+          el: LANDMARK_INDICES.LEFT_ELBOW,
+          wr: LANDMARK_INDICES.LEFT_WRIST,
+          hip: LANDMARK_INDICES.LEFT_HIP,
+          knee: LANDMARK_INDICES.LEFT_KNEE,
+          ank: LANDMARK_INDICES.LEFT_ANKLE,
+        }
+      : {
+          sh: LANDMARK_INDICES.RIGHT_SHOULDER,
+          el: LANDMARK_INDICES.RIGHT_ELBOW,
+          wr: LANDMARK_INDICES.RIGHT_WRIST,
+          hip: LANDMARK_INDICES.RIGHT_HIP,
+          knee: LANDMARK_INDICES.RIGHT_KNEE,
+          ank: LANDMARK_INDICES.RIGHT_ANKLE,
+        };
 
-    const isVisible = [indices.sh, indices.el, indices.wr, indices.hip, indices.knee, indices.ank]
-      .every(idx => (landmarks[idx]?.visibility ?? 0) > 0.4);
+    const isVisible = [
+      indices.sh,
+      indices.el,
+      indices.wr,
+      indices.hip,
+      indices.knee,
+      indices.ank,
+    ].every((idx) => (landmarks[idx]?.visibility ?? 0) > 0.4);
 
     if (!isVisible) {
       return {
         exercise: 'straight_leg_dip',
         reps: this.reps,
-        stage: this.state === 'setup' ? 'up' : this.state as 'up' | 'down',
+        stage: this.state === 'setup' ? 'up' : (this.state as 'up' | 'down'),
         feedback_code: 'ERR_CAMERA_VIEW',
         is_correct: false,
       };
@@ -136,10 +151,11 @@ export class StraightLegDipLogic implements ExerciseLogic {
 
     // 4. التنعيم
     this.smElbowAngle = this.ema(this.smElbowAngle, rawElbowAngle);
-    this.smKneeAngle  = this.ema(this.smKneeAngle,  rawKneeAngle);
+    this.smKneeAngle = this.ema(this.smKneeAngle, rawKneeAngle);
 
     // 5. هل الركبة مفرودة؟
-    const isLegsStraight = this.smKneeAngle > THRESHOLDS.KNEE_MIN_STRAIGHT_ANGLE;
+    const isLegsStraight =
+      this.smKneeAngle > THRESHOLDS.KNEE_MIN_STRAIGHT_ANGLE;
 
     // 🟢 Phase 1: Setup
     if (this.state === 'setup') {
@@ -157,7 +173,7 @@ export class StraightLegDipLogic implements ExerciseLogic {
         }
       } else {
         this.setupTimer = 0;
-        if (!isLegsStraight) this.feedback_code = 'STRAIGHTEN_LEGS';
+        if (!isLegsStraight) this.feedback_code = 'ERR_STRAIGHTEN_LEGS';
         else this.feedback_code = 'SETUP_POSITION';
       }
 
@@ -174,10 +190,10 @@ export class StraightLegDipLogic implements ExerciseLogic {
     if (!isLegsStraight) {
       this.repInvalidated = true;
       this.is_correct = false;
-      this.feedback_code = 'STRAIGHTEN_LEGS';
+      this.feedback_code = 'ERR_STRAIGHTEN_LEGS';
     } else {
       if (this.repInvalidated) {
-        this.feedback_code = 'STRAIGHTEN_LEGS';
+        this.feedback_code = 'ERR_STRAIGHTEN_LEGS';
         this.is_correct = false;
       } else {
         this.is_correct = true;
@@ -198,19 +214,17 @@ export class StraightLegDipLogic implements ExerciseLogic {
       } else {
         this.stableFrames = 0;
       }
-
     } else if (this.state === 'down') {
       if (!this.repInvalidated) this.feedback_code = 'PUSH_UP';
 
       if (this.smElbowAngle > THRESHOLDS.ELBOW_UP_ANGLE) {
         this.stableFrames++;
         if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
-
           if (!this.repInvalidated) {
             this.reps++;
-            this.feedback_code = 'GOOD_REP';
+            this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
           } else {
-            this.feedback_code = 'STRAIGHTEN_LEGS';
+            this.feedback_code = 'ERR_STRAIGHTEN_LEGS';
           }
 
           this.state = 'up';

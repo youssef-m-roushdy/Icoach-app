@@ -1,40 +1,36 @@
 /**
  * Exercise Logic Exports
- * Barrel file to export all exercise logic classes
+ * Barrel file to export all exercise logic classes explicitly.
  */
 
-// --- Original Exercises ---
-export * from './squatLogic';
-export * from './highPlankLogic';
-export * from './elbowPlankLogic';
-export * from './crunchLogic';
-export * from './legRaisesLogic';
-export * from './supermanLogic';
-export * from './jumpingJacksLogic';
+export { SquatLogic } from './squatLogic';
+export { HighPlankLogic } from './highPlankLogic';
+export { ElbowPlankLogic } from './elbowPlankLogic';
+export { CrunchLogic } from './crunchLogic';
+export { LegRaisesLogic } from './legRaisesLogic';
+export { SupermanLogic } from './supermanLogic';
+export { JumpingJacksLogic } from './jumpingJacksLogic';
 
-// --- New Upper Body Exercises ---
-export * from './LateralRaisesLogic';
-export * from './FrontRaisesLogic';
-export * from './OverheadPressLogic';
+export { LateralRaisesLogic } from './LateralRaisesLogic';
+export { FrontRaisesLogic } from './FrontRaisesLogic';
+export { OverheadPressLogic } from './OverheadPressLogic';
 
-// --- New 8 Exercises ---
-export * from './HighKneesLogic';
-export * from './KneeTapLogic';
-export * from './PikePushupLogic';
-export * from './StaticSplitSquatLogic';
-export * from './ChairSquatLogic';
-export * from './GluteBridgeLogic';
-export * from './BirdDogLogic';
-export * from './ReverseLungeLogic';
-export * from './VUpsLogic';
+export { HighKneesLogic } from './HighKneesLogic';
+export { KneeTapLogic } from './KneeTapLogic';
+export { PikePushupLogic } from './PikePushupLogic';
+export { StaticSplitSquatLogic } from './StaticSplitSquatLogic';
+export { ChairSquatLogic } from './ChairSquatLogic';
+export { GluteBridgeLogic } from './GluteBridgeLogic';
+export { BirdDogLogic } from './BirdDogLogic';
+export { ReverseLungeLogic } from './ReverseLungeLogic';
+export { VUpsLogic } from './VUpsLogic';
 
-// --- Additional Exercises ---
-export * from './BentKneeDipLogic';
-export * from './ClassicPushUpLogic';
-export * from './KneePushUpLogic';
-export * from './StraightLegDipLogic';
-export * from './ToeTouchLogic';
-export * from './InchwormLogic';
-export * from './SideLyingLegRaiseLogic';
-export * from './KneeTucksLogic';
-export * from './DonkeyKickLogic';
+export { BentKneeDipLogic } from './BentKneeDipLogic';
+export { ClassicPushUpLogic } from './ClassicPushUpLogic';
+export { KneePushUpLogic } from './KneePushUpLogic';
+export { StraightLegDipLogic } from './StraightLegDipLogic';
+export { ToeTouchLogic } from './ToeTouchLogic';
+export { InchwormLogic } from './InchwormLogic';
+export { SideLyingLegRaiseLogic } from './SideLyingLegRaiseLogic';
+export { KneeTucksLogic } from './KneeTucksLogic';
+export { DonkeyKickLogic } from './DonkeyKickLogic';

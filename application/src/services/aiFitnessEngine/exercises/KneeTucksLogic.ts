@@ -1,4 +1,4 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
+import { ExerciseLogic, RepExerciseResult, Landmark, FeedbackSignal } from '../types';
 
 export interface KneeTucksResult extends RepExerciseResult {
   exercise: 'knee_tucks';
@@ -21,8 +21,9 @@ const THRESHOLDS = {
   STABLE_FRAMES: 5,        // ثبات للتأكد من الحركة
   SETUP_HOLD_TIME: 20,     // ثبات طويل في البداية (تقريباً ثانية) لمنع العد الوهمي
   
-  // حد لمس الأرض (كل ما الرقم يقل، كل ما الشرط يكون أصعب)
-  FLOOR_TOUCH_THRESHOLD: 0.1, 
+  // حد لمس الأرض (بقيمة صغيرة جداً لكشف أي لمسة خفيفة)
+  // كل ما الرقم قل، كل ما صار الكشف أكثر حساسية. 0.02 يعني ارتفاع بسيط جداً (أقل من سم الإصبع)
+  FLOOR_TOUCH_THRESHOLD: 0.02,
 } as const;
 
 const EMA_ALPHA = 0.4;
@@ -35,7 +36,7 @@ export class KneeTucksLogic implements ExerciseLogic {
   private state: 'setup' | 'extended' | 'tucked' = 'setup';
   
   private reps: number = 0;
-  private feedback_code: string = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct: boolean = false;
   
   private stableFrames: number = 0;
@@ -149,7 +150,8 @@ export class KneeTucksLogic implements ExerciseLogic {
 
     // 🔴 Phase 2: Active Exercise
 
-    // فحص لمس الأرض المستمر
+    // فحص لمس الأرض المستمر - تم تعديل العتبة لتصبح أكثر حساسية (0.02)
+    // الشرط: الكاحل أصبح أقل من الحوض بمقدار 0.02 على الأقل (أي نزل لتحت) يعني لمس الأرض
     const touchingFloor = ank.y > hip.y + THRESHOLDS.FLOOR_TOUCH_THRESHOLD;
 
     // المنطق:
@@ -183,7 +185,7 @@ export class KneeTucksLogic implements ExerciseLogic {
                     // ⭐️ لحظة الحقيقة: هل نحسب العدة؟
                     if (!this.repInvalidated) {
                         this.reps++;
-                        this.feedback_code = 'GOOD_REP';
+                        this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
                     } else {
                         // لو كانت بايظة، مش هنحسب، وهنقوله "ارفع رجلك المرة الجاية"
                         this.feedback_code = 'ERR_KEEP_FEET_UP';
@@ -198,7 +200,7 @@ export class KneeTucksLogic implements ExerciseLogic {
             } 
             else if (this.smKneeAngle < 125) {
                  // في الطريق للضم
-                 if(!this.repInvalidated) this.feedback_code = 'SQUEEZE_ABS';
+                 if (!this.repInvalidated) this.feedback_code = 'SQUEEZE_ABS';
                  this.stableFrames = 0;
             }
         }

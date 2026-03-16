@@ -20,7 +20,13 @@
  * - Hold warning briefly to avoid flicker
  */
 
-import { Landmark, KneeTapResult, ExerciseLogic } from '../types';
+import {
+  Landmark,
+  KneeTapResult,
+  ExerciseLogic,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 import { PoseLandmarks, calculateDistance, EMA } from '../utils';
 
 type TapPair = 'RL' | 'LR' | null; // RL = Right hand -> Left knee, LR = Left hand -> Right knee
@@ -28,7 +34,7 @@ type TapPair = 'RL' | 'LR' | null; // RL = Right hand -> Left knee, LR = Left ha
 export class KneeTapLogic implements ExerciseLogic {
   private reps = 0;
   private stage: 'neutral' | 'tap' = 'neutral';
-  private feedbackCode = 'SETUP_POSITION';
+  private feedbackCode: FeedbackSignal = 'SETUP_POSITION';
   private isCorrect = true;
 
   // Track which pair caused the last successful tap (for pair-specific release)
@@ -41,10 +47,10 @@ export class KneeTapLogic implements ExerciseLogic {
   private emaDistRL = new EMA(0.3);
   private emaDistLR = new EMA(0.3);
 
-  // ✅ Smoothing for torso height (better forward-bend detection in front camera)
+  // Smoothing for torso height (better forward-bend detection in front camera)
   private emaTorsoHeight = new EMA(0.25);
 
-  // ✅ Posture state stabilization (debounce + hysteresis + hold)
+  // Posture state stabilization (debounce + hysteresis + hold)
   private postureBadFrames = 0;
   private postureGoodFrames = 0;
   private postureHoldFrames = 0;
@@ -56,14 +62,14 @@ export class KneeTapLogic implements ExerciseLogic {
   private readonly TOUCH_THRESHOLD = 0.10;
 
   /**
-   * ✅ NEW: Release threshold (hysteresis)
+   * Release threshold (hysteresis)
    * Must be > TOUCH_THRESHOLD so "tap" doesn't stick due to small jitter
    * and user doesn't need to step back from the camera.
    */
   private readonly RELEASE_THRESHOLD = 0.16;
 
   /**
-   * ✅ NEW: How many consecutive "released" frames are required to exit TAP.
+   * How many consecutive "released" frames are required to exit TAP.
    * Small number keeps fast reps possible but avoids flicker.
    */
   private readonly RELEASE_FRAMES_TO_RESET = 2;
@@ -77,21 +83,24 @@ export class KneeTapLogic implements ExerciseLogic {
   // Ankle lift requirement
   private readonly ANKLE_LIFT_MIN = 0.04;
 
-  // ✅ Torso height posture threshold (STRICT)
+  // Torso height posture threshold (STRICT)
   private readonly MIN_TORSO_HEIGHT = 0.16;
   private readonly CLEAR_TORSO_HEIGHT = 0.18;
 
-  // ✅ Debounce / hysteresis counts
+  // Debounce / hysteresis counts
   private readonly BAD_FRAMES_TO_TRIGGER = 3;
   private readonly GOOD_FRAMES_TO_CLEAR = 6;
 
-  // ✅ Hold duration for warning
+  // Hold duration for warning
   private readonly WARNING_HOLD_FRAMES = 15; // ~0.5s at 30fps
 
   // Visibility
   private readonly MIN_VISIBILITY = 0.5;
 
-  analyze(landmarks: Landmark[]): KneeTapResult {
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): KneeTapResult {
     // 1) Get Landmarks
     const rHand = landmarks[PoseLandmarks.RIGHT_INDEX];
     const lHand = landmarks[PoseLandmarks.LEFT_INDEX];
@@ -122,7 +131,7 @@ export class KneeTapLogic implements ExerciseLogic {
     }
 
     // ==========================
-    // ✅ PRIORITY #1: UPRIGHT POSTURE CHECK (torso height)
+    // PRIORITY #1: UPRIGHT POSTURE CHECK (torso height)
     // ==========================
     const midShoulderY = (lShoulder.y + rShoulder.y) / 2;
     const midHipY = (lHip.y + rHip.y) / 2;
@@ -181,7 +190,7 @@ export class KneeTapLogic implements ExerciseLogic {
     const isTouchingLeft = isTouchingLeftKneeArea;   // LH -> RK
 
     // ==========================
-    // ✅ FIX: TAP -> NEUTRAL release logic (pair-specific)
+    // TAP -> NEUTRAL release logic (pair-specific)
     // ==========================
     if (this.stage === 'tap') {
       const released =
@@ -236,7 +245,7 @@ export class KneeTapLogic implements ExerciseLogic {
           this.stage = 'tap';
           this.lastTapPair = 'RL';
           this.releaseFrames = 0;
-          this.feedbackCode = 'REP_SUCCESS';
+          this.feedbackCode = `COUNT_${this.reps}` as FeedbackSignal;
           this.isCorrect = true;
         } else {
           this.feedbackCode = 'CMD_KNEES_HIGHER';
@@ -252,7 +261,7 @@ export class KneeTapLogic implements ExerciseLogic {
           this.stage = 'tap';
           this.lastTapPair = 'LR';
           this.releaseFrames = 0;
-          this.feedbackCode = 'REP_SUCCESS';
+          this.feedbackCode = `COUNT_${this.reps}` as FeedbackSignal;
           this.isCorrect = true;
         } else {
           this.feedbackCode = 'CMD_KNEES_HIGHER';
@@ -268,7 +277,7 @@ export class KneeTapLogic implements ExerciseLogic {
   }
 
   /**
-   * ✅ Stabilize posture warnings
+   * Stabilize posture warnings
    * Bad = torsoHeight < MIN_TORSO_HEIGHT
    * Good = torsoHeight > CLEAR_TORSO_HEIGHT
    */
@@ -336,10 +345,10 @@ export class KneeTapLogic implements ExerciseLogic {
   }
 
   private checkVisibility(lms: Landmark[]): boolean {
-    return lms.every(lm => (lm.visibility || 0) > this.MIN_VISIBILITY);
+    return lms.every((lm) => (lm.visibility || 0) > this.MIN_VISIBILITY);
   }
 
-  private createResult(feedback: string, isCorrect: boolean): KneeTapResult {
+  private createResult(feedback: FeedbackSignal, isCorrect: boolean): KneeTapResult {
     return {
       exercise: 'knee_tap',
       reps: this.reps,
@@ -362,5 +371,10 @@ export class KneeTapLogic implements ExerciseLogic {
 
     this.lastTapPair = null;
     this.releaseFrames = 0;
+
+    // مهم جدًا: reset للـ EMA state
+    this.emaDistRL.reset();
+    this.emaDistLR.reset();
+    this.emaTorsoHeight.reset();
   }
 }

@@ -2,7 +2,7 @@
  * Elbow Plank Logic - TypeScript Implementation (Easy Mode Supported)
  */
 
-import { Landmark, ElbowPlankResult, ExerciseLogic } from '../types';
+import { Landmark, ElbowPlankResult, ExerciseLogic, FeedbackSignal } from '../types';
 import {
   calculateAngle,
   calculateDistance,
@@ -16,7 +16,7 @@ type Difficulty = 'easy' | 'normal';
 export class ElbowPlankLogic implements ExerciseLogic {
   private timerVal: number = 0;
   private lastTime: number = 0;
-  private feedbackCode: string = 'SETUP_POSITION';
+  private feedbackCode: FeedbackSignal = 'SETUP_POSITION';
   private isCorrect: boolean = false;
 
   // stability window
@@ -209,12 +209,15 @@ export class ElbowPlankLogic implements ExerciseLogic {
     }
 
     // -------------------- Timer Logic --------------------
+// -------------------- Timer Logic --------------------
     if (this.isCorrect) {
       if (this.lastTime === 0) this.lastTime = currentTime;
 
       if (currentTime - this.lastTime >= 1.0) {
         this.timerVal += 1;
         this.lastTime = currentTime;
+        // ✅ التعديل هنا: نبعت كود COUNT_ مع رقم الثانية الحالي عشان ينطقها
+        this.feedbackCode = `COUNT_${this.timerVal}`; 
       }
     } else {
       this.lastTime = 0;

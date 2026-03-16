@@ -1,9 +1,10 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
-
-export interface SideLyingLegRaiseResult extends RepExerciseResult {
-  exercise: 'side_lying_leg_raise';
-  activeSide: 'LEFT' | 'RIGHT' | 'NONE'; // الرجل اللي فوق (اللي بتترفع)
-}
+import {
+  ExerciseLogic,
+  SideLyingLegRaiseResult,
+  Landmark,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 const L = {
   LEFT_HIP: 23, RIGHT_HIP: 24,
@@ -17,7 +18,7 @@ const TH = {
   // Separation angle thresholds
   DOWN_MAX: 12,           // تحت ده → الرجلين فوق بعض
   UP_ENTER_MIN: 50,       // بداية الـ UP
-  UP_COUNT_MIN: 65,       // القمة المطلوبة عشان العدة تتحسب (كان 42)
+  UP_COUNT_MIN: 65,       // القمة المطلوبة عشان العدة تتحسب
   UP_PARTIAL_MIN: 55,     // لو تحت ده → "ارفع أعلى"
 
   // Knee straightness with hysteresis
@@ -41,7 +42,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
   private state: State = 'setup';
   private reps = 0;
 
-  private feedback_code = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct = false;
 
   private activeSide: 'LEFT' | 'RIGHT' | 'NONE' = 'NONE';
@@ -52,8 +53,8 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
   private lastSepAngle = 0;
   private peakSepAngle = 0;
 
-  // ───────────── الجديد المهم ─────────────
-  private wasEverBentDuringRep = false;   // لو اتنت ولو للحظة أثناء الrep → مش هتتحسب
+  // لو الركبة اتنت في أي لحظة أثناء الrep → العدة دي مش هتتحسب
+  private wasEverBentDuringRep = false;
   private kneeState: KneeState = 'straight';
 
   reset(): void {
@@ -89,29 +90,35 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
 
     let cos = dot / (magA * magB);
     cos = Math.max(-1, Math.min(1, cos));
-    return Math.acos(cos) * 180 / Math.PI;
+    return (Math.acos(cos) * 180) / Math.PI;
   }
 
   private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
-    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    const radians =
+      Math.atan2(c.y - b.y, c.x - b.x) -
+      Math.atan2(a.y - b.y, a.x - b.x);
+
     let angle = Math.abs((radians * 180.0) / Math.PI);
     if (angle > 180.0) angle = 360 - angle;
     return angle;
   }
 
-  analyze(landmarks: Landmark[]): SideLyingLegRaiseResult {
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): SideLyingLegRaiseResult {
     const needed = [
       L.LEFT_HIP, L.RIGHT_HIP,
       L.LEFT_KNEE, L.RIGHT_KNEE,
       L.LEFT_ANKLE, L.RIGHT_ANKLE,
     ];
 
-    const allVisible = needed.every(i => this.isVisible(landmarks, i));
+    const allVisible = needed.every((i) => this.isVisible(landmarks, i));
     if (!allVisible) {
       return {
         exercise: 'side_lying_leg_raise',
         reps: this.reps,
-        stage: (this.state === 'up' ? 'up' : 'down'),
+        stage: this.state === 'up' ? 'up' : 'down',
         feedback_code: 'ERR_CAMERA_VIEW',
         is_correct: false,
         activeSide: this.activeSide,
@@ -125,10 +132,13 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
     const la = landmarks[L.LEFT_ANKLE];
     const ra = landmarks[L.RIGHT_ANKLE];
 
-    const midHip = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 } as Landmark;
+    const midHip = {
+      x: (lh.x + rh.x) / 2,
+      y: (lh.y + rh.y) / 2,
+    } as Landmark;
 
     // تحديد الجانب النشط (الرجل اللي فوق = y أصغر)
-    const currentActive = (la.y < ra.y) ? 'LEFT' : 'RIGHT';
+    const currentActive = la.y < ra.y ? 'LEFT' : 'RIGHT';
     if (this.activeSide === 'NONE' || this.state === 'setup') {
       this.activeSide = currentActive;
     }
@@ -144,31 +154,37 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
 
     // فلتر الضوضاء الصغيرة
     const delta = Math.abs(this.smoothedSepAngle - this.lastSepAngle);
-    if (delta < TH.MIN_DELTA) this.smoothedSepAngle = this.lastSepAngle;
+    if (delta < TH.MIN_DELTA) {
+      this.smoothedSepAngle = this.lastSepAngle;
+    }
     this.lastSepAngle = this.smoothedSepAngle;
 
     // زاوية الركبة للرجل النشط
-    const activeKneeAngle = this.activeSide === 'LEFT'
-      ? this.calculateAngle(lh, lk, la)
-      : this.calculateAngle(rh, rk, ra);
+    const activeKneeAngle =
+      this.activeSide === 'LEFT'
+        ? this.calculateAngle(lh, lk, la)
+        : this.calculateAngle(rh, rk, ra);
 
     // تحديث حالة الركبة (hysteresis)
     if (this.kneeState === 'straight') {
-      if (activeKneeAngle <= TH.KNEE_BENT_OFF) this.kneeState = 'bent';
+      if (activeKneeAngle <= TH.KNEE_BENT_OFF) {
+        this.kneeState = 'bent';
+      }
     } else {
-      if (activeKneeAngle >= TH.KNEE_STRAIGHT_ON) this.kneeState = 'straight';
+      if (activeKneeAngle >= TH.KNEE_STRAIGHT_ON) {
+        this.kneeState = 'straight';
+      }
     }
 
     const kneeOkNow = this.kneeState === 'straight';
 
-    // ───────────── المنطق الجديد للثني ─────────────
     // لو رجعنا تحت ومفرودين → نرست كل شيء قبل عدة جديدة
     if (this.state === 'down' && this.smoothedSepAngle <= TH.DOWN_MAX + 1 && kneeOkNow) {
       this.wasEverBentDuringRep = false;
       this.peakSepAngle = 0;
     }
 
-    // لو في أي مرحلة (رفع أو نزول) الركبة اتنت → العدة دي تُلغى
+    // لو في أي مرحلة الركبة اتنت → العدة دي تُلغى
     if ((this.state === 'down' || this.state === 'up') && !kneeOkNow) {
       this.wasEverBentDuringRep = true;
     }
@@ -203,7 +219,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
       };
     }
 
-    // الافتراضي: الصح إلا لو الركبة متنية دلوقتي
+    // الافتراضي: صح إلا لو الركبة متنية دلوقتي
     this.is_correct = kneeOkNow;
 
     if (!kneeOkNow) {
@@ -218,8 +234,10 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
 
         if (this.smoothedSepAngle < TH.UP_PARTIAL_MIN) {
           this.feedback_code = 'CMD_LIFT_HIGHER';
+        } else if (this.smoothedSepAngle < TH.UP_COUNT_MIN) {
+          this.feedback_code = 'HOLD_TOP';
         } else {
-          this.feedback_code = 'HOLD';
+          this.feedback_code = 'LOWER_SLOWLY';
         }
 
         if (this.stableFrames >= TH.UP_STABLE) {
@@ -229,10 +247,13 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
           this.feedback_code = 'LOWER_SLOWLY';
         }
       } else {
-        if (kneeOkNow) this.feedback_code = 'LIFT_LEG';
+        if (kneeOkNow) {
+          this.feedback_code = 'LIFT_LEG';
+        }
         this.stableFrames = 0;
       }
-    } 
+    }
+
     else if (this.state === 'up') {
       // تسجيل أعلى زاوية وصلنالها
       this.peakSepAngle = Math.max(this.peakSepAngle, this.smoothedSepAngle);
@@ -246,12 +267,12 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
 
           if (repWasClean && reachedHighEnough) {
             this.reps++;
-            this.feedback_code = 'GOOD_REP';
+            this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
           } else {
             if (!repWasClean) {
-              this.feedback_code = 'REP_NOT_COUNTED_KNEE_BENT';
+              this.feedback_code = 'ERR_STRAIGHTEN_LEG';
             } else {
-              this.feedback_code = 'REP_TOO_LOW';
+              this.feedback_code = 'CMD_LIFT_HIGHER';
             }
           }
 
@@ -264,7 +285,9 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
           this.feedback_code = 'LOWER_SLOWLY';
         }
       } else {
-        if (kneeOkNow) this.feedback_code = 'LOWER_SLOWLY';
+        if (kneeOkNow) {
+          this.feedback_code = 'LOWER_SLOWLY';
+        }
         this.stableFrames = 0;
       }
     }
@@ -272,7 +295,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
     return {
       exercise: 'side_lying_leg_raise',
       reps: this.reps,
-      stage: (this.state === 'up' ? 'up' : 'down'),
+      stage: this.state === 'up' ? 'up' : 'down',
       feedback_code: this.feedback_code,
       is_correct: this.is_correct,
       activeSide: this.activeSide,
