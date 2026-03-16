@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
+import GymProgressScreen from '@/screens/GymProgressScreen';
 
 // Type definition temporarily added to fix 'Messages' error
 export type RootStackParamList = {
@@ -51,6 +52,7 @@ export type RootStackParamList = {
   Workouts: undefined;
   LiveWorkout: undefined;
   SavedWorkouts: undefined;
+  GymProgress: undefined;
   EmailVerification: undefined;
   ChangePassword: undefined;
   ForgotPassword: undefined; // Add this line
@@ -152,6 +154,14 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
 
             <TouchableOpacity 
               style={drawerStyles.menuItem}
+              onPress={() => handleNavigate('GymProgress')}
+            >
+              <MaterialIcons name="trending-up" size={24} color={colors.primary} />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>My Progress</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={drawerStyles.menuItem}
               onPress={() => handleNavigate('LiveWorkout')}
             >
               <MaterialIcons name="videocam" size={24} color={colors.primary} />
@@ -166,6 +176,7 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
               <Text style={[drawerStyles.menuText, { color: colors.text }]}>Messages</Text>
             </TouchableOpacity>
           </View>
+
 
           <View style={[drawerStyles.footer, { paddingBottom: insets.bottom + 20, borderTopColor: colors.border }]}>
             <TouchableOpacity 
@@ -269,6 +280,7 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
               <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
               <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+              <Stack.Screen name="GymProgress" component={GymProgressScreen} options={{ title: 'My Progress' }} />
             </>
           ) : (
             <>
@@ -297,6 +309,7 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
               <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
               <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+              <Stack.Screen name="GymProgress" component={GymProgressScreen} options={{ title: 'My Progress' }} />
             </>
           )}
         </Stack.Navigator>

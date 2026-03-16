@@ -174,6 +174,7 @@ export default function EditProfileScreen() {
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error: any) {
+      console.log(error);
       Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
