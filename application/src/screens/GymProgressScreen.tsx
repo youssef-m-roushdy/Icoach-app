@@ -130,7 +130,7 @@ const getMetricLabel = (key: MetricKey): string => {
 };
 
 // ─────────────────────────────────────────────
-//  SPIDER RADAR CHART
+//  SPIDER RADAR CHART - ULTIMATE FIX
 // ─────────────────────────────────────────────
 interface HexRadarChartProps {
   metrics: Metrics;
@@ -149,6 +149,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
 }) => {
   const animProgress = useRef(new Animated.Value(0)).current;
   const [animValue, setAnimValue] = useState(0);
+  const [gradientReady, setGradientReady] = useState(false);
 
   useEffect(() => {
     animProgress.setValue(0);
@@ -159,6 +160,15 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
     }).start();
     const id = animProgress.addListener(({ value }) => setAnimValue(value));
     return () => animProgress.removeListener(id);
+  }, []);
+
+  // Ensure gradient is only created after component is mounted with valid dimensions
+  useEffect(() => {
+    // Small delay to ensure dimensions are calculated
+    const timer = setTimeout(() => {
+      setGradientReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const padding = 60;
@@ -201,12 +211,39 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
     return { key, ...pt };
   });
 
+  // CRITICAL FIX: Use a simple solid color fill instead of gradient if gradient not ready
+  // or use a guaranteed positive numeric radius
+  const gradientRadius = Math.max(50, canvasSize * 0.5); // Ensure it's always > 0
+
   return (
     <Svg width={canvasSize} height={canvasSize} viewBox={`0 0 ${canvasSize} ${canvasSize}`}>
       <Defs>
-        <RadialGradient id="hexFill" cx="50%" cy="50%" r="50%">
+        {/* ULTIMATE FIX: Use numeric values with fallback and ensure radius > 0 */}
+        <RadialGradient 
+          id="hexFill" 
+          cx={center} 
+          cy={center} 
+          r={gradientRadius} // Numeric value guaranteed to be > 0
+          fx={center} 
+          fy={center}
+          gradientUnits="userSpaceOnUse" // Use userSpaceOnUse for absolute coordinates
+        >
           <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.50" />
           <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.10" />
+        </RadialGradient>
+        
+        {/* Fallback solid color fill in case gradient fails */}
+        <RadialGradient 
+          id="hexFillFallback" 
+          cx={center} 
+          cy={center} 
+          r={gradientRadius}
+          fx={center} 
+          fy={center}
+          gradientUnits="userSpaceOnUse"
+        >
+          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.30" />
+          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.30" />
         </RadialGradient>
       </Defs>
 
@@ -228,8 +265,10 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         return (
           <Line
             key={`spoke-${i}`}
-            x1={center} y1={center}
-            x2={outer.x} y2={outer.y}
+            x1={center}
+            y1={center}
+            x2={outer.x}
+            y2={outer.y}
             stroke={gridColor}
             strokeWidth="0.8"
             opacity="0.5"
@@ -237,10 +276,10 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         );
       })}
 
-      {/* Animated data fill */}
+      {/* Animated data fill - use gradient with guaranteed positive radius */}
       <Polygon
         points={animatedDataPoints}
-        fill="url(#hexFill)"
+        fill={`url(#hexFill)`}
         stroke={primaryColor}
         strokeWidth="2"
         opacity="0.95"
@@ -251,7 +290,9 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         <React.Fragment key={`dot-${key}`}>
           <Circle cx={x} cy={y} r="7" fill={primaryColor} opacity={0.2 * animValue} />
           <Circle
-            cx={x} cy={y} r="4"
+            cx={x}
+            cy={y}
+            r="4"
             fill={primaryColor}
             stroke="#ffffff"
             strokeWidth="1.5"
@@ -268,10 +309,24 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         const val = metrics[key].toFixed(1);
         return (
           <React.Fragment key={`label-${key}`}>
-            <SvgText x={x} y={y - 5} fontSize="9" fill={labelColor} textAnchor={anchor} fontWeight="500">
+            <SvgText
+              x={x}
+              y={y - 5}
+              fontSize="9"
+              fill={labelColor}
+              textAnchor={anchor}
+              fontWeight="500"
+            >
               {getMetricLabel(key)}
             </SvgText>
-            <SvgText x={x} y={y + 7} fontSize="9" fill={primaryColor} textAnchor={anchor} fontWeight="700">
+            <SvgText
+              x={x}
+              y={y + 7}
+              fontSize="9"
+              fill={primaryColor}
+              textAnchor={anchor}
+              fontWeight="700"
+            >
               {val}/10
             </SvgText>
           </React.Fragment>

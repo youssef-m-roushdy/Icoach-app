@@ -8,7 +8,6 @@ import {
   TouchableWithoutFeedback,
   Animated,
 } from 'react-native';
-// يتطلب تثبيت المكتبات: react-native-image-picker و react-native-vector-icons
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import Ion from 'react-native-vector-icons/Ionicons';
