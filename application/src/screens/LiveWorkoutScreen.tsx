@@ -174,9 +174,12 @@ const LiveWorkoutScreen = () => {
           setDebugInfo(`Active - Frame: ${frameCountRef.current}`);
 
           // Voice feedback on change
-          if (fb.message !== lastFeedbackRef.current) {
-            lastFeedbackRef.current = fb.message;
-            voiceFeedback.speak(fb.message, { gender: 'female' });
+          // هنقارن بناءً على الـ Code نفسه مش الـ message عشان نضمن إن الدالة الذكية تشتغل
+          if (analysisResult.feedback_code !== lastFeedbackRef.current) {
+            lastFeedbackRef.current = analysisResult.feedback_code;
+            
+            // ✅ التعديل هنا: استخدام speakFeedback بدل speak
+            voiceFeedback.speakFeedback(analysisResult.feedback_code, analysisResult.exercise, { gender: 'female' });
           }
         } else {
           setDebugInfo(`Low visibility - show full body (F:${frameCountRef.current})`);

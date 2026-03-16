@@ -1,5 +1,10 @@
-import { ExerciseLogic, RepExerciseResult, Landmark, ReverseLungeResult } from '../types';
-
+import {
+  ExerciseLogic,
+  Landmark,
+  ReverseLungeResult,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 const LANDMARK_INDICES = {
   LEFT_SHOULDER: 11,
@@ -16,7 +21,13 @@ const THRESHOLDS = {
   STRIDE_OPEN: 0.25,
   STRIDE_CLOSE: 0.15,
   SQUATGUARDSTRIDE: 0.2,
-  DEPTHKNEEANGLE: 75, // Stricter depth – require deeper lunge (~95° or less)
+
+  // Front knee needs decent depth
+  DEPTHKNEEANGLE: 75,
+
+  // Optional light check for back knee bending enough
+  BACK_KNEE_BEND_MAX: 130,
+
   STRAIGHTKNEEUP: 155,
   SQUATGUARDKNEE_BEND: 135,
   MINBODYHEIGHT: 0.2,
@@ -28,15 +39,13 @@ const EMA_ALPHA = 0.4;
 export class ReverseLungeLogic implements ExerciseLogic {
   private state: 'stand' | 'lunge' | 'returning' = 'stand';
   private activeSide: 'LEFT' | 'RIGHT' | 'NONE' = 'NONE';
-  private reps: number = 0;
+  private reps = 0;
   private anchorX: number | null = null;
-  private stableFrames: number = 0;
-  private depthStableFrames: number = 0;
-  private hasReachedDepth: boolean = false;
-  private smoothedLeftKneeAngle: number = 170;
-  private smoothedRightKneeAngle: number = 170;
-
-  constructor() {}
+  private stableFrames = 0;
+  private depthStableFrames = 0;
+  private hasReachedDepth = false;
+  private smoothedLeftKneeAngle = 170;
+  private smoothedRightKneeAngle = 170;
 
   reset(): void {
     this.state = 'stand';
@@ -53,6 +62,7 @@ export class ReverseLungeLogic implements ExerciseLogic {
   private getDistance(idx1: number, idx2: number, landmarks: Landmark[]): number {
     const p1 = landmarks[idx1];
     const p2 = landmarks[idx2];
+
     if (
       !p1 ||
       !p2 ||
@@ -61,6 +71,7 @@ export class ReverseLungeLogic implements ExerciseLogic {
     ) {
       return 0;
     }
+
     return Math.hypot(p1.x - p2.x, p1.y - p2.y);
   }
 
@@ -73,6 +84,7 @@ export class ReverseLungeLogic implements ExerciseLogic {
     const hip = landmarks[hipIdx];
     const knee = landmarks[kneeIdx];
     const ankle = landmarks[ankleIdx];
+
     if (
       !hip ||
       !knee ||
@@ -100,8 +112,11 @@ export class ReverseLungeLogic implements ExerciseLogic {
     return EMA_ALPHA * curr + (1 - EMA_ALPHA) * prev;
   }
 
-  analyze(landmarks: Landmark[]): ReverseLungeResult {
-    let feedback_code = '';
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): ReverseLungeResult {
+    let feedback_code: FeedbackSignal = 'SETUP_STAND_STRAIGHT';
     let is_correct = true;
 
     if (!landmarks || landmarks.length < 33) {
@@ -145,9 +160,10 @@ export class ReverseLungeLogic implements ExerciseLogic {
     const leftAnkleVis = (leftAnkle?.visibility ?? 0) > 0.5;
     const rightAnkleVis = (rightAnkle?.visibility ?? 0) > 0.5;
 
-    const strideDistance = leftAnkleVis && rightAnkleVis
-      ? Math.hypot(leftAnkle.x - rightAnkle.x, leftAnkle.y - rightAnkle.y)
-      : 0;
+    const strideDistance =
+      leftAnkleVis && rightAnkleVis
+        ? Math.hypot(leftAnkle.x - rightAnkle.x, leftAnkle.y - rightAnkle.y)
+        : 0;
 
     // Knee angles with EMA smoothing
     const leftKneeRaw = this.calculateKneeAngle(
@@ -172,13 +188,18 @@ export class ReverseLungeLogic implements ExerciseLogic {
 
     const minKneeAngle = Math.min(this.smoothedLeftKneeAngle, this.smoothedRightKneeAngle);
 
-    // Global squat guard anti-cheat
-    if (strideDistance < THRESHOLDS.SQUATGUARDSTRIDE * bodyHeight && minKneeAngle < THRESHOLDS.SQUATGUARDKNEE_BEND) {
+    // Global squat-guard anti-cheat
+    if (
+      strideDistance < THRESHOLDS.SQUATGUARDSTRIDE * bodyHeight &&
+      minKneeAngle < THRESHOLDS.SQUATGUARDKNEE_BEND
+    ) {
       feedback_code = 'ERR_STEP_FURTHER_BACK';
       is_correct = false;
     }
 
+    // -----------------------------
     // State Machine
+    // -----------------------------
     if (this.state === 'stand') {
       const feetTogether = strideDistance < THRESHOLDS.STRIDE_CLOSE * bodyHeight;
 
@@ -193,14 +214,20 @@ export class ReverseLungeLogic implements ExerciseLogic {
       if (this.anchorX !== null && leftAnkleVis && rightAnkleVis) {
         const leftDev = Math.abs(leftAnkle.x - this.anchorX);
         const rightDev = Math.abs(rightAnkle.x - this.anchorX);
-        potentialActiveSide = leftDev > rightDev ? 'LEFT' : rightDev > leftDev ? 'RIGHT' : 'NONE';
+        potentialActiveSide =
+          leftDev > rightDev
+            ? 'LEFT'
+            : rightDev > leftDev
+              ? 'RIGHT'
+              : 'NONE';
       }
 
       if (strideOpen) {
         this.stableFrames++;
         if (this.stableFrames >= STABLE_THRESHOLD) {
           this.state = 'lunge';
-          this.activeSide = potentialActiveSide !== 'NONE' ? potentialActiveSide : 'RIGHT'; // fallback
+          this.activeSide =
+            potentialActiveSide !== 'NONE' ? potentialActiveSide : 'RIGHT';
           this.stableFrames = 0;
           this.hasReachedDepth = false;
           this.depthStableFrames = 0;
@@ -209,24 +236,40 @@ export class ReverseLungeLogic implements ExerciseLogic {
         this.stableFrames = 0;
       }
 
-      if (!feedback_code) {
-        if (strideOpen) feedback_code = 'CMD_GO_LOWER';
-        else feedback_code = 'SETUP_STAND_STRAIGHT';
+      if (feedback_code === 'SETUP_STAND_STRAIGHT') {
+        feedback_code = strideOpen ? 'CMD_GO_LOWER' : 'SETUP_STAND_STRAIGHT';
       }
-    } 
+    }
+
     else if (this.state === 'lunge') {
       // Fallback active side if still NONE
-      if (this.activeSide === 'NONE' && this.anchorX !== null && leftAnkleVis && rightAnkleVis) {
+      if (
+        this.activeSide === 'NONE' &&
+        this.anchorX !== null &&
+        leftAnkleVis &&
+        rightAnkleVis
+      ) {
         const leftDev = Math.abs(leftAnkle.x - this.anchorX);
         const rightDev = Math.abs(rightAnkle.x - this.anchorX);
         this.activeSide = leftDev > rightDev ? 'LEFT' : 'RIGHT';
       }
 
-      const frontKneeAngle = this.activeSide === 'LEFT'
-        ? this.smoothedRightKneeAngle
-        : this.smoothedLeftKneeAngle;
+      // If activeSide = LEFT, that means LEFT foot stepped back,
+      // so RIGHT knee is the front knee and LEFT knee is the back knee.
+      const frontKneeAngle =
+        this.activeSide === 'LEFT'
+          ? this.smoothedRightKneeAngle
+          : this.smoothedLeftKneeAngle;
 
-      if (frontKneeAngle <= THRESHOLDS.DEPTHKNEEANGLE) {
+      const backKneeAngle =
+        this.activeSide === 'LEFT'
+          ? this.smoothedLeftKneeAngle
+          : this.smoothedRightKneeAngle;
+
+      const frontDeepEnough = frontKneeAngle <= THRESHOLDS.DEPTHKNEEANGLE;
+      const backBentEnough = backKneeAngle <= THRESHOLDS.BACK_KNEE_BEND_MAX;
+
+      if (frontDeepEnough && backBentEnough) {
         this.depthStableFrames++;
         if (this.depthStableFrames >= STABLE_THRESHOLD) {
           this.hasReachedDepth = true;
@@ -237,10 +280,11 @@ export class ReverseLungeLogic implements ExerciseLogic {
         this.depthStableFrames = Math.max(0, this.depthStableFrames - 1);
       }
 
-      if (!feedback_code) {
+      if (feedback_code === 'SETUP_STAND_STRAIGHT') {
         feedback_code = this.hasReachedDepth ? 'CMD_RETURN_START' : 'CMD_GO_LOWER';
       }
-    } 
+    }
+
     else if (this.state === 'returning') {
       const feetTogether = strideDistance < THRESHOLDS.STRIDE_CLOSE * bodyHeight;
       const avgKnee = (this.smoothedLeftKneeAngle + this.smoothedRightKneeAngle) / 2;
@@ -251,34 +295,33 @@ export class ReverseLungeLogic implements ExerciseLogic {
         if (this.stableFrames >= STABLE_THRESHOLD) {
           if (this.hasReachedDepth) {
             this.reps++;
-            feedback_code = 'REP_SUCCESS';
+            feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
           }
+
           this.state = 'stand';
           this.activeSide = 'NONE';
           this.hasReachedDepth = false;
           this.stableFrames = 0;
           this.depthStableFrames = 0;
+
           if (leftAnkleVis && rightAnkleVis) {
             this.anchorX = (leftAnkle.x + rightAnkle.x) / 2;
           }
         }
       } else {
         this.stableFrames = Math.max(0, this.stableFrames - 1);
-        if (!feedback_code) {
+
+        if (feedback_code === 'SETUP_STAND_STRAIGHT') {
           feedback_code = isStanding ? 'CMD_FEET_TOGETHER' : 'CMD_STAND_UP';
         }
       }
     }
 
-    if (!feedback_code) feedback_code = 'GOOD_FORM';
-
-    const stage = this.state === 'stand' ? 'stand' : 'lunge';
-
     return {
       exercise: 'reverse_lunge',
       activeSide: this.activeSide,
       reps: this.reps,
-      stage,
+      stage: this.state === 'stand' ? 'stand' : 'lunge',
       feedback_code,
       is_correct,
     };

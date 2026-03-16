@@ -3,22 +3,25 @@
  *
  * FAST + STABLE VERSION ✅ (Front view, 30fps, phone around belt/belly height)
  *
- * - Counting based on HIP FLEXION ANGLE (x,y,z)
- * - No stuck reps: Alternation pairing (LEFT then RIGHT or RIGHT then LEFT)
- * - Portrait safe: posture is SEVERE-only and checked ONLY when both legs are DOWN
- * - STRICTER: Small lifts no longer count
+ * Fixes Applied ✅:
+ * 1) Pending pair counting:
+ *    - If a LEFT+RIGHT (or RIGHT+LEFT) pair completes but MIN_REP_INTERVAL blocks counting,
+ *      we DO NOT discard it. We mark it pending and count as soon as interval allows.
  *
- * PATCH (Feedback Only ✅):
- * - REP_SUCCESS shown for a short time then auto returns to dynamic feedback
- * - Idle detection: if user stands still -> START_MOVING
- * - If moving but not enough -> CMD_KNEES_HIGHER
+ * 2) Slightly less strict thresholds for real-world fast high knees:
+ *    - Lower UP_ANGLE_DELTA & PEAK_EXTRA_DELTA
+ *    - Lower debounce requirements (STABLE_FRAMES / MIN_UP_HOLD_FRAMES)
  *
- * PATCH (Fast reps ✅):
- * - Allow faster rep rate (MIN_REP_INTERVAL_FRAMES lowered)
- * - Do NOT discard a completed pair if interval blocks counting; wait and count as soon as allowed
+ * 3) ✅ NEW:
+ *    - Extra knee-height gate:
+ *      The knee must rise to a minimum height (roughly under belt / lower belly level),
+ *      not just trigger by angle alone.
+ *
+ * Notes:
+ * - Rep definition stays: one rep = alternating pair (L then R OR R then L)
  */
 
-import { Landmark, HighKneesResult, ExerciseLogic } from '../types';
+import { Landmark, HighKneesResult, ExerciseLogic, FeedbackSignal } from '../types';
 import { PoseLandmarks, EMA } from '../utils';
 
 type Leg = 'LEFT' | 'RIGHT';
@@ -26,7 +29,7 @@ type Leg = 'LEFT' | 'RIGHT';
 export class HighKneesLogic implements ExerciseLogic {
   private reps = 0;
   private stage: 'neutral' | 'active' = 'neutral';
-  private feedbackCode = 'SETUP_STAND_STILL';
+  private feedbackCode: FeedbackSignal = 'SETUP_STAND_STILL';
   private isCorrect = true;
 
   // Calibration
@@ -48,21 +51,29 @@ export class HighKneesLogic implements ExerciseLogic {
   private emaRightHipAngle = new EMA(0.45);
 
   // Visibility
-  private readonly MIN_VISIBILITY = 0.6;
+  private readonly MIN_VISIBILITY = 0.5;
 
-  // ---------- STRICTNESS / SPEED KNOBS (tuned for 30fps) ----------
-  private readonly UP_ANGLE_DELTA = 25;
+  // ---------- STRICTNESS / SPEED KNOBS ----------
+  private readonly UP_ANGLE_DELTA = 20;
   private readonly DOWN_ANGLE_DELTA = 12;
-  private readonly PEAK_EXTRA_DELTA = 8;
+  private readonly PEAK_EXTRA_DELTA = 5;
 
-  private readonly STABLE_FRAMES = 3;
-  private readonly MIN_UP_HOLD_FRAMES = 2;
+  private readonly STABLE_FRAMES = 2;
+  private readonly MIN_UP_HOLD_FRAMES = 1;
 
-  // ✅ was 8 (too restrictive for fast pace). Now allows fast reps.
-  private readonly MIN_REP_INTERVAL_FRAMES = 3; // ~0.10s @30fps
-
-  // Pair window so it won't get stuck
+  private readonly MIN_REP_INTERVAL_FRAMES = 3;
   private readonly PAIR_WINDOW_FRAMES = 90;
+
+  // ✅ NEW: minimum knee height requirement
+  // This value is normalized by torso length:
+  // kneeBelowHipNorm = (knee.y - hip.y) / torsoLen
+  // smaller = higher knee.
+  // 0.40 تقريبًا = الركبة قربت من مستوى تحت الحزام / أسفل البطن.
+  private readonly KNEE_HEIGHT_MAX_NORM = 0.15;
+
+  // ✅ NEW: short feedback window when lift is too low
+  private tooLowCueFramesLeft = 0;
+  private readonly TOO_LOW_CUE_FRAMES = 8;
 
   // Posture (SEVERE only)
   private readonly SEVERE_POSTURE_TOLERANCE = 0.66;
@@ -89,22 +100,27 @@ export class HighKneesLogic implements ExerciseLogic {
   private leftMinAngle = 999;
   private rightMinAngle = 999;
 
+  // ✅ NEW: best (smallest) knee-below-hip normalized value during current UP
+  private leftBestKneeHeightNorm = 999;
+  private rightBestKneeHeightNorm = 999;
+
   // Pairing (alternation)
   private firstLegInPair: Leg | null = null;
   private pairStartFrame = 0;
+
+  // Pending completed pair (for interval block)
+  private pendingPairReady = false;
 
   // Frame counters
   private frameCount = 0;
   private lastRepFrame = -999999;
 
-  // =========================
-  // ✅ FEEDBACK FIX
-  // =========================
+  // Feedback timing
   private repSuccessFramesLeft = 0;
-  private readonly REP_SUCCESS_DISPLAY_FRAMES = 12; // ~0.4s @30fps
+  private readonly REP_SUCCESS_DISPLAY_FRAMES = 12;
 
   private idleStreak = 0;
-  private readonly IDLE_FRAMES = 20; // ~0.66s @30fps
+  private readonly IDLE_FRAMES = 20;
 
   analyze(landmarks: Landmark[]): HighKneesResult {
     this.frameCount++;
@@ -139,6 +155,11 @@ export class HighKneesLogic implements ExerciseLogic {
     const leftHipAngle = this.emaLeftHipAngle.update(leftHipAngleRaw);
     const rightHipAngle = this.emaRightHipAngle.update(rightHipAngleRaw);
 
+    // ✅ NEW: normalized knee height relative to hip
+    // smaller = knee is higher
+    const leftKneeBelowHipNorm = (lKnee.y - lHip.y) / safeTorsoLen2D;
+    const rightKneeBelowHipNorm = (rKnee.y - rHip.y) / safeTorsoLen2D;
+
     // ---------------- Calibration ----------------
     if (!this.isCalibrated) {
       this.calibrationFrames++;
@@ -163,7 +184,9 @@ export class HighKneesLogic implements ExerciseLogic {
     const RIGHT_DOWN_ANGLE = this.baselineRightHipAngle - this.DOWN_ANGLE_DELTA;
 
     // Consider legs down if both angles are above down threshold
-    const legsAreDown = leftHipAngle > LEFT_DOWN_ANGLE && rightHipAngle > RIGHT_DOWN_ANGLE;
+    const legsAreDown =
+      leftHipAngle > LEFT_DOWN_ANGLE &&
+      rightHipAngle > RIGHT_DOWN_ANGLE;
 
     // ---------------- Posture (SEVERE only, only when legs are DOWN) ----------------
     const severePostureBad =
@@ -209,6 +232,7 @@ export class HighKneesLogic implements ExerciseLogic {
           this.leftDownStreak = 0;
           this.leftUpHold = 0;
           this.leftMinAngle = leftHipAngle;
+          this.leftBestKneeHeightNorm = leftKneeBelowHipNorm; // ✅ start tracking height
         }
       } else {
         this.leftUpStreak = 0;
@@ -216,6 +240,10 @@ export class HighKneesLogic implements ExerciseLogic {
     } else {
       this.leftUpHold++;
       this.leftMinAngle = Math.min(this.leftMinAngle, leftHipAngle);
+      this.leftBestKneeHeightNorm = Math.min(
+        this.leftBestKneeHeightNorm,
+        leftKneeBelowHipNorm
+      );
 
       if (this.leftUpHold >= this.MIN_UP_HOLD_FRAMES) {
         if (leftHipAngle > LEFT_DOWN_ANGLE) {
@@ -224,10 +252,17 @@ export class HighKneesLogic implements ExerciseLogic {
             this.leftLegState = 'DOWN';
             this.leftDownStreak = 0;
 
-            if (this.leftMinAngle < LEFT_COMPLETE_ANGLE) {
+            const leftHighEnough =
+              this.leftBestKneeHeightNorm <= this.KNEE_HEIGHT_MAX_NORM;
+
+            if (this.leftMinAngle < LEFT_COMPLETE_ANGLE && leftHighEnough) {
               this.onLegComplete('LEFT');
+            } else if (this.leftMinAngle < LEFT_COMPLETE_ANGLE && !leftHighEnough) {
+              this.tooLowCueFramesLeft = this.TOO_LOW_CUE_FRAMES;
             }
+
             this.leftMinAngle = 999;
+            this.leftBestKneeHeightNorm = 999;
           }
         } else {
           this.leftDownStreak = 0;
@@ -247,6 +282,7 @@ export class HighKneesLogic implements ExerciseLogic {
           this.rightDownStreak = 0;
           this.rightUpHold = 0;
           this.rightMinAngle = rightHipAngle;
+          this.rightBestKneeHeightNorm = rightKneeBelowHipNorm; // ✅ start tracking height
         }
       } else {
         this.rightUpStreak = 0;
@@ -254,6 +290,10 @@ export class HighKneesLogic implements ExerciseLogic {
     } else {
       this.rightUpHold++;
       this.rightMinAngle = Math.min(this.rightMinAngle, rightHipAngle);
+      this.rightBestKneeHeightNorm = Math.min(
+        this.rightBestKneeHeightNorm,
+        rightKneeBelowHipNorm
+      );
 
       if (this.rightUpHold >= this.MIN_UP_HOLD_FRAMES) {
         if (rightHipAngle > RIGHT_DOWN_ANGLE) {
@@ -262,10 +302,17 @@ export class HighKneesLogic implements ExerciseLogic {
             this.rightLegState = 'DOWN';
             this.rightDownStreak = 0;
 
-            if (this.rightMinAngle < RIGHT_COMPLETE_ANGLE) {
+            const rightHighEnough =
+              this.rightBestKneeHeightNorm <= this.KNEE_HEIGHT_MAX_NORM;
+
+            if (this.rightMinAngle < RIGHT_COMPLETE_ANGLE && rightHighEnough) {
               this.onLegComplete('RIGHT');
+            } else if (this.rightMinAngle < RIGHT_COMPLETE_ANGLE && !rightHighEnough) {
+              this.tooLowCueFramesLeft = this.TOO_LOW_CUE_FRAMES;
             }
+
             this.rightMinAngle = 999;
+            this.rightBestKneeHeightNorm = 999;
           }
         } else {
           this.rightDownStreak = 0;
@@ -273,6 +320,19 @@ export class HighKneesLogic implements ExerciseLogic {
       } else {
         this.rightDownStreak = 0;
       }
+    }
+
+    // Pending completed pair
+    if (this.pendingPairReady && (this.frameCount - this.lastRepFrame >= this.MIN_REP_INTERVAL_FRAMES)) {
+      this.reps++;
+      this.lastRepFrame = this.frameCount;
+
+      this.feedbackCode = 'REP_SUCCESS';
+      this.repSuccessFramesLeft = this.REP_SUCCESS_DISPLAY_FRAMES;
+
+      this.pendingPairReady = false;
+      this.firstLegInPair = null;
+      this.pairStartFrame = 0;
     }
 
     // Stage
@@ -285,11 +345,20 @@ export class HighKneesLogic implements ExerciseLogic {
     if (this.firstLegInPair && (this.frameCount - this.pairStartFrame > this.PAIR_WINDOW_FRAMES)) {
       this.firstLegInPair = null;
       this.pairStartFrame = 0;
+      this.pendingPairReady = false;
     }
 
     // ---------------- Feedback logic ----------------
     if (this.repSuccessFramesLeft > 0) {
       this.repSuccessFramesLeft--;
+      return this.createResult(this.feedbackCode, true);
+    }
+
+    // ✅ NEW: if recent lift was too low, explicitly ask for higher knees
+    if (this.tooLowCueFramesLeft > 0) {
+      this.tooLowCueFramesLeft--;
+      this.feedbackCode = 'CMD_KNEES_HIGHER';
+      this.isCorrect = true;
       return this.createResult(this.feedbackCode, true);
     }
 
@@ -317,24 +386,23 @@ export class HighKneesLogic implements ExerciseLogic {
     if (this.firstLegInPair === leg) {
       this.firstLegInPair = leg;
       this.pairStartFrame = this.frameCount;
+      this.pendingPairReady = false;
       return;
     }
 
     // Different leg -> pair completed
-    // ✅ IMPORTANT: if interval blocks, DO NOT discard the pair; wait until allowed.
     if (this.frameCount - this.lastRepFrame >= this.MIN_REP_INTERVAL_FRAMES) {
       this.reps++;
       this.lastRepFrame = this.frameCount;
 
-      this.feedbackCode = 'REP_SUCCESS';
+      this.feedbackCode = `COUNT_${this.reps}` as FeedbackSignal;
       this.repSuccessFramesLeft = this.REP_SUCCESS_DISPLAY_FRAMES;
 
-      // Reset pair only when counted
       this.firstLegInPair = null;
       this.pairStartFrame = 0;
+      this.pendingPairReady = false;
     } else {
-      // Keep pair so it can be counted on next eligible completion
-      // (prevents "only last rep counted" when going very fast)
+      this.pendingPairReady = true;
     }
   }
 
@@ -373,10 +441,16 @@ export class HighKneesLogic implements ExerciseLogic {
     this.leftMinAngle = 999;
     this.rightMinAngle = 999;
 
+    this.leftBestKneeHeightNorm = 999;
+    this.rightBestKneeHeightNorm = 999;
+
     this.firstLegInPair = null;
     this.pairStartFrame = 0;
 
+    this.pendingPairReady = false;
+
     this.repSuccessFramesLeft = 0;
+    this.tooLowCueFramesLeft = 0;
     this.idleStreak = 0;
   }
 
@@ -384,7 +458,7 @@ export class HighKneesLogic implements ExerciseLogic {
     return lms.every(lm => (lm.visibility || 0) > this.MIN_VISIBILITY);
   }
 
-  private createResult(feedback: string, isCorrect: boolean): HighKneesResult {
+  private createResult(feedback: FeedbackSignal, isCorrect: boolean): HighKneesResult {
     return {
       exercise: 'high_knees',
       reps: this.reps,
@@ -424,6 +498,9 @@ export class HighKneesLogic implements ExerciseLogic {
     this.leftMinAngle = 999;
     this.rightMinAngle = 999;
 
+    this.leftBestKneeHeightNorm = 999;
+    this.rightBestKneeHeightNorm = 999;
+
     this.frameCount = 0;
     this.lastRepFrame = -999999;
 
@@ -433,7 +510,10 @@ export class HighKneesLogic implements ExerciseLogic {
     this.firstLegInPair = null;
     this.pairStartFrame = 0;
 
+    this.pendingPairReady = false;
+
     this.repSuccessFramesLeft = 0;
+    this.tooLowCueFramesLeft = 0;
     this.idleStreak = 0;
   }
 }

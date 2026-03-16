@@ -4,6 +4,13 @@
  *
  * This is the TypeScript port of the Python AI Fitness Engine.
  * All processing happens on-device (no server required).
+ *
+ * Improvements:
+ * - Stronger exercise-name normalization
+ * - Uses SupportedExercises as the single source of truth
+ * - Cleaner error handling
+ * - Safe helper for non-throwing trainer lookup
+ * - Better alignment with the updated types.ts
  */
 
 import {
@@ -14,11 +21,11 @@ import {
   LegRaisesLogic,
   SupermanLogic,
   JumpingJacksLogic,
-  // New Exercises
+
+  // New / additional exercises
   LateralRaisesLogic,
   FrontRaisesLogic,
-  OverheadPressLogic, 
-  /////////////////////////
+  OverheadPressLogic,
   HighKneesLogic,
   KneeTapLogic,
   PikePushupLogic,
@@ -28,8 +35,6 @@ import {
   BirdDogLogic,
   ReverseLungeLogic,
   VUpsLogic,
-  /////////////////////////
-
   BentKneeDipLogic,
   ClassicPushUpLogic,
   KneePushUpLogic,
@@ -38,182 +43,165 @@ import {
   InchwormLogic,
   SideLyingLegRaiseLogic,
   KneeTucksLogic,
-  DonkeyKickLogic
-
+  DonkeyKickLogic,
 } from './exercises';
 
-import { ExerciseLogic, ExerciseName } from './types';
+import {
+  ExerciseLogic,
+  ExerciseName,
+  SupportedExercises,
+} from './types';
+
+type TrainerConstructor = new () => ExerciseLogic;
+
+/**
+ * Single registry for all supported exercises.
+ * This makes the engine easier to maintain and extend.
+ */
+const TRAINER_REGISTRY: Record<ExerciseName, TrainerConstructor> = {
+  squat: SquatLogic,
+  superman: SupermanLogic,
+  leg_raises: LegRaisesLogic,
+  high_plank: HighPlankLogic,
+  elbow_plank: ElbowPlankLogic,
+  crunch: CrunchLogic,
+  jumping_jacks: JumpingJacksLogic,
+
+  lateral_raises: LateralRaisesLogic,
+  front_raises: FrontRaisesLogic,
+  standing_overhead_press: OverheadPressLogic,
+
+  high_knees: HighKneesLogic,
+  knee_tap: KneeTapLogic,
+  pike_pushup: PikePushupLogic,
+  static_split_squat: StaticSplitSquatLogic,
+  chair_squat: ChairSquatLogic,
+  glute_bridge: GluteBridgeLogic,
+  bird_dog: BirdDogLogic,
+  reverse_lunge: ReverseLungeLogic,
+  v_ups: VUpsLogic,
+
+  bent_knee_dip: BentKneeDipLogic,
+  classic_push_up: ClassicPushUpLogic,
+  knee_push_up: KneePushUpLogic,
+  straight_leg_dip: StraightLegDipLogic,
+  toe_touch: ToeTouchLogic,
+  inchworm: InchwormLogic,
+  side_lying_leg_raise: SideLyingLegRaiseLogic,
+  knee_tucks: KneeTucksLogic,
+  donkey_kick: DonkeyKickLogic,
+};
+
+/**
+ * Normalize exercise names so input like:
+ * - "High Plank"
+ * - " high_plank "
+ * - "High   Plank"
+ * - "high-plank"
+ * all become:
+ * - "high_plank"
+ */
+export function normalizeExerciseName(exerciseName: string): string {
+  return exerciseName
+    .trim()
+    .toLowerCase()
+    .replace(/[-\s]+/g, '_')
+    .replace(/_+/g, '_');
+}
 
 /**
  * AI Fitness Engine - Factory Class
- * The main entry point for developers to create exercise trainers.
+ * Main entry point for creating exercise trainers.
  */
 export class AIFitnessEngine {
   /**
-   * Returns the logic instance for a specific exercise.
+   * Get logic instance for a specific exercise.
    *
-   * @param exerciseName - The ID/Name of the exercise (e.g., 'squat', 'crunch')
-   * @returns The logic class instance for that exercise
-   * @throws Error if the exercise name is not supported
+   * @param exerciseName - Exercise name or ID (e.g. "squat", "high plank")
+   * @returns A new exercise logic instance
+   * @throws Error if the exercise is not supported
    */
   static getTrainer(exerciseName: string): ExerciseLogic {
-    // Normalize the input (lowercase and trim)
-    const key = exerciseName.toLowerCase().trim() as ExerciseName;
+    const normalized = normalizeExerciseName(exerciseName) as ExerciseName;
+    const TrainerClass = TRAINER_REGISTRY[normalized];
 
-    switch (key) {
-      // --- ORIGINAL EXERCISES ---
-      case 'squat':
-        return new SquatLogic();
-
-      case 'superman':
-        return new SupermanLogic();
-
-      case 'leg_raises':
-        return new LegRaisesLogic();
-
-      case 'high_plank':
-        return new HighPlankLogic();
-
-      case 'elbow_plank':
-        return new ElbowPlankLogic();
-
-      case 'crunch':
-        return new CrunchLogic();
-
-      case 'jumping_jacks':
-        return new JumpingJacksLogic();
-
-      // --- NEW EXERCISES ---
-      case 'lateral_raises':
-        return new LateralRaisesLogic();
-
-      case 'front_raises':
-        return new FrontRaisesLogic();
-
-      case 'standing_overhead_press':
-        return new OverheadPressLogic();
-      // --- ADDITIONAL EXERCISES ---
-
-        // ...
-      case 'high_knees': 
-        return new HighKneesLogic();
-
-      case 'knee_tap':
-        return new KneeTapLogic();
-
-      case 'pike_pushup':
-        return new PikePushupLogic();
-
-      case 'static_split_squat':
-        return new StaticSplitSquatLogic();
-
-      case 'chair_squat':
-        return new ChairSquatLogic();
-
-      case 'glute_bridge':
-        return new GluteBridgeLogic();
-
-      case 'bird_dog':
-        return new BirdDogLogic();
-
-      case 'reverse_lunge':
-        return new ReverseLungeLogic();
-      
-      case 'v_ups':
-        return new VUpsLogic();
-
-      
-      case 'bent_knee_dip':
-        return new BentKneeDipLogic();
-      
-      case 'knee_push_up':
-        return new KneePushUpLogic();
-
-      case 'classic_push_up':
-        return new ClassicPushUpLogic();
-
-      case 'straight_leg_dip':
-        return new StraightLegDipLogic();
-
-      case 'toe_touch':
-        return new ToeTouchLogic();
-
-      case 'inchworm':
-        return new InchwormLogic();
-
-      case 'side_lying_leg_raise':
-        return new SideLyingLegRaiseLogic();
-
-      case 'knee_tucks':
-        return new KneeTucksLogic();
-
-      case 'donkey_kick':
-        return new DonkeyKickLogic();
-
-
-
-      default:
-        throw new Error(
-          `⚠️ Exercise '${exerciseName}' is not supported yet. ` +
-            `Available: squat, superman, leg_raises, high_plank, elbow_plank, crunch, jumping_jacks, lateral_raises, front_raises, standing_overhead_press`
-        );
+    if (!TrainerClass) {
+      const available = this.getSupportedExercises().join(', ');
+      throw new Error(
+        `Exercise '${exerciseName}' is not supported. Normalized name: '${normalized}'. Supported exercises: ${available}`
+      );
     }
+
+    return new TrainerClass();
   }
 
   /**
-   * Get list of all supported exercises
+   * Try to get a trainer without throwing.
+   *
+   * @param exerciseName - Exercise name or ID
+   * @returns A new exercise logic instance, or null if not supported
+   */
+  static tryGetTrainer(exerciseName: string): ExerciseLogic | null {
+    const normalized = normalizeExerciseName(exerciseName) as ExerciseName;
+    const TrainerClass = TRAINER_REGISTRY[normalized];
+    return TrainerClass ? new TrainerClass() : null;
+  }
+
+  /**
+   * Get all supported exercise names.
    *
    * @returns Array of supported exercise names
    */
   static getSupportedExercises(): ExerciseName[] {
-    return [
-      'squat',
-      'superman',
-      'leg_raises',
-      'high_plank',
-      'elbow_plank',
-      'crunch',
-      'jumping_jacks',
-      // New additions
-      'lateral_raises',
-      'front_raises',
-      'standing_overhead_press',
-      'high_knees',
-      'knee_tap',
-      'pike_pushup',
-      'static_split_squat',
-      'chair_squat',
-      'glute_bridge',
-      'bird_dog',
-      'reverse_lunge',
-      'v_ups',
-      'bent_knee_dip',
-      'knee_push_up',
-      'classic_push_up',
-      'straight_leg_dip',
-      'toe_touch',
-      'inchworm',
-      'side_lying_leg_raise',
-      'knee_tucks',
-      'donkey_kick',
-    ];
+    return [...SupportedExercises];
   }
 
   /**
-   * Check if an exercise is supported
+   * Check if an exercise is supported.
    *
-   * @param exerciseName - The exercise name to check
+   * @param exerciseName - Exercise name to check
    * @returns true if supported, false otherwise
    */
   static isExerciseSupported(exerciseName: string): boolean {
-    const key = exerciseName.toLowerCase().trim();
-    return this.getSupportedExercises().includes(key as ExerciseName);
+    const normalized = normalizeExerciseName(exerciseName) as ExerciseName;
+    return normalized in TRAINER_REGISTRY;
   }
 }
 
-// Re-export types and utils for convenience
+// Re-export types and helpers for convenience
 export * from './types';
 export * from './utils';
-export * from './exercises';
 export * from './feedbackMapping';
 export * from './voiceFeedback';
+
+// Re-export exercise logic classes explicitly to avoid export name collisions
+export {
+  SquatLogic,
+  HighPlankLogic,
+  ElbowPlankLogic,
+  CrunchLogic,
+  LegRaisesLogic,
+  SupermanLogic,
+  JumpingJacksLogic,
+  LateralRaisesLogic,
+  FrontRaisesLogic,
+  OverheadPressLogic,
+  HighKneesLogic,
+  KneeTapLogic,
+  PikePushupLogic,
+  StaticSplitSquatLogic,
+  ChairSquatLogic,
+  GluteBridgeLogic,
+  BirdDogLogic,
+  ReverseLungeLogic,
+  VUpsLogic,
+  BentKneeDipLogic,
+  ClassicPushUpLogic,
+  KneePushUpLogic,
+  StraightLegDipLogic,
+  ToeTouchLogic,
+  InchwormLogic,
+  SideLyingLegRaiseLogic,
+  KneeTucksLogic,
+  DonkeyKickLogic,
+} from './exercises';

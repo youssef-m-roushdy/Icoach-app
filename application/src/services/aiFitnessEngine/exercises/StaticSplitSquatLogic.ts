@@ -1,4 +1,10 @@
-import { Landmark, StaticSplitSquatResult, ExerciseLogic } from '../types';
+import {
+  Landmark,
+  StaticSplitSquatResult,
+  ExerciseLogic,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 import { PoseLandmarks, calculateAngle, EMA } from '../utils';
 
 type Stage = 'setup' | 'up' | 'down';
@@ -7,11 +13,11 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
   private reps = 0;
   private stage: Stage = 'setup';
 
-  private feedbackCode = 'SETUP_SPLIT_STANCE';
+  private feedbackCode: FeedbackSignal = 'SETUP_SPLIT_STANCE';
   private isCorrect = true;
 
   // ---- Feedback Debounce State ----
-  private candidateCode = 'SETUP_SPLIT_STANCE';
+  private candidateCode: FeedbackSignal = 'SETUP_SPLIT_STANCE';
   private candidateOk = true;
   private candidateFrames = 0;
 
@@ -29,20 +35,30 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
   private stanceLostFrames = 0;
 
   private readonly CONFIRM_FRAMES = 4;
-  private readonly SETUP_CONFIRM_FRAMES = 10; // زودناها عشان ميثبتش غير لما يتأكد
-  private readonly STANCE_LOST_FRAMES = 5;    // قللناها عشان يلغي بسرعة لو ضميت رجلك
+  private readonly SETUP_CONFIRM_FRAMES = 10;
+  private readonly STANCE_LOST_FRAMES = 3;
 
   // ---- Knee thresholds ----
   private readonly KNEE_UP = 154;
-  private readonly KNEE_DOWN = 85; // رفعناها سنة صغيرة عشان نضمن النزول الواضح
+  private readonly KNEE_DOWN = 85;
   private readonly MIN_ROM_DEG = 45;
 
   private readonly LOWER_HINT_RATIO = 0.60;
 
-  // ---- Stance thresholds (Strict) ----
-  private readonly SPLIT_RATIO_LOCK = 0.90;  // لازم تفتح رجلك جامد عشان يبدأ
-  // ⛔ أهم تعديل: رفعنا الرقم ده عشان لو ضميت رجلك (سكوات) يفصل فوراً
-  private readonly SPLIT_RATIO_RESET = 0.70; 
+  // ---- Stance thresholds ----
+  private readonly SPLIT_RATIO_LOCK = 0.90;
+  private readonly SPLIT_RATIO_RESET = 0.70;
+
+  /**
+   * ✅ NEW:
+   * لازم يكون فيه فرق "قدّام/ورا" واضح بين الرجلين
+   * relative to hip width
+   *
+   * تقريبًا بيمثل إن رجل تكون سابقة التانية بوضوح،
+   * مش مجرد فتحة جانبية زي السكوات.
+   */
+  private readonly FRONT_BACK_RATIO_LOCK = 0.28;
+  private readonly FRONT_BACK_RATIO_RESET = 0.20;
 
   // ---- Feet movement ----
   private readonly FOOT_MOVE_TOL_RATIO = 0.40;
@@ -56,7 +72,38 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
   private topAngleRef = 165;
   private topAngleFrames = 0;
 
-  analyze(lm: Landmark[]): StaticSplitSquatResult {
+  reset(): void {
+    this.reps = 0;
+    this.stage = 'setup';
+
+    this.feedbackCode = 'SETUP_SPLIT_STANCE';
+    this.isCorrect = true;
+
+    this.candidateCode = 'SETUP_SPLIT_STANCE';
+    this.candidateOk = true;
+    this.candidateFrames = 0;
+
+    this.isStanceLocked = false;
+    this.refLeft = { x: 0, z: 0 };
+    this.refRight = { x: 0, z: 0 };
+
+    this.stableFrames = 0;
+    this.setupStableFrames = 0;
+    this.stanceLostFrames = 0;
+
+    this.footWarnCooldown = 0;
+    this.pendingFeetWarn = false;
+
+    this.topAngleRef = 165;
+    this.topAngleFrames = 0;
+
+    this.emaActiveKnee.reset();
+  }
+
+  analyze(
+    lm: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): StaticSplitSquatResult {
     const lH = lm[PoseLandmarks.LEFT_HIP];
     const rH = lm[PoseLandmarks.RIGHT_HIP];
     const lK = lm[PoseLandmarks.LEFT_KNEE];
@@ -64,10 +111,8 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     const lA = lm[PoseLandmarks.LEFT_ANKLE];
     const rA = lm[PoseLandmarks.RIGHT_ANKLE];
 
-    // 1) Visibility & Frame Edge Check (منع العد الوهمي عند القرب)
-    // لو المفاصل المهمة قريبة جداً من حواف الشاشة (0 أو 1)، نوقف
+    // 1) Visibility & Frame Edge Check
     if (!this.isVisibleAndCentered([lH, rH, lK, rK, lA, rA])) {
-      // لو كنا مثبتين الوضع وخرجنا بره الكادر، نلغي التثبيت للأمان
       if (this.isStanceLocked) {
         this.isStanceLocked = false;
         this.stage = 'setup';
@@ -78,12 +123,26 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     // 2) Scales (relative)
     const hipWidth = Math.max(Math.abs(lH.x - rH.x), 0.08);
 
-    // 3) Split measure
+    // 3) Split measures
     const dx = Math.abs(lA.x - rA.x);
     const dz = Math.abs((lA.z ?? 0) - (rA.z ?? 0));
-    // التركيز الأكبر على المسافة الأفقية dx عشان نمنع وضعية السكوات
+
+    // Old overall split score
     const splitScore = Math.sqrt(dx * dx + (dz * 0.4) * (dz * 0.4));
     const splitRatio = splitScore / hipWidth;
+
+    // ✅ NEW: front/back requirement
+    const frontBackRatio = dz / hipWidth;
+
+    // رجل قدام ورجل ورا فعلًا؟
+    const hasRealSplitStance =
+      splitRatio >= this.SPLIT_RATIO_LOCK &&
+      frontBackRatio >= this.FRONT_BACK_RATIO_LOCK;
+
+    // فقدان وضع split الحقيقي
+    const lostRealSplitStance =
+      splitRatio < this.SPLIT_RATIO_RESET ||
+      frontBackRatio < this.FRONT_BACK_RATIO_RESET;
 
     // 4) Angles
     const lAng = calculateAngle(lH, lK, lA);
@@ -91,26 +150,24 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     const rawActiveAngle = Math.min(lAng, rAng);
     const activeAngle = this.emaActiveKnee.update(rawActiveAngle);
 
-    // ---------------- CRITICAL CHECK: Feet Together (Squat Detection) ----------------
-    // لو احنا شغالين، ولقينا الرجلين قربوا من بعض (أقل من الحد المسموح)
-    // افصل فوراً ومتعدش ولا عدة زيادة
-    if (this.isStanceLocked && splitRatio < this.SPLIT_RATIO_RESET) {
-       this.stanceLostFrames++;
-       if (this.stanceLostFrames > 3) { // 3 فريمات بس للتأكيد
-         this.isStanceLocked = false;
-         this.stage = 'setup';
-         this.stableFrames = 0;
-         this.stanceLostFrames = 0;
-         return this.emit('SETUP_SPLIT_STANCE', true, true);
-       }
+    // ---------------- CRITICAL CHECK: Not really split anymore ----------------
+    if (this.isStanceLocked && lostRealSplitStance) {
+      this.stanceLostFrames++;
+      if (this.stanceLostFrames >= this.STANCE_LOST_FRAMES) {
+        this.isStanceLocked = false;
+        this.stage = 'setup';
+        this.stableFrames = 0;
+        this.depthStableFramesReset();
+        this.stanceLostFrames = 0;
+        return this.emit('ERR_STEP_FURTHER_BACK', false, true);
+      }
     } else {
-       this.stanceLostFrames = 0;
+      this.stanceLostFrames = 0;
     }
 
     // ---------------- SETUP / LOCK ----------------
     if (!this.isStanceLocked) {
-      // لازم تفتح رجلك مسافة محترمة عشان يقبل
-      if (splitRatio >= this.SPLIT_RATIO_LOCK) {
+      if (hasRealSplitStance) {
         this.setupStableFrames++;
         if (this.setupStableFrames >= this.SETUP_CONFIRM_FRAMES) {
           this.isStanceLocked = true;
@@ -128,6 +185,12 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
         return this.emit('SETUP_SPLIT_STANCE', true);
       } else {
         this.setupStableFrames = 0;
+
+        // ✅ لو فيه فتح جانبي لكن مفيش رجل قدام/ورا → قول له رجع رجل لورا
+        if (splitRatio >= this.SPLIT_RATIO_RESET && frontBackRatio < this.FRONT_BACK_RATIO_LOCK) {
+          return this.emit('ERR_STEP_FURTHER_BACK', false, true);
+        }
+
         return this.emit('SETUP_SPLIT_STANCE', true);
       }
     }
@@ -176,7 +239,7 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
 
       this.stableFrames = 0;
       const lowerHintThreshold = this.MIN_ROM_DEG * this.LOWER_HINT_RATIO;
-      
+
       if (romDelta < lowerHintThreshold) {
         return this.emit(this.pickFeetWarnOr('CMD_GO_DOWN', true));
       }
@@ -187,13 +250,22 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     }
 
     if (this.stage === 'down') {
+      // ✅ قبل ما نعد لازم نتأكد إن وضع split الحقيقي لسه موجود
+      if (!hasRealSplitStance) {
+        this.isStanceLocked = false;
+        this.stage = 'setup';
+        this.stableFrames = 0;
+        this.depthStableFramesReset();
+        return this.emit('ERR_STEP_FURTHER_BACK', false, true);
+      }
+
       if (upOk) {
         this.stableFrames++;
         if (this.stableFrames >= this.CONFIRM_FRAMES) {
           this.reps++;
           this.stage = 'up';
           this.stableFrames = 0;
-          return this.emit('REP_SUCCESS', true, true);
+          return this.emit(`COUNT_${this.reps}` as FeedbackSignal, true, true);
         }
         return this.emit(this.pickFeetWarnOr('HOLD_TOP', true));
       }
@@ -205,23 +277,29 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     return this.emit(this.pickFeetWarnOr(this.feedbackCode, this.isCorrect));
   }
 
-  // ✅ New Helper: Checks visibility AND ensures user isn't too close to edges
-  private isVisibleAndCentered(lms: Landmark[]) {
-    const EDGE_MARGIN = 0.02; // 2% margin from screen edges
-    return lms.every(l => {
-        const vis = (l.visibility ?? 0) > 0.6; // Strict visibility
-        const inFrame = l.x > EDGE_MARGIN && l.x < (1 - EDGE_MARGIN) && 
-                        l.y > EDGE_MARGIN && l.y < (1 - EDGE_MARGIN);
-        return vis && inFrame;
-    });
-  }
-  
-  // Backward compatibility wrapper if needed
-  private visible(lms: Landmark[]) {
-      return this.isVisibleAndCentered(lms);
+  // Helper to keep reset logic tidy
+  private depthStableFramesReset() {
+    this.topAngleFrames = 0;
   }
 
-  private pickFeetWarnOr(code: string, ok: boolean): [string, boolean] {
+  // ✅ Checks visibility AND ensures user isn't too close to edges
+  private isVisibleAndCentered(lms: Landmark[]) {
+    const EDGE_MARGIN = 0.02;
+    return lms.every((l) => {
+      const vis = (l.visibility ?? 0) > 0.6;
+      const inFrame =
+        l.x > EDGE_MARGIN && l.x < (1 - EDGE_MARGIN) &&
+        l.y > EDGE_MARGIN && l.y < (1 - EDGE_MARGIN);
+      return vis && inFrame;
+    });
+  }
+
+  // Backward compatibility wrapper if needed
+  private visible(lms: Landmark[]) {
+    return this.isVisibleAndCentered(lms);
+  }
+
+  private pickFeetWarnOr(code: FeedbackSignal, ok: boolean): [FeedbackSignal, boolean] {
     if (this.pendingFeetWarn) {
       this.pendingFeetWarn = false;
       return ['WARN_KEEP_FEET_FIXED', false];
@@ -229,7 +307,11 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     return [code, ok];
   }
 
-  private emit(codeOrTuple: string | [string, boolean], ok?: boolean, immediate = false): StaticSplitSquatResult {
+  private emit(
+    codeOrTuple: FeedbackSignal | [FeedbackSignal, boolean],
+    ok?: boolean,
+    immediate = false
+  ): StaticSplitSquatResult {
     const code = Array.isArray(codeOrTuple) ? codeOrTuple[0] : codeOrTuple;
     const isOk = Array.isArray(codeOrTuple) ? codeOrTuple[1] : (ok ?? true);
 
@@ -261,7 +343,7 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     return this.buildResult(this.feedbackCode, this.isCorrect);
   }
 
-  private buildResult(code: string, ok: boolean): StaticSplitSquatResult {
+  private buildResult(code: FeedbackSignal, ok: boolean): StaticSplitSquatResult {
     return {
       exercise: 'static_split_squat',
       reps: this.reps,

@@ -1,156 +1,125 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
+import {
+  ExerciseLogic,
+  RepExerciseResult,
+  Landmark,
+  FeedbackSignal,
+  ExerciseAnalysisContext,
+} from '../types';
 
 export interface BentKneeDipResult extends RepExerciseResult {
   exercise: 'bent_knee_dip';
 }
 
 const LANDMARK_INDICES = {
-  LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
-  LEFT_ELBOW: 13,    RIGHT_ELBOW: 14,
-  LEFT_WRIST: 15,    RIGHT_WRIST: 16,
-  LEFT_HIP: 23,      RIGHT_HIP: 24,
-  LEFT_KNEE: 25,     RIGHT_KNEE: 26,
-  LEFT_ANKLE: 27,    RIGHT_ANKLE: 28,
+  LEFT_SHOULDER: 11,  RIGHT_SHOULDER: 12,
+  LEFT_ELBOW:    13,  RIGHT_ELBOW:    14,
+  LEFT_WRIST:    15,  RIGHT_WRIST:    16,
+  LEFT_HIP:      23,  RIGHT_HIP:      24,
+  LEFT_KNEE:     25,  RIGHT_KNEE:     26,
+  LEFT_ANKLE:    27,  RIGHT_ANKLE:    28,
 } as const;
 
-const THRESHOLDS = {
-  ELBOW_UP_ANGLE: 145,
-  ELBOW_DOWN_ANGLE: 110,
+const T = {
+  // ✅ أوسع شوية — العضلة مش هتخليك تفضل على 150 كل الوقت
+  ELBOW_UP_ANGLE:   140,
+  ELBOW_DOWN_ANGLE: 105,
 
-  // ✅ Bent Knee Dip
-  // setup لازم تكون قريب من 90° (نطاق أضيق)
-  KNEE_SETUP_MIN_ANGLE: 65,
-  KNEE_SETUP_MAX_ANGLE: 120,
+  // ✅ الركبة في setup: قريب من 90° (±30°)
+  KNEE_SETUP_MIN: 60,
+  KNEE_SETUP_MAX: 120,
 
-  // ✅ أثناء الحركة بنوسع النطاق عشان الطبيعي إن الزاوية تتغير شوية
-  KNEE_ACTIVE_MIN_ANGLE: 55,
-  KNEE_ACTIVE_MAX_ANGLE: 135,
+  // ✅ أثناء الحركة: نطاق أوسع (الركبة هتتحرك طبيعياً ±35°)
+  KNEE_ACTIVE_MIN: 55,
+  KNEE_ACTIVE_MAX: 130,
 
-  // ✅ Grace frames (ما تبوظش العدة من أول فريم)
-  KNEE_WARN_FRAMES: 2,         // بعد كام فريم نبدأ نقول BEND_KNEE_90
-  KNEE_INVALIDATE_FRAMES: 6,   // بعد كام فريم متتالي خارج النطاق نبوّظ العدة
+  // ✅ هيسترسيس — مينفعش ترجع "ok" إلا لو دخلت في نطاق أضيق
+  KNEE_RECOVER_MIN: 65,
+  KNEE_RECOVER_MAX: 120,
 
-  STABLE_FRAMES: 3,
-  SETUP_HOLD_TIME: 15,
+  STABLE_FRAMES:          3,
+  SETUP_HOLD_TIME:       15,
+  KNEE_GRACE_FRAMES:      4,   // تحذير بس
+  KNEE_INVALIDATE_FRAMES: 9,   // إبطال العدة
 } as const;
 
-const EMA_ALPHA = 0.4;
+// ✅ alpha أصغر = تنعيم أقوى = استقرار أكتر
+const EMA_ALPHA = 0.3;
+const VIS_MIN   = 0.4;
 
 export class BentKneeDipLogic implements ExerciseLogic {
+  // الحالات:
+  // setup: بنظبط القعدة
+  // up: فوق
+  // down: تحت
   private state: 'setup' | 'up' | 'down' = 'setup';
+
   private reps: number = 0;
-  private feedback_code: string = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct: boolean = false;
 
   private stableFrames: number = 0;
   private setupTimer: number = 0;
+
+  // المتغير ده هو "الحارس". لو لمست الأرض بيبقى true، ولما تيجي تضم مش هيحسب العدة
   private repInvalidated: boolean = false;
-
-  private smElbowAngle: number = 180;
-  private smKneeAngle: number = 90;
-
-  // ✅ NEW: عدّاد خروج الركبة عن النطاق أثناء العدة
   private kneeBadFrames: number = 0;
+  private kneeRecovered: boolean = true; // ✅ هيسترسيس
+
+  private smLeftElbow: number = 180;
+  private smRightElbow: number = 180;
+  private smKneeAngle: number = 90;   // متوسط الركبتين
+  private initialized: boolean = false; // ✅ cold start
 
   reset(): void {
-    this.state = 'setup';
-    this.reps = 0;
-    this.feedback_code = 'SETUP_POSITION';
-    this.is_correct = false;
-
-    this.stableFrames = 0;
-    this.setupTimer = 0;
-    this.repInvalidated = false;
-
-    this.smElbowAngle = 180;
-    this.smKneeAngle = 90;
-
-    this.kneeBadFrames = 0;
+    this.state           = 'setup';
+    this.reps            = 0;
+    this.feedback_code   = 'SETUP_POSITION';
+    this.is_correct      = false;
+    this.stableFrames    = 0;
+    this.setupTimer      = 0;
+    this.repInvalidated  = false;
+    this.kneeBadFrames   = 0;
+    this.kneeRecovered   = true;
+    this.smLeftElbow     = 180;
+    this.smRightElbow    = 180;
+    this.smKneeAngle     = 90;
+    this.initialized     = false;
   }
 
-  private calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
+  private calcAngle(a: Landmark, b: Landmark, c: Landmark): number {
     if (!a || !b || !c) return 180;
-    const radians =
-      Math.atan2(c.y - b.y, c.x - b.x) -
-      Math.atan2(a.y - b.y, a.x - b.x);
-
-    let angle = Math.abs((radians * 180.0) / Math.PI);
-    if (angle > 180.0) angle = 360 - angle;
-    return angle;
+    let angle = Math.abs(
+      (Math.atan2(c.y - b.y, c.x - b.x) -
+       Math.atan2(a.y - b.y, a.x - b.x)) *
+      (180 / Math.PI)
+    );
+    return angle > 180 ? 360 - angle : angle;
   }
 
   private ema(prev: number, curr: number): number {
     return EMA_ALPHA * curr + (1 - EMA_ALPHA) * prev;
   }
 
-  private inRange(x: number, min: number, max: number): boolean {
-    return x >= min && x <= max;
-  }
+  analyze(
+    landmarks: Landmark[],
+    _context?: ExerciseAnalysisContext
+  ): BentKneeDipResult {
+    const L = LANDMARK_INDICES;
 
-  analyze(landmarks: Landmark[]): BentKneeDipResult {
-
-    // ✅ 1) تحديد الجانب بشكل ذكي (visibility + x position) - نفس كودك
-    const lSh = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
-    const rSh = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
-    const leftVis = lSh?.visibility ?? 0;
-    const rightVis = rSh?.visibility ?? 0;
-
-    let isLeft: boolean;
-    if (Math.abs(leftVis - rightVis) > 0.2) {
-      isLeft = leftVis > rightVis;
-    } else {
-      const lDist = Math.abs((lSh?.x ?? 0.5) - 0.5);
-      const rDist = Math.abs((rSh?.x ?? 0.5) - 0.5);
-      isLeft = lDist > rDist;
-    }
-
-    // ✅ 2) حساب الزوايا من الجانبين واختيار الجانب الصح
-    const leftElbowAngle = this.calculateAngle(
-      landmarks[LANDMARK_INDICES.LEFT_SHOULDER],
-      landmarks[LANDMARK_INDICES.LEFT_ELBOW],
-      landmarks[LANDMARK_INDICES.LEFT_WRIST]
-    );
-    const rightElbowAngle = this.calculateAngle(
-      landmarks[LANDMARK_INDICES.RIGHT_SHOULDER],
-      landmarks[LANDMARK_INDICES.RIGHT_ELBOW],
-      landmarks[LANDMARK_INDICES.RIGHT_WRIST]
+    // ─── Visibility check ────────────────────────────────────────────────
+    const needed = [
+      L.LEFT_SHOULDER, L.RIGHT_SHOULDER,
+      L.LEFT_ELBOW,    L.RIGHT_ELBOW,
+      L.LEFT_WRIST,    L.RIGHT_WRIST,
+      L.LEFT_HIP,      L.RIGHT_HIP,
+      L.LEFT_KNEE,     L.RIGHT_KNEE,
+      L.LEFT_ANKLE,    L.RIGHT_ANKLE,
+    ];
+    const allVisible = needed.every(
+      i => (landmarks[i]?.visibility ?? 0) > VIS_MIN
     );
 
-    const leftKneeAngle = this.calculateAngle(
-      landmarks[LANDMARK_INDICES.LEFT_HIP],
-      landmarks[LANDMARK_INDICES.LEFT_KNEE],
-      landmarks[LANDMARK_INDICES.LEFT_ANKLE]
-    );
-    const rightKneeAngle = this.calculateAngle(
-      landmarks[LANDMARK_INDICES.RIGHT_HIP],
-      landmarks[LANDMARK_INDICES.RIGHT_KNEE],
-      landmarks[LANDMARK_INDICES.RIGHT_ANKLE]
-    );
-
-    const rawElbowAngle = isLeft ? leftElbowAngle : rightElbowAngle;
-    const rawKneeAngle  = isLeft ? leftKneeAngle  : rightKneeAngle;
-
-    // ✅ 3) التحقق من الـ visibility للجانب المختار
-    const indices = isLeft ? {
-      sh: LANDMARK_INDICES.LEFT_SHOULDER,
-      el: LANDMARK_INDICES.LEFT_ELBOW,
-      wr: LANDMARK_INDICES.LEFT_WRIST,
-      hip: LANDMARK_INDICES.LEFT_HIP,
-      knee: LANDMARK_INDICES.LEFT_KNEE,
-      ank: LANDMARK_INDICES.LEFT_ANKLE,
-    } : {
-      sh: LANDMARK_INDICES.RIGHT_SHOULDER,
-      el: LANDMARK_INDICES.RIGHT_ELBOW,
-      wr: LANDMARK_INDICES.RIGHT_WRIST,
-      hip: LANDMARK_INDICES.RIGHT_HIP,
-      knee: LANDMARK_INDICES.RIGHT_KNEE,
-      ank: LANDMARK_INDICES.RIGHT_ANKLE,
-    };
-
-    const isVisible = [indices.sh, indices.el, indices.wr, indices.hip, indices.knee, indices.ank]
-      .every(idx => (landmarks[idx]?.visibility ?? 0) > 0.4);
-
-    if (!isVisible) {
+    if (!allVisible) {
       return {
         exercise: 'bent_knee_dip',
         reps: this.reps,
@@ -160,43 +129,95 @@ export class BentKneeDipLogic implements ExerciseLogic {
       };
     }
 
-    // ✅ 4) التنعيم
-    this.smElbowAngle = this.ema(this.smElbowAngle, rawElbowAngle);
-    this.smKneeAngle  = this.ema(this.smKneeAngle,  rawKneeAngle);
-
-    // ✅ 5) شروط الركبة: Setup vs Active
-    const isKneeOkSetup = this.inRange(
-      this.smKneeAngle,
-      THRESHOLDS.KNEE_SETUP_MIN_ANGLE,
-      THRESHOLDS.KNEE_SETUP_MAX_ANGLE
+    // ─── Raw angles ───────────────────────────────────────────────────────
+    const rawLeftElbow = this.calcAngle(
+      landmarks[L.LEFT_SHOULDER],
+      landmarks[L.LEFT_ELBOW],
+      landmarks[L.LEFT_WRIST]
     );
 
-    const isKneeOkActive = this.inRange(
-      this.smKneeAngle,
-      THRESHOLDS.KNEE_ACTIVE_MIN_ANGLE,
-      THRESHOLDS.KNEE_ACTIVE_MAX_ANGLE
+    const rawRightElbow = this.calcAngle(
+      landmarks[L.RIGHT_SHOULDER],
+      landmarks[L.RIGHT_ELBOW],
+      landmarks[L.RIGHT_WRIST]
     );
 
-    // 🟢 Phase 1: Setup
+    const rawLeftKnee = this.calcAngle(
+      landmarks[L.LEFT_HIP],
+      landmarks[L.LEFT_KNEE],
+      landmarks[L.LEFT_ANKLE]
+    );
+
+    const rawRightKnee = this.calcAngle(
+      landmarks[L.RIGHT_HIP],
+      landmarks[L.RIGHT_KNEE],
+      landmarks[L.RIGHT_ANKLE]
+    );
+
+    // ✅ متوسط الركبتين — أستقر بكتير من اختيار جانب واحد
+    const rawKneeAvg = (rawLeftKnee + rawRightKnee) / 2;
+
+    // ✅ Cold start: initialize EMA من أول فريم مش من قيمة وهمية
+    if (!this.initialized) {
+      this.smLeftElbow  = rawLeftElbow;
+      this.smRightElbow = rawRightElbow;
+      this.smKneeAngle  = rawKneeAvg;
+      this.initialized  = true;
+    } else {
+      this.smLeftElbow  = this.ema(this.smLeftElbow, rawLeftElbow);
+      this.smRightElbow = this.ema(this.smRightElbow, rawRightElbow);
+      this.smKneeAngle  = this.ema(this.smKneeAngle, rawKneeAvg);
+    }
+
+    // ✅ أفضل مرفق: اللي أكتر انثناء (الأصغر) — بيعكس الحركة الحقيقية
+    const smElbow = Math.min(this.smLeftElbow, this.smRightElbow);
+
+    // ─── Knee validity helpers ────────────────────────────────────────────
+    const isKneeOkSetup =
+      this.smKneeAngle >= T.KNEE_SETUP_MIN &&
+      this.smKneeAngle <= T.KNEE_SETUP_MAX;
+
+    const isKneeOkActive =
+      this.smKneeAngle >= T.KNEE_ACTIVE_MIN &&
+      this.smKneeAngle <= T.KNEE_ACTIVE_MAX;
+
+    const isKneeRecovered =
+      this.smKneeAngle >= T.KNEE_RECOVER_MIN &&
+      this.smKneeAngle <= T.KNEE_RECOVER_MAX;
+
+    // ✅ اختار نوع الخطأ: مفرود ولا مطوي أوي؟
+    const kneeError = (): FeedbackSignal =>
+  (
+    this.smKneeAngle > T.KNEE_ACTIVE_MAX
+      ? 'BEND_KNEE_90'
+      : 'DONT_OVERBEND_KNEE'
+  ) as FeedbackSignal;
+
+    // ════════════════════════════════════════════════════════════════════
+    // 🟡 SETUP
+    // ════════════════════════════════════════════════════════════════════
     if (this.state === 'setup') {
-      const isArmsStraight = this.smElbowAngle > 140;
+      const armsOk = smElbow > T.ELBOW_UP_ANGLE;
 
-      // في setup بنستخدم نطاق setup (أضيق)
-      if (isArmsStraight && isKneeOkSetup) {
+      if (armsOk && isKneeOkSetup) {
         this.setupTimer++;
-        if (this.setupTimer > THRESHOLDS.SETUP_HOLD_TIME) {
-          this.state = 'up';
-          this.setupTimer = 0;
+        if (this.setupTimer > T.SETUP_HOLD_TIME) {
+          this.state          = 'up';
+          this.setupTimer     = 0;
           this.repInvalidated = false;
-          this.kneeBadFrames = 0; // ✅ reset
-          this.feedback_code = 'GO_DOWN';
+          this.kneeBadFrames  = 0;
+          this.kneeRecovered  = true;
+          this.feedback_code  = 'GO_DOWN';
+          this.is_correct     = true;
         } else {
           this.feedback_code = 'SETUP_POSITION';
+          this.is_correct    = true;
         }
       } else {
-        this.setupTimer = 0;
-        if (!isKneeOkSetup) this.feedback_code = 'BEND_KNEE_90';
-        else this.feedback_code = 'SETUP_POSITION';
+        this.setupTimer    = 0;
+        // ✅ is_correct: false لما في خطأ
+        this.is_correct    = false;
+        this.feedback_code = !isKneeOkSetup ? kneeError() : 'SETUP_POSITION';
       }
 
       return {
@@ -204,80 +225,82 @@ export class BentKneeDipLogic implements ExerciseLogic {
         reps: this.reps,
         stage: 'up',
         feedback_code: this.feedback_code,
-        is_correct: true,
+        is_correct: this.is_correct,
       };
     }
 
-    // 🟢 Phase 2: Active Exercise
-    // ✅ هنا بقى الفرق الكبير: مش هنبوّظ العدة من أول خروج
+    // ════════════════════════════════════════════════════════════════════
+    // 🔵 ACTIVE (up / down)
+    // ════════════════════════════════════════════════════════════════════
+
+    // ── Knee tracking with hysteresis ─────────────────────────────────
     if (!isKneeOkActive) {
       this.kneeBadFrames++;
+      this.kneeRecovered = false;
 
-      // التحذير بعد كام فريم (عشان ما يزنش)
-      if (this.kneeBadFrames >= THRESHOLDS.KNEE_WARN_FRAMES) {
-        this.feedback_code = 'BEND_KNEE_90';
+      if (this.kneeBadFrames >= T.KNEE_GRACE_FRAMES) {
+        this.feedback_code = kneeError();
+        this.is_correct    = false;
       }
-
-      // إبطال العدة بعد خروج مستمر
-      if (this.kneeBadFrames >= THRESHOLDS.KNEE_INVALIDATE_FRAMES) {
+      if (this.kneeBadFrames >= T.KNEE_INVALIDATE_FRAMES) {
         this.repInvalidated = true;
-        this.is_correct = false;
-      } else {
-        // لسه في السماح
-        this.is_correct = !this.repInvalidated;
       }
     } else {
-      // رجعت للنطاق => صفّر العدّاد
-      this.kneeBadFrames = 0;
+      // ✅ هيسترسيس: مش هيعتبرك "رجعت" إلا لو دخلت في النطاق الأضيق
+      if (!this.kneeRecovered && isKneeRecovered) {
+        this.kneeRecovered = true;
+        this.kneeBadFrames = 0;
+      }
 
       if (this.repInvalidated) {
-        // لو العدة اتبوظت قبل كده، فضّل التحذير لحد نهاية العدة
-        this.feedback_code = 'BEND_KNEE_90';
-        this.is_correct = false;
-      } else {
-        this.is_correct = true;
+        // العدة اتبوظت — استنى نهايتها
+        this.feedback_code = kneeError();
+        this.is_correct    = false;
+      } else if (this.kneeRecovered) {
+        this.kneeBadFrames = 0;
+        this.is_correct    = true;
+        // feedback_code هيتحدد من الـ state machine تحت
       }
     }
 
-    // --- State Machine ---
-    if (this.state === 'up') {
-      if (!this.repInvalidated && this.kneeBadFrames < THRESHOLDS.KNEE_WARN_FRAMES) {
-        this.feedback_code = 'GO_DOWN';
-      }
+    // ── State machine ──────────────────────────────────────────────────
+    const kneeIssue = this.kneeBadFrames >= T.KNEE_GRACE_FRAMES || this.repInvalidated;
 
-      if (this.smElbowAngle < THRESHOLDS.ELBOW_DOWN_ANGLE) {
+    if (this.state === 'up') {
+      if (!kneeIssue) this.feedback_code = 'GO_DOWN';
+
+      if (smElbow < T.ELBOW_DOWN_ANGLE) {
         this.stableFrames++;
-        if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
+        if (this.stableFrames >= T.STABLE_FRAMES) {
           this.state = 'down';
           this.stableFrames = 0;
-          if (!this.repInvalidated) this.feedback_code = 'PUSH_UP';
+          if (!kneeIssue) this.feedback_code = 'PUSH_UP';
         }
       } else {
         this.stableFrames = 0;
       }
 
-    } else if (this.state === 'down') {
-      if (!this.repInvalidated && this.kneeBadFrames < THRESHOLDS.KNEE_WARN_FRAMES) {
-        this.feedback_code = 'PUSH_UP';
-      }
+    } else { // down
+      if (!kneeIssue) this.feedback_code = 'PUSH_UP';
 
-      if (this.smElbowAngle > THRESHOLDS.ELBOW_UP_ANGLE) {
+      if (smElbow > T.ELBOW_UP_ANGLE) {
         this.stableFrames++;
-        if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
-
+        if (this.stableFrames >= T.STABLE_FRAMES) {
           if (!this.repInvalidated) {
             this.reps++;
-            this.feedback_code = 'GOOD_REP';
+            this.feedback_code = `COUNT_${this.reps}` as FeedbackSignal;
+            this.is_correct    = true;
           } else {
-            this.feedback_code = 'BEND_KNEE_90';
+            this.feedback_code = kneeError();
+            this.is_correct    = false;
           }
 
-          this.state = 'up';
-          this.stableFrames = 0;
-
-          // ✅ صفحة جديدة للعدة الجاية
+          // ✅ reset للعدة الجاية
+          this.state          = 'up';
+          this.stableFrames   = 0;
           this.repInvalidated = false;
-          this.kneeBadFrames = 0;
+          this.kneeBadFrames  = 0;
+          this.kneeRecovered  = true;
         }
       } else {
         this.stableFrames = 0;

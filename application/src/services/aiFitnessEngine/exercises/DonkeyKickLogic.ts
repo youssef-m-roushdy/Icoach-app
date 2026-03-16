@@ -1,4 +1,9 @@
-import { ExerciseLogic, RepExerciseResult, Landmark } from '../types';
+import {
+  ExerciseLogic,
+  RepExerciseResult,
+  Landmark,
+  FeedbackSignal,
+} from '../types';
 
 export interface DonkeyKickResult extends RepExerciseResult {
   exercise: 'donkey_kick';
@@ -16,41 +21,41 @@ const THRESHOLDS = {
   // زوايا الحوض
   HIP_EXTENSION_TARGET: 145,
   HIP_RETURN_THRESHOLD: 110,
-  
+
   // زوايا الركبة
   KNEE_BEND_MIN: 70,
   KNEE_BEND_MAX: 135,
-  
+
   // استقامة الظهر
-  BACK_ARCH_LIMIT: 175, 
+  BACK_ARCH_LIMIT: 175,
 
   // الثبات (زودنا الأرقام دي عشان الكود يتقل وميخطفش العدات)
   STABLE_FRAMES: 8,     // كان 5
   SETUP_FRAMES: 15,     // كان 10
-  
+
   // 🟢 جديد: عدد فريمات ثبات الرسالة قبل عرضها (عشان الكلام ميرعش)
-  FEEDBACK_DELAY: 10,   
+  FEEDBACK_DELAY: 10,
 } as const;
 
 // 🟢 قللنا الرقم ده عشان القراءات تكون ناعمة جداً
-const EMA_ALPHA = 0.2; 
+const EMA_ALPHA = 0.2;
 
 export class DonkeyKickLogic implements ExerciseLogic {
   private state: 'setup' | 'down' | 'up' = 'setup';
   private reps: number = 0;
-  private feedback_code: string = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct: boolean = false;
-  
+
   private activeSide: 'LEFT' | 'RIGHT' | 'NONE' = 'NONE';
   private stableFrames: number = 0;
-  
+
   // متغيرات التنعيم
   private smHipAngle: number = 90;
   private smKneeAngle: number = 90;
 
   // 🟢 متغيرات جديدة لتهدئة سرعة الرسائل (Debounce)
   private feedbackTimer: number = 0;
-  private lastCandidateFeedback: string = '';
+  private lastCandidateFeedback: FeedbackSignal | '' = '';
 
   reset(): void {
     this.state = 'setup';
@@ -61,7 +66,7 @@ export class DonkeyKickLogic implements ExerciseLogic {
     this.stableFrames = 0;
     this.smHipAngle = 90;
     this.smKneeAngle = 90;
-    
+
     this.feedbackTimer = 0;
     this.lastCandidateFeedback = '';
   }
@@ -80,7 +85,7 @@ export class DonkeyKickLogic implements ExerciseLogic {
 
   // 🟢 دالة جديدة: مش بتغير الرسالة فوراً إلا لو تكررت لفترة
   // ما عدا رسائل النجاح (GOOD_REP) والأخطاء الخطيرة بنعرضها فوراً
-  private setFeedback(code: string) {
+  private setFeedback(code: FeedbackSignal) {
     // 1. لو الرسالة هي هي المعروضة، صفر العداد واخرج
     if (code === this.feedback_code) {
       this.feedbackTimer = 0;
@@ -88,10 +93,16 @@ export class DonkeyKickLogic implements ExerciseLogic {
     }
 
     // 2. رسائل النجاح والأخطاء تظهر فوراً بدون تأخير
-    if (code === 'GOOD_REP' || code.startsWith('ERR_') || code === 'SQUEEZE_GLUTES') {
-        this.feedback_code = code;
-        this.feedbackTimer = 0;
-        return;
+    // ✅ التعديل هنا: ضفنا code.startsWith('COUNT_')
+    if (
+      code === 'GOOD_REP' ||
+      code.startsWith('COUNT_') ||
+      code.startsWith('ERR_') ||
+      code === 'SQUEEZE_GLUTES'
+    ) {
+      this.feedback_code = code;
+      this.feedbackTimer = 0;
+      return;
     }
 
     // 3. باقي التعليمات (ارفع، نزل، استعد) لازم تثبت شوية
@@ -120,12 +131,14 @@ export class DonkeyKickLogic implements ExerciseLogic {
     else currentActive = 'NONE';
 
     if (this.activeSide === 'NONE' && currentActive !== 'NONE') {
-        this.activeSide = currentActive;
+      this.activeSide = currentActive;
     } else if (currentActive === 'NONE' && this.state === 'down') {
-        this.activeSide = 'NONE';
+      this.activeSide = 'NONE';
     }
 
-    const workingSide = this.activeSide !== 'NONE' ? this.activeSide : (currentActive !== 'NONE' ? currentActive : 'LEFT');
+    const workingSide = this.activeSide !== 'NONE'
+      ? this.activeSide
+      : (currentActive !== 'NONE' ? currentActive : 'LEFT');
 
     const indices = workingSide === 'LEFT' ? {
       sh: LANDMARK_INDICES.LEFT_SHOULDER,
@@ -166,97 +179,97 @@ export class DonkeyKickLogic implements ExerciseLogic {
     this.smKneeAngle = this.ema(this.smKneeAngle, rawKneeAngle);
 
     // 3. المنطق (Logic)
-    let targetFeedback = this.feedback_code; // المتغير اللي هنقرر فيه الرسالة
+    let targetFeedback: FeedbackSignal = this.feedback_code;
 
     // 🟢 Phase 1: Setup
     if (this.state === 'setup') {
-        const isReadyPos = this.smHipAngle < 110 && this.smKneeAngle < 110;
+      const isReadyPos = this.smHipAngle < 110 && this.smKneeAngle < 110;
 
-        if (isReadyPos) {
-            this.stableFrames++;
-            if (this.stableFrames > THRESHOLDS.SETUP_FRAMES) {
-                this.state = 'down';
-                this.stableFrames = 0;
-                targetFeedback = 'LIFT_LEG';
-            } else {
-                targetFeedback = 'SETUP_POSITION';
-            }
+      if (isReadyPos) {
+        this.stableFrames++;
+        if (this.stableFrames > THRESHOLDS.SETUP_FRAMES) {
+          this.state = 'down';
+          this.stableFrames = 0;
+          targetFeedback = 'LIFT_LEG';
         } else {
-            this.stableFrames = 0;
-            targetFeedback = 'SETUP_POSITION';
+          targetFeedback = 'SETUP_POSITION';
         }
-        
-        this.setFeedback(targetFeedback); // تطبيق الفلتر
+      } else {
+        this.stableFrames = 0;
+        targetFeedback = 'SETUP_POSITION';
+      }
 
-        return {
-            exercise: 'donkey_kick',
-            reps: this.reps,
-            stage: 'down',
-            feedback_code: this.feedback_code,
-            is_correct: true,
-            activeSide: this.activeSide
-        };
+      this.setFeedback(targetFeedback); // تطبيق الفلتر
+
+      return {
+        exercise: 'donkey_kick',
+        reps: this.reps,
+        stage: 'down',
+        feedback_code: this.feedback_code,
+        is_correct: true,
+        activeSide: this.activeSide
+      };
     }
 
     // 🟢 Phase 2: Active Exercise
 
     if (this.activeSide === 'NONE') {
-        targetFeedback = 'LIFT_LEG';
-        this.is_correct = true;
-        if (this.state === 'up') this.state = 'down';
-        
-        this.setFeedback(targetFeedback);
+      targetFeedback = 'LIFT_LEG';
+      this.is_correct = true;
+      if (this.state === 'up') this.state = 'down';
 
-        return {
-             exercise: 'donkey_kick',
-             reps: this.reps,
-             stage: 'down',
-             feedback_code: this.feedback_code,
-             is_correct: true,
-             activeSide: this.activeSide
-        };
+      this.setFeedback(targetFeedback);
+
+      return {
+        exercise: 'donkey_kick',
+        reps: this.reps,
+        stage: 'down',
+        feedback_code: this.feedback_code,
+        is_correct: true,
+        activeSide: this.activeSide
+      };
     }
 
     // Anti-Cheat
     if (this.smKneeAngle > THRESHOLDS.KNEE_BEND_MAX) {
-        targetFeedback = 'ERR_KEEP_KNEE_BENT';
-        this.is_correct = false;
-    } 
+      targetFeedback = 'ERR_KEEP_KNEE_BENT';
+      this.is_correct = false;
+    }
     else if (this.smHipAngle > THRESHOLDS.BACK_ARCH_LIMIT) {
-        targetFeedback = 'ERR_ARCHED_BACK';
-        this.is_correct = false;
+      targetFeedback = 'ERR_ARCHED_BACK';
+      this.is_correct = false;
     }
     else {
-        this.is_correct = true;
+      this.is_correct = true;
 
-        if (this.state === 'down') {
-            if (this.smHipAngle > THRESHOLDS.HIP_EXTENSION_TARGET) {
-                this.stableFrames++;
-                if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
-                    this.state = 'up';
-                    this.stableFrames = 0;
-                    targetFeedback = 'SQUEEZE_GLUTES';
-                }
-            } 
-            else {
-                targetFeedback = 'LIFT_LEG';
-                this.stableFrames = 0;
-            }
-        } 
-        else if (this.state === 'up') {
-            if (this.smHipAngle < THRESHOLDS.HIP_RETURN_THRESHOLD) {
-                this.stableFrames++;
-                if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
-                    this.reps++;
-                    this.state = 'down';
-                    this.stableFrames = 0;
-                    targetFeedback = 'GOOD_REP';
-                }
-            } else {
-                targetFeedback = 'LOWER_SLOWLY';
-                this.stableFrames = 0;
-            }
+      if (this.state === 'down') {
+        if (this.smHipAngle > THRESHOLDS.HIP_EXTENSION_TARGET) {
+          this.stableFrames++;
+          if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
+            this.state = 'up';
+            this.stableFrames = 0;
+            targetFeedback = 'SQUEEZE_GLUTES';
+          }
         }
+        else {
+          targetFeedback = 'LIFT_LEG';
+          this.stableFrames = 0;
+        }
+      }
+      else if (this.state === 'up') {
+        if (this.smHipAngle < THRESHOLDS.HIP_RETURN_THRESHOLD) {
+          this.stableFrames++;
+          if (this.stableFrames >= THRESHOLDS.STABLE_FRAMES) {
+            this.reps++;
+            this.state = 'down';
+            this.stableFrames = 0;
+            targetFeedback = `COUNT_${this.reps}` as FeedbackSignal;
+          }
+        } else {
+          targetFeedback = 'LOWER_SLOWLY';
+          this.stableFrames = 0;
+        }
+      }
     }
 
     this.setFeedback(targetFeedback); // تطبيق الفلتر النهائي

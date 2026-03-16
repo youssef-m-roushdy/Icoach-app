@@ -1,4 +1,4 @@
-import { ExerciseLogic, RepExerciseResult, Landmark ,  } from '../types';
+import { ExerciseLogic, RepExerciseResult, Landmark, FeedbackSignal } from '../types';
 
 export interface ClassicPushUpResult extends RepExerciseResult {
   exercise: 'classic_push_up';
@@ -34,7 +34,7 @@ export class ClassicPushUpLogic implements ExerciseLogic {
   // 🟢 التعديل الثاني: ضفنا حالة 'setup' في البداية
   private state: 'setup' | 'up' | 'down' = 'setup';
   private reps: number = 0;
-  private feedback_code: string = 'SETUP_POSITION';
+  private feedback_code: FeedbackSignal = 'SETUP_POSITION';
   private is_correct: boolean = false;
   
   private stableFrames: number = 0;
@@ -198,7 +198,7 @@ export class ClassicPushUpLogic implements ExerciseLogic {
              this.reps++;
              this.state = 'up';
              this.stableFrames = 0;
-             this.feedback_code = 'GOOD_REP';
+             this.feedback_code = `COUNT_${this.reps}`;
            }
         } else {
            this.stableFrames = 0;

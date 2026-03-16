@@ -1,13 +1,9 @@
-/**
- * Jumping Jacks Logic - SPEED MODE (Forgiving + Fast Response)
- * * Modifications for Speed:
- * 1. CONFIRM_FRAMES = 1 (Zero delay, counts instantly).
- * 2. Relaxed Angles: Arms need less height, legs need less width.
- * 3. Faster EMA: Sensors react quicker to fast changes.
- * 4. Lower Cooldown: Allows for sprinting reps.
- */
-
-import { Landmark, JumpingJacksResult, ExerciseLogic } from '../types';
+import {
+  Landmark,
+  JumpingJacksResult,
+  ExerciseLogic,
+  FeedbackSignal,
+} from '../types';
 import { calculateAngle, toPoint, EMA, PoseLandmarks } from '../utils';
 
 // ONNX Runtime - loaded dynamically
@@ -39,9 +35,9 @@ enum FeedbackPriority {
 export class JumpingJacksLogic implements ExerciseLogic {
   private counter: number = 0;
   private stage: 'down' | 'up' = 'down';
-  
+
   // Feedback State
-  private feedbackCode: string = 'START_POSITION';
+  private feedbackCode: FeedbackSignal = 'START_POSITION';
   private lastFeedbackTime: number = 0;
   private currentFeedbackPriority: FeedbackPriority = FeedbackPriority.LOW;
   private readonly STICKY_FEEDBACK_MS = 1000; // قللناها لثانية عشان تلحق تشوف التغييرات
@@ -54,42 +50,40 @@ export class JumpingJacksLogic implements ExerciseLogic {
   private lastProb: number = 0;
 
   // Smoothing tools (EMA) - 🔥 Tuned for SPEED (Higher Alpha = Less Lag)
-  // خليناها 0.6 و 0.7 عشان تستجيب بسرعة للحركة الخاطفة
-  private emaAnkleDist: EMA = new EMA(0.6);
-  private emaShoulderDist: EMA = new EMA(0.5);
-  private emaHipDist: EMA = new EMA(0.6);
-  private emaArmAngle: EMA = new EMA(0.7);
-  private emaProb: EMA = new EMA(0.5);
+  // زدنا الألفا لتكون أسرع استجابة
+  private emaAnkleDist: EMA = new EMA(0.8);
+  private emaShoulderDist: EMA = new EMA(0.7);
+  private emaHipDist: EMA = new EMA(0.8);
+  private emaArmAngle: EMA = new EMA(0.9);
+  private emaProb: EMA = new EMA(0.7);
 
   // Anti-Cheat & Timing
   private lastRepTime: number = 0;
-  // 🔥 Cooldown سريع جداً (200ms) يسمحلك تعمل 5 عدات في الثانية
-  private readonly REP_COOLDOWN_MS = 200; 
+  // 🔥 Cooldown أسرع (150ms) للسماح بمزيد من العدات السريعة
+  private readonly REP_COOLDOWN_MS = 150;
 
   // Confirmation Counters
   private openUpFrames: number = 0;
   private closedDownFrames: number = 0;
-  
-  // 🔥 أهم تعديل: 2 فريم للتأكيد (للتأكد من أن الأيدي والأرجل معاً)
-  private readonly CONFIRM_FRAMES = 2;
+  // 🔥 خفضنا لـ1 فريم لعد أسرع
+  private readonly CONFIRM_FRAMES = 1;
 
   // --- THRESHOLDS (MODIFIED TO PREVENT FALSE COUNTS) ---
-  
   // Leg Thresholds (Normalized)
-  // جعلناها أصعب قليلاً لمنع العد الخاطئ
-  private readonly LEGS_OPEN_ENTRY = 1.30; // زيادتها لمنع العد عند رفع الأيدي فقط
-  private readonly LEGS_OPEN_EXIT = 1.20;  
-  private readonly LEGS_CLOSED_ENTRY = 1.10; // تخفيفها للاستجابة السريعة
-  private readonly LEGS_CLOSED_EXIT = 1.25;
+  // خففنا الشروط للإغلاق لمنع الصرامة الزائدة
+  private readonly LEGS_OPEN_ENTRY = 1.25; // خفض قليلاً لتسهيل الفتح
+  private readonly LEGS_OPEN_EXIT = 1.15;
+  private readonly LEGS_CLOSED_ENTRY = 1.20; // زيادة للسماح بإغلاق غير كامل
+  private readonly LEGS_CLOSED_EXIT = 1.30;
 
   // Arm Thresholds (Degrees)
-  // جعلناها أصعب قليلاً لمنع العد الخاطئ
-  private readonly ARMS_UP_ENTRY = 140;    // تخفيفها للاستجابة السريعة
-  private readonly ARMS_UP_EXIT = 125;     
-  private readonly ARMS_DOWN_ENTRY = 100;  // تخفيفها للاستجابة السريعة
-  private readonly ARMS_DOWN_EXIT = 115;   
+  // خففنا الشروط للخفض لمنع الصرامة
+  private readonly ARMS_UP_ENTRY = 135; // خفض لتسهيل الرفع
+  private readonly ARMS_UP_EXIT = 120;
+  private readonly ARMS_DOWN_ENTRY = 110; // زيادة للسماح بخفض غير كامل
+  private readonly ARMS_DOWN_EXIT = 125;
 
-  private readonly STRICT_ARM_PROB = 0.65; // قللنا دقة الموديل المطلوبة
+  private readonly STRICT_ARM_PROB = 0.60; // خفضنا لتسهيل
 
   constructor() {
     this.loadModel();
@@ -99,7 +93,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
     if (!onnxAvailable || this.modelLoading || this.modelLoaded) return;
     this.modelLoading = true;
     try {
-      this.modelLoaded = false; 
+      this.modelLoaded = false;
     } catch (error) {
       this.model = null;
       this.modelLoaded = false;
@@ -111,18 +105,25 @@ export class JumpingJacksLogic implements ExerciseLogic {
   /**
    * Updates feedback with a priority-based "sticky" mechanism.
    */
-  private updateFeedback(newCode: string, priority: FeedbackPriority): void {
+  private updateFeedback(newCode: FeedbackSignal, priority: FeedbackPriority): void {
     const now = Date.now();
     const timeSinceLast = now - this.lastFeedbackTime;
 
-    if (priority > this.currentFeedbackPriority || timeSinceLast >= this.STICKY_FEEDBACK_MS) {
+    // ✅ التعديل الأول: الأولويات العالية جدًا (زي الأرقام) تكسر التثبيت فورًا وتتنطق في ساعتها
+    if (
+      priority >= FeedbackPriority.CRITICAL ||
+      priority > this.currentFeedbackPriority ||
+      timeSinceLast >= this.STICKY_FEEDBACK_MS
+    ) {
       this.feedbackCode = newCode;
       this.lastFeedbackTime = now;
       this.currentFeedbackPriority = priority;
     }
   }
 
-  private async predictArmPosition(angles: [number, number, number, number]): Promise<void> {
+  private async predictArmPosition(
+    angles: [number, number, number, number]
+  ): Promise<void> {
     if (!this.model || !this.modelLoaded) return;
     try {
       const inputTensor = new Tensor('float32', Float32Array.from(angles), [1, 4]);
@@ -132,7 +133,9 @@ export class JumpingJacksLogic implements ExerciseLogic {
       const predIdx = Number(outputData[0]);
 
       this.lastArmClass = ENCODER_CLASSES[predIdx] || 'unknown';
-      this.lastProb = results.probabilities ? results.probabilities.data[predIdx] : 0.95;
+      this.lastProb = results.probabilities
+        ? results.probabilities.data[predIdx]
+        : 0.95;
     } catch (error) {
       // Silent fail
     }
@@ -171,8 +174,13 @@ export class JumpingJacksLogic implements ExerciseLogic {
     const probSmooth = this.emaProb.update(this.lastProb);
 
     // ✅ شروط صارمة: لازم الأيدي والأرجل يكونوا في الوضع المطلوب معاً
-    const armsUp = avgShoulderAngle >= (this.stage === 'down' ? this.ARMS_UP_ENTRY : this.ARMS_UP_EXIT);
-    const armsDown = avgShoulderAngle <= (this.stage === 'up' ? this.ARMS_DOWN_ENTRY : this.ARMS_DOWN_EXIT);
+    const armsUp =
+      avgShoulderAngle >=
+      (this.stage === 'down' ? this.ARMS_UP_ENTRY : this.ARMS_UP_EXIT);
+
+    const armsDown =
+      avgShoulderAngle <=
+      (this.stage === 'up' ? this.ARMS_DOWN_ENTRY : this.ARMS_DOWN_EXIT);
 
     // 4. Leg Distances
     const ankleDist = this.emaAnkleDist.update(Math.abs(lAnk[0] - rAnk[0]));
@@ -180,8 +188,13 @@ export class JumpingJacksLogic implements ExerciseLogic {
     const shoulderDist = this.emaShoulderDist.update(Math.abs(lSh[0] - rSh[0]));
     const baseDist = Math.max(hipDist, shoulderDist * 0.9);
 
-    const legsOpen = ankleDist > baseDist * (this.stage === 'down' ? this.LEGS_OPEN_ENTRY : this.LEGS_OPEN_EXIT);
-    const legsClosed = ankleDist < baseDist * (this.stage === 'up' ? this.LEGS_CLOSED_ENTRY : this.LEGS_CLOSED_EXIT);
+    const legsOpen =
+      ankleDist >
+      baseDist * (this.stage === 'down' ? this.LEGS_OPEN_ENTRY : this.LEGS_OPEN_EXIT);
+
+    const legsClosed =
+      ankleDist <
+      baseDist * (this.stage === 'up' ? this.LEGS_CLOSED_ENTRY : this.LEGS_CLOSED_EXIT);
 
     // 5. State Machine Logic - ✅ التعديل الأساسي هنا
     // لازم يكون الأرجل مفتوحة والأيدي مرفوعة معاً
@@ -214,7 +227,8 @@ export class JumpingJacksLogic implements ExerciseLogic {
           this.counter++;
           this.lastRepTime = now;
           this.stage = 'down';
-          this.updateFeedback('REP_SUCCESS', FeedbackPriority.CRITICAL);
+          // ✅ التعديل التاني: نبعت كود العدة بدل REP_SUCCESS
+          this.updateFeedback(`COUNT_${this.counter}` as FeedbackSignal, FeedbackPriority.CRITICAL);
         }
       } else {
         // Form Feedback
@@ -233,7 +247,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
       reps: this.counter,
       stage: this.stage,
       feedback_code: this.feedbackCode,
-      debug_class: `SpeedMode: A:${avgShoulderAngle.toFixed(0)} L:${(ankleDist/baseDist).toFixed(2)}`,
+      debug_class: `SpeedMode: A:${avgShoulderAngle.toFixed(0)} L:${(ankleDist / baseDist).toFixed(2)}`,
     };
   }
 
@@ -245,7 +259,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
     this.lastFeedbackTime = 0;
     this.openUpFrames = 0;
     this.closedDownFrames = 0;
-    
+
     this.emaAnkleDist.reset();
     this.emaShoulderDist.reset();
     this.emaHipDist.reset();
@@ -253,10 +267,17 @@ export class JumpingJacksLogic implements ExerciseLogic {
     this.emaProb.reset();
   }
 
-  getRepCount(): number { return this.counter; }
-  isInUpStage(): boolean { return this.stage === 'up'; }
+  getRepCount(): number {
+    return this.counter;
+  }
+
+  isInUpStage(): boolean {
+    return this.stage === 'up';
+  }
+
   forceRep(): void {
     this.counter++;
-    this.updateFeedback('REP_SUCCESS', FeedbackPriority.CRITICAL);
+    // ✅ التعديل التالت: تحديث العدة لو اتعملت بشكل يدوي
+    this.updateFeedback(`COUNT_${this.counter}` as FeedbackSignal, FeedbackPriority.CRITICAL);
   }
 }
