@@ -73,6 +73,7 @@ UserMetrics.init(
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'user_id',
       references: {
         model: 'users',
         key: 'id',
@@ -82,16 +83,19 @@ UserMetrics.init(
     date: {
       type: DataTypes.DATEONLY,
       allowNull: false,
+      field: 'date', // Add field mapping
     },
     fitnessScore: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+      field: 'fitness_score'
     },
     strength: {
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'strength', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -101,6 +105,7 @@ UserMetrics.init(
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'endurance', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -110,6 +115,7 @@ UserMetrics.init(
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'consistency', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -119,6 +125,7 @@ UserMetrics.init(
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'volume', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -128,6 +135,7 @@ UserMetrics.init(
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'progress', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -137,6 +145,7 @@ UserMetrics.init(
       type: DataTypes.DECIMAL(3, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'habits', // Add field mapping
       validate: {
         min: 0,
         max: 10,
@@ -146,46 +155,55 @@ UserMetrics.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+      field: 'total_workouts',
     },
     weeklyAvg: {
       type: DataTypes.DECIMAL(4, 1),
       allowNull: false,
       defaultValue: 0,
+      field: 'weekly_avg', // ADD THIS - was missing!
     },
     currentStreak: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+      field: 'current_streak', // ADD THIS - was missing!
     },
     longestStreak: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+      field: 'longest_streak', // ADD THIS - was missing!
     },
     totalVolume: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
       defaultValue: 0,
+      field: 'total_volume', // ADD THIS - was missing!
     },
     points: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+      field: 'points', // Add field mapping
     },
     badgeLevel: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 1,
+      field: 'badge_level', // ADD THIS - was missing!
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at', // ADD THIS - was missing!
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at', // ADD THIS - was missing!
     },
   },
   {
@@ -193,13 +211,14 @@ UserMetrics.init(
     tableName: 'user_metrics',
     modelName: 'UserMetrics',
     timestamps: true,
+    underscored: true, // Add this to help with snake_case conversion
     indexes: [
       {
         unique: true,
-        fields: ['userId', 'date'],
+        fields: ['user_id', 'date'], // Change to snake_case for indexes
       },
       {
-        fields: ['userId'],
+        fields: ['user_id'], // Change to snake_case
       },
       {
         fields: ['date'],

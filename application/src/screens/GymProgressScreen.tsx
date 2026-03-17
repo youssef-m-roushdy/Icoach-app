@@ -1,5 +1,4 @@
-// Place this file at: src/screens/GymProgressScreen.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +8,8 @@ import {
   Animated,
   Dimensions,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Svg, {
   Polygon,
@@ -22,6 +23,8 @@ import Svg, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context';
+import { progressService } from '../services/progressService';
+import { workoutSessionService } from '../services/workoutSessionService'; // ✅ Added import
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -57,38 +60,6 @@ interface UserData {
   metrics: Metrics;
   trainingData: TrainingData;
 }
-
-// ─────────────────────────────────────────────
-//  DUMMY DATA — replace with real API call
-// ─────────────────────────────────────────────
-const userData: UserData = {
-  name: 'Monk',
-  joinedDate: 'Dec 24',
-  avatarUrl: null,
-  currentPoints: 600,
-  maxPoints: 1000,
-  badgeLevel: 1,
-  metrics: {
-    strength: 8.0,
-    endurance: 6.5,
-    consistency: 9.0,
-    volume: 7.0,
-    progress: 8.5,
-    habits: 7.5,
-  },
-  trainingData: {
-    totalWorkouts: 48,
-    weeklyAvg: 4.2,
-    currentStreak: 12,
-    longestStreak: 21,
-    totalVolume: 84500,
-    personalBests: [
-      { exercise: 'Bench Press', value: '120 kg' },
-      { exercise: 'Squat', value: '150 kg' },
-      { exercise: 'Deadlift', value: '180 kg' },
-    ],
-  },
-};
 
 // ─────────────────────────────────────────────
 //  CALCULATIONS
@@ -130,7 +101,7 @@ const getMetricLabel = (key: MetricKey): string => {
 };
 
 // ─────────────────────────────────────────────
-//  SPIDER RADAR CHART - ULTIMATE FIX
+//  SPIDER RADAR CHART
 // ─────────────────────────────────────────────
 interface HexRadarChartProps {
   metrics: Metrics;
@@ -149,7 +120,6 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
 }) => {
   const animProgress = useRef(new Animated.Value(0)).current;
   const [animValue, setAnimValue] = useState(0);
-  const [gradientReady, setGradientReady] = useState(false);
 
   useEffect(() => {
     animProgress.setValue(0);
@@ -160,16 +130,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
     }).start();
     const id = animProgress.addListener(({ value }) => setAnimValue(value));
     return () => animProgress.removeListener(id);
-  }, []);
-
-  // Ensure gradient is only created after component is mounted with valid dimensions
-  useEffect(() => {
-    // Small delay to ensure dimensions are calculated
-    const timer = setTimeout(() => {
-      setGradientReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+  }, [metrics]);
 
   const padding = 60;
   const canvasSize = size + padding * 2;
@@ -211,30 +172,13 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
     return { key, ...pt };
   });
 
-  // CRITICAL FIX: Use a simple solid color fill instead of gradient if gradient not ready
-  // or use a guaranteed positive numeric radius
-  const gradientRadius = Math.max(50, canvasSize * 0.5); // Ensure it's always > 0
+  const gradientRadius = Math.max(50, canvasSize * 0.5);
 
   return (
     <Svg width={canvasSize} height={canvasSize} viewBox={`0 0 ${canvasSize} ${canvasSize}`}>
       <Defs>
-        {/* ULTIMATE FIX: Use numeric values with fallback and ensure radius > 0 */}
         <RadialGradient 
           id="hexFill" 
-          cx={center} 
-          cy={center} 
-          r={gradientRadius} // Numeric value guaranteed to be > 0
-          fx={center} 
-          fy={center}
-          gradientUnits="userSpaceOnUse" // Use userSpaceOnUse for absolute coordinates
-        >
-          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.50" />
-          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.10" />
-        </RadialGradient>
-        
-        {/* Fallback solid color fill in case gradient fails */}
-        <RadialGradient 
-          id="hexFillFallback" 
           cx={center} 
           cy={center} 
           r={gradientRadius}
@@ -242,8 +186,8 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
           fy={center}
           gradientUnits="userSpaceOnUse"
         >
-          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.30" />
-          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.30" />
+          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.50" />
+          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.10" />
         </RadialGradient>
       </Defs>
 
@@ -276,7 +220,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         );
       })}
 
-      {/* Animated data fill - use gradient with guaranteed positive radius */}
+      {/* Animated data fill */}
       <Polygon
         points={animatedDataPoints}
         fill={`url(#hexFill)`}
@@ -301,12 +245,18 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         </React.Fragment>
       ))}
 
-      {/* Labels */}
+      {/* Labels - FIXED: Safe number conversion */}
       {labelPositions.map(({ key, x, y }) => {
         let anchor: TextAnchor = 'middle';
         if (x < center - 10) anchor = 'end';
         if (x > center + 10) anchor = 'start';
-        const val = metrics[key].toFixed(1);
+        
+        // Safe number conversion
+        const metricValue = typeof metrics[key] === 'number' 
+          ? metrics[key] 
+          : Number(metrics[key] || 0);
+        const val = metricValue.toFixed(1);
+        
         return (
           <React.Fragment key={`label-${key}`}>
             <SvgText
@@ -377,7 +327,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 
   const stats: Array<{ label: string; value: string | number }> = [
     { label: 'Total Workouts', value: data.totalWorkouts },
-    { label: 'Weekly Avg', value: data.weeklyAvg.toFixed(1) },
+    { label: 'Weekly Avg', value: typeof data.weeklyAvg === 'number' ? data.weeklyAvg.toFixed(1) : Number(data.weeklyAvg || 0).toFixed(1) },
     { label: 'Current Streak', value: `${data.currentStreak}d` },
     { label: 'Best Streak', value: `${data.longestStreak}d` },
   ];
@@ -398,21 +348,59 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 
       <View style={[styles.pbSection, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
         <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>Personal Bests</Text>
-        {data.personalBests.map((pb: PersonalBest, i: number) => (
-          <View key={i} style={styles.pbRow}>
-            <View style={[styles.pbDot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.pbExercise, { color: colors.text }]}>{pb.exercise}</Text>
-            <Text style={[styles.pbValue, { color: colors.primary }]}>{pb.value}</Text>
-          </View>
-        ))}
+        {data.personalBests.length > 0 ? (
+          data.personalBests.map((pb: PersonalBest, i: number) => (
+            <View key={i} style={styles.pbRow}>
+              <View style={[styles.pbDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.pbExercise, { color: colors.text }]}>{pb.exercise}</Text>
+              <Text style={[styles.pbValue, { color: colors.primary }]}>{pb.value}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+            No personal bests yet. Keep working out!
+          </Text>
+        )}
       </View>
 
       <View style={[styles.volumeBar, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
         <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
-          {(data.totalVolume / 1000).toFixed(1)}k kg
+          {((typeof data.totalVolume === 'number' ? data.totalVolume : Number(data.totalVolume || 0)) / 1000).toFixed(1)}k kg
         </Text>
       </View>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  LOADING COMPONENT
+// ─────────────────────────────────────────────
+const LoadingScreen = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.loadingText, { color: colors.text }]}>Loading your progress...</Text>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  ERROR COMPONENT
+// ─────────────────────────────────────────────
+const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => void }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <Text style={[styles.errorText, { color: colors.error }]}>⚠️</Text>
+      <Text style={[styles.errorMessage, { color: colors.text }]}>{message}</Text>
+      <TouchableOpacity
+        style={[styles.retryButton, { backgroundColor: colors.primary }]}
+        onPress={onRetry}
+      >
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -422,40 +410,120 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 // ─────────────────────────────────────────────
 export default function GymProgressScreen() {
   const { colors } = useTheme();
-  const { user } = useAuth() as any;
+  const { user, token } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<TabName>('fitness');
+  const [progressData, setProgressData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]); // For additional data if needed
+  
   const headerFade = useRef(new Animated.Value(0)).current;
   const cardSlide = useRef(new Animated.Value(40)).current;
 
-  const computedScore = calculateFitnessScore(userData.metrics);
-  const pointsPercent = calculatePointsPercentage(userData.currentPoints, userData.maxPoints);
+  const fetchProgressData = async () => {
+    try {
+      setError(null);
+      
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
 
-  // Same avatar resolution logic as HomeScreen
-  const rawAvatar = user?.photoURL || user?.avatar;
+      console.log('Fetching progress with token:', token ? 'Token exists' : 'No token');
+      const response = await progressService.getProgressDashboard(token);
+      
+      // Convert string metrics to numbers
+      const convertedData = {
+        ...response.data,
+        metrics: {
+          strength: Number(response.data.metrics.strength),
+          endurance: Number(response.data.metrics.endurance),
+          consistency: Number(response.data.metrics.consistency),
+          volume: Number(response.data.metrics.volume),
+          progress: Number(response.data.metrics.progress),
+          habits: Number(response.data.metrics.habits),
+        },
+        trainingData: {
+          ...response.data.trainingData,
+          weeklyAvg: Number(response.data.trainingData.weeklyAvg),
+          totalVolume: Number(response.data.trainingData.totalVolume),
+        }
+      };
+      
+      setProgressData(convertedData);
+
+      // Optional: Fetch recent workout sessions for history
+      // const historyResponse = await workoutSessionService.getWorkoutSessions(token, { limit: 5 });
+      // setWorkoutHistory(historyResponse.data);
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to load progress data');
+      console.error('Error fetching progress:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProgressData();
+  }, []);
+
+  useEffect(() => {
+    fetchProgressData();
+  }, []);
+
+  useEffect(() => {
+    if (progressData) {
+      Animated.stagger(150, [
+        Animated.timing(headerFade, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [progressData]);
+
+  // Avatar resolution logic
+  const rawAvatar = user?.photoURL || user?.avatar || progressData?.avatarUrl;
   const avatarSource =
     rawAvatar && typeof rawAvatar === 'string' && rawAvatar.startsWith('http')
       ? { uri: rawAvatar }
       : {
           uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            user?.firstName || user?.username || 'U'
+            progressData?.name || user?.firstName || user?.username || 'U'
           )}&background=FFD700&color=000&bold=true`,
         };
 
-  useEffect(() => {
-    Animated.stagger(150, [
-      Animated.timing(headerFade, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.timing(cardSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, []);
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (error || !progressData) {
+    return <ErrorScreen message={error || 'No data available'} onRetry={fetchProgressData} />;
+  }
+
+  const computedScore = calculateFitnessScore(progressData.metrics);
+  const pointsPercent = calculatePointsPercentage(progressData.currentPoints, progressData.maxPoints);
 
   return (
     <View style={[styles.main, { backgroundColor: colors.background }]}>
-      {/* Same gradient as HomeScreen */}
       <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-
-        {/* ── HERO HEADER ── */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Hero Header */}
         <Animated.View style={[styles.heroSection, { opacity: headerFade }]}>
           <View style={styles.profileRow}>
             <View style={[styles.avatarRing, { borderColor: colors.primary }]}>
@@ -463,16 +531,16 @@ export default function GymProgressScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>
-                {user?.firstName || user?.username || userData.name}
+                {progressData.name}
               </Text>
               <Text style={[styles.joinedText, { color: colors.subtleText }]}>
-                Joined {userData.joinedDate}
+                Joined {progressData.joinedDate}
               </Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* ── POINTS CARD ── */}
+        {/* Points Card */}
         <Animated.View
           style={[
             styles.card,
@@ -487,17 +555,17 @@ export default function GymProgressScreen() {
         >
           <View style={styles.pointsRow}>
             <Text style={[styles.pointsText, { color: colors.text }]}>
-              {userData.currentPoints} / {userData.maxPoints} points
+              {progressData.currentPoints} / {progressData.maxPoints} points
             </Text>
             <View style={styles.badgeContainer}>
               <View style={[styles.badgeIcon, { backgroundColor: colors.iconBg }]}>
                 <Text style={styles.badgeIconText}>★</Text>
               </View>
-              <Text style={styles.badgeLevelText}>{userData.badgeLevel}</Text>
+              <Text style={styles.badgeLevelText}>{progressData.badgeLevel}</Text>
             </View>
           </View>
 
-          {/* Progress bar — uses same pattern as HomeScreen's progressBarBg */}
+          {/* Progress bar */}
           <View style={[styles.progressTrack, { backgroundColor: colors.progressBg }]}>
             <View
               style={[
@@ -508,7 +576,7 @@ export default function GymProgressScreen() {
           </View>
         </Animated.View>
 
-        {/* ── PROGRESS CARD ── */}
+        {/* Progress Card */}
         <Animated.View
           style={[
             styles.card,
@@ -528,7 +596,7 @@ export default function GymProgressScreen() {
             </View>
           </View>
 
-          {/* Tab switcher — matches HomeScreen sectionHeader pill style */}
+          {/* Tab switcher */}
           <View style={[styles.tabRow, { backgroundColor: colors.statBg }]}>
             {(['fitness', 'training'] as TabName[]).map((tab) => (
               <TouchableOpacity
@@ -565,7 +633,7 @@ export default function GymProgressScreen() {
 
               <View style={styles.radarWrapper}>
                 <HexRadarChart
-                  metrics={userData.metrics}
+                  metrics={progressData.metrics}
                   size={260}
                   primaryColor={colors.primary}
                   gridColor={colors.cardBorder}
@@ -575,7 +643,7 @@ export default function GymProgressScreen() {
 
               {/* Mini breakdown bars */}
               <View style={styles.breakdownRow}>
-                {(Object.entries(userData.metrics) as [MetricKey, number][]).map(([key, val]) => (
+                {(Object.entries(progressData.metrics) as [MetricKey, number][]).map(([key, val]) => (
                   <View key={key} style={styles.breakdownItem}>
                     <View style={[styles.breakdownBarTrack, { backgroundColor: colors.statBg }]}>
                       <View
@@ -593,22 +661,53 @@ export default function GymProgressScreen() {
               </View>
             </View>
           ) : (
-            <TrainingTab data={userData.trainingData} />
+            <TrainingTab data={progressData.trainingData} />
           )}
         </Animated.View>
-
       </ScrollView>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────
-//  STYLES — zero hardcoded colors
+//  STYLES
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   main: { flex: 1 },
-
-  // Hero
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  errorText: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginHorizontal: 32,
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 16,
+    fontSize: 14,
+  },
   heroSection: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -640,8 +739,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
   },
-
-  // Shared card — mirrors HomeScreen stepsCard / waterCard
   card: {
     marginHorizontal: 20,
     marginBottom: 16,
@@ -653,8 +750,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-
-  // Points
   pointsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -675,8 +770,6 @@ const styles = StyleSheet.create({
   badgeLevelText: { color: '#FFD700', fontSize: 16, fontWeight: '700' },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
-
-  // Card header
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -685,8 +778,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 20, fontWeight: '700', marginRight: 8 },
   trendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   trendArrow: { fontSize: 13, fontWeight: '700' },
-
-  // Tabs
   tabRow: {
     flexDirection: 'row',
     borderRadius: 10,
@@ -702,8 +793,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 1.5,
   },
   tabText: { fontSize: 13, fontWeight: '500' },
-
-  // Fitness tab
   fitnessTabContent: { alignItems: 'center' },
   fitnessScoreLabel: {
     fontSize: 16,
@@ -722,8 +811,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: 10,
   },
-
-  // Breakdown bars
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -742,8 +829,6 @@ const styles = StyleSheet.create({
   },
   breakdownBarFill: { width: '100%', borderRadius: 4 },
   breakdownItemLabel: { fontSize: 9, fontWeight: '500' },
-
-  // Training tab
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   statCard: {
     width: '48%',
@@ -755,7 +840,6 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 24, fontWeight: '800', marginBottom: 3 },
   statLabel: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
-
   pbSection: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
   sectionLabel: {
     fontSize: 11,
@@ -768,7 +852,6 @@ const styles = StyleSheet.create({
   pbDot: { width: 6, height: 6, borderRadius: 3, marginRight: 10 },
   pbExercise: { flex: 1, fontSize: 14, fontWeight: '500' },
   pbValue: { fontSize: 14, fontWeight: '700' },
-
   volumeBar: {
     borderRadius: 12,
     padding: 14,

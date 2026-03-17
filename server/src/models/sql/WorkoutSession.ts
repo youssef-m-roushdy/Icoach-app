@@ -65,6 +65,7 @@ WorkoutSession.init(
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'user_id', // ADD THIS
       references: {
         model: 'users',
         key: 'id',
@@ -74,6 +75,7 @@ WorkoutSession.init(
     workoutId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'workout_id', // ADD THIS
       references: {
         model: 'workouts',
         key: 'id',
@@ -83,6 +85,7 @@ WorkoutSession.init(
     duration: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'duration',
       validate: {
         min: {
           args: [1],
@@ -94,10 +97,12 @@ WorkoutSession.init(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
+      field: 'volume',
     },
     sets: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'sets',
       validate: {
         min: {
           args: [1],
@@ -108,6 +113,7 @@ WorkoutSession.init(
     reps: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'reps',
       validate: {
         min: {
           args: [1],
@@ -118,6 +124,7 @@ WorkoutSession.init(
     weight: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+      field: 'weight',
       validate: {
         min: {
           args: [0],
@@ -129,20 +136,24 @@ WorkoutSession.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'completed_at', // ADD THIS
     },
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
+      field: 'notes',
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at', // ADD THIS
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at', // ADD THIS
     },
   },
   {
@@ -150,15 +161,16 @@ WorkoutSession.init(
     tableName: 'workout_sessions',
     modelName: 'WorkoutSession',
     timestamps: true,
+    underscored: true, // ADD THIS to help with snake_case
     indexes: [
       {
-        fields: ['userId'],
+        fields: ['user_id'], // Change to snake_case
       },
       {
-        fields: ['workoutId'],
+        fields: ['workout_id'], // Change to snake_case
       },
       {
-        fields: ['completedAt'],
+        fields: ['completed_at'], // Change to snake_case
       },
     ],
     hooks: {

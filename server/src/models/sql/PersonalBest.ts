@@ -54,10 +54,12 @@ PersonalBest.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+      field: 'id',
     },
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'user_id', // ADD THIS
       references: {
         model: 'users',
         key: 'id',
@@ -67,6 +69,7 @@ PersonalBest.init(
     workoutId: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'workout_id', // ADD THIS
       references: {
         model: 'workouts',
         key: 'id',
@@ -76,10 +79,12 @@ PersonalBest.init(
     exerciseName: {
       type: DataTypes.STRING(255),
       allowNull: false,
+      field: 'exercise_name', // ADD THIS
     },
     weight: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+      field: 'weight',
       validate: {
         min: 0,
       },
@@ -87,6 +92,7 @@ PersonalBest.init(
     reps: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: 'reps',
       validate: {
         min: 1,
       },
@@ -95,16 +101,19 @@ PersonalBest.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'achieved_at', // ADD THIS
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at', // ADD THIS
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at', // ADD THIS
     },
   },
   {
@@ -112,13 +121,14 @@ PersonalBest.init(
     tableName: 'personal_bests',
     modelName: 'PersonalBest',
     timestamps: true,
+    underscored: true, // ADD THIS
     indexes: [
       {
         unique: true,
-        fields: ['userId', 'workoutId'],
+        fields: ['user_id', 'workout_id'], // Change to snake_case
       },
       {
-        fields: ['userId'],
+        fields: ['user_id'], // Change to snake_case
       },
     ],
   }
