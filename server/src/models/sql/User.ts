@@ -26,9 +26,6 @@ interface UserAttributes {
   weight?: number; // in kg
   fitnessGoal?: 'weight_loss' | 'muscle_gain' | 'maintenance';
   activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active';
-  Injuries? : string [] ;
-  availableDays ? : number  ;
-  foodAllergies ? :string []
   bodyFatPercentage?: number;
   bmi?: number;
   isActive: boolean;
@@ -91,9 +88,6 @@ class User extends Model<
   declare weight: number | null; // in kg
   declare fitnessGoal: 'weight_loss' | 'muscle_gain' | 'maintenance' | null;
   declare activityLevel: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | null;
-  declare injuries : string[] | null; 
-  declare availableDays : number | null
-  declare foodAllergies : string[] | null
   declare bodyFatPercentage: number | null;
   declare bmi: number | null;
   declare isActive: CreationOptional<boolean>;
@@ -405,20 +399,6 @@ User.init(
         },
       },
     },
-    injuries: {
-  type: DataTypes.ARRAY(DataTypes.STRING),
-  allowNull: true,
-  defaultValue: [],
-},
-availableDays: {
-  type: DataTypes.INTEGER,
-  allowNull: true,
-},
-foodAllergies: {
-  type: DataTypes.ARRAY(DataTypes.STRING),
-  allowNull: true,
-  defaultValue: [],
-},
     bodyFatPercentage: {
       type: DataTypes.DECIMAL(5, 2), // e.g., 15.50%
       allowNull: true,

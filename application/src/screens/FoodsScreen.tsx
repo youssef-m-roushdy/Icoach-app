@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  TouchableWithoutFeedback,
   Animated,
   Image,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import {
   PermissionsAndroid,
   StatusBar,
   Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
@@ -24,13 +24,15 @@ import { useTheme } from '../context/ThemeContext';
 import { foodService } from '../services/api';
 import type { FoodPredictionResponse } from '../services/api';
 
-// ─── Reliable Android nav bar height ──────────────────────────────────────
-function getNavBarHeight(): number {
-  if (Platform.OS !== 'android') return 0;
+// ─── Gesture vs button nav detection ─────────────────────────────────────────
+function getNavBarInfo(): { height: number; isGestureMode: boolean } {
+  if (Platform.OS !== 'android') return { height: 0, isGestureMode: false };
   const screenH = Dimensions.get('screen').height;
   const windowH = Dimensions.get('window').height;
   const sbH = StatusBar.currentHeight ?? 0;
-  return Math.max(screenH - windowH - sbH, 0);
+  const height = Math.max(screenH - windowH - sbH, 0);
+  const isGestureMode = height <= 30;
+  return { height, isGestureMode };
 }
 
 export default function FoodsScreen() {
@@ -41,25 +43,17 @@ export default function FoodsScreen() {
   const [prediction, setPrediction] = useState<FoodPredictionResponse | null>(null);
   const slideAnim = useState(new Animated.Value(0))[0];
 
-  const navBarHeight = getNavBarHeight();
-  // Solid sheet colour — never transparent
+  const { height: navBarHeight, isGestureMode } = getNavBarInfo();
   const sheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
 
   const openSheet = () => {
     setModalVisible(true);
-    Animated.timing(slideAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(slideAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
   };
 
   const closeSheet = () => {
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => setModalVisible(false));
+    Animated.timing(slideAnim, { toValue: 0, duration: 180, useNativeDriver: true })
+      .start(() => setModalVisible(false));
   };
 
   const predictFood = async (imageUri: string) => {
@@ -132,10 +126,7 @@ export default function FoodsScreen() {
     );
   };
 
-  const clearResult = () => {
-    setSelectedImage(null);
-    setPrediction(null);
-  };
+  const clearResult = () => { setSelectedImage(null); setPrediction(null); };
 
   const formatFoodName = (name: string): string =>
     name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
@@ -159,19 +150,17 @@ export default function FoodsScreen() {
         ) : prediction && selectedImage ? (
           <View style={styles.resultContainer}>
             <Image source={{ uri: selectedImage }} style={styles.foodImage} />
-
             <View style={[styles.predictionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.foodName, { color: colors.primary }]}>{formatFoodName(prediction.food_data.name)}</Text>
               <Text style={[styles.confidence, { color: colors.textSecondary }]}>
                 Confidence: {(prediction.confidence * 100).toFixed(1)}%
               </Text>
-
               <View style={styles.nutritionGrid}>
                 {[
-                  { label: 'Calories', value: prediction.food_data.calories,      unit: 'kcal' },
-                  { label: 'Protein',  value: prediction.food_data.protein,        unit: 'g' },
-                  { label: 'Carbs',    value: prediction.food_data.carbohydrate,   unit: 'g' },
-                  { label: 'Fat',      value: prediction.food_data.fat,            unit: 'g' },
+                  { label: 'Calories', value: prediction.food_data.calories,    unit: 'kcal' },
+                  { label: 'Protein',  value: prediction.food_data.protein,      unit: 'g' },
+                  { label: 'Carbs',    value: prediction.food_data.carbohydrate, unit: 'g' },
+                  { label: 'Fat',      value: prediction.food_data.fat,          unit: 'g' },
                 ].map((n) => (
                   <View key={n.label} style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
                     <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>{n.label}</Text>
@@ -181,7 +170,6 @@ export default function FoodsScreen() {
                 ))}
               </View>
             </View>
-
             <TouchableOpacity style={[styles.newScanButton, { backgroundColor: colors.primary }]} onPress={clearResult}>
               <Icon name="camera" size={20} color={theme === 'dark' ? COLORS.white : colors.text} />
               <Text style={[styles.newScanButtonText, { color: theme === 'dark' ? COLORS.white : colors.text }]}>
@@ -203,23 +191,14 @@ export default function FoodsScreen() {
         )}
       </View>
 
-      {/* ====== BOTTOM SHEET ====== */}
+      {/* ── Bottom Sheet Modal ── */}
       <Modal
         transparent
         visible={modalVisible}
         animationType="none"
-        statusBarTranslucent   // covers full screen incl. Android nav bar
+        statusBarTranslucent
         onRequestClose={closeSheet}
       >
-        {/*
-          root fills the entire physical screen.
-          overlay (flex:1) sits above the sheet and closes on tap.
-          sheetWrapper is at the bottom and contains:
-            - the animated sheet (solid colour, rounded top)
-            - a solid black View that fills the nav bar zone exactly
-          The black View is a SIBLING of the sheet (not inside it),
-          so it sits below the rounded corners with no gap or bleed.
-        */}
         <View style={styles.modalRoot}>
           <TouchableWithoutFeedback onPress={closeSheet}>
             <View style={styles.overlay} />
@@ -227,24 +206,18 @@ export default function FoodsScreen() {
 
           <View style={styles.sheetWrapper}>
             <Animated.View
-              style={[
-                styles.bottomSheet,
-                {
-                  backgroundColor: sheetBg,
-                  transform: [{ translateY }],
-                },
-              ]}
+              style={[styles.sheet, { backgroundColor: sheetBg, transform: [{ translateY }] }]}
             >
-              <View style={[styles.handleBar, { backgroundColor: colors.divider ?? colors.textSecondary }]} />
+              <View style={[styles.handle, { backgroundColor: colors.divider ?? '#C0C0C0' }]} />
 
-              <TouchableOpacity style={styles.option} onPress={openCamera}>
+              <TouchableOpacity style={styles.option} onPress={openCamera} activeOpacity={0.7}>
                 <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
                   <Icon name="camera" size={22} color={colors.primary} />
                 </View>
                 <Text style={[styles.optionText, { color: colors.text }]}>Take Photo</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.option} onPress={openGallery}>
+              <TouchableOpacity style={styles.option} onPress={openGallery} activeOpacity={0.7}>
                 <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
                   <Ion name="images-outline" size={22} color={colors.primary} />
                 </View>
@@ -257,13 +230,10 @@ export default function FoodsScreen() {
               </TouchableOpacity>
             </Animated.View>
 
-            {/*
-              THE FIX: solid black sibling View below the sheet.
-              Height = exact Android nav bar height (0 on iOS).
-              Because it sits OUTSIDE the sheet's borderRadius,
-              there is zero gap — nav bar zone is fully covered.
-            */}
-            <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
+            {/* Button nav: solid black filler. Gesture nav: not rendered (transparent) */}
+            {!isGestureMode && (
+              <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
+            )}
           </View>
         </View>
       </Modal>
@@ -271,29 +241,16 @@ export default function FoodsScreen() {
   );
 }
 
-/* ========== STYLES ========== */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: SIZES.lg },
   title: { fontSize: SIZES.h1, fontWeight: 'bold', marginBottom: SIZES.sm },
   subtitle: { fontSize: SIZES.body, marginBottom: SIZES.xl },
-
-  scanCard: {
-    padding: SIZES.xxl,
-    borderRadius: SIZES.radiusMedium,
-    marginBottom: SIZES.md,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 250,
-  },
+  scanCard: { padding: SIZES.xxl, borderRadius: SIZES.radiusMedium, marginBottom: SIZES.md, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', minHeight: 250 },
   scanTitle: { fontSize: SIZES.h2, fontWeight: 'bold', marginTop: SIZES.md, marginBottom: SIZES.sm },
   scanText: { fontSize: SIZES.body, textAlign: 'center', lineHeight: 22 },
-
   loadingContainer: { padding: SIZES.xxl, alignItems: 'center', justifyContent: 'center', minHeight: 250 },
   loadingText: { fontSize: SIZES.body, marginTop: SIZES.md },
-
   resultContainer: { marginBottom: SIZES.lg },
   foodImage: { width: '100%', height: 250, borderRadius: SIZES.radiusMedium, marginBottom: SIZES.md },
   predictionCard: { padding: SIZES.lg, borderRadius: SIZES.radiusMedium, borderWidth: 1, marginBottom: SIZES.md },
@@ -307,60 +264,15 @@ const styles = StyleSheet.create({
   newScanButton: { flexDirection: 'row', padding: SIZES.md, borderRadius: SIZES.radiusMedium, alignItems: 'center', justifyContent: 'center' },
   newScanButtonText: { fontSize: SIZES.body, fontWeight: 'bold', marginLeft: SIZES.sm },
 
-  /* ── Modal ── */
-  modalRoot: {
-    flex: 1,                          // fills full physical screen (statusBarTranslucent)
-  },
-  overlay: {
-    flex: 1,                          // takes all space above the sheet
-    backgroundColor: 'rgba(0,0,0,0.50)',
-  },
-  sheetWrapper: {
-    width: '100%',
-    // sits at the bottom naturally because overlay (flex:1) pushes it down
-  },
-  bottomSheet: {
-    width: '100%',
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  handleBar: {
-    width: 40,
-    height: 4,
-    alignSelf: 'center',
-    borderRadius: 10,
-    marginBottom: 16,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 14,
-  },
-  optionText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    height: 1,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
+  modalRoot: { flex: 1 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.50)' },
+  sheetWrapper: { width: '100%' },
+  sheet: { width: '100%', paddingTop: 12, paddingBottom: 8, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+  handle: { width: 40, height: 4, borderRadius: 10, alignSelf: 'center', marginBottom: 16 },
+  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  option: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, gap: 14 },
+  optionText: { fontSize: 16, fontWeight: '600' },
+  divider: { height: 1, marginTop: 8 },
+  cancelBtn: { paddingVertical: 16, alignItems: 'center' },
+  cancelText: { fontSize: 15, fontWeight: '500' },
 });

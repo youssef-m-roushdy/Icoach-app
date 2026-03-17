@@ -32,7 +32,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Index عشان الـ RAG يفلتر التمارين بسرعة
   await queryInterface.addIndex('workout_injuries', ['workoutId', 'injuryId']);
 }
 

@@ -1,8 +1,29 @@
-import { DataTypes, Model, type CreationOptional } from 'sequelize';
+import {
+  DataTypes,
+  Model,
+  type Optional,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+} from 'sequelize';
 import { sequelize } from '../../config/database.js';
-import User from './User.js';
 
-class ChatHistory extends Model {
+export interface ChatHistoryAttributes {
+  id: string;
+  userId: number;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  createdAt: Date;
+}
+
+export interface ChatHistoryCreationAttributes
+  extends Optional<
+    ChatHistoryAttributes,
+    | 'id'
+    | 'createdAt'
+  > { }
+
+class ChatHistory extends Model<InferAttributes<ChatHistory>, InferCreationAttributes<ChatHistory>> {
   declare id: CreationOptional<string>;
   declare userId: number;
   declare role: 'user' | 'assistant' | 'system';
@@ -48,9 +69,5 @@ ChatHistory.init(
     updatedAt: false,
   }
 );
-
-// العلاقات
-ChatHistory.belongsTo(User, { foreignKey: 'userId' });
-User.hasMany(ChatHistory, { foreignKey: 'userId' });
 
 export default ChatHistory;

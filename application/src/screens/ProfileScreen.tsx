@@ -28,12 +28,16 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-function getNavBarHeight(): number {
-  if (Platform.OS !== 'android') return 0;
+// ─── Gesture vs button nav detection ─────────────────────────────────────────
+function getNavBarInfo(): { height: number; isGestureMode: boolean } {
+  if (Platform.OS !== 'android') return { height: 0, isGestureMode: false };
   const screenH = Dimensions.get('screen').height;
   const windowH = Dimensions.get('window').height;
   const sbH = StatusBar.currentHeight ?? 0;
-  return Math.max(screenH - windowH - sbH, 0);
+  const height = Math.max(screenH - windowH - sbH, 0);
+  // Button nav ≈ 48dp, gesture nav ≈ 24dp — threshold 30dp separates them
+  const isGestureMode = height <= 30;
+  return { height, isGestureMode };
 }
 
 export default function ProfileScreen() {
@@ -45,7 +49,7 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
 
-  const navBarHeight = getNavBarHeight();
+  const { height: navBarHeight, isGestureMode } = getNavBarInfo();
   const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
 
   useEffect(() => {
@@ -403,10 +407,8 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowImageOptions(false)}
       >
         <View style={styles.modalRoot}>
-          {/* Overlay — tap outside to close */}
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowImageOptions(false)} />
 
-          {/* Sheet + black filler stacked — sheetWrapper sits at bottom */}
           <View style={styles.sheetWrapper}>
             <Pressable
               style={[styles.modalSheet, { backgroundColor: modalSheetBg }]}
@@ -444,16 +446,10 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </Pressable>
 
-            {/*
-              THE FIX:
-              This View is a sibling of the sheet, NOT inside it.
-              It sits directly below the sheet's rounded corners,
-              filling the Android nav bar zone with pure black.
-              Because it is outside the sheet's borderRadius,
-              there are no gaps or transparency — just solid black
-              that blends perfectly with the system nav bar.
-            */}
-            <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
+            {/* Button nav: solid black filler. Gesture nav: not rendered (transparent) */}
+            {!isGestureMode && (
+              <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
+            )}
           </View>
         </View>
       </Modal>
@@ -528,26 +524,9 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: 15, fontWeight: '600' },
   versionText: { fontSize: 12, textAlign: 'center', marginBottom: 20 },
 
-  /* Modal */
-  modalRoot: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  // sheetWrapper stacks sheet + black bar — sits at bottom because modalRoot is flex
-  sheetWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  modalSheet: {
-    width: '100%',
-    paddingTop: 12,
-    paddingBottom: 8,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-  },
+  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheetWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  modalSheet: { width: '100%', paddingTop: 12, paddingBottom: 8, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20 },
   modalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
   modalOpt: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },

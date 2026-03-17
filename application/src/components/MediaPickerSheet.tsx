@@ -22,16 +22,33 @@ interface MediaPickerSheetProps {
   onSelectMedia: (uri: string | undefined) => void;
 }
 
-// ─── Measure the real Android nav bar height ───────────────────────────────
-// Dimensions.get('screen') = full physical screen
-// Dimensions.get('window') = usable app area (excludes nav bar + status bar)
-// StatusBar.currentHeight  = status bar pixels (Android only)
-function getNavBarHeight(): number {
-  if (Platform.OS !== 'android') return 0;
+// ─────────────────────────────────────────────────────────────────────────────
+//  Detect gesture navigation mode on Android
+//
+//  The reliable way to tell the difference:
+//  - Button nav:  navBarHeight is typically >= 40px
+//  - Gesture nav: navBarHeight is typically <= 24px (just a tiny gesture hint bar)
+//
+//  Android reports a small ~24dp tappable zone even in gesture mode,
+//  but it is TRANSPARENT — not a solid bar.
+//  The threshold of 30dp separates them reliably across all devices.
+// ─────────────────────────────────────────────────────────────────────────────
+function getNavBarInfo(): { height: number; isGestureMode: boolean } {
+  console.log("platform", Platform.OS);
+  if (Platform.OS !== 'android') {
+    return { height: 0, isGestureMode: false };
+  }
   const screenH = Dimensions.get('screen').height;
   const windowH = Dimensions.get('window').height;
   const sbH = StatusBar.currentHeight ?? 0;
-  return Math.max(screenH - windowH - sbH, 0);
+  const height = Math.max(screenH - windowH - sbH, 0);
+
+  // Gesture nav = nav bar height is small (the system only reserves ~24dp for swipe hint)
+  // Button nav  = nav bar height is large (~48dp for the 3 buttons)
+  // Threshold of 30dp reliably separates the two on all Android versions
+  const isGestureMode = height <= 30;
+
+  return { height, isGestureMode };
 }
 
 export default function MediaPickerSheet({
@@ -42,8 +59,7 @@ export default function MediaPickerSheet({
   const [slideAnim] = useState(new Animated.Value(0));
   const { colors, theme } = useTheme();
 
-  const navBarHeight = getNavBarHeight();
-  // Solid sheet colour — never transparent
+  const { height: navBarHeight, isGestureMode } = getNavBarInfo();
   const sheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
 
   React.useEffect(() => {
@@ -80,38 +96,27 @@ export default function MediaPickerSheet({
       transparent
       visible={isVisible}
       animationType="none"
-      statusBarTranslucent   // modal window covers full screen incl. nav bar
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/*
-        ┌─────────────────────────────────┐  ← top of physical screen
-        │  TouchableWithoutFeedback       │  ← dark overlay, closes on tap
-        │  (flex: 1)                      │
-        ├─────────────────────────────────┤
-        │  sheetWrapper                   │  ← contains sheet + black bar
-        │  ┌───────────────────────────┐  │
-        │  │  Animated sheet (white)   │  │
-        │  └───────────────────────────┘  │
-        │  ┌───────────────────────────┐  │
-        │  │  black bar (navBarHeight) │  │  ← KEY: solid black fills nav zone
-        │  └───────────────────────────┘  │
-        └─────────────────────────────────┘  ← bottom of physical screen
-      */}
       <View style={styles.root}>
-        {/* Dark overlay */}
+
+        {/* Semi-dark overlay — tap to close */}
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={styles.overlay} />
         </TouchableWithoutFeedback>
 
-        {/* Sheet + black nav bar filler stacked together */}
         <View style={styles.sheetWrapper}>
+
+          {/* Sheet */}
           <Animated.View
             style={[
               styles.sheet,
               {
                 backgroundColor: sheetBg,
-                // Only pad enough for content — the black bar below handles the rest
-                paddingBottom: 8,
+                // In gesture mode add a little bottom padding so last button
+                // isn't right at the edge. In button mode the filler handles it.
+                paddingBottom: isGestureMode ? 8 : 8,
                 transform: [{ translateY }],
               },
             ]}
@@ -139,11 +144,28 @@ export default function MediaPickerSheet({
           </Animated.View>
 
           {/*
-            This View sits OUTSIDE the sheet's border-radius zone.
-            It fills exactly the Android nav bar height with pure black
-            so the system nav bar blends seamlessly — zero transparency.
+            Nav bar filler — only rendered in 3-button nav mode.
+
+            BUTTON MODE  (isGestureMode = false):
+              Solid black View, height = navBarHeight (~48dp)
+              Sits below sheet rounded corners with zero gap.
+              Nav buttons appear on solid black — matches system nav bar.
+
+            GESTURE MODE (isGestureMode = true):
+              This View is NOT rendered at all (null).
+              Sheet sits flush at bottom. Swipe zone is fully transparent.
+              Identical to Facebook / Instagram in gesture mode.
           */}
-          <View style={[styles.navBarFill, { height: navBarHeight, backgroundColor: '#000000' }]} />
+          {!isGestureMode && (
+            <View
+              style={{
+                width: '100%',
+                height: navBarHeight,
+                backgroundColor: '#000000',
+              }}
+            />
+          )}
+
         </View>
       </View>
     </Modal>
@@ -158,8 +180,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.50)',
   },
-  // sheetWrapper stacks the sheet and the black bar vertically
-  // It sits at the bottom because the overlay above it takes all remaining flex space
   sheetWrapper: {
     width: '100%',
   },
@@ -168,10 +188,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-  },
-  navBarFill: {
-    width: '100%',
-    // height and backgroundColor set dynamically
   },
   handle: {
     width: 40,

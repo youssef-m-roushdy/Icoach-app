@@ -1,5 +1,3 @@
-
-
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
@@ -47,7 +45,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Index عشان تجيب خطط اليوزر النشطة بسرعة
   await queryInterface.addIndex('fitness_plans', ['userId', 'status']);
 }
 

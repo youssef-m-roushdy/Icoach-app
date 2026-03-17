@@ -1,7 +1,33 @@
-import { DataTypes, Model, type CreationOptional } from 'sequelize';
+import {
+  DataTypes,
+  Model,
+  type Optional,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+} from 'sequelize';
 import { sequelize } from '../../config/database.js';
 
-class Injury extends Model {
+export interface InjuryAttributes {
+  id: number;
+  name: string;
+  bodyPart: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface InjuryCreationAttributes
+  extends Optional<
+    InjuryAttributes,
+    | 'id'
+    | 'description'
+    | 'createdAt'
+    | 'updatedAt'
+  > {}
+
+class Injury extends Model<InferAttributes<Injury>, InferCreationAttributes<Injury>> {
   declare id: CreationOptional<number>;
   declare name: string;
   declare bodyPart: string;
