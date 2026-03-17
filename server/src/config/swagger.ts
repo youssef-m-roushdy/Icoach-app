@@ -666,7 +666,9 @@ const options = {
         './src/routes/v1/userRoutes.ts',
         './src/routes/v1/foodRoutes.ts',
         './src/routes/v1/workouts.ts',
-        './src/routes/v1/savedWorkoutRoutes.ts'
+        './src/routes/v1/savedWorkoutRoutes.ts',
+        './src/routes/v1/workoutSessionRoutes.ts',
+        './src/routes/v1/progressRoutes.ts'
       ],  // In development, explicitly list all route files
 };
 

@@ -50,3 +50,8 @@ export {
   validatePersonalBestQuery,
   validatePersonalBestId,
 } from './personalBestValidation.js';
+
+export {
+  validateProgressHistoryQuery,
+  validateProgressDashboardQuery,
+} from './progressValidation.js';

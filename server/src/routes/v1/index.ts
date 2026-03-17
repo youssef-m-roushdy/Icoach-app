@@ -5,6 +5,7 @@ import foodRoutes from './foodRoutes.js';
 import workoutRoutes from './workoutRoutes.js';
 import savedWorkoutRoutes from './savedWorkoutRoutes.js';
 import workoutSessionRoutes from './workoutSessionRoutes.js';
+import progressRoutes from './progressRoutes.js';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.use('/auth', authRoutes);
 router.use('/foods', foodRoutes);
 router.use('/workouts', workoutRoutes);
 router.use('/saved-workouts', savedWorkoutRoutes);
-router.use('/workout-sessions', workoutSessionRoutes); // Add this
+router.use('/workout-sessions', workoutSessionRoutes);
+router.use('/progress', progressRoutes);
 
 export default router;
