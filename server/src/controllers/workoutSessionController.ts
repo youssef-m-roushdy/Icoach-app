@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { WorkoutSession, Workout } from '../models/sql/index.js';
-import { Op } from 'sequelize';
+import { Op, Sequelize } from 'sequelize';
 import { MetricsCalculationService } from '../services/metricsCalculationService.js';
 import { UserMetrics } from '../models/sql/index.js';
 import { AppError, NotFoundError } from '../utils/errors.js';
@@ -15,6 +15,10 @@ interface AuthenticatedRequest extends Request {
 
 /**
  * Get all workout sessions for the authenticated user with optional filtering and pagination
+ * Supports filtering by:
+ * - Date range (startDate, endDate)
+ * - Text search on workout name, body part, target area (bodyPart, targetArea, workoutName)
+ * - Numeric filters (minDuration, minVolume)
  */
 export const getWorkoutSessions = async (
   req: Request,
@@ -32,52 +36,75 @@ export const getWorkoutSessions = async (
       limit = 20,
       startDate,
       endDate,
-      workoutId,
       minDuration,
       minVolume,
+      bodyPart,
+      targetArea,
+      workoutName,
     } = req.query;
 
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build filter conditions
-    const where: any = { userId: user.id };
+    // Build filter conditions for WorkoutSession
+    const sessionWhere: any = { userId: user.id };
 
+    // Date range filter
     if (startDate || endDate) {
-      where.completedAt = {};
+      sessionWhere.completedAt = {};
       if (startDate) {
-        where.completedAt[Op.gte] = new Date(startDate as string);
+        sessionWhere.completedAt[Op.gte] = new Date(startDate as string);
       }
       if (endDate) {
-        where.completedAt[Op.lte] = new Date(endDate as string);
+        sessionWhere.completedAt[Op.lte] = new Date(endDate as string);
       }
     }
 
-    if (workoutId) {
-      where.workoutId = workoutId;
-    }
-
+    // Numeric filters
     if (minDuration) {
-      where.duration = { [Op.gte]: parseInt(minDuration as string, 10) };
+      sessionWhere.duration = { [Op.gte]: parseInt(minDuration as string, 10) };
     }
 
     if (minVolume) {
-      where.volume = { [Op.gte]: parseFloat(minVolume as string) };
+      sessionWhere.volume = { [Op.gte]: parseFloat(minVolume as string) };
+    }
+
+    // Build filter conditions for Workout (through include)
+    const workoutWhere: any = {};
+
+    // Text search filters
+    if (bodyPart) {
+      workoutWhere.body_part = { [Op.iLike]: `%${bodyPart}%` };
+    }
+
+    if (targetArea) {
+      workoutWhere.target_area = { [Op.iLike]: `%${targetArea}%` };
+    }
+
+    if (workoutName) {
+      workoutWhere.name = { [Op.iLike]: `%${workoutName}%` };
+    }
+
+    // Build include with where conditions if any text filters are applied
+    const include: any = {
+      model: Workout,
+      as: 'workout',
+      attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
+    };
+
+    // Only add where clause to include if there are text filters
+    if (Object.keys(workoutWhere).length > 0) {
+      include.where = workoutWhere;
     }
 
     const { count, rows } = await WorkoutSession.findAndCountAll({
-      where,
-      include: [
-        {
-          model: Workout,
-          as: 'workout',
-          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
-        },
-      ],
+      where: sessionWhere,
+      include: [include],
       limit: limitNum,
       offset,
       order: [['completedAt', 'DESC']],
+      distinct: true, // Important for correct count when using include with where
     });
 
     res.status(200).json({

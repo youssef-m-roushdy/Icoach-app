@@ -11,6 +11,7 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { workoutService, savedWorkoutService } from '../services/api';
@@ -21,6 +22,8 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 interface Workout {
   id: number;
@@ -49,6 +52,7 @@ interface WorkoutFilters {
 }
 
 const WorkoutsScreen = () => {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { token } = useAuth();
   const { theme, colors } = useTheme();
 
@@ -308,6 +312,15 @@ const WorkoutsScreen = () => {
     }
   };
 
+  const handleStartSession = (workout: Workout) => {
+    // ✅ Now TypeScript knows this is valid
+    navigation.navigate('WorkoutSession', {
+      workoutId: workout.id,
+      workoutName: workout.name,
+      workoutImage: workout.gif_link,
+    });
+  };
+
   const renderPageNumbers = () => {
     if (!pagination || pagination.totalPages === 0) return null;
 
@@ -450,6 +463,15 @@ const WorkoutsScreen = () => {
               {item.description}
             </Text>
           )}
+
+          {/* Start Session Button */}
+          <TouchableOpacity
+            style={[styles.startButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleStartSession(item)}
+          >
+            <Ionicons name="play" size={20} color="#FFFFFF" />
+            <Text style={styles.startButtonText}>Start Session</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -880,6 +902,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 12,
     lineHeight: 20,
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',

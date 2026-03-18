@@ -113,42 +113,87 @@ export const validateUpdateWorkoutSession = [
 
 /**
  * Workout Session Query Validation
+ * Supports filtering by:
+ * - Date range (startDate, endDate)
+ * - Text search (bodyPart, targetArea, workoutName)
+ * - Numeric filters (minDuration, minVolume)
  */
 export const validateWorkoutSessionQuery = [
+  // Pagination
   query('page')
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+    .withMessage('Page must be a positive integer')
+    .toInt(),
   
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
+    .withMessage('Limit must be between 1 and 100')
+    .toInt(),
   
+  // Date filters
   query('startDate')
     .optional()
     .isISO8601()
-    .withMessage('Start date must be a valid date'),
+    .withMessage('Start date must be a valid date (YYYY-MM-DD)'),
   
   query('endDate')
     .optional()
     .isISO8601()
-    .withMessage('End date must be a valid date'),
+    .withMessage('End date must be a valid date (YYYY-MM-DD)')
+    .custom((value, { req }) => {
+      // If both startDate and endDate are provided, ensure startDate <= endDate
+      if (req.query?.startDate && value) {
+        const startDate = new Date(req.query.startDate as string);
+        const endDate = new Date(value);
+        if (startDate > endDate) {
+          throw new Error('Start date must be before or equal to end date');
+        }
+      }
+      return true;
+    }),
   
-  query('workoutId')
+  // Text search filters (new)
+  query('bodyPart')
     .optional()
-    .isInt({ min: 1 })
-    .withMessage('Workout ID must be a positive integer'),
+    .isString()
+    .withMessage('Body part must be a string')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Body part must be between 1 and 100 characters')
+    .escape(), // Sanitize input
   
+  query('targetArea')
+    .optional()
+    .isString()
+    .withMessage('Target area must be a string')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Target area must be between 1 and 100 characters')
+    .escape(),
+  
+  query('workoutName')
+    .optional()
+    .isString()
+    .withMessage('Workout name must be a string')
+    .trim()
+    .isLength({ min: 1, max: 255 })
+    .withMessage('Workout name must be between 1 and 255 characters')
+    .escape(),
+  
+  // Numeric filters
   query('minDuration')
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Minimum duration must be a positive integer'),
+    .withMessage('Minimum duration must be a positive integer')
+    .toInt(),
   
   query('minVolume')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Minimum volume must be a positive number'),
+    .withMessage('Minimum volume must be a positive number')
+    .toFloat(),
   
   handleValidationErrors,
 ];
@@ -160,6 +205,19 @@ export const validateWorkoutSessionId = [
   param('id')
     .isInt({ min: 1 })
     .withMessage('Invalid session ID'),
+  
+  handleValidationErrors,
+];
+
+/**
+ * Workout Session Stats Validation
+ */
+export const validateWorkoutSessionStats = [
+  query('days')
+    .optional()
+    .isInt({ min: 1, max: 365 })
+    .withMessage('Days must be between 1 and 365')
+    .toInt(),
   
   handleValidationErrors,
 ];

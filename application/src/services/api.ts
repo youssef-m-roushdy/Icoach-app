@@ -69,7 +69,7 @@ const buildUrl = (
   return url.toString();
 };
 
-const request = async <T>(
+export const request = async <T>(
   path: string,
   options: RequestInit = {},
   query?: Record<string, any>,
@@ -94,7 +94,7 @@ const request = async <T>(
   return result as T;
 };
 
-const createJsonHeaders = (token?: string): HeadersInit => {
+export const createJsonHeaders = (token?: string): HeadersInit => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import WorkoutHistoryScreen from '../screens/WorkoutHistoryScreen';
 
 import {
   ActivityIndicator,
@@ -32,7 +33,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Text,
-  Modal,
+  BackHandler,
+  Animated,
+  Easing,
+  Platform,
+  TouchableWithoutFeedback,
   Dimensions,
 } from 'react-native';
 
@@ -40,6 +45,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
 import { createToastConfig } from '../constants/toastConfig';
 import GymProgressScreen from '@/screens/GymProgressScreen';
+import WorkoutSessionScreen from '@/screens/WorkoutSessionScreen';
 
 // Type definition temporarily added to fix 'Messages' error
 export type RootStackParamList = {
@@ -58,6 +64,12 @@ export type RootStackParamList = {
   Workouts: undefined;
   LiveWorkout: undefined;
   SavedWorkouts: undefined;
+  WorkoutHistory: undefined; // ✅ Add WorkoutHistory
+  WorkoutSession: { 
+    workoutId: number; 
+    workoutName: string; 
+    workoutImage?: string;
+  };
   GymProgress: undefined;
   EmailVerification: undefined;
   ChangePassword: undefined;
@@ -99,12 +111,9 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <>
+      {visible && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
       <View style={drawerStyles.overlay}>
         {/* Place drawer first so it is fixed on the left */}
         <View
@@ -193,6 +202,20 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
               </Text>
             </TouchableOpacity>
 
+             <TouchableOpacity
+              style={drawerStyles.menuItem}
+              onPress={() => handleNavigate('WorkoutHistory')} // ✅ Add WorkoutHistory
+            >
+              <MaterialIcons
+                name="history"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Workout History
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('GymProgress')}
@@ -252,7 +275,9 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
           onPress={onClose}
         />
       </View>
-    </Modal>
+      </View>
+      )}
+    </>
   );
 }
 
@@ -393,6 +418,16 @@ export const AppNavigator: React.FC = () => {
                 name="SavedWorkouts"
                 component={SavedWorkoutsScreen}
                 options={{ title: 'My Workouts' }}
+              />
+              <Stack.Screen
+                name="WorkoutHistory"
+                component={WorkoutHistoryScreen}
+                options={{ title: 'Workout History' }}
+              />
+              <Stack.Screen
+                name="WorkoutSession"
+                component={WorkoutSessionScreen}
+                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="LiveWorkout"

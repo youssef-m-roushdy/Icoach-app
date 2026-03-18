@@ -1,14 +1,50 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets, Edge } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthProvider, ThemeProvider } from './src/context';
+import { AuthProvider, ThemeProvider, useAuth } from './src/context';
+import { useTheme } from './src/context/ThemeContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import i18n from './i18n/i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import './i18n/i18n';
-import { StyleSheet, ActivityIndicator, View } from 'react-native';
+import { StyleSheet, ActivityIndicator, View, Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
+import { SystemNavigationProvider } from './src/context/SystemNavigationContext';
+
+const AppContent = () => {
+  const { colors, theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  
+  const isThreeButtonNav = Platform.OS === 'android' && insets.bottom > 35;
+  const edges: Edge[] = isThreeButtonNav 
+    ? ['top', 'right', 'left', 'bottom'] 
+    : ['top', 'right', 'left'];
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const configureNavBar = async () => {
+        try {
+          // With edgeToEdgeEnabled the OS keeps the nav bar transparent natively.
+          // We only need to set the button icon colour (light for dark theme, dark for light).
+          await NavigationBar.setButtonStyleAsync(theme === 'dark' ? 'light' : 'dark');
+        } catch (error) {
+          console.warn('Navigation bar configuration error:', error);
+        }
+      };
+      configureNavBar();
+    }
+  }, [theme]);
+
+  return (
+    <SystemNavigationProvider isThreeButtonNav={isThreeButtonNav} systemBottomInset={insets.bottom}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={edges}>
+        <AppNavigator />
+      </SafeAreaView>
+    </SystemNavigationProvider>
+  );
+};
 
 export default function App() {
   const [appReady, setAppReady] = useState(false);
@@ -50,17 +86,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <SafeAreaView style={styles.container} edges={['top', 'right', 'left', 'bottom']}>
-          <AuthProvider>
-            <ThemeProvider>
-              <AppNavigator />
-            </ThemeProvider>
-          </AuthProvider>
-        </SafeAreaView>
+        <AuthProvider>
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
 
 const styles = StyleSheet.create({
   flex: {

@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context';
 import { progressService } from '../services/progressService';
-import { workoutSessionService } from '../services/workoutSessionService'; // ✅ Added import
+import { ApiError } from '../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -245,16 +245,13 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
         </React.Fragment>
       ))}
 
-      {/* Labels - FIXED: Safe number conversion */}
+      {/* Labels */}
       {labelPositions.map(({ key, x, y }) => {
         let anchor: TextAnchor = 'middle';
         if (x < center - 10) anchor = 'end';
         if (x > center + 10) anchor = 'start';
         
-        // Safe number conversion
-        const metricValue = typeof metrics[key] === 'number' 
-          ? metrics[key] 
-          : Number(metrics[key] || 0);
+        const metricValue = metrics[key] || 0;
         const val = metricValue.toFixed(1);
         
         return (
@@ -327,7 +324,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 
   const stats: Array<{ label: string; value: string | number }> = [
     { label: 'Total Workouts', value: data.totalWorkouts },
-    { label: 'Weekly Avg', value: typeof data.weeklyAvg === 'number' ? data.weeklyAvg.toFixed(1) : Number(data.weeklyAvg || 0).toFixed(1) },
+    { label: 'Weekly Avg', value: data.weeklyAvg.toFixed(1) },
     { label: 'Current Streak', value: `${data.currentStreak}d` },
     { label: 'Best Streak', value: `${data.longestStreak}d` },
   ];
@@ -366,7 +363,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
       <View style={[styles.volumeBar, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
         <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
-          {((typeof data.totalVolume === 'number' ? data.totalVolume : Number(data.totalVolume || 0)) / 1000).toFixed(1)}k kg
+          {(data.totalVolume / 1000).toFixed(1)}k kg
         </Text>
       </View>
     </View>
@@ -416,7 +413,6 @@ export default function GymProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]); // For additional data if needed
   
   const headerFade = useRef(new Animated.Value(0)).current;
   const cardSlide = useRef(new Animated.Value(40)).current;
@@ -434,33 +430,50 @@ export default function GymProgressScreen() {
       console.log('Fetching progress with token:', token ? 'Token exists' : 'No token');
       const response = await progressService.getProgressDashboard(token);
       
-      // Convert string metrics to numbers
-      const convertedData = {
-        ...response.data,
+      // Check if response was successful and has data
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to load progress data');
+      }
+
+      const dashboardData = response.data;
+      
+      // Convert string metrics to numbers with safe fallbacks
+      const convertedData: UserData = {
+        name: dashboardData.name || 'User',
+        joinedDate: dashboardData.joinedDate || '',
+        avatarUrl: dashboardData.avatarUrl || null,
+        currentPoints: dashboardData.currentPoints || 0,
+        maxPoints: dashboardData.maxPoints || 10000,
+        badgeLevel: dashboardData.badgeLevel || 1,
         metrics: {
-          strength: Number(response.data.metrics.strength),
-          endurance: Number(response.data.metrics.endurance),
-          consistency: Number(response.data.metrics.consistency),
-          volume: Number(response.data.metrics.volume),
-          progress: Number(response.data.metrics.progress),
-          habits: Number(response.data.metrics.habits),
+          strength: Number(dashboardData.metrics?.strength) || 0,
+          endurance: Number(dashboardData.metrics?.endurance) || 0,
+          consistency: Number(dashboardData.metrics?.consistency) || 0,
+          volume: Number(dashboardData.metrics?.volume) || 0,
+          progress: Number(dashboardData.metrics?.progress) || 0,
+          habits: Number(dashboardData.metrics?.habits) || 0,
         },
         trainingData: {
-          ...response.data.trainingData,
-          weeklyAvg: Number(response.data.trainingData.weeklyAvg),
-          totalVolume: Number(response.data.trainingData.totalVolume),
+          totalWorkouts: dashboardData.trainingData?.totalWorkouts || 0,
+          weeklyAvg: Number(dashboardData.trainingData?.weeklyAvg) || 0,
+          currentStreak: dashboardData.trainingData?.currentStreak || 0,
+          longestStreak: dashboardData.trainingData?.longestStreak || 0,
+          totalVolume: Number(dashboardData.trainingData?.totalVolume) || 0,
+          personalBests: dashboardData.trainingData?.personalBests || [],
         }
       };
       
       setProgressData(convertedData);
 
-      // Optional: Fetch recent workout sessions for history
-      // const historyResponse = await workoutSessionService.getWorkoutSessions(token, { limit: 5 });
-      // setWorkoutHistory(historyResponse.data);
-
     } catch (err: any) {
-      setError(err.message || 'Failed to load progress data');
       console.error('Error fetching progress:', err);
+      
+      // Handle different error types
+      if (err.name === 'ApiError') {
+        setError(err.message || 'Failed to load progress data');
+      } else {
+        setError(err.message || 'Failed to load progress data');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

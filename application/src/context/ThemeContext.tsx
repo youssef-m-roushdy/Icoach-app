@@ -33,6 +33,7 @@ export interface ThemeColors {
   statBg: string;
   statBorder: string;
   error: string;
+  placeholder: string;
 }
 
 interface ThemeContextType {
@@ -70,6 +71,7 @@ const darkTheme: ThemeColors = {
   statBg: 'rgba(255, 255, 255, 0.08)',
   statBorder: 'rgba(255, 255, 255, 0.15)',
   error: '#FF6B6B',
+  placeholder: '#888',
 };
 
 const lightTheme: ThemeColors = {
@@ -101,6 +103,7 @@ const lightTheme: ThemeColors = {
   statBg: '#FBF7F1',
   statBorder: '#EDE5D8',
   error: '#FF6B6B',
+  placeholder: '#9A8A72',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

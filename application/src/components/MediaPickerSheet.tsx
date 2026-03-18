@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
+  BackHandler,
   Animated,
   Platform,
   StatusBar,
@@ -92,13 +92,7 @@ export default function MediaPickerSheet({
   if (!isVisible) return null;
 
   return (
-    <Modal
-      transparent
-      visible={isVisible}
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
       <View style={styles.root}>
 
         {/* Semi-dark overlay — tap to close */}
@@ -168,7 +162,7 @@ export default function MediaPickerSheet({
 
         </View>
       </View>
-    </Modal>
+    </View>
   );
 }
 

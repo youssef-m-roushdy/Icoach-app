@@ -125,12 +125,12 @@ const router = Router();
  *       - Workout Sessions
  *     summary: Get all workout sessions for the authenticated user
  *     description: |
- *       Retrieve a paginated list of the user's workout sessions with optional filters for date range, workout type, duration, and volume.
+ *       Retrieve a paginated list of the user's workout sessions with advanced filtering options.
  *       
  *       **Features:**
  *       - Pagination with page and limit parameters
  *       - Filter by date range (startDate/endDate)
- *       - Filter by specific workout ID
+ *       - Text search on workout details (bodyPart, targetArea, workoutName)
  *       - Filter by minimum duration or volume
  *       - Includes workout details in response
  *       - Sorted by most recent first
@@ -171,11 +171,23 @@ const router = Router();
  *         description: Filter sessions until this date (YYYY-MM-DD)
  *         example: "2026-03-17"
  *       - in: query
- *         name: workoutId
+ *         name: bodyPart
  *         schema:
- *           type: integer
- *         description: Filter by specific workout ID
- *         example: 5
+ *           type: string
+ *         description: Filter by body part (partial match, case-insensitive)
+ *         example: "chest"
+ *       - in: query
+ *         name: targetArea
+ *         schema:
+ *           type: string
+ *         description: Filter by target area (partial match, case-insensitive)
+ *         example: "upper chest"
+ *       - in: query
+ *         name: workoutName
+ *         schema:
+ *           type: string
+ *         description: Filter by workout name (partial match, case-insensitive)
+ *         example: "press"
  *       - in: query
  *         name: minDuration
  *         schema:

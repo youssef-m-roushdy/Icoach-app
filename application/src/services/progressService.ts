@@ -1,6 +1,6 @@
-import { API_BASE_URL, apiCallWithRefresh } from './api';
+import { API_BASE_URL, apiCallWithRefresh, createJsonHeaders, request } from './api';
 
-export interface ProgressDashboardResponse {
+export interface ProgressDashboardData {
   name: string;
   joinedDate: string;
   avatarUrl: string | null;
@@ -39,14 +39,23 @@ export interface MetricsHistoryItem {
   habits: number;
 }
 
+export interface MetricsHistoryMeta {
+  totalDays: number;
+  metricsIncluded: string[];
+  format: string;
+}
+
+export interface ProgressDashboardResponse {
+  success: boolean;
+  message?: string;
+  data?: ProgressDashboardData;
+}
+
 export interface MetricsHistoryResponse {
   success: boolean;
-  data: MetricsHistoryItem[];
-  meta: {
-    totalDays: number;
-    metricsIncluded: string[];
-    format: string;
-  };
+  message?: string;
+  data?: MetricsHistoryItem[];
+  meta?: MetricsHistoryMeta;
 }
 
 export const progressService = {
@@ -74,38 +83,31 @@ export const progressService = {
       includeHistory?: boolean;
       historyDays?: number;
     }
-  ): Promise<{ success: boolean; data: ProgressDashboardResponse }> {
-    return apiCallWithRefresh(async (accessToken) => {
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-      
-      if (params?.includeHistory) {
-        queryParams.append('includeHistory', 'true');
-        if (params.historyDays) {
-          queryParams.append('historyDays', params.historyDays.toString());
+  ): Promise<ProgressDashboardResponse> {
+    return apiCallWithRefresh(
+      async (accessToken) => {
+        const queryParams: Record<string, any> = {};
+        
+        if (params?.includeHistory) {
+          queryParams.includeHistory = 'true';
+          if (params.historyDays) {
+            queryParams.historyDays = params.historyDays;
+          }
         }
-      }
 
-      const url = `${API_BASE_URL}/v1/progress/dashboard${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('📊 Fetching progress dashboard from:', url);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      const result = await response.json();
-      console.log('📊 Progress dashboard response:', result);
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch progress dashboard');
-      }
-
-      return result;
-    }, token);
+        console.log('📊 Fetching progress dashboard');
+        
+        return request<ProgressDashboardResponse>(
+          '/v1/progress/dashboard',
+          {
+            method: 'GET',
+            headers: createJsonHeaders(accessToken),
+          },
+          queryParams
+        );
+      },
+      token
+    );
   },
 
   /**
@@ -139,35 +141,30 @@ export const progressService = {
       format?: 'daily' | 'weekly' | 'monthly';
     }
   ): Promise<MetricsHistoryResponse> {
-    return apiCallWithRefresh(async (accessToken) => {
-      const queryParams = new URLSearchParams();
-      
-      if (params) {
-        Object.entries(params).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            queryParams.append(key, value.toString());
-          }
-        });
-      }
+    return apiCallWithRefresh(
+      async (accessToken) => {
+        const queryParams: Record<string, any> = {};
+        
+        if (params) {
+          if (params.days) queryParams.days = params.days;
+          if (params.startDate) queryParams.startDate = params.startDate;
+          if (params.endDate) queryParams.endDate = params.endDate;
+          if (params.metrics) queryParams.metrics = params.metrics;
+          if (params.format) queryParams.format = params.format;
+        }
 
-      const url = `${API_BASE_URL}/v1/progress/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('📊 Fetching metrics history from:', url);
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch metrics history');
-      }
-
-      return result;
-    }, token);
+        console.log('📊 Fetching metrics history');
+        
+        return request<MetricsHistoryResponse>(
+          '/v1/progress/history',
+          {
+            method: 'GET',
+            headers: createJsonHeaders(accessToken),
+          },
+          queryParams
+        );
+      },
+      token
+    );
   },
 };
