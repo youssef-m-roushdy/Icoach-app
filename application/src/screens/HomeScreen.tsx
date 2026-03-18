@@ -50,15 +50,6 @@ export default function HomeScreen() {
     <View style={[styles.main, { backgroundColor: colors.background }]}>
       <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
       
-      {/* Background Image */}
-      {!(theme === 'light') && (
-      <Image 
-        source={require('../../assets/Boy.png')} 
-        style={styles.backgroundImage} 
-      />
-      )}
-      
-
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
           
           <View style={styles.headerTop}>

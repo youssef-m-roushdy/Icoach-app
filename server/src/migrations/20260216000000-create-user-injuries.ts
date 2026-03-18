@@ -32,7 +32,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Index عشان تجيب إصابات اليوزر بسرعة
   await queryInterface.addIndex('user_injuries', ['userId', 'injuryId']);
 }
 

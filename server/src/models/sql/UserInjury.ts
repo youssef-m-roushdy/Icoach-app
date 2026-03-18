@@ -1,9 +1,28 @@
-import { DataTypes, Model, type CreationOptional } from 'sequelize';
+import {
+  DataTypes,
+  Model,
+  type Optional,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+} from 'sequelize';
 import { sequelize } from '../../config/database.js';
-import User from './User.js';
-import Injury from './injury.js';
 
-class UserInjury extends Model {
+export interface UserInjuryAttributes {
+  id: number;
+  userId: number;
+  injuryId: number;
+  createdAt: Date;
+}
+
+export interface UserInjuryCreationAttributes
+  extends Optional<
+    UserInjuryAttributes,
+    | 'id'
+    | 'createdAt'
+  > {}
+
+class UserInjury extends Model<InferAttributes<UserInjury>, InferCreationAttributes<UserInjury>> {
   declare id: CreationOptional<number>;
   declare userId: number;
   declare injuryId: number;
@@ -49,9 +68,5 @@ UserInjury.init(
     updatedAt: false,
   }
 );
-
-// العلاقات
-User.belongsToMany(Injury, { through: UserInjury, foreignKey: 'userId' });
-Injury.belongsToMany(User, { through: UserInjury, foreignKey: 'injuryId' });
 
 export default UserInjury;

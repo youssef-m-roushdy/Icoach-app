@@ -226,6 +226,13 @@ export default function EditProfileScreen() {
         title: 'Update Failed',
         message: getErrorMessage(error) || 'Failed to update profile',
       });
+      
+      Alert.alert('Success', 'Profile updated successfully', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    } catch (error: any) {
+      console.log(error);
+      Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }

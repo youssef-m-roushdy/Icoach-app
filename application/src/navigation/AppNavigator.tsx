@@ -39,6 +39,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
 import { createToastConfig } from '../constants/toastConfig';
+import GymProgressScreen from '@/screens/GymProgressScreen';
 
 // Type definition temporarily added to fix 'Messages' error
 export type RootStackParamList = {
@@ -56,6 +57,7 @@ export type RootStackParamList = {
   Workouts: undefined;
   LiveWorkout: undefined;
   SavedWorkouts: undefined;
+  GymProgress: undefined;
   EmailVerification: undefined;
   ChangePassword: undefined;
   ForgotPassword: undefined;
@@ -192,6 +194,14 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
 
             <TouchableOpacity
               style={drawerStyles.menuItem}
+              onPress={() => handleNavigate('GymProgress')}
+            >
+              <MaterialIcons name="trending-up" size={24} color={colors.primary} />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>My Progress</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={drawerStyles.menuItem}
               onPress={() => handleNavigate('LiveWorkout')}
             >
               <MaterialIcons
@@ -225,6 +235,9 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
             ]}
           >
             <TouchableOpacity
+
+          <View style={[drawerStyles.footer, { paddingBottom: insets.bottom + 20, borderTopColor: colors.border }]}>
+            <TouchableOpacity 
               style={drawerStyles.logoutButton}
               onPress={handleLogout}
             >
@@ -339,6 +352,23 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen
                 name="Home"
                 component={HomeScreen}
+              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+              <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
+              <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
+              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
+              <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
+              <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
+              <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
+              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+              <Stack.Screen name="GymProgress" component={GymProgressScreen} options={{ title: 'My Progress' }} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen 
+                name="Home" 
+                component={HomeScreen} 
                 options={({ navigation }) => ({
                   title: 'ICoach',
                   headerRight: () => (
@@ -477,6 +507,17 @@ export const AppNavigator: React.FC = () => {
                 component={ChangePasswordScreen}
                 options={{ title: 'Change Password' }}
               />
+              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+              <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
+              <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
+              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
+              <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
+              <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
+              <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
+              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+              <Stack.Screen name="GymProgress" component={GymProgressScreen} options={{ title: 'My Progress' }} />
             </>
           )}
         </Stack.Navigator>

@@ -1,4 +1,3 @@
-
 import { QueryInterface, DataTypes } from 'sequelize';
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
@@ -32,7 +31,6 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
   });
 
-  // Index عشان الـ AI يجيب الرسائل بسرعة
   await queryInterface.addIndex('chat_history', ['userId', 'createdAt']);
 }
 

@@ -1,0 +1,865 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
+import Svg, {
+  Polygon,
+  Line,
+  Circle,
+  Text as SvgText,
+  Defs,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context';
+import { progressService } from '../services/progressService';
+import { workoutSessionService } from '../services/workoutSessionService'; // ✅ Added import
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ─────────────────────────────────────────────
+//  TYPES
+// ─────────────────────────────────────────────
+type MetricKey = 'strength' | 'endurance' | 'consistency' | 'volume' | 'progress' | 'habits';
+type Metrics = Record<MetricKey, number>;
+type TextAnchor = 'start' | 'middle' | 'end';
+type TabName = 'fitness' | 'training';
+
+interface PersonalBest {
+  exercise: string;
+  value: string;
+}
+
+interface TrainingData {
+  totalWorkouts: number;
+  weeklyAvg: number;
+  currentStreak: number;
+  longestStreak: number;
+  totalVolume: number;
+  personalBests: PersonalBest[];
+}
+
+interface UserData {
+  name: string;
+  joinedDate: string;
+  avatarUrl: string | null;
+  currentPoints: number;
+  maxPoints: number;
+  badgeLevel: number;
+  metrics: Metrics;
+  trainingData: TrainingData;
+}
+
+// ─────────────────────────────────────────────
+//  CALCULATIONS
+// ─────────────────────────────────────────────
+const metricKeys: MetricKey[] = [
+  'strength', 'endurance', 'consistency', 'volume', 'progress', 'habits',
+];
+
+const calculateFitnessScore = (metrics: Metrics): number => {
+  const weights: Metrics = {
+    strength: 0.25,
+    endurance: 0.20,
+    consistency: 0.20,
+    volume: 0.15,
+    progress: 0.12,
+    habits: 0.08,
+  };
+  const maxScore = 5000;
+  const total = (Object.keys(weights) as MetricKey[]).reduce(
+    (sum, key) => sum + (metrics[key] / 10) * weights[key],
+    0
+  );
+  return Math.round(total * maxScore);
+};
+
+const calculatePointsPercentage = (current: number, max: number): number =>
+  (current / max) * 100;
+
+const getMetricLabel = (key: MetricKey): string => {
+  const labels: Record<MetricKey, string> = {
+    strength: 'Strength',
+    endurance: 'Endurance',
+    consistency: 'Consistency',
+    volume: 'Volume',
+    progress: 'Progress',
+    habits: 'Habits',
+  };
+  return labels[key];
+};
+
+// ─────────────────────────────────────────────
+//  SPIDER RADAR CHART
+// ─────────────────────────────────────────────
+interface HexRadarChartProps {
+  metrics: Metrics;
+  size?: number;
+  primaryColor: string;
+  gridColor: string;
+  labelColor: string;
+}
+
+const HexRadarChart: React.FC<HexRadarChartProps> = ({
+  metrics,
+  size = 220,
+  primaryColor,
+  gridColor,
+  labelColor,
+}) => {
+  const animProgress = useRef(new Animated.Value(0)).current;
+  const [animValue, setAnimValue] = useState(0);
+
+  useEffect(() => {
+    animProgress.setValue(0);
+    Animated.timing(animProgress, {
+      toValue: 1,
+      duration: 1200,
+      useNativeDriver: false,
+    }).start();
+    const id = animProgress.addListener(({ value }) => setAnimValue(value));
+    return () => animProgress.removeListener(id);
+  }, [metrics]);
+
+  const padding = 60;
+  const canvasSize = size + padding * 2;
+  const center = canvasSize / 2;
+  const maxRadius = size * 0.38;
+  const numAxes = metricKeys.length;
+
+  const getPoint = (index: number, radius: number) => {
+    const angle = (Math.PI * 2 * index) / numAxes - Math.PI / 2;
+    return {
+      x: center + radius * Math.cos(angle),
+      y: center + radius * Math.sin(angle),
+    };
+  };
+
+  const buildPolygonPoints = (radiusFn: (key: MetricKey, i: number) => number): string =>
+    metricKeys
+      .map((key, i) => {
+        const r = radiusFn(key, i);
+        const pt = getPoint(i, r);
+        return `${pt.x},${pt.y}`;
+      })
+      .join(' ');
+
+  const gridLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
+
+  const animatedDataPoints = buildPolygonPoints(
+    (key) => (metrics[key] / 10) * maxRadius * animValue
+  );
+
+  const animatedDotPositions = metricKeys.map((key, i) => {
+    const r = (metrics[key] / 10) * maxRadius * animValue;
+    return { key, i, ...getPoint(i, r) };
+  });
+
+  const labelOffset = maxRadius + 28;
+  const labelPositions = metricKeys.map((key, i) => {
+    const pt = getPoint(i, labelOffset);
+    return { key, ...pt };
+  });
+
+  const gradientRadius = Math.max(50, canvasSize * 0.5);
+
+  return (
+    <Svg width={canvasSize} height={canvasSize} viewBox={`0 0 ${canvasSize} ${canvasSize}`}>
+      <Defs>
+        <RadialGradient 
+          id="hexFill" 
+          cx={center} 
+          cy={center} 
+          r={gradientRadius}
+          fx={center} 
+          fy={center}
+          gradientUnits="userSpaceOnUse"
+        >
+          <Stop offset="0%" stopColor={primaryColor} stopOpacity="0.50" />
+          <Stop offset="100%" stopColor={primaryColor} stopOpacity="0.10" />
+        </RadialGradient>
+      </Defs>
+
+      {/* Spider-web rings */}
+      {gridLevels.map((level, li) => (
+        <Polygon
+          key={`ring-${li}`}
+          points={buildPolygonPoints(() => level * maxRadius)}
+          fill="none"
+          stroke={gridColor}
+          strokeWidth={li === gridLevels.length - 1 ? 1.5 : 0.8}
+          opacity={li === gridLevels.length - 1 ? 0.8 : 0.4}
+        />
+      ))}
+
+      {/* Spoke lines */}
+      {metricKeys.map((_, i) => {
+        const outer = getPoint(i, maxRadius);
+        return (
+          <Line
+            key={`spoke-${i}`}
+            x1={center}
+            y1={center}
+            x2={outer.x}
+            y2={outer.y}
+            stroke={gridColor}
+            strokeWidth="0.8"
+            opacity="0.5"
+          />
+        );
+      })}
+
+      {/* Animated data fill */}
+      <Polygon
+        points={animatedDataPoints}
+        fill={`url(#hexFill)`}
+        stroke={primaryColor}
+        strokeWidth="2"
+        opacity="0.95"
+      />
+
+      {/* Animated dots */}
+      {animatedDotPositions.map(({ key, x, y }) => (
+        <React.Fragment key={`dot-${key}`}>
+          <Circle cx={x} cy={y} r="7" fill={primaryColor} opacity={0.2 * animValue} />
+          <Circle
+            cx={x}
+            cy={y}
+            r="4"
+            fill={primaryColor}
+            stroke="#ffffff"
+            strokeWidth="1.5"
+            opacity={animValue}
+          />
+        </React.Fragment>
+      ))}
+
+      {/* Labels - FIXED: Safe number conversion */}
+      {labelPositions.map(({ key, x, y }) => {
+        let anchor: TextAnchor = 'middle';
+        if (x < center - 10) anchor = 'end';
+        if (x > center + 10) anchor = 'start';
+        
+        // Safe number conversion
+        const metricValue = typeof metrics[key] === 'number' 
+          ? metrics[key] 
+          : Number(metrics[key] || 0);
+        const val = metricValue.toFixed(1);
+        
+        return (
+          <React.Fragment key={`label-${key}`}>
+            <SvgText
+              x={x}
+              y={y - 5}
+              fontSize="9"
+              fill={labelColor}
+              textAnchor={anchor}
+              fontWeight="500"
+            >
+              {getMetricLabel(key)}
+            </SvgText>
+            <SvgText
+              x={x}
+              y={y + 7}
+              fontSize="9"
+              fill={primaryColor}
+              textAnchor={anchor}
+              fontWeight="700"
+            >
+              {val}/10
+            </SvgText>
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  ANIMATED SCORE
+// ─────────────────────────────────────────────
+interface AnimatedScoreProps {
+  score: number;
+  color: string;
+}
+
+const AnimatedScore: React.FC<AnimatedScoreProps> = ({ score, color }) => {
+  const animVal = useRef(new Animated.Value(0)).current;
+  const [displayScore, setDisplayScore] = useState(0);
+
+  useEffect(() => {
+    Animated.timing(animVal, {
+      toValue: score,
+      duration: 1800,
+      useNativeDriver: false,
+    }).start();
+    const id = animVal.addListener(({ value }) => setDisplayScore(Math.round(value)));
+    return () => animVal.removeListener(id);
+  }, [score]);
+
+  return (
+    <Text style={[styles.fitnessScoreNumber, { color }]}>
+      {displayScore.toLocaleString()}
+    </Text>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  TRAINING TAB
+// ─────────────────────────────────────────────
+interface TrainingTabProps {
+  data: TrainingData;
+}
+
+const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
+  const { colors } = useTheme();
+
+  const stats: Array<{ label: string; value: string | number }> = [
+    { label: 'Total Workouts', value: data.totalWorkouts },
+    { label: 'Weekly Avg', value: typeof data.weeklyAvg === 'number' ? data.weeklyAvg.toFixed(1) : Number(data.weeklyAvg || 0).toFixed(1) },
+    { label: 'Current Streak', value: `${data.currentStreak}d` },
+    { label: 'Best Streak', value: `${data.longestStreak}d` },
+  ];
+
+  return (
+    <View>
+      <View style={styles.statsGrid}>
+        {stats.map((stat, i) => (
+          <View
+            key={i}
+            style={[styles.statCard, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}
+          >
+            <Text style={[styles.statValue, { color: colors.primary }]}>{stat.value}</Text>
+            <Text style={[styles.statLabel, { color: colors.subtleText }]}>{stat.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.pbSection, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>Personal Bests</Text>
+        {data.personalBests.length > 0 ? (
+          data.personalBests.map((pb: PersonalBest, i: number) => (
+            <View key={i} style={styles.pbRow}>
+              <View style={[styles.pbDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.pbExercise, { color: colors.text }]}>{pb.exercise}</Text>
+              <Text style={[styles.pbValue, { color: colors.primary }]}>{pb.value}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={[styles.emptyText, { color: colors.subtleText }]}>
+            No personal bests yet. Keep working out!
+          </Text>
+        )}
+      </View>
+
+      <View style={[styles.volumeBar, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
+        <Text style={[styles.volumeValue, { color: colors.primary }]}>
+          {((typeof data.totalVolume === 'number' ? data.totalVolume : Number(data.totalVolume || 0)) / 1000).toFixed(1)}k kg
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  LOADING COMPONENT
+// ─────────────────────────────────────────────
+const LoadingScreen = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.loadingText, { color: colors.text }]}>Loading your progress...</Text>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  ERROR COMPONENT
+// ─────────────────────────────────────────────
+const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => void }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <Text style={[styles.errorText, { color: colors.error }]}>⚠️</Text>
+      <Text style={[styles.errorMessage, { color: colors.text }]}>{message}</Text>
+      <TouchableOpacity
+        style={[styles.retryButton, { backgroundColor: colors.primary }]}
+        onPress={onRetry}
+      >
+        <Text style={styles.retryButtonText}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────
+//  MAIN SCREEN
+// ─────────────────────────────────────────────
+export default function GymProgressScreen() {
+  const { colors } = useTheme();
+  const { user, token } = useAuth() as any;
+  const [activeTab, setActiveTab] = useState<TabName>('fitness');
+  const [progressData, setProgressData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]); // For additional data if needed
+  
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const cardSlide = useRef(new Animated.Value(40)).current;
+
+  const fetchProgressData = async () => {
+    try {
+      setError(null);
+      
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching progress with token:', token ? 'Token exists' : 'No token');
+      const response = await progressService.getProgressDashboard(token);
+      
+      // Convert string metrics to numbers
+      const convertedData = {
+        ...response.data,
+        metrics: {
+          strength: Number(response.data.metrics.strength),
+          endurance: Number(response.data.metrics.endurance),
+          consistency: Number(response.data.metrics.consistency),
+          volume: Number(response.data.metrics.volume),
+          progress: Number(response.data.metrics.progress),
+          habits: Number(response.data.metrics.habits),
+        },
+        trainingData: {
+          ...response.data.trainingData,
+          weeklyAvg: Number(response.data.trainingData.weeklyAvg),
+          totalVolume: Number(response.data.trainingData.totalVolume),
+        }
+      };
+      
+      setProgressData(convertedData);
+
+      // Optional: Fetch recent workout sessions for history
+      // const historyResponse = await workoutSessionService.getWorkoutSessions(token, { limit: 5 });
+      // setWorkoutHistory(historyResponse.data);
+
+    } catch (err: any) {
+      setError(err.message || 'Failed to load progress data');
+      console.error('Error fetching progress:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProgressData();
+  }, []);
+
+  useEffect(() => {
+    fetchProgressData();
+  }, []);
+
+  useEffect(() => {
+    if (progressData) {
+      Animated.stagger(150, [
+        Animated.timing(headerFade, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [progressData]);
+
+  // Avatar resolution logic
+  const rawAvatar = user?.photoURL || user?.avatar || progressData?.avatarUrl;
+  const avatarSource =
+    rawAvatar && typeof rawAvatar === 'string' && rawAvatar.startsWith('http')
+      ? { uri: rawAvatar }
+      : {
+          uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            progressData?.name || user?.firstName || user?.username || 'U'
+          )}&background=FFD700&color=000&bold=true`,
+        };
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (error || !progressData) {
+    return <ErrorScreen message={error || 'No data available'} onRetry={fetchProgressData} />;
+  }
+
+  const computedScore = calculateFitnessScore(progressData.metrics);
+  const pointsPercent = calculatePointsPercentage(progressData.currentPoints, progressData.maxPoints);
+
+  return (
+    <View style={[styles.main, { backgroundColor: colors.background }]}>
+      <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
+
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Hero Header */}
+        <Animated.View style={[styles.heroSection, { opacity: headerFade }]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.avatarRing, { borderColor: colors.primary }]}>
+              <Image source={avatarSource} style={styles.avatarImage} />
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={[styles.profileName, { color: colors.text }]}>
+                {progressData.name}
+              </Text>
+              <Text style={[styles.joinedText, { color: colors.subtleText }]}>
+                Joined {progressData.joinedDate}
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Points Card */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.shadow,
+              opacity: headerFade,
+              transform: [{ translateY: cardSlide }],
+            },
+          ]}
+        >
+          <View style={styles.pointsRow}>
+            <Text style={[styles.pointsText, { color: colors.text }]}>
+              {progressData.currentPoints} / {progressData.maxPoints} points
+            </Text>
+            <View style={styles.badgeContainer}>
+              <View style={[styles.badgeIcon, { backgroundColor: colors.iconBg }]}>
+                <Text style={styles.badgeIconText}>★</Text>
+              </View>
+              <Text style={styles.badgeLevelText}>{progressData.badgeLevel}</Text>
+            </View>
+          </View>
+
+          {/* Progress bar */}
+          <View style={[styles.progressTrack, { backgroundColor: colors.progressBg }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${pointsPercent}%`, backgroundColor: colors.primary },
+              ]}
+            />
+          </View>
+        </Animated.View>
+
+        {/* Progress Card */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.cardBorder,
+              shadowColor: colors.shadow,
+              opacity: headerFade,
+              transform: [{ translateY: cardSlide }],
+            },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Progress</Text>
+            <View style={[styles.trendBadge, { backgroundColor: colors.iconBg }]}>
+              <Text style={[styles.trendArrow, { color: colors.primary }]}>↗</Text>
+            </View>
+          </View>
+
+          {/* Tab switcher */}
+          <View style={[styles.tabRow, { backgroundColor: colors.statBg }]}>
+            {(['fitness', 'training'] as TabName[]).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                style={[
+                  styles.tabBtn,
+                  activeTab === tab && {
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.primary,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: colors.subtleText },
+                    activeTab === tab && { color: colors.primary, fontWeight: '700' },
+                  ]}
+                >
+                  {tab === 'fitness' ? 'Fitness Score' : 'Training'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {activeTab === 'fitness' ? (
+            <View style={styles.fitnessTabContent}>
+              <Text style={[styles.fitnessScoreLabel, { color: colors.primary }]}>
+                Fitness Score
+              </Text>
+              <AnimatedScore score={computedScore} color={colors.text} />
+
+              <View style={styles.radarWrapper}>
+                <HexRadarChart
+                  metrics={progressData.metrics}
+                  size={260}
+                  primaryColor={colors.primary}
+                  gridColor={colors.cardBorder}
+                  labelColor={colors.subtleText}
+                />
+              </View>
+
+              {/* Mini breakdown bars */}
+              <View style={styles.breakdownRow}>
+                {(Object.entries(progressData.metrics) as [MetricKey, number][]).map(([key, val]) => (
+                  <View key={key} style={styles.breakdownItem}>
+                    <View style={[styles.breakdownBarTrack, { backgroundColor: colors.statBg }]}>
+                      <View
+                        style={[
+                          styles.breakdownBarFill,
+                          { height: `${(val / 10) * 100}%`, backgroundColor: colors.primary },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.breakdownItemLabel, { color: colors.subtleText }]}>
+                      {getMetricLabel(key).slice(0, 3)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : (
+            <TrainingTab data={progressData.trainingData} />
+          )}
+        </Animated.View>
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────
+//  STYLES
+// ─────────────────────────────────────────────
+const styles = StyleSheet.create({
+  main: { flex: 1 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  errorText: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginHorizontal: 32,
+    marginBottom: 24,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 16,
+    fontSize: 14,
+  },
+  heroSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    overflow: 'hidden',
+    marginRight: 14,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  profileInfo: { flex: 1 },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  joinedText: {
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  card: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pointsText: { fontSize: 14, fontWeight: '500' },
+  badgeContainer: { flexDirection: 'row', alignItems: 'center' },
+  badgeIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  badgeIconText: { color: '#FFD700', fontSize: 14, fontWeight: '800' },
+  badgeLevelText: { color: '#FFD700', fontSize: 16, fontWeight: '700' },
+  progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: { fontSize: 20, fontWeight: '700', marginRight: 8 },
+  trendBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  trendArrow: { fontSize: 13, fontWeight: '700' },
+  tabRow: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 20,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 1.5,
+  },
+  tabText: { fontSize: 13, fontWeight: '500' },
+  fitnessTabContent: { alignItems: 'center' },
+  fitnessScoreLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  fitnessScoreNumber: {
+    fontSize: 56,
+    fontWeight: '900',
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
+  radarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 12,
+    height: 48,
+    alignItems: 'flex-end',
+  },
+  breakdownItem: { alignItems: 'center', marginHorizontal: 5 },
+  breakdownBarTrack: {
+    width: 22,
+    height: 36,
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  breakdownBarFill: { width: '100%', borderRadius: 4 },
+  breakdownItemLabel: { fontSize: 9, fontWeight: '500' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
+  statCard: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    margin: '1%',
+  },
+  statValue: { fontSize: 24, fontWeight: '800', marginBottom: 3 },
+  statLabel: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
+  pbSection: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  pbRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  pbDot: { width: 6, height: 6, borderRadius: 3, marginRight: 10 },
+  pbExercise: { flex: 1, fontSize: 14, fontWeight: '500' },
+  pbValue: { fontSize: 14, fontWeight: '700' },
+  volumeBar: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  volumeLabel: { fontSize: 13, fontWeight: '500' },
+  volumeValue: { fontSize: 20, fontWeight: '800' },
+});

@@ -32,6 +32,7 @@ export interface ThemeColors {
   progressBg: string;
   statBg: string;
   statBorder: string;
+  error: string;
 }
 
 interface ThemeContextType {
@@ -68,6 +69,7 @@ const darkTheme: ThemeColors = {
   progressBg: 'rgba(255, 255, 255, 0.15)',
   statBg: 'rgba(255, 255, 255, 0.08)',
   statBorder: 'rgba(255, 255, 255, 0.15)',
+  error: '#FF6B6B',
 };
 
 const lightTheme: ThemeColors = {
@@ -98,6 +100,7 @@ const lightTheme: ThemeColors = {
   progressBg: '#EDE5D8',
   statBg: '#FBF7F1',
   statBorder: '#EDE5D8',
+  error: '#FF6B6B',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

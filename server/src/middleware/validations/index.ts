@@ -26,3 +26,32 @@ export {
   validateUpdateFood,
   validateFoodQuery,
 } from './foodValidation.js';
+
+// Workout Session validations
+export {
+  validateCreateWorkoutSession,
+  validateUpdateWorkoutSession,
+  validateWorkoutSessionQuery,
+  validateWorkoutSessionId,
+} from './workoutSessionValidation.js';
+
+// User Metrics validations
+export {
+  validateCreateUserMetrics,
+  validateUpdateUserMetrics,
+  validateUserMetricsQuery,
+  validateUserMetricsId,
+} from './userMetricsValidation.js';
+
+// Personal Best validations
+export {
+  validateCreatePersonalBest,
+  validateUpdatePersonalBest,
+  validatePersonalBestQuery,
+  validatePersonalBestId,
+} from './personalBestValidation.js';
+
+export {
+  validateProgressHistoryQuery,
+  validateProgressDashboardQuery,
+} from './progressValidation.js';
