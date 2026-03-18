@@ -37,17 +37,14 @@ const C = {
   error: '#EF4444',
 };
 
+// ─── SectionCard ──────────────────────────────────────────────────────────────
 interface SectionCardProps {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
 }
 
-const SectionCard: React.FC<SectionCardProps> = ({
-  title,
-  icon,
-  children,
-}) => {
+const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
   const { colors } = useTheme();
 
   return (
@@ -61,15 +58,14 @@ const SectionCard: React.FC<SectionCardProps> = ({
         <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
           {icon}
         </View>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {title}
-        </Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
       </View>
       <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 };
 
+// ─── ProfileInput ─────────────────────────────────────────────────────────────
 interface ProfileInputProps {
   label: string;
   value: string;
@@ -104,9 +100,7 @@ const ProfileInput: React.FC<ProfileInputProps> = ({
         </View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
         {note && (
-          <Text style={[styles.inputNote, { color: colors.textSecondary }]}>
-            {note}
-          </Text>
+          <Text style={[styles.inputNote, { color: colors.textSecondary }]}>{note}</Text>
         )}
       </View>
 
@@ -121,11 +115,7 @@ const ProfileInput: React.FC<ProfileInputProps> = ({
         ]}
       >
         <TextInput
-          style={[
-            styles.input,
-            { color: colors.text },
-            multiline && styles.multilineInput,
-          ]}
+          style={[styles.input, { color: colors.text }, multiline && styles.multilineInput]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -141,6 +131,7 @@ const ProfileInput: React.FC<ProfileInputProps> = ({
   );
 };
 
+// ─── EditProfileScreen ────────────────────────────────────────────────────────
 export default function EditProfileScreen() {
   const navigation = useNavigation<EditProfileNavigationProp>();
   const { colors } = useTheme();
@@ -161,6 +152,7 @@ export default function EditProfileScreen() {
     }
   }, [user]);
 
+  // ─── handleSave ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!token) {
       showErrorToast({
@@ -186,15 +178,12 @@ export default function EditProfileScreen() {
       if (firstName.trim() !== (user?.firstName || '')) {
         updateData.firstName = firstName.trim();
       }
-
       if (lastName.trim() !== (user?.lastName || '')) {
         updateData.lastName = lastName.trim();
       }
-
       if (phone.trim() !== (user?.phone || '')) {
         updateData.phone = phone.trim() || null;
       }
-
       if (bio.trim() !== (user?.bio || '')) {
         updateData.bio = bio.trim() || null;
       }
@@ -226,18 +215,12 @@ export default function EditProfileScreen() {
         title: 'Update Failed',
         message: getErrorMessage(error) || 'Failed to update profile',
       });
-      
-      Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error: any) {
-      console.log(error);
-      Alert.alert('Error', error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -247,9 +230,7 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Edit Profile
-          </Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             Update your personal information
           </Text>
@@ -263,7 +244,7 @@ export default function EditProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Personal Information Section */}
+        {/* Personal Information */}
         <SectionCard
           title="Personal Information"
           icon={<Feather name="user" size={20} color={C.primary} />}
@@ -275,9 +256,7 @@ export default function EditProfileScreen() {
             icon={<Feather name="user" size={18} color={C.primary} />}
             placeholder="John"
           />
-
           <View style={styles.inputSpacer} />
-
           <ProfileInput
             label="Last Name"
             value={lastName}
@@ -287,7 +266,7 @@ export default function EditProfileScreen() {
           />
         </SectionCard>
 
-        {/* Read-Only Information Section */}
+        {/* Account Details (read-only) */}
         <SectionCard
           title="Account Details"
           icon={<Feather name="settings" size={20} color={C.primary} />}
@@ -300,9 +279,7 @@ export default function EditProfileScreen() {
             editable={false}
             note="Username cannot be changed"
           />
-
           <View style={styles.inputSpacer} />
-
           <ProfileInput
             label="Email"
             value={user?.email || ''}
@@ -313,7 +290,7 @@ export default function EditProfileScreen() {
           />
         </SectionCard>
 
-        {/* Contact & Bio Section */}
+        {/* Contact & Bio */}
         <SectionCard
           title="Contact & Bio"
           icon={<Feather name="phone" size={20} color={C.primary} />}
@@ -325,9 +302,7 @@ export default function EditProfileScreen() {
             icon={<Feather name="phone" size={18} color={C.primary} />}
             placeholder="+1234567890"
           />
-
           <View style={styles.inputSpacer} />
-
           <ProfileInput
             label="Bio"
             value={bio}
@@ -339,7 +314,7 @@ export default function EditProfileScreen() {
           />
         </SectionCard>
 
-        {/* Info Note */}
+        {/* Info note */}
         <View style={[styles.infoNote, { backgroundColor: colors.iconBg }]}>
           <Feather name="info" size={16} color={colors.textSecondary} />
           <Text style={[styles.infoNoteText, { color: colors.textSecondary }]}>
@@ -347,7 +322,7 @@ export default function EditProfileScreen() {
           </Text>
         </View>
 
-        {/* Action Buttons */}
+        {/* Action buttons */}
         <View style={styles.buttonContainer}>
           {isLoading ? (
             <ActivityIndicator size="large" color={C.primary} />
@@ -381,9 +356,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -400,24 +373,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitleContainer: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
+  headerTitleContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 13, marginTop: 2 },
+  content: { flex: 1 },
+  scrollContent: { padding: 20 },
+
   sectionCard: {
     borderRadius: 20,
     borderWidth: 1,
@@ -429,11 +390,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   sectionIcon: {
     width: 36,
     height: 36,
@@ -442,16 +399,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  sectionContent: {
-    marginLeft: 48,
-  },
-  inputContainer: {
-    marginBottom: 8,
-  },
+  sectionTitle: { fontSize: 16, fontWeight: '600' },
+  sectionContent: { marginLeft: 48 },
+
+  inputContainer: { marginBottom: 8 },
   inputLabelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -466,33 +417,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 8,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginRight: 8,
-  },
-  inputNote: {
-    fontSize: 11,
-    fontWeight: '400',
-    fontStyle: 'italic',
-  },
-  inputWrapper: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    minHeight: 48,
-  },
-  input: {
-    fontSize: 16,
-    padding: 12,
-  },
-  multilineInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  inputSpacer: {
-    height: 16,
-  },
+  inputLabel: { fontSize: 14, fontWeight: '500', marginRight: 8 },
+  inputNote: { fontSize: 11, fontWeight: '400', fontStyle: 'italic' },
+  inputWrapper: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: 48 },
+  input: { fontSize: 16, padding: 12 },
+  multilineInput: { minHeight: 100, textAlignVertical: 'top' },
+  inputSpacer: { height: 16 },
+
   infoNote: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -501,11 +432,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  infoNoteText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-  },
+  infoNoteText: { flex: 1, fontSize: 12, lineHeight: 18 },
+
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -520,10 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  cancelButtonText: { fontSize: 16, fontWeight: '600' },
   saveButton: {
     flex: 1,
     height: 52,
@@ -538,9 +463,5 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-  },
+  saveButtonText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
 });
