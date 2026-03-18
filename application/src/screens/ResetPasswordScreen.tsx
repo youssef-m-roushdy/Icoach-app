@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ImageBackground,
-  Alert,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -19,15 +18,23 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
+import {
+  showSuccessToast,
+  showErrorToast,
+  getErrorMessage,
+} from '../utils/toast';
 
-type ResetPasswordNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
+type ResetPasswordNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ResetPassword'
+>;
 type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen() {
   const navigation = useNavigation<ResetPasswordNavigationProp>();
   const route = useRoute<ResetPasswordRouteProp>();
   const { theme, colors } = useTheme();
-  
+
   const { email, resetToken: initialToken } = route.params || {};
   const [token, setToken] = useState(initialToken || '');
   const [newPassword, setNewPassword] = useState('');
@@ -39,45 +46,61 @@ export default function ResetPasswordScreen() {
 
   // SPECIAL CASE: Check if password contains special characters (EXCLUDING underscore)
   const hasSpecialChar = (password: string): boolean => {
-    // EXCLUDE underscore from special character check
     const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
     return specialCharRegex.test(password);
   };
 
-  const validatePassword = (password: string): { isValid: boolean; message?: string } => {
-    // At least 8 characters
+  const validatePassword = (
+    password: string
+  ): { isValid: boolean; message?: string } => {
     if (password.length < 8) {
-      return { isValid: false, message: 'Password must be at least 8 characters long' };
+      return {
+        isValid: false,
+        message: 'Password must be at least 8 characters long',
+      };
     }
 
-    // At least one uppercase letter
     if (!/[A-Z]/.test(password)) {
-      return { isValid: false, message: 'Password must contain at least one uppercase letter' };
+      return {
+        isValid: false,
+        message: 'Password must contain at least one uppercase letter',
+      };
     }
 
-    // At least one lowercase letter
     if (!/[a-z]/.test(password)) {
-      return { isValid: false, message: 'Password must contain at least one lowercase letter' };
+      return {
+        isValid: false,
+        message: 'Password must contain at least one lowercase letter',
+      };
     }
 
-    // At least one number
     if (!/[0-9]/.test(password)) {
-      return { isValid: false, message: 'Password must contain at least one number' };
+      return {
+        isValid: false,
+        message: 'Password must contain at least one number',
+      };
     }
 
     return { isValid: true };
   };
 
-  const getPasswordStrength = (password: string): { text: string; color: string } => {
+  const getPasswordStrength = (
+    password: string
+  ): { text: string; color: string } => {
     if (!password) return { text: '', color: '#999999' };
-    
+
     const hasMinLength = password.length >= 8;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumber = /[0-9]/.test(password);
-    
-    const strength = [hasMinLength, hasUpperCase, hasLowerCase, hasNumber].filter(Boolean).length;
-    
+
+    const strength = [
+      hasMinLength,
+      hasUpperCase,
+      hasLowerCase,
+      hasNumber,
+    ].filter(Boolean).length;
+
     if (strength <= 2) return { text: 'Weak', color: COLORS.error };
     if (strength === 3) return { text: 'Fair', color: '#f59e0b' };
     return { text: 'Strong', color: COLORS.success };
@@ -86,57 +109,70 @@ export default function ResetPasswordScreen() {
   const passwordStrength = getPasswordStrength(newPassword);
 
   const handleResetPassword = async () => {
-    // Validation
-    if (!token) {
-      Alert.alert('Error', 'Please enter the reset token');
+    if (!token.trim()) {
+      showErrorToast({
+        title: 'Missing Token',
+        message: 'Please enter the reset token',
+      });
       return;
     }
 
-    if (!newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all password fields');
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      showErrorToast({
+        title: 'Missing Fields',
+        message: 'Please fill in all password fields',
+      });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showErrorToast({
+        title: 'Password Mismatch',
+        message: 'Passwords do not match',
+      });
       return;
     }
 
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.isValid) {
-      Alert.alert('Weak Password', passwordValidation.message);
+      showErrorToast({
+        title: 'Weak Password',
+        message:
+          passwordValidation.message || 'Please choose a stronger password',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
-      await authService.resetPassword(token, newPassword);
-      
+      await authService.resetPassword(token.trim(), newPassword.trim());
+
       setPasswordReset(true);
-      Alert.alert(
-        'Success',
-        'Your password has been reset successfully!',
-        [
-          {
-            text: 'Sign In',
-            onPress: () => navigation.replace('Login'),
-          },
-        ]
-      );
-    } catch (error: any) {
+
+      showSuccessToast({
+        title: 'Password Reset Successful',
+        message: 'Your password has been updated successfully.',
+      });
+    } catch (error: unknown) {
       console.error('❌ Reset Password Error:', error);
-      
-      // Special cases based on API response
-      const errorMessage = error.message || 'Password reset failed';
-      let displayMessage = errorMessage;
-      
-      if (errorMessage.toLowerCase().includes('invalid') || 
-          errorMessage.toLowerCase().includes('expired') ||
-          errorMessage.toLowerCase().includes('token')) {
-        displayMessage = 'Invalid or expired reset token. Please request a new one.';
+
+      const rawMessage = getErrorMessage(error);
+      let displayMessage = rawMessage;
+
+      if (
+        rawMessage.toLowerCase().includes('invalid') ||
+        rawMessage.toLowerCase().includes('expired') ||
+        rawMessage.toLowerCase().includes('token')
+      ) {
+        displayMessage =
+          'Invalid or expired reset token. Please request a new one.';
       }
-      
-      Alert.alert('Error', displayMessage);
+
+      showErrorToast({
+        title: 'Reset Failed',
+        message: displayMessage || 'Password reset failed',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -152,19 +188,44 @@ export default function ResetPasswordScreen() {
             resizeMode="cover"
           />
         )}
+
         <View style={styles.container}>
-          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor:
+                  theme === 'dark'
+                    ? colors.background + 'CC'
+                    : colors.card,
+                shadowColor: colors.shadow,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.successContainer}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="check-circle" size={60} color={COLORS.success} />
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: colors.iconBg },
+                ]}
+              >
+                <MaterialIcons
+                  name="check-circle"
+                  size={60}
+                  color={COLORS.success}
+                />
               </View>
+
               <Text style={[styles.title, { color: colors.text }]}>
                 Password Reset Successfully!
               </Text>
+
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Your password has been updated successfully. You can now sign in with your new password.
+                Your password has been updated successfully. You can now sign in
+                with your new password.
               </Text>
-              
+
               <TouchableOpacity
                 style={styles.button}
                 onPress={() => navigation.replace('Login')}
@@ -187,11 +248,12 @@ export default function ResetPasswordScreen() {
           resizeMode="cover"
         />
       )}
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -202,26 +264,69 @@ export default function ResetPasswordScreen() {
             onPress={() => navigation.goBack()}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-            <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
+            <Text style={[styles.backButtonText, { color: colors.text }]}>
+              Back
+            </Text>
           </TouchableOpacity>
 
-          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor:
+                  theme === 'dark'
+                    ? colors.background + 'CC'
+                    : colors.card,
+                shadowColor: colors.shadow,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.headerContainer}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="lock-reset" size={50} color={COLORS.primary} />
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: colors.iconBg },
+                ]}
+              >
+                <MaterialIcons
+                  name="lock-reset"
+                  size={50}
+                  color={COLORS.primary}
+                />
               </View>
-              <Text style={[styles.title, { color: colors.text }]}>Reset Password</Text>
+
+              <Text style={[styles.title, { color: colors.text }]}>
+                Reset Password
+              </Text>
+
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {email ? `Reset password for ${email}` : 'Enter reset token and new password'}
+                {email
+                  ? `Reset password for ${email}`
+                  : 'Enter reset token and new password'}
               </Text>
             </View>
 
             {/* Token Input (only show if not passed from params) */}
             {!initialToken && (
               <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Reset Token</Text>
-                <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                  <MaterialIcons name="vpn-key" size={20} color={colors.textSecondary} />
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Reset Token
+                </Text>
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    {
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.inputBorder,
+                    },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="vpn-key"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="Enter the reset token from email"
@@ -232,9 +337,12 @@ export default function ResetPasswordScreen() {
                     editable={!isLoading}
                   />
                 </View>
+
                 <View style={styles.noteContainer}>
                   <MaterialIcons name="info" size={14} color={COLORS.primary} />
-                  <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.noteText, { color: colors.textSecondary }]}
+                  >
                     Check your email for the reset token sent to you
                   </Text>
                 </View>
@@ -243,9 +351,23 @@ export default function ResetPasswordScreen() {
 
             {/* New Password */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>New Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                New Password
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="lock"
+                  size={20}
+                  color={colors.textSecondary}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter new password"
@@ -257,7 +379,7 @@ export default function ResetPasswordScreen() {
                   autoComplete="password-new"
                   editable={!isLoading}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowNewPassword(!showNewPassword)}
                   style={styles.visibilityButton}
                 >
@@ -268,22 +390,40 @@ export default function ResetPasswordScreen() {
                   />
                 </TouchableOpacity>
               </View>
+
               {newPassword.length > 0 && (
                 <View style={styles.strengthContainer}>
-                  <Text style={[styles.strengthLabel, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.strengthLabel, { color: colors.textSecondary }]}
+                  >
                     Strength:
                   </Text>
-                  <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                  <Text
+                    style={[styles.strengthText, { color: passwordStrength.color }]}
+                  >
                     {passwordStrength.text}
                   </Text>
-                  <View style={[styles.strengthBar, { backgroundColor: colors.textSecondary + '20' }]}>
-                    <View style={[
-                      styles.strengthFill, 
-                      { 
-                        width: `${(passwordStrength.text === 'Weak' ? 33 : passwordStrength.text === 'Fair' ? 66 : 100)}%`,
-                        backgroundColor: passwordStrength.color 
-                      }
-                    ]} />
+                  <View
+                    style={[
+                      styles.strengthBar,
+                      { backgroundColor: colors.textSecondary + '20' },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.strengthFill,
+                        {
+                          width: `${
+                            passwordStrength.text === 'Weak'
+                              ? 33
+                              : passwordStrength.text === 'Fair'
+                              ? 66
+                              : 100
+                          }%`,
+                          backgroundColor: passwordStrength.color,
+                        },
+                      ]}
+                    />
                   </View>
                 </View>
               )}
@@ -291,9 +431,23 @@ export default function ResetPasswordScreen() {
 
             {/* Confirm Password */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm New Password</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Confirm New Password
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="lock"
+                  size={20}
+                  color={colors.textSecondary}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Confirm new password"
@@ -305,17 +459,20 @@ export default function ResetPasswordScreen() {
                   autoComplete="password-new"
                   editable={!isLoading}
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   style={styles.visibilityButton}
                 >
                   <MaterialIcons
-                    name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                    name={
+                      showConfirmPassword ? 'visibility' : 'visibility-off'
+                    }
                     size={20}
                     color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
+
               {confirmPassword.length > 0 && newPassword !== confirmPassword && (
                 <Text style={[styles.errorText, { color: COLORS.error }]}>
                   Passwords do not match
@@ -324,57 +481,117 @@ export default function ResetPasswordScreen() {
             </View>
 
             {/* Password Requirements */}
-            <View style={[styles.requirementsContainer, { backgroundColor: colors.statBg }]}>
+            <View
+              style={[
+                styles.requirementsContainer,
+                { backgroundColor: colors.statBg },
+              ]}
+            >
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
                 Password Requirements:
               </Text>
+
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={newPassword.length >= 8 ? 'check-circle' : 'radio-button-unchecked'}
+                  name={
+                    newPassword.length >= 8
+                      ? 'check-circle'
+                      : 'radio-button-unchecked'
+                  }
                   size={16}
-                  color={newPassword.length >= 8 ? COLORS.success : colors.textSecondary}
+                  color={
+                    newPassword.length >= 8
+                      ? COLORS.success
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.requirementText, { color: colors.textSecondary }]}
+                >
                   At least 8 characters
                 </Text>
               </View>
+
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[A-Z]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  name={
+                    /[A-Z]/.test(newPassword)
+                      ? 'check-circle'
+                      : 'radio-button-unchecked'
+                  }
                   size={16}
-                  color={/[A-Z]/.test(newPassword) ? COLORS.success : colors.textSecondary}
+                  color={
+                    /[A-Z]/.test(newPassword)
+                      ? COLORS.success
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.requirementText, { color: colors.textSecondary }]}
+                >
                   One uppercase letter
                 </Text>
               </View>
+
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[a-z]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  name={
+                    /[a-z]/.test(newPassword)
+                      ? 'check-circle'
+                      : 'radio-button-unchecked'
+                  }
                   size={16}
-                  color={/[a-z]/.test(newPassword) ? COLORS.success : colors.textSecondary}
+                  color={
+                    /[a-z]/.test(newPassword)
+                      ? COLORS.success
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.requirementText, { color: colors.textSecondary }]}
+                >
                   One lowercase letter
                 </Text>
               </View>
+
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={/[0-9]/.test(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  name={
+                    /[0-9]/.test(newPassword)
+                      ? 'check-circle'
+                      : 'radio-button-unchecked'
+                  }
                   size={16}
-                  color={/[0-9]/.test(newPassword) ? COLORS.success : colors.textSecondary}
+                  color={
+                    /[0-9]/.test(newPassword)
+                      ? COLORS.success
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.requirementText, { color: colors.textSecondary }]}
+                >
                   One number
                 </Text>
               </View>
+
               <View style={styles.requirementItem}>
                 <MaterialIcons
-                  name={hasSpecialChar(newPassword) ? 'check-circle' : 'radio-button-unchecked'}
+                  name={
+                    hasSpecialChar(newPassword)
+                      ? 'check-circle'
+                      : 'radio-button-unchecked'
+                  }
                   size={16}
-                  color={hasSpecialChar(newPassword) ? COLORS.success : colors.textSecondary}
+                  color={
+                    hasSpecialChar(newPassword)
+                      ? COLORS.success
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.requirementText, { color: colors.textSecondary }]}
+                >
                   Special character (optional)
                 </Text>
               </View>
@@ -387,7 +604,7 @@ export default function ResetPasswordScreen() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={'#FFFFFF'} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.buttonText}>Reset Password</Text>
               )}

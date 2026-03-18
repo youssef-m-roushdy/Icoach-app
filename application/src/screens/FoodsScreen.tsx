@@ -10,7 +10,6 @@ import {
   Animated,
   Image,
   ActivityIndicator,
-  Alert,
   Platform,
   PermissionsAndroid,
 } from 'react-native';
@@ -21,6 +20,12 @@ import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { foodService } from '../services/api';
 import type { FoodPredictionResponse } from '../services/api';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
 export default function FoodsScreen() {
   const { theme, colors } = useTheme();
@@ -49,12 +54,30 @@ export default function FoodsScreen() {
 
   const predictFood = async (imageUri: string) => {
     setLoading(true);
+
     try {
       const data = await foodService.predictFood(imageUri);
+
+      if (!data || !data.food_data) {
+        showInfoToast({
+          title: 'No Result',
+          message: 'Could not identify the food clearly. Please try another image.',
+        });
+        return;
+      }
+
       setPrediction(data);
       setSelectedImage(imageUri);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to identify food. Please try again.');
+
+      showSuccessToast({
+        title: 'Food Identified',
+        message: `${formatFoodName(data.food_data.name)} detected successfully`,
+      });
+    } catch (error: unknown) {
+      showErrorToast({
+        title: 'Recognition Failed',
+        message: getErrorMessage(error) || 'Failed to identify food. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -73,21 +96,26 @@ export default function FoodsScreen() {
             buttonPositive: 'OK',
           }
         );
+
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
         console.warn(err);
         return false;
       }
     }
-    return true; // iOS handles permissions automatically
+
+    return true;
   };
 
   const openCamera = async () => {
     closeSheet();
-    
+
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+      showErrorToast({
+        title: 'Permission Denied',
+        message: 'Camera permission is required to take photos.',
+      });
       return;
     }
 
@@ -103,11 +131,27 @@ export default function FoodsScreen() {
       (response) => {
         if (response.didCancel) {
           return;
-        } else if (response.errorCode) {
+        }
+
+        if (response.errorCode) {
           console.log('Camera Error Code:', response.errorCode);
-          Alert.alert('Error', response.errorMessage || 'Camera error occurred');
-        } else if (response.assets && response.assets[0]?.uri) {
+
+          showErrorToast({
+            title: 'Camera Error',
+            message:
+              response.errorMessage ||
+              'An error occurred while opening the camera',
+          });
+          return;
+        }
+
+        if (response.assets && response.assets[0]?.uri) {
           predictFood(response.assets[0].uri);
+        } else {
+          showInfoToast({
+            title: 'No Image Selected',
+            message: 'Please capture a valid image to continue.',
+          });
         }
       }
     );
@@ -115,6 +159,7 @@ export default function FoodsScreen() {
 
   const openGallery = () => {
     closeSheet();
+
     launchImageLibrary(
       {
         mediaType: 'photo',
@@ -126,10 +171,23 @@ export default function FoodsScreen() {
       (response) => {
         if (response.didCancel) {
           return;
-        } else if (response.errorMessage) {
-          Alert.alert('Error', response.errorMessage);
-        } else if (response.assets && response.assets[0].uri) {
+        }
+
+        if (response.errorMessage) {
+          showErrorToast({
+            title: 'Gallery Error',
+            message: response.errorMessage,
+          });
+          return;
+        }
+
+        if (response.assets && response.assets[0]?.uri) {
           predictFood(response.assets[0].uri);
+        } else {
+          showInfoToast({
+            title: 'No Image Selected',
+            message: 'Please choose a valid image from the gallery.',
+          });
         }
       }
     );
@@ -143,7 +201,7 @@ export default function FoodsScreen() {
   const formatFoodName = (name: string): string => {
     return name
       .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   };
 
@@ -155,58 +213,174 @@ export default function FoodsScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>🍎 Food Recognition</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>AI-powered food identification</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          🍎 Food Recognition
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          AI-powered food identification
+        </Text>
 
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.primary }]}>Identifying food...</Text>
+            <Text style={[styles.loadingText, { color: colors.primary }]}>
+              Identifying food...
+            </Text>
           </View>
-        ) : prediction && selectedImage ? (
+        ) : prediction && prediction.food_data && selectedImage ? (
           <View style={styles.resultContainer}>
             <Image source={{ uri: selectedImage }} style={styles.foodImage} />
-            
-            <View style={[styles.predictionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.foodName, { color: colors.primary }]}>{formatFoodName(prediction.food_data.name)}</Text>
-              <Text style={[styles.confidence, { color: colors.textSecondary }]}>
-                Confidence: {(prediction.confidence * 100).toFixed(1)}%
+
+            <View
+              style={[
+                styles.predictionCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.foodName, { color: colors.primary }]}>
+                {formatFoodName(prediction.food_data.name)}
               </Text>
-              
+
+              <Text style={[styles.confidence, { color: colors.textSecondary }]}>
+                Confidence:{' '}
+                {typeof prediction.confidence === 'number'
+                  ? `${(prediction.confidence * 100).toFixed(1)}%`
+                  : 'N/A'}
+              </Text>
+
               <View style={styles.nutritionGrid}>
-                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Calories</Text>
-                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.calories}</Text>
-                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>kcal</Text>
+                <View
+                  style={[
+                    styles.nutritionItem,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.nutritionLabel, { color: colors.textSecondary }]}
+                  >
+                    Calories
+                  </Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>
+                    {prediction.food_data.calories}
+                  </Text>
+                  <Text
+                    style={[styles.nutritionUnit, { color: colors.textSecondary }]}
+                  >
+                    kcal
+                  </Text>
                 </View>
-                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Protein</Text>
-                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.protein}</Text>
-                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
+
+                <View
+                  style={[
+                    styles.nutritionItem,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.nutritionLabel, { color: colors.textSecondary }]}
+                  >
+                    Protein
+                  </Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>
+                    {prediction.food_data.protein}
+                  </Text>
+                  <Text
+                    style={[styles.nutritionUnit, { color: colors.textSecondary }]}
+                  >
+                    g
+                  </Text>
                 </View>
-                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Carbs</Text>
-                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.carbohydrate}</Text>
-                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
+
+                <View
+                  style={[
+                    styles.nutritionItem,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.nutritionLabel, { color: colors.textSecondary }]}
+                  >
+                    Carbs
+                  </Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>
+                    {prediction.food_data.carbohydrate}
+                  </Text>
+                  <Text
+                    style={[styles.nutritionUnit, { color: colors.textSecondary }]}
+                  >
+                    g
+                  </Text>
                 </View>
-                <View style={[styles.nutritionItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>Fat</Text>
-                  <Text style={[styles.nutritionValue, { color: colors.text }]}>{prediction.food_data.fat}</Text>
-                  <Text style={[styles.nutritionUnit, { color: colors.textSecondary }]}>g</Text>
+
+                <View
+                  style={[
+                    styles.nutritionItem,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.nutritionLabel, { color: colors.textSecondary }]}
+                  >
+                    Fat
+                  </Text>
+                  <Text style={[styles.nutritionValue, { color: colors.text }]}>
+                    {prediction.food_data.fat}
+                  </Text>
+                  <Text
+                    style={[styles.nutritionUnit, { color: colors.textSecondary }]}
+                  >
+                    g
+                  </Text>
                 </View>
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.newScanButton, { backgroundColor: colors.primary }]} onPress={clearResult}>
-              <Icon name="camera" size={20} color={theme === 'dark' ? COLORS.white : colors.text} />
-              <Text style={[styles.newScanButtonText, { color: theme === 'dark' ? COLORS.white : colors.text }]}>Scan Another Food</Text>
+            <TouchableOpacity
+              style={[styles.newScanButton, { backgroundColor: colors.primary }]}
+              onPress={clearResult}
+            >
+              <Icon
+                name="camera"
+                size={20}
+                color={theme === 'dark' ? COLORS.white : colors.text}
+              />
+              <Text
+                style={[
+                  styles.newScanButtonText,
+                  { color: theme === 'dark' ? COLORS.white : colors.text },
+                ]}
+              >
+                Scan Another Food
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.primary }]} onPress={openSheet}>
+          <TouchableOpacity
+            style={[
+              styles.scanCard,
+              { backgroundColor: colors.card, borderColor: colors.primary },
+            ]}
+            onPress={openSheet}
+          >
             <Icon name="camera" size={48} color={colors.primary} />
-            <Text style={[styles.scanTitle, { color: colors.text }]}>Scan Your Food</Text>
-            <Text style={[styles.scanText, { color: colors.textSecondary }]}>Take a photo or choose from gallery to identify food and get nutrition info</Text>
+            <Text style={[styles.scanTitle, { color: colors.text }]}>
+              Scan Your Food
+            </Text>
+            <Text style={[styles.scanText, { color: colors.textSecondary }]}>
+              Take a photo or choose from gallery to identify food and get nutrition info
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -214,25 +388,39 @@ export default function FoodsScreen() {
       {/* ====== BOTTOM SHEET ====== */}
       <Modal transparent visible={modalVisible} animationType="none">
         <TouchableWithoutFeedback onPress={closeSheet}>
-          <View style={[styles.modalBackground, { backgroundColor: colors.textSecondary + '80' }]} />
+          <View
+            style={[
+              styles.modalBackground,
+              { backgroundColor: colors.textSecondary + '80' },
+            ]}
+          />
         </TouchableWithoutFeedback>
 
         <Animated.View
           style={[
             styles.bottomSheet,
-            { backgroundColor: colors.card, transform: [{ translateY }] },
+            {
+              backgroundColor: colors.card,
+              transform: [{ translateY }],
+            },
           ]}
         >
-          <View style={[styles.handleBar, { backgroundColor: colors.textSecondary }]} />
+          <View
+            style={[styles.handleBar, { backgroundColor: colors.textSecondary }]}
+          />
 
           <TouchableOpacity style={styles.option} onPress={openCamera}>
             <Icon name="camera" size={28} color={colors.primary} />
-            <Text style={[styles.optionText, { color: colors.primary }]}>Take Photo</Text>
+            <Text style={[styles.optionText, { color: colors.primary }]}>
+              Take Photo
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.option} onPress={openGallery}>
             <Ion name="images-outline" size={30} color={colors.primary} />
-            <Text style={[styles.optionText, { color: colors.primary }]}>Choose from Gallery</Text>
+            <Text style={[styles.optionText, { color: colors.primary }]}>
+              Choose from Gallery
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       </Modal>
@@ -348,8 +536,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: SIZES.sm,
   },
-
-  /* ===== Bottom Sheet ===== */
   modalBackground: {
     flex: 1,
   },

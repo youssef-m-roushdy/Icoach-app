@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -16,179 +15,279 @@ import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
-type EmailVerificationNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EmailVerification'>;
+type EmailVerificationNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'EmailVerification'
+>;
 
 export default function EmailVerificationScreen() {
   const navigation = useNavigation<EmailVerificationNavigationProp>();
   const { colors } = useTheme();
-  const { user, token } = useAuth();
+  const { user, token, updateUser } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
   const handleSendVerificationEmail = async () => {
     if (!token) {
-      Alert.alert('Error', 'No authentication token found');
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'No authentication token found',
+      });
       return;
     }
 
     if (!user?.email) {
-      Alert.alert('Error', 'No email found for this user');
+      showErrorToast({
+        title: 'Missing Email',
+        message: 'No email found for this user',
+      });
+      return;
+    }
+
+    if (user?.isEmailVerified) {
+      showInfoToast({
+        title: 'Already Verified',
+        message: 'Your email is already verified',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
-      // Pass both email and token as required by the API
       const response = await userService.resendEmailVerification(user.email, token);
       console.log('✅ Verification email sent:', response);
-      
+
       setEmailSent(true);
-      Alert.alert(
-        'Email Sent',
-        'A verification link has been sent to your email address. Please check your inbox and spam folder.',
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
+
+      showSuccessToast({
+        title: 'Verification Email Sent',
+        message:
+          'A verification link has been sent to your email address. Please check your inbox and spam folder.',
+      });
+    } catch (error: unknown) {
       console.error('❌ Resend Verification Error:', error);
-      Alert.alert('Error', error.message || 'Failed to resend verification email');
+
+      showErrorToast({
+        title: 'Send Failed',
+        message: getErrorMessage(error) || 'Failed to resend verification email',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to handle email verification (if you're opening this screen from a verification link)
+  // Optional: use if this screen is opened with a verification token flow
   const handleVerifyEmail = async (verifyToken: string) => {
     if (!token) {
-      Alert.alert('Error', 'No authentication token found');
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'No authentication token found',
+      });
+      return;
+    }
+
+    if (!verifyToken.trim()) {
+      showErrorToast({
+        title: 'Missing Token',
+        message: 'Verification token is required',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const response = await userService.verifyEmail(verifyToken, token);
+      const response = await userService.verifyEmail(verifyToken.trim(), token);
       console.log('✅ Email verified:', response);
-      
-      Alert.alert(
-        'Success',
-        'Your email has been verified successfully!',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.goBack() 
-          }
-        ]
-      );
-    } catch (error: any) {
+
+      if (user) {
+        updateUser({
+          ...user,
+          isEmailVerified: true,
+        });
+      }
+
+      showSuccessToast({
+        title: 'Email Verified',
+        message: 'Your email has been verified successfully!',
+      });
+
+      setTimeout(() => {
+        navigation.goBack();
+      }, 900);
+    } catch (error: unknown) {
       console.error('❌ Email Verification Error:', error);
-      Alert.alert('Error', error.message || 'Failed to verify email');
+
+      showErrorToast({
+        title: 'Verification Failed',
+        message: getErrorMessage(error) || 'Failed to verify email',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.content}>
         {/* Icon */}
         <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
-          <MaterialIcons name="email" size={80} color={colors.primary} />
+          <MaterialIcons
+            name={user?.isEmailVerified ? 'verified' : 'email'}
+            size={80}
+            color={user?.isEmailVerified ? COLORS.success : colors.primary}
+          />
         </View>
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>
-          Verify Your Email
+          {user?.isEmailVerified ? 'Email Verified' : 'Verify Your Email'}
         </Text>
 
         {/* Description */}
         <Text style={[styles.description, { color: colors.textSecondary }]}>
-          {emailSent 
-            ? 'We\'ve sent a verification link to your email address. Please check your inbox and click the link to verify your account.'
-            : 'Your email address is not verified. Please verify your email to access all features and ensure account security.'
-          }
+          {user?.isEmailVerified
+            ? 'Your email is already verified. You now have full access to all features.'
+            : emailSent
+            ? "We've sent a verification link to your email address. Please check your inbox and click the link to verify your account."
+            : 'Your email address is not verified yet. Please verify it to secure your account and unlock all features.'}
         </Text>
 
         {/* Email Display */}
         {user?.email && (
-          <View style={[styles.emailBox, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-            <MaterialIcons name="email" size={20} color={colors.textSecondary} />
-            <Text style={[styles.emailText, { color: colors.text }]}>{user.email}</Text>
+          <View
+            style={[
+              styles.emailBox,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.inputBorder,
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="email"
+              size={20}
+              color={colors.textSecondary}
+            />
+            <Text style={[styles.emailText, { color: colors.text }]}>
+              {user.email}
+            </Text>
           </View>
         )}
 
-        {/* Status Indicator */}
+        {/* Verified Badge */}
         {user?.isEmailVerified && (
           <View style={styles.verifiedBadge}>
-            <MaterialIcons name="verified" size={20} color={COLORS.success} />
+            <MaterialIcons
+              name="verified"
+              size={20}
+              color={COLORS.success}
+            />
             <Text style={styles.verifiedText}>Email Verified</Text>
           </View>
         )}
 
-        {/* Benefits List */}
+        {/* Benefits */}
         <View style={styles.benefitsContainer}>
           <Text style={[styles.benefitsTitle, { color: colors.text }]}>
             Why verify your email?
           </Text>
-          
+
           <View style={styles.benefitItem}>
-            <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />
+            <MaterialIcons
+              name="check-circle"
+              size={20}
+              color={COLORS.primary}
+            />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
               Secure your account and enable password recovery
             </Text>
           </View>
 
           <View style={styles.benefitItem}>
-            <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />
+            <MaterialIcons
+              name="check-circle"
+              size={20}
+              color={COLORS.primary}
+            />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
               Receive important notifications and updates
             </Text>
           </View>
 
           <View style={styles.benefitItem}>
-            <MaterialIcons name="check-circle" size={20} color={COLORS.primary} />
+            <MaterialIcons
+              name="check-circle"
+              size={20}
+              color={COLORS.primary}
+            />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
               Access all premium features
             </Text>
           </View>
         </View>
 
-        {/* Only show send button if email is not verified */}
+        {/* Only show send button if not verified */}
         {!user?.isEmailVerified && (
           <>
-            {/* Send Verification Button */}
             <TouchableOpacity
-              style={styles.button}
+              style={[
+                styles.button,
+                isLoading && styles.buttonDisabled,
+              ]}
               onPress={handleSendVerificationEmail}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator size="small" color={'#FFFFFF'} />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <MaterialIcons name="send" size={20} color={'#FFFFFF'} />
+                  <MaterialIcons name="send" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>
-                    {emailSent ? 'Resend Verification Email' : 'Send Verification Email'}
+                    {emailSent
+                      ? 'Resend Verification Email'
+                      : 'Send Verification Email'}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
 
-            {/* Help Text */}
             <Text style={[styles.helpText, { color: colors.textSecondary }]}>
-              Didn't receive the email? Check your spam folder or request a new one.
+              Didn&apos;t receive the email? Check your spam folder or request a new one.
             </Text>
           </>
         )}
 
-        {/* Back Button */}
+        {/* Back / Continue Button */}
         <TouchableOpacity
-          style={[styles.backButton, { borderColor: colors.inputBorder }, user?.isEmailVerified && styles.verifiedBackButton]}
+          style={[
+            styles.backButton,
+            { borderColor: colors.inputBorder },
+            user?.isEmailVerified && styles.verifiedBackButton,
+          ]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={[styles.backButtonText, { color: colors.text }]}>
+          <Text
+            style={[
+              styles.backButtonText,
+              {
+                color: user?.isEmailVerified ? '#FFFFFF' : colors.text,
+              },
+            ]}
+          >
             {user?.isEmailVerified ? 'Continue' : 'Back to Profile'}
           </Text>
         </TouchableOpacity>
@@ -294,6 +393,9 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.radiusSmall,
     width: '100%',
     marginBottom: SIZES.md,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: SIZES.body,

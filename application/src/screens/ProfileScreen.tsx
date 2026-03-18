@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,18 +19,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ImagePicker from 'react-native-image-crop-picker';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
-import { useTranslation } from 'react-i18next';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
   const { colors, theme } = useTheme();
-  const { t } = useTranslation();
   const { user: authUser, token, logout, updateUser } = useAuth();
+
   const [userData, setUserData] = useState<any>(authUser);
   const [isLoading, setIsLoading] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
@@ -41,30 +46,87 @@ export default function ProfileScreen() {
     }
   }, [authUser]);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!token) {
-      Alert.alert('Error', 'No authentication token found');
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'No authentication token found',
+      });
       return;
     }
 
     console.log('🔍 ProfileScreen - Loading profile...');
     setIsLoading(true);
+
     try {
       const response = await userService.getProfile(token);
       console.log('✅ Profile Response:', JSON.stringify(response, null, 2));
-      
-      if (response.data) {
+
+      if (response?.data) {
         setUserData(response.data);
         updateUser(response.data);
+      } else {
+        showInfoToast({
+          title: 'Using Cached Data',
+          message: 'No fresh profile data returned. Showing cached profile info.',
+        });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Profile Error:', error);
-      console.error('❌ Error Message:', error.message);
-      Alert.alert('Info', 'Using cached profile data');
+
+      showInfoToast({
+        title: 'Using Cached Data',
+        message: 'Unable to refresh profile right now. Showing cached profile data.',
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, updateUser]);
+
+  const uploadProfilePicture = useCallback(
+    async (uri: string) => {
+      if (!token) {
+        showErrorToast({
+          title: 'Authentication Error',
+          message: 'No authentication token found',
+        });
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await userService.updateProfilePicture(uri, token);
+        console.log('✅ Profile picture updated:', response);
+
+        if (response?.data?.avatar) {
+          const updatedUserData = {
+            ...userData,
+            avatar: response.data.avatar,
+          };
+
+          setUserData(updatedUserData);
+          updateUser(updatedUserData);
+        }
+
+        showSuccessToast({
+          title: 'Profile Picture Updated',
+          message: 'Your profile picture has been updated successfully',
+        });
+
+        await loadProfile();
+      } catch (error: unknown) {
+        console.error('❌ Upload Error:', error);
+
+        showErrorToast({
+          title: 'Upload Failed',
+          message: getErrorMessage(error) || 'Failed to update profile picture',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [token, userData, updateUser, loadProfile]
+  );
 
   const handleTakePhoto = async () => {
     setShowImageOptions(false);
@@ -84,11 +146,20 @@ export default function ProfileScreen() {
 
       if (image && image.path) {
         await uploadProfilePicture(image.path);
+      } else {
+        showInfoToast({
+          title: 'No Photo Captured',
+          message: 'Please capture a valid photo to continue.',
+        });
       }
     } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
         console.error('Error taking photo:', error);
-        Alert.alert('Error', 'Failed to take photo');
+
+        showErrorToast({
+          title: 'Camera Error',
+          message: getErrorMessage(error) || 'Failed to take photo',
+        });
       }
     }
   };
@@ -111,48 +182,27 @@ export default function ProfileScreen() {
 
       if (image && image.path) {
         await uploadProfilePicture(image.path);
+      } else {
+        showInfoToast({
+          title: 'No Image Selected',
+          message: 'Please choose a valid image from the gallery.',
+        });
       }
     } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
+      if (error?.code !== 'E_PICKER_CANCELLED') {
         console.error('Error choosing photo:', error);
-        Alert.alert('Error', 'Failed to choose photo');
+
+        showErrorToast({
+          title: 'Gallery Error',
+          message: getErrorMessage(error) || 'Failed to choose photo',
+        });
       }
     }
   };
 
-  const uploadProfilePicture = async (uri: string) => {
-    if (!token) {
-      Alert.alert('Error', 'No authentication token found');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await userService.updateProfilePicture(uri, token);
-      console.log('✅ Profile picture updated:', response);
-      
-      if (response.data?.avatar) {
-        const updatedUserData = {
-          ...userData,
-          avatar: response.data.avatar,
-        };
-        setUserData(updatedUserData);
-        updateUser(updatedUserData);
-      }
-      
-      Alert.alert('Success', 'Profile picture updated successfully');
-      await loadProfile();
-    } catch (error: any) {
-      console.error('❌ Upload Error:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile picture');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteProfilePicture = () => {
+  const confirmDeleteProfilePicture = () => {
     setShowImageOptions(false);
-    
+
     Alert.alert(
       'Delete Profile Picture',
       'Are you sure you want to delete your profile picture?',
@@ -163,7 +213,10 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             if (!token) {
-              Alert.alert('Error', 'No authentication token found');
+              showErrorToast({
+                title: 'Authentication Error',
+                message: 'No authentication token found',
+              });
               return;
             }
 
@@ -171,19 +224,29 @@ export default function ProfileScreen() {
             try {
               await userService.deleteProfilePicture(token);
               console.log('✅ Profile picture deleted');
-              
+
               const updatedUserData = {
                 ...userData,
                 avatar: null,
               };
+
               setUserData(updatedUserData);
               updateUser(updatedUserData);
-              
-              Alert.alert('Success', 'Profile picture deleted successfully');
+
+              showSuccessToast({
+                title: 'Profile Picture Deleted',
+                message: 'Your profile picture has been deleted successfully',
+              });
+
               await loadProfile();
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('❌ Delete Error:', error);
-              Alert.alert('Error', error.message || 'Failed to delete profile picture');
+
+              showErrorToast({
+                title: 'Delete Failed',
+                message:
+                  getErrorMessage(error) || 'Failed to delete profile picture',
+              });
             } finally {
               setIsLoading(false);
             }
@@ -204,12 +267,15 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (token) {
-                await logout();
-              }
+              await logout();
               navigation.replace('Welcome');
             } catch (error) {
               console.error('Logout error:', error);
+
+              showErrorToast({
+                title: 'Logout Failed',
+                message: 'Something went wrong while logging out',
+              });
             }
           },
         },
@@ -228,8 +294,14 @@ export default function ProfileScreen() {
   if (!userData) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.text }]}>Failed to load profile</Text>
-        <TouchableOpacity onPress={loadProfile} style={[styles.retryButton, { backgroundColor: COLORS.primary }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>
+          Failed to load profile
+        </Text>
+
+        <TouchableOpacity
+          onPress={loadProfile}
+          style={[styles.retryButton, { backgroundColor: COLORS.primary }]}
+        >
           <Text style={styles.retryText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -259,6 +331,7 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -270,7 +343,15 @@ export default function ProfileScreen() {
             onPress={() => setShowImageOptions(true)}
             activeOpacity={0.8}
           >
-            <View style={[styles.avatarRing, { borderColor: colors.primary + '40', shadowColor: colors.shadow }]}>
+            <View
+              style={[
+                styles.avatarRing,
+                {
+                  borderColor: colors.primary + '40',
+                  shadowColor: colors.shadow,
+                },
+              ]}
+            >
               {userData.avatar ? (
                 <Image source={{ uri: userData.avatar }} style={styles.avatar} />
               ) : (
@@ -279,12 +360,19 @@ export default function ProfileScreen() {
                   style={styles.avatarFallback}
                 >
                   <Text style={styles.avatarInitials}>
-                    {userData.firstName?.[0]}{userData.lastName?.[0]}
+                    {userData.firstName?.[0] || ''}
+                    {userData.lastName?.[0] || ''}
                   </Text>
                 </LinearGradient>
               )}
             </View>
-            <View style={[styles.cameraBtn, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+
+            <View
+              style={[
+                styles.cameraBtn,
+                { backgroundColor: colors.primary, borderColor: colors.background },
+              ]}
+            >
               <Feather name="camera" size={13} color="#FFF" />
             </View>
           </TouchableOpacity>
@@ -298,22 +386,54 @@ export default function ProfileScreen() {
 
           {/* Quick Stats Chips */}
           <View style={styles.quickStatsRow}>
-            <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+            <View
+              style={[
+                styles.quickChip,
+                {
+                  backgroundColor: colors.statBg,
+                  borderColor: colors.statBorder,
+                },
+              ]}
+            >
               <MaterialIcons name="height" size={15} color={colors.primary} />
               <Text style={[styles.quickChipText, { color: colors.text }]}>
                 {userData.height ? `${userData.height} cm` : '-- cm'}
               </Text>
             </View>
-            <View style={[styles.quickChip, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-              <MaterialIcons name="monitor-weight" size={15} color={colors.primary} />
+
+            <View
+              style={[
+                styles.quickChip,
+                {
+                  backgroundColor: colors.statBg,
+                  borderColor: colors.statBorder,
+                },
+              ]}
+            >
+              <MaterialIcons
+                name="monitor-weight"
+                size={15}
+                color={colors.primary}
+              />
               <Text style={[styles.quickChipText, { color: colors.text }]}>
                 {userData.weight ? `${userData.weight} kg` : '-- kg'}
               </Text>
             </View>
+
             {userData.bmi ? (
-              <View style={[styles.quickChip, { backgroundColor: getBMIColor() + '12', borderColor: getBMIColor() + '30' }]}>
+              <View
+                style={[
+                  styles.quickChip,
+                  {
+                    backgroundColor: getBMIColor() + '12',
+                    borderColor: getBMIColor() + '30',
+                  },
+                ]}
+              >
                 <MaterialIcons name="analytics" size={15} color={getBMIColor()} />
-                <Text style={[styles.quickChipText, { color: getBMIColor() }]}>BMI {userData.bmi}</Text>
+                <Text style={[styles.quickChipText, { color: getBMIColor() }]}>
+                  BMI {userData.bmi}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -321,15 +441,34 @@ export default function ProfileScreen() {
 
         {/* Verification Banner */}
         {userData && !userData.isEmailVerified && (
-          <View style={[styles.verifyBanner, { backgroundColor: COLORS.error + '08', borderColor: COLORS.error + '20' }]}>
+          <View
+            style={[
+              styles.verifyBanner,
+              {
+                backgroundColor: COLORS.error + '08',
+                borderColor: COLORS.error + '20',
+              },
+            ]}
+          >
             <View style={styles.verifyRow}>
-              <View style={[styles.verifyIcon, { backgroundColor: COLORS.error + '15' }]}>
+              <View
+                style={[
+                  styles.verifyIcon,
+                  { backgroundColor: COLORS.error + '15' },
+                ]}
+              >
                 <Ionicons name="warning" size={18} color={COLORS.error} />
               </View>
+
               <View style={{ flex: 1 }}>
-                <Text style={[styles.verifyTitle, { color: COLORS.error }]}>Email Not Verified</Text>
-                <Text style={[styles.verifyMsg, { color: colors.textSecondary }]}>Verify to unlock all features</Text>
+                <Text style={[styles.verifyTitle, { color: COLORS.error }]}>
+                  Email Not Verified
+                </Text>
+                <Text style={[styles.verifyMsg, { color: colors.textSecondary }]}>
+                  Verify to unlock all features
+                </Text>
               </View>
+
               <TouchableOpacity
                 style={[styles.verifyAction, { backgroundColor: COLORS.error }]}
                 onPress={() => navigation.navigate('EmailVerification')}
@@ -345,72 +484,120 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Information</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Personal Information
+              </Text>
             </View>
+
             <TouchableOpacity
               onPress={() => navigation.navigate('EditProfile')}
               style={[styles.editPill, { backgroundColor: colors.iconBg }]}
             >
               <Feather name="edit-2" size={13} color={colors.primary} />
-              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+              <Text style={[styles.editPillText, { color: colors.primary }]}>
+                Edit
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+            ]}
+          >
             <View style={styles.infoRow}>
               <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="mail" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Email</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>{userData.email}</Text>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Email
+                </Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {userData.email}
+                </Text>
               </View>
             </View>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <View style={styles.infoRow}>
               <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="phone" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Phone</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Phone
+                </Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.text }]}
+                  numberOfLines={1}
+                >
                   {userData.phone || 'Not provided'}
                 </Text>
               </View>
             </View>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <View style={styles.infoRow}>
               <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="info" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Bio</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={2}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Bio
+                </Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.text }]}
+                  numberOfLines={2}
+                >
                   {userData.bio || 'Not provided'}
                 </Text>
               </View>
             </View>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <View style={styles.infoRow}>
               <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="calendar" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Birthday</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Birthday
+                </Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.text }]}
+                  numberOfLines={1}
+                >
                   {userData.dateOfBirth || 'Not provided'}
                 </Text>
               </View>
             </View>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <View style={styles.infoRow}>
               <View style={[styles.infoIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="user" size={16} color={colors.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Gender</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={1}>
-                  {userData.gender ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1) : 'Not provided'}
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Gender
+                </Text>
+                <Text
+                  style={[styles.infoValue, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {userData.gender
+                    ? userData.gender.charAt(0).toUpperCase() +
+                      userData.gender.slice(1)
+                    : 'Not provided'}
                 </Text>
               </View>
             </View>
@@ -422,90 +609,177 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Body & Fitness</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Body & Fitness
+              </Text>
             </View>
+
             <TouchableOpacity
               onPress={() => navigation.navigate('EditBodyInfo')}
               style={[styles.editPill, { backgroundColor: colors.iconBg }]}
             >
               <Feather name="edit-2" size={13} color={colors.primary} />
-              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+              <Text style={[styles.editPillText, { color: colors.primary }]}>
+                Edit
+              </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              ]}
+            >
               <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="height" size={20} color={colors.primary} />
               </View>
-              <Text style={[styles.statVal, { color: colors.text }]}>{userData.height || '--'}</Text>
-              <Text style={[styles.statUnit, { color: colors.subtleText }]}>cm</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Height</Text>
+              <Text style={[styles.statVal, { color: colors.text }]}>
+                {userData.height || '--'}
+              </Text>
+              <Text style={[styles.statUnit, { color: colors.subtleText }]}>
+                cm
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                Height
+              </Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+
+            <View
+              style={[
+                styles.statCard,
+                { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              ]}
+            >
               <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="monitor-weight" size={20} color={colors.primary} />
+                <MaterialIcons
+                  name="monitor-weight"
+                  size={20}
+                  color={colors.primary}
+                />
               </View>
-              <Text style={[styles.statVal, { color: colors.text }]}>{userData.weight || '--'}</Text>
-              <Text style={[styles.statUnit, { color: colors.subtleText }]}>kg</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Weight</Text>
+              <Text style={[styles.statVal, { color: colors.text }]}>
+                {userData.weight || '--'}
+              </Text>
+              <Text style={[styles.statUnit, { color: colors.subtleText }]}>
+                kg
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                Weight
+              </Text>
             </View>
           </View>
 
           {/* BMI */}
-          <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.wideCard,
+              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+            ]}
+          >
             <View style={styles.wideCardLeft}>
-              <View style={[styles.statIconBox, { backgroundColor: getBMIColor() + '15' }]}>
+              <View
+                style={[
+                  styles.statIconBox,
+                  { backgroundColor: getBMIColor() + '15' },
+                ]}
+              >
                 <MaterialIcons name="analytics" size={20} color={getBMIColor()} />
               </View>
+
               <View style={{ marginLeft: 12 }}>
-                <Text style={[styles.wideCardValue, { color: colors.text }]}>{userData.bmi || '--'}</Text>
-                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>BMI Index</Text>
+                <Text style={[styles.wideCardValue, { color: colors.text }]}>
+                  {userData.bmi || '--'}
+                </Text>
+                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>
+                  BMI Index
+                </Text>
               </View>
             </View>
+
             {bmiCategory && (
               <View style={[styles.bmiBadge, { backgroundColor: getBMIColor() + '15' }]}>
-                <Text style={[styles.bmiBadgeText, { color: getBMIColor() }]}>{bmiCategory}</Text>
+                <Text style={[styles.bmiBadgeText, { color: getBMIColor() }]}>
+                  {bmiCategory}
+                </Text>
               </View>
             )}
           </View>
 
           {/* Body Fat */}
-          <View style={[styles.wideCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
+          <View
+            style={[
+              styles.wideCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+                marginTop: 10,
+              },
+            ]}
+          >
             <View style={styles.wideCardLeft}>
               <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="fitness-center" size={20} color={colors.primary} />
+                <MaterialIcons
+                  name="fitness-center"
+                  size={20}
+                  color={colors.primary}
+                />
               </View>
+
               <View style={{ marginLeft: 12 }}>
                 <Text style={[styles.wideCardValue, { color: colors.text }]}>
-                  {userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : '--'}
+                  {userData.bodyFatPercentage
+                    ? `${userData.bodyFatPercentage}%`
+                    : '--'}
                 </Text>
-                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>Body Fat</Text>
+                <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>
+                  Body Fat
+                </Text>
               </View>
             </View>
           </View>
 
           {/* Goals */}
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder, marginTop: 10 }]}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+                marginTop: 10,
+              },
+            ]}
+          >
             <View style={styles.goalRow}>
               <View style={[styles.goalDot, { backgroundColor: colors.primary }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Fitness Goal</Text>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Fitness Goal
+                </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.fitnessGoal
-                    ? userData.fitnessGoal.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    ? userData.fitnessGoal
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l: string) => l.toUpperCase())
                     : 'Not set'}
                 </Text>
               </View>
             </View>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <View style={styles.goalRow}>
               <View style={[styles.goalDot, { backgroundColor: '#10B981' }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>Activity Level</Text>
+                <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
+                  Activity Level
+                </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.activityLevel
-                    ? userData.activityLevel.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                    ? userData.activityLevel
+                        .replace(/_/g, ' ')
+                        .replace(/\b\w/g, (l: string) => l.toUpperCase())
                     : 'Not set'}
                 </Text>
               </View>
@@ -518,46 +792,88 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                Settings
+              </Text>
             </View>
           </View>
 
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('ChangePassword')}>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('ChangePassword')}
+            >
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="lock" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
-              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+              <Text style={[styles.menuText, { color: colors.text }]}>
+                Change Password
+              </Text>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={colors.subtleText}
+              />
             </TouchableOpacity>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <TouchableOpacity style={styles.menuItem}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="bell" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
-              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+              <Text style={[styles.menuText, { color: colors.text }]}>
+                Notifications
+              </Text>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={colors.subtleText}
+              />
             </TouchableOpacity>
+
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
             <TouchableOpacity style={styles.menuItem}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="shield" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
-              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+              <Text style={[styles.menuText, { color: colors.text }]}>
+                Privacy
+              </Text>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={colors.subtleText}
+              />
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            style={[styles.logoutBtn, { backgroundColor: COLORS.error + '0A', borderColor: COLORS.error + '25' }]}
+            style={[
+              styles.logoutBtn,
+              {
+                backgroundColor: COLORS.error + '0A',
+                borderColor: COLORS.error + '25',
+              },
+            ]}
             onPress={handleLogout}
           >
             <Feather name="log-out" size={17} color={COLORS.error} />
-            <Text style={[styles.logoutText, { color: COLORS.error }]}>Logout</Text>
+            <Text style={[styles.logoutText, { color: COLORS.error }]}>
+              Logout
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
+        <Text style={[styles.versionText, { color: colors.subtleText }]}>
+          Version 1.0.0
+        </Text>
       </ScrollView>
 
       {/* Image Options Modal */}
@@ -567,32 +883,60 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowImageOptions(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowImageOptions(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowImageOptions(false)}
+        >
           <View style={styles.modalInner}>
             <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-              <View style={[styles.modalHandle, { backgroundColor: colors.divider }]} />
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
+              <View
+                style={[styles.modalHandle, { backgroundColor: colors.divider }]}
+              />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Profile Picture
+              </Text>
 
               <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
-                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+                <View
+                  style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}
+                >
                   <Feather name="camera" size={20} color={colors.primary} />
                 </View>
-                <Text style={[styles.modalOptText, { color: colors.text }]}>Take Photo</Text>
+                <Text style={[styles.modalOptText, { color: colors.text }]}>
+                  Take Photo
+                </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOpt} onPress={handleChooseFromGallery}>
-                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+              <TouchableOpacity
+                style={styles.modalOpt}
+                onPress={handleChooseFromGallery}
+              >
+                <View
+                  style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}
+                >
                   <Feather name="image" size={20} color={colors.primary} />
                 </View>
-                <Text style={[styles.modalOptText, { color: colors.text }]}>Choose from Gallery</Text>
+                <Text style={[styles.modalOptText, { color: colors.text }]}>
+                  Choose from Gallery
+                </Text>
               </TouchableOpacity>
 
               {userData.avatar && (
-                <TouchableOpacity style={styles.modalOpt} onPress={handleDeleteProfilePicture}>
-                  <View style={[styles.modalOptIcon, { backgroundColor: COLORS.error + '12' }]}>
+                <TouchableOpacity
+                  style={styles.modalOpt}
+                  onPress={confirmDeleteProfilePicture}
+                >
+                  <View
+                    style={[
+                      styles.modalOptIcon,
+                      { backgroundColor: COLORS.error + '12' },
+                    ]}
+                  >
                     <Feather name="trash-2" size={20} color={COLORS.error} />
                   </View>
-                  <Text style={[styles.modalOptText, { color: COLORS.error }]}>Delete Photo</Text>
+                  <Text style={[styles.modalOptText, { color: COLORS.error }]}>
+                    Delete Photo
+                  </Text>
                 </TouchableOpacity>
               )}
 
@@ -600,7 +944,11 @@ export default function ProfileScreen() {
                 style={[styles.modalCancel, { borderTopColor: colors.divider }]}
                 onPress={() => setShowImageOptions(false)}
               >
-                <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
+                <Text
+                  style={[styles.modalCancelText, { color: colors.subtleText }]}
+                >
+                  Cancel
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

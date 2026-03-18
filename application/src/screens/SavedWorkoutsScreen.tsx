@@ -17,6 +17,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { savedWorkoutService, workoutService } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
 interface Workout {
   id: number;
@@ -63,10 +69,12 @@ const SavedWorkoutsScreen = () => {
   const { token } = useAuth();
   const { theme, colors } = useTheme();
   const { t } = useTranslation();
+
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkoutItem[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
@@ -97,15 +105,27 @@ const SavedWorkoutsScreen = () => {
   const loadFilters = async () => {
     try {
       if (!token) return;
+
       const response = await workoutService.getWorkoutFilters(token);
+
       if (response.success) {
         setFilters({
           bodyParts: response.data?.bodyParts || [],
           levels: response.data?.levels || [],
         });
+      } else {
+        showErrorToast({
+          title: 'Filters Error',
+          message: response.message || 'Failed to load filters',
+        });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to load filters:', error);
+
+      showErrorToast({
+        title: 'Filters Error',
+        message: getErrorMessage(error) || 'Failed to load filters',
+      });
     }
   };
 
@@ -130,11 +150,11 @@ const SavedWorkoutsScreen = () => {
       if (result.success) {
         const savedWorkoutsData = result.data?.savedWorkouts || [];
         setSavedWorkouts(savedWorkoutsData);
-        
+
         // Extract workout data from saved workouts
-        const workoutData = savedWorkoutsData.map(item => item.workout);
+        const workoutData = savedWorkoutsData.map((item) => item.workout);
         setWorkouts(workoutData);
-        
+
         // Safely handle pagination data
         if (result.data?.pagination) {
           setPagination({
@@ -145,22 +165,43 @@ const SavedWorkoutsScreen = () => {
           });
         } else {
           // If no pagination in response, calculate based on data
-          const totalPages = Math.ceil((savedWorkoutsData.length || 0) / pagination.limit) || 1;
-          setPagination(prev => ({
+          const totalPages =
+            Math.ceil((savedWorkoutsData.length || 0) / pagination.limit) || 1;
+
+          setPagination((prev) => ({
             ...prev,
             total: savedWorkoutsData.length || 0,
-            totalPages: totalPages,
+            totalPages,
           }));
         }
+
+        // Optional info toast لو مفيش نتائج بعد الفلترة
+        if (
+          savedWorkoutsData.length === 0 &&
+          (selectedBodyPart || selectedLevel)
+        ) {
+          showInfoToast({
+            title: 'No Results',
+            message: 'No saved workouts match the selected filters',
+          });
+        }
       } else {
-        // Handle API error
-        Alert.alert('Error', result.message || 'Failed to load workouts');
+        showErrorToast({
+          title: 'Load Failed',
+          message: result.message || 'Failed to load workouts',
+        });
+
         setSavedWorkouts([]);
         setWorkouts([]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to load workouts:', error);
-      Alert.alert('Error', error.message || 'Failed to load workouts');
+
+      showErrorToast({
+        title: 'Load Failed',
+        message: getErrorMessage(error) || 'Failed to load workouts',
+      });
+
       setSavedWorkouts([]);
       setWorkouts([]);
     } finally {
@@ -189,40 +230,53 @@ const SavedWorkoutsScreen = () => {
   const deleteWorkout = async (savedWorkoutId: number) => {
     try {
       if (!token) return;
-      
-      const result = await savedWorkoutService.removeWorkoutFromSaveList(savedWorkoutId, token);
-      
+
+      const result = await savedWorkoutService.removeWorkoutFromSaveList(
+        savedWorkoutId,
+        token
+      );
+
       if (result.success) {
-        // Remove from local state
-        setSavedWorkouts(prev => prev.filter(item => item.id !== savedWorkoutId));
-        setWorkouts(prev => prev.filter(workout => 
-          !prev.find(item => item.id === workout.id && 
-            savedWorkouts.find(sw => sw.id === savedWorkoutId && sw.workoutId === workout.id)
-          )
-        ));
-        
-        // Update pagination total
-        setPagination(prev => ({
-          ...prev,
-          total: prev.total - 1,
-          totalPages: Math.ceil((prev.total - 1) / prev.limit),
-        }));
-        
-        // If we're on a page that no longer exists, go to last page
-        if (pagination.page > Math.ceil((pagination.total - 1) / pagination.limit)) {
-          setPagination(prev => ({
-            ...prev,
-            page: Math.max(1, Math.ceil((prev.total - 1) / prev.limit)),
-          }));
+        const removedItem = savedWorkouts.find((item) => item.id === savedWorkoutId);
+
+        setSavedWorkouts((prev) => prev.filter((item) => item.id !== savedWorkoutId));
+
+        if (removedItem) {
+          setWorkouts((prev) =>
+            prev.filter((workout) => workout.id !== removedItem.workoutId)
+          );
         }
-        
-        Alert.alert('Success', 'Workout removed from saved workouts');
+
+        setPagination((prev) => {
+          const newTotal = Math.max(prev.total - 1, 0);
+          const newTotalPages = Math.max(Math.ceil(newTotal / prev.limit), 1);
+          const newPage = Math.min(prev.page, newTotalPages);
+
+          return {
+            ...prev,
+            total: newTotal,
+            totalPages: newTotalPages,
+            page: newPage,
+          };
+        });
+
+        showSuccessToast({
+          title: 'Workout Removed',
+          message: 'The workout was removed from your saved list',
+        });
       } else {
-        Alert.alert('Error', result.message || 'Failed to remove workout');
+        showErrorToast({
+          title: 'Remove Failed',
+          message: result.message || 'Failed to remove workout',
+        });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to delete workout:', error);
-      Alert.alert('Error', error.message || 'Failed to remove workout');
+
+      showErrorToast({
+        title: 'Remove Failed',
+        message: getErrorMessage(error) || 'Failed to remove workout',
+      });
     }
   };
 
@@ -230,6 +284,11 @@ const SavedWorkoutsScreen = () => {
     setSelectedBodyPart('');
     setSelectedLevel('');
     setPagination((prev) => ({ ...prev, page: 1 }));
+
+    showInfoToast({
+      title: 'Filters Cleared',
+      message: 'All filters have been reset',
+    });
   };
 
   const onRefresh = async () => {
@@ -292,7 +351,7 @@ const SavedWorkoutsScreen = () => {
           style={[
             styles.pageNumber,
             page === currentPage && [styles.pageNumberActive, { backgroundColor: colors.primary }],
-            page !== currentPage && { backgroundColor: colors.primary, opacity: 0.3 }
+            page !== currentPage && { backgroundColor: colors.primary, opacity: 0.3 },
           ]}
           onPress={() => goToPage(page as number)}
         >
@@ -311,8 +370,8 @@ const SavedWorkoutsScreen = () => {
 
   const renderWorkoutItem = ({ item }: { item: Workout }) => {
     // Find the saved workout item that contains this workout
-    const savedWorkoutItem = savedWorkouts.find(sw => sw.workoutId === item.id);
-    
+    const savedWorkoutItem = savedWorkouts.find((sw) => sw.workoutId === item.id);
+
     return (
       <View style={[styles.workoutCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <View style={styles.workoutHeader}>
@@ -326,24 +385,31 @@ const SavedWorkoutsScreen = () => {
             </TouchableOpacity>
           )}
         </View>
-        
+
         {item.gif_link && (
           <Image source={{ uri: item.gif_link }} style={styles.workoutGif} />
         )}
+
         <View style={styles.workoutInfo}>
           <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
             <Ionicons name="body" size={14} color={colors.textSecondary} /> {item.body_part} - {item.target_area}
           </Text>
+
           {item.equipment && (
             <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
               <Ionicons name="barbell" size={14} color={colors.textSecondary} /> {item.equipment}
             </Text>
           )}
+
           <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
             <Ionicons name="trophy" size={14} color={colors.textSecondary} /> {item.level}
           </Text>
+
           {item.description && (
-            <Text style={[styles.workoutDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+            <Text
+              style={[styles.workoutDescription, { color: colors.textSecondary }]}
+              numberOfLines={2}
+            >
               {item.description}
             </Text>
           )}
@@ -363,7 +429,12 @@ const SavedWorkoutsScreen = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Filters - Only Body Part and Level */}
-      <View style={[styles.filtersContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.filtersContainer,
+          { backgroundColor: colors.background, borderBottomColor: colors.border },
+        ]}
+      >
         <View style={styles.filtersHeader}>
           <Text style={[styles.filtersTitle, { color: colors.text }]}>Filters</Text>
           {(selectedBodyPart || selectedLevel) && (
@@ -382,10 +453,19 @@ const SavedWorkoutsScreen = () => {
                 setShowFilterModal(true);
               }}
             >
-              <Text style={[styles.filterButtonText, { color: theme === 'dark' ? '#000000' : '#FFFFFF' }]}>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  { color: theme === 'dark' ? '#000000' : '#FFFFFF' },
+                ]}
+              >
                 {selectedBodyPart || 'Body Part'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={theme === 'dark' ? '#000000' : '#FFFFFF'} />
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color={theme === 'dark' ? '#000000' : '#FFFFFF'}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -395,10 +475,19 @@ const SavedWorkoutsScreen = () => {
                 setShowFilterModal(true);
               }}
             >
-              <Text style={[styles.filterButtonText, { color: theme === 'dark' ? '#000000' : '#FFFFFF' }]}>
+              <Text
+                style={[
+                  styles.filterButtonText,
+                  { color: theme === 'dark' ? '#000000' : '#FFFFFF' },
+                ]}
+              >
                 {selectedLevel || 'Level'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={theme === 'dark' ? '#000000' : '#FFFFFF'} />
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color={theme === 'dark' ? '#000000' : '#FFFFFF'}
+              />
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -425,6 +514,7 @@ const SavedWorkoutsScreen = () => {
                 <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
+
             <ScrollView style={styles.modalScroll}>
               <TouchableOpacity
                 style={[styles.modalOption, { borderBottomColor: colors.border }]}
@@ -436,36 +526,40 @@ const SavedWorkoutsScreen = () => {
               >
                 <Text style={[styles.modalOptionText, { color: colors.text }]}>All</Text>
               </TouchableOpacity>
-              {currentFilter === 'bodyPart' && filters.bodyParts.map((part) => (
-                <TouchableOpacity
-                  key={part}
-                  style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    setSelectedBodyPart(part);
-                    setShowFilterModal(false);
-                  }}
-                >
-                  <Text style={[styles.modalOptionText, { color: colors.text }]}>{part}</Text>
-                  {selectedBodyPart === part && (
-                    <Ionicons name="checkmark" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-              {currentFilter === 'level' && filters.levels.map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                  onPress={() => {
-                    setSelectedLevel(level);
-                    setShowFilterModal(false);
-                  }}
-                >
-                  <Text style={[styles.modalOptionText, { color: colors.text }]}>{level}</Text>
-                  {selectedLevel === level && (
-                    <Ionicons name="checkmark" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+
+              {currentFilter === 'bodyPart' &&
+                filters.bodyParts.map((part) => (
+                  <TouchableOpacity
+                    key={part}
+                    style={[styles.modalOption, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      setSelectedBodyPart(part);
+                      setShowFilterModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }]}>{part}</Text>
+                    {selectedBodyPart === part && (
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+
+              {currentFilter === 'level' &&
+                filters.levels.map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[styles.modalOption, { borderBottomColor: colors.border }]}
+                    onPress={() => {
+                      setSelectedLevel(level);
+                      setShowFilterModal(false);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, { color: colors.text }]}>{level}</Text>
+                    {selectedLevel === level && (
+                      <Ionicons name="checkmark" size={20} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -476,13 +570,13 @@ const SavedWorkoutsScreen = () => {
         renderItem={renderWorkoutItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="fitness-outline" size={64} color={colors.primary} />
-            <Text style={[styles.emptyText, { color: colors.text }]}>No saved workouts found</Text>
+            <Text style={[styles.emptyText, { color: colors.text }]}>
+              No saved workouts found
+            </Text>
             <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
               Save workouts to see them here
             </Text>
@@ -490,16 +584,25 @@ const SavedWorkoutsScreen = () => {
         }
       />
 
-      {/* Pagination Controls - Only show if we have pagination data */}
+      {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
         <>
-          <View style={[styles.paginationContainer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+          <View
+            style={[
+              styles.paginationContainer,
+              { backgroundColor: colors.background, borderTopColor: colors.border },
+            ]}
+          >
             <TouchableOpacity
               style={[styles.navButton, pagination.page === 1 && styles.navButtonDisabled]}
               onPress={goToFirstPage}
               disabled={pagination.page === 1}
             >
-              <Ionicons name="play-back" size={20} color={pagination.page === 1 ? colors.textSecondary : colors.primary} />
+              <Ionicons
+                name="play-back"
+                size={20}
+                color={pagination.page === 1 ? colors.textSecondary : colors.primary}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -507,7 +610,11 @@ const SavedWorkoutsScreen = () => {
               onPress={goToPreviousPage}
               disabled={pagination.page === 1}
             >
-              <Ionicons name="chevron-back" size={20} color={pagination.page === 1 ? colors.textSecondary : colors.primary} />
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color={pagination.page === 1 ? colors.textSecondary : colors.primary}
+              />
             </TouchableOpacity>
 
             <View style={styles.pageNumbersContainer}>{renderPageNumbers()}</View>
@@ -523,7 +630,11 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={pagination.page === pagination.totalPages ? colors.textSecondary : colors.primary}
+                color={
+                  pagination.page === pagination.totalPages
+                    ? colors.textSecondary
+                    : colors.primary
+                }
               />
             </TouchableOpacity>
 
@@ -538,12 +649,21 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="play-forward"
                 size={20}
-                color={pagination.page === pagination.totalPages ? colors.textSecondary : colors.primary}
+                color={
+                  pagination.page === pagination.totalPages
+                    ? colors.textSecondary
+                    : colors.primary
+                }
               />
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.pageInfo, { color: colors.text, backgroundColor: colors.background }]}>
+          <Text
+            style={[
+              styles.pageInfo,
+              { color: colors.text, backgroundColor: colors.background },
+            ]}
+          >
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} workouts)
           </Text>
         </>
@@ -655,9 +775,11 @@ const styles = StyleSheet.create({
   pageNumberText: {
     fontSize: 14,
     fontWeight: '500',
+    color: '#FFFFFF',
   },
   pageNumberTextActive: {
     fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   pageNumberDots: {
     paddingHorizontal: 8,
@@ -705,6 +827,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 6,
     flexShrink: 1,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

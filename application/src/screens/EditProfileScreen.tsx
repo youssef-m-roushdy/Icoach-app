@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
   TextInput,
 } from 'react-native';
@@ -18,8 +17,17 @@ import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
-type EditProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
+type EditProfileNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'EditProfile'
+>;
 
 const C = {
   primary: '#C5981B',
@@ -35,20 +43,29 @@ interface SectionCardProps {
   children: React.ReactNode;
 }
 
-const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
+const SectionCard: React.FC<SectionCardProps> = ({
+  title,
+  icon,
+  children,
+}) => {
   const { colors } = useTheme();
-  
+
   return (
-    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+    <View
+      style={[
+        styles.sectionCard,
+        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+      ]}
+    >
       <View style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
           {icon}
         </View>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
       </View>
-      <View style={styles.sectionContent}>
-        {children}
-      </View>
+      <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 };
@@ -86,8 +103,13 @@ const ProfileInput: React.FC<ProfileInputProps> = ({
           {icon}
         </View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
-        {note && <Text style={[styles.inputNote, { color: colors.textSecondary }]}>{note}</Text>}
+        {note && (
+          <Text style={[styles.inputNote, { color: colors.textSecondary }]}>
+            {note}
+          </Text>
+        )}
       </View>
+
       <View
         style={[
           styles.inputWrapper,
@@ -124,7 +146,7 @@ export default function EditProfileScreen() {
   const { colors } = useTheme();
   const { user, token, updateUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
@@ -141,40 +163,69 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!token) {
-      Alert.alert('Error', 'Authentication token not found');
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'Authentication token not found',
+      });
       return;
     }
 
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Error', 'First name and last name are required');
+      showErrorToast({
+        title: 'Missing Required Fields',
+        message: 'First name and last name are required',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
       const updateData: any = {};
-      
-      if (firstName !== user?.firstName) updateData.firstName = firstName.trim();
-      if (lastName !== user?.lastName) updateData.lastName = lastName.trim();
-      if (phone !== user?.phone) updateData.phone = phone.trim() || null;
-      if (bio !== user?.bio) updateData.bio = bio.trim() || null;
+
+      if (firstName.trim() !== (user?.firstName || '')) {
+        updateData.firstName = firstName.trim();
+      }
+
+      if (lastName.trim() !== (user?.lastName || '')) {
+        updateData.lastName = lastName.trim();
+      }
+
+      if (phone.trim() !== (user?.phone || '')) {
+        updateData.phone = phone.trim() || null;
+      }
+
+      if (bio.trim() !== (user?.bio || '')) {
+        updateData.bio = bio.trim() || null;
+      }
 
       if (Object.keys(updateData).length === 0) {
-        Alert.alert('Info', 'No changes to save');
+        showInfoToast({
+          title: 'No Changes',
+          message: 'There are no changes to save',
+        });
         return;
       }
 
       const response = await userService.updateProfile(updateData, token);
-      
+
       if (response.data) {
         updateUser(response.data);
       }
-      
-      Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update profile');
+
+      showSuccessToast({
+        title: 'Profile Updated',
+        message: 'Your profile has been updated successfully',
+      });
+
+      setTimeout(() => {
+        navigation.goBack();
+      }, 900);
+    } catch (error: unknown) {
+      showErrorToast({
+        title: 'Update Failed',
+        message: getErrorMessage(error) || 'Failed to update profile',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -187,23 +238,27 @@ export default function EditProfileScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
+
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Edit Profile
+          </Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             Update your personal information
           </Text>
         </View>
+
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Personal Information Section */}
-        <SectionCard 
-          title="Personal Information" 
+        <SectionCard
+          title="Personal Information"
           icon={<Feather name="user" size={20} color={C.primary} />}
         >
           <ProfileInput
@@ -226,8 +281,8 @@ export default function EditProfileScreen() {
         </SectionCard>
 
         {/* Read-Only Information Section */}
-        <SectionCard 
-          title="Account Details" 
+        <SectionCard
+          title="Account Details"
           icon={<Feather name="settings" size={20} color={C.primary} />}
         >
           <ProfileInput
@@ -252,8 +307,8 @@ export default function EditProfileScreen() {
         </SectionCard>
 
         {/* Contact & Bio Section */}
-        <SectionCard 
-          title="Contact & Bio" 
+        <SectionCard
+          title="Contact & Bio"
           icon={<Feather name="phone" size={20} color={C.primary} />}
         >
           <ProfileInput
@@ -295,9 +350,11 @@ export default function EditProfileScreen() {
                 style={[styles.cancelButton, { borderColor: colors.divider }]}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: C.primary }]}
                 onPress={handleSave}
@@ -310,7 +367,6 @@ export default function EditProfileScreen() {
           )}
         </View>
 
-        {/* Extra bottom padding */}
         <View style={{ height: 20 }} />
       </ScrollView>
     </View>

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ImageBackground,
-  Alert,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -22,30 +21,46 @@ import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
 import { useAuth } from '../context';
+import {
+  showSuccessToast,
+  showErrorToast,
+  getErrorMessage,
+} from '../utils/toast';
 
 // FIX: Change 'SignIn' to 'Login' - because in your navigation stack,
 // this screen is registered as 'Login', not 'SignIn'
-type SignInScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type SignInScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Login'
+>;
 
 export default function SignInScreen() {
   const navigation = useNavigation<SignInScreenNavigationProp>();
   const { theme, colors } = useTheme();
   const { login } = useAuth();
+
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    if (!emailOrUsername || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!emailOrUsername.trim() || !password.trim()) {
+      showErrorToast({
+        title: 'Missing Fields',
+        message: 'Please fill in all fields',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const response = await authService.login({ emailOrUsername, password });
-      
+      const response = await authService.login({
+        emailOrUsername: emailOrUsername.trim(),
+        password: password.trim(),
+      });
+
       console.log('🔐 Login Response:', JSON.stringify(response, null, 2));
       console.log('✅ Success:', response.success);
       console.log('📦 Data:', response.data);
@@ -59,26 +74,39 @@ export default function SignInScreen() {
           response.data.accessToken,
           response.data.refreshToken
         );
-        Alert.alert('Success', 'Logged in successfully!');
+
+        showSuccessToast({
+          title: 'Login Successful',
+          message: 'Welcome back to ICoach',
+        });
+      } else {
+        showErrorToast({
+          title: 'Login Failed',
+          message: 'Unable to login. Please try again.',
+        });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Login Error:', error);
-      console.error('❌ Error Message:', error.message);
-      console.error('❌ Error Stack:', error.stack);
-      
-      // Special case: Check for specific error messages
-      const errorMessage = error.message || 'Invalid credentials';
-      let displayMessage = errorMessage;
-      
-      if (errorMessage.toLowerCase().includes('invalid credentials') || 
-          errorMessage.toLowerCase().includes('incorrect password') ||
-          errorMessage.toLowerCase().includes('user not found')) {
-        displayMessage = 'Invalid email/username or password. Please try again.';
-      } else if (errorMessage.toLowerCase().includes('email not verified')) {
-        displayMessage = 'Please verify your email address before logging in.';
+
+      const rawMessage = getErrorMessage(error);
+      let displayMessage = rawMessage;
+
+      if (
+        rawMessage.toLowerCase().includes('invalid credentials') ||
+        rawMessage.toLowerCase().includes('incorrect password') ||
+        rawMessage.toLowerCase().includes('user not found')
+      ) {
+        displayMessage =
+          'Invalid email/username or password. Please try again.';
+      } else if (rawMessage.toLowerCase().includes('email not verified')) {
+        displayMessage =
+          'Please verify your email address before logging in.';
       }
-      
-      Alert.alert('Login Failed', displayMessage);
+
+      showErrorToast({
+        title: 'Login Failed',
+        message: displayMessage,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -93,11 +121,12 @@ export default function SignInScreen() {
           resizeMode="cover"
         />
       )}
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -106,23 +135,51 @@ export default function SignInScreen() {
             activeTab="Login"
             onTabPress={(tab) => {
               if (tab === 'SignIn') {
-                navigation.navigate('SignIn'); // This navigates to SignUpScreen
+                navigation.navigate('SignIn');
               }
             }}
           />
 
-          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor:
+                  theme === 'dark'
+                    ? colors.background + 'CC'
+                    : colors.card,
+                shadowColor: colors.shadow,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.headerContainer}>
-              <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+              <Text style={[styles.title, { color: colors.text }]}>
+                Welcome Back
+              </Text>
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Sign in to continue your journey
               </Text>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Email or Username</Text>
-              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                <MaterialIcons name="person" size={20} color={colors.textSecondary} />
+              <Text style={[styles.inputLabel, { color: colors.text }]}>
+                Email or Username
+              </Text>
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="person"
+                  size={20}
+                  color={colors.textSecondary}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your email or username"
@@ -138,18 +195,38 @@ export default function SignInScreen() {
 
             <View style={styles.inputGroup}>
               <View style={styles.passwordHeader}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-                <TouchableOpacity 
+                <Text style={[styles.inputLabel, { color: colors.text }]}>
+                  Password
+                </Text>
+                <TouchableOpacity
                   style={styles.forgotPasswordButton}
                   onPress={() => navigation.navigate('ForgotPassword')}
                 >
-                  <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                  <Text
+                    style={[
+                      styles.forgotPasswordText,
+                      { color: colors.primary },
+                    ]}
+                  >
                     Forgot Password?
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                <MaterialIcons name="lock" size={20} color={colors.textSecondary} />
+
+              <View
+                style={[
+                  styles.inputWrapper,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.inputBorder,
+                  },
+                ]}
+              >
+                <MaterialIcons
+                  name="lock"
+                  size={20}
+                  color={colors.textSecondary}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your password"
@@ -160,7 +237,7 @@ export default function SignInScreen() {
                   autoCapitalize="none"
                   autoComplete="password"
                 />
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.visibilityButton}
                 >
@@ -178,17 +255,36 @@ export default function SignInScreen() {
                 <ActivityIndicator size="large" color={colors.primary} />
               ) : (
                 <>
-                  <CustomButton 
-                    title="Sign In" 
-                    variant="primary" 
+                  <CustomButton
+                    title="Sign In"
+                    variant="primary"
                     onPress={handleLogin}
                     buttonStyle={styles.signInButton}
                   />
+
                   <View style={styles.divider}>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.textSecondary }]} />
-                    <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
-                    <View style={[styles.dividerLine, { backgroundColor: colors.textSecondary }]} />
+                    <View
+                      style={[
+                        styles.dividerLine,
+                        { backgroundColor: colors.textSecondary },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.dividerText,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      OR
+                    </Text>
+                    <View
+                      style={[
+                        styles.dividerLine,
+                        { backgroundColor: colors.textSecondary },
+                      ]}
+                    />
                   </View>
+
                   <GoogleButton mode="signin" />
                 </>
               )}

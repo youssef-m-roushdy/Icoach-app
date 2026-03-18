@@ -40,7 +40,7 @@ export type MainStackParamList = {
 };
 
 export interface User {
-  id: string;
+  id: number;
   username: string;
   email: string;
   firstName?: string;
@@ -50,7 +50,12 @@ export interface User {
   height?: number;
   weight?: number;
   fitnessGoal?: 'weight_loss' | 'muscle_gain' | 'maintenance';
-  activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active';
+  activityLevel?:
+    | 'sedentary'
+    | 'lightly_active'
+    | 'moderately_active'
+    | 'very_active'
+    | 'extra_active';
   bodyFatPercentage?: number;
   bio?: string;
   phone?: string;

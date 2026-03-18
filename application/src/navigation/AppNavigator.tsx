@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import { useColorScheme } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
+
 import WelcomeScreen from '../screens/WelcomeScreen';
 import SignUpScreen from '../screens/SignupScreen';
 import SignInScreen from '../screens/SignInScreen';
@@ -23,17 +26,19 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
-import { 
-  ActivityIndicator, 
-  View, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  ActivityIndicator,
+  View,
+  StyleSheet,
+  TouchableOpacity,
   Text,
   Modal,
-  Dimensions
+  Dimensions,
 } from 'react-native';
+
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
+import { createToastConfig } from '../constants/toastConfig';
 
 // Type definition temporarily added to fix 'Messages' error
 export type RootStackParamList = {
@@ -53,8 +58,8 @@ export type RootStackParamList = {
   SavedWorkouts: undefined;
   EmailVerification: undefined;
   ChangePassword: undefined;
-  ForgotPassword: undefined; // Add this line
-  ResetPassword: { email?: string; resetToken?: string }; // Add this line
+  ForgotPassword: undefined;
+  ResetPassword: { email?: string; resetToken?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -99,9 +104,22 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
     >
       <View style={drawerStyles.overlay}>
         {/* Place drawer first so it is fixed on the left */}
-        <View style={[drawerStyles.drawer, { backgroundColor: colors.background }]}> 
-          <View style={[drawerStyles.header, { paddingTop: insets.top + 20, borderBottomColor: colors.border }]}>
-            <TouchableOpacity 
+        <View
+          style={[
+            drawerStyles.drawer,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <View
+            style={[
+              drawerStyles.header,
+              {
+                paddingTop: insets.top + 20,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
               style={drawerStyles.closeButton}
               onPress={onClose}
             >
@@ -110,65 +128,103 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
           </View>
 
           <View style={drawerStyles.menuItems}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('Home')}
             >
               <MaterialIcons name="home" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>Home</Text>
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Home
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('Profile')}
             >
               <MaterialIcons name="person" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>Profile</Text>
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Profile
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('Foods')}
             >
-              <MaterialIcons name="restaurant" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>Foods</Text>
+              <MaterialIcons
+                name="restaurant"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Foods
+              </Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('Workouts')}
             >
-              <MaterialIcons name="fitness-center" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>Workouts</Text>
+              <MaterialIcons
+                name="fitness-center"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Workouts
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('SavedWorkouts')}
             >
-              <MaterialIcons name="bookmark" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>My Workouts</Text>
+              <MaterialIcons
+                name="bookmark"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                My Workouts
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('LiveWorkout')}
             >
-              <MaterialIcons name="videocam" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>AI Workout</Text>
+              <MaterialIcons
+                name="videocam"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                AI Workout
+              </Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={drawerStyles.menuItem}
               onPress={() => handleNavigate('Messages')}
             >
               <MaterialIcons name="message" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>Messages</Text>
+              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
+                Messages
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={[drawerStyles.footer, { paddingBottom: insets.bottom + 20, borderTopColor: colors.border }]}>
-            <TouchableOpacity 
+          <View
+            style={[
+              drawerStyles.footer,
+              {
+                paddingBottom: insets.bottom + 20,
+                borderTopColor: colors.border,
+              },
+            ]}
+          >
+            <TouchableOpacity
               style={drawerStyles.logoutButton}
               onPress={handleLogout}
             >
@@ -177,11 +233,11 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {/* This covers the rest of the screen and closes the drawer when pressed */}
-        <TouchableOpacity 
-          style={drawerStyles.overlayTouchable} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={drawerStyles.overlayTouchable}
+          activeOpacity={1}
           onPress={onClose}
         />
       </View>
@@ -192,8 +248,12 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
 export const AppNavigator: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { colors } = useTheme();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigationRef, setNavigationRef] = useState<any>(null);
+
+  const toastConfig = useMemo(() => createToastConfig(!!isDark), [isDark]);
 
   if (isLoading) {
     return (
@@ -204,15 +264,14 @@ export const AppNavigator: React.FC = () => {
   }
 
   // Check if user needs onboarding (no body information filled)
-  const needsOnboarding = isAuthenticated && user && !hasCompletedBodyInformation(user);
+  const needsOnboarding =
+    isAuthenticated && user && !hasCompletedBodyInformation(user);
 
   return (
     <>
-      <NavigationContainer
-        ref={(nav) => setNavigationRef(nav)}
-      >
-        <Stack.Navigator 
-          screenOptions={({ navigation, route }) => ({
+      <NavigationContainer ref={(nav) => setNavigationRef(nav)}>
+        <Stack.Navigator
+          screenOptions={({ navigation }) => ({
             headerShown: isAuthenticated,
             headerStyle: {
               backgroundColor: colors.background,
@@ -221,89 +280,219 @@ export const AppNavigator: React.FC = () => {
             headerTitleStyle: {
               fontWeight: 'bold',
             },
-            headerLeft: isAuthenticated ? () => (
-              <TouchableOpacity
-                style={{ marginLeft: 15 }}
-                onPress={() => setDrawerVisible(true)}
-              >
-                <MaterialIcons name="menu" size={28} color={colors.primary} />
-              </TouchableOpacity>
-            ) : undefined,
+            headerLeft: isAuthenticated
+              ? () => (
+                  <TouchableOpacity
+                    style={{ marginLeft: 15 }}
+                    onPress={() => setDrawerVisible(true)}
+                  >
+                    <MaterialIcons
+                      name="menu"
+                      size={28}
+                      color={colors.primary}
+                    />
+                  </TouchableOpacity>
+                )
+              : undefined,
           })}
         >
           {!isAuthenticated ? (
             <>
-              <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="SignIn" component={SignUpScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="Login" component={SignInScreen} options={{ headerShown: false }} />
-              {/* Add Forgot Password screens here - they're for non-authenticated users */}
-              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="Welcome"
+                component={WelcomeScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="SignIn"
+                component={SignUpScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Login"
+                component={SignInScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ForgotPassword"
+                component={ForgotPasswordScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="ResetPassword"
+                component={ResetPasswordScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AuthCallback"
+                component={AuthCallbackScreen}
+                options={{ headerShown: false }}
+              />
             </>
           ) : needsOnboarding ? (
             <>
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
-              <Stack.Screen 
-                name="Home" 
-                component={HomeScreen} 
-                options={({ navigation }) => ({ 
-                  title: 'ICoach',
-                  headerRight: () => (
-                    <TouchableOpacity
-                      style={{ marginRight: 15 }}
-                      onPress={() => navigation.navigate('Messages' as any)}
-                    >
-                      <MaterialIcons name="message" size={28} color={COLORS.primary} />
-                    </TouchableOpacity>
-                  ),
-                })} 
+              <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                options={{ headerShown: false }}
               />
-              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
-              <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
-              <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
-              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
-              <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
-              <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
-              <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
-              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
-              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
-            </>
-          ) : (
-            <>
-              <Stack.Screen 
-                name="Home" 
-                component={HomeScreen} 
+              <Stack.Screen
+                name="Home"
+                component={HomeScreen}
                 options={({ navigation }) => ({
                   title: 'ICoach',
                   headerRight: () => (
                     <TouchableOpacity
                       style={{ marginRight: 15 }}
-                      onPress={() => navigation.navigate('Messages' as any)}
+                      onPress={() => navigation.navigate('Messages' as never)}
                     >
-                      <MaterialIcons name="message" size={28} color={COLORS.primary} />
+                      <MaterialIcons
+                        name="message"
+                        size={28}
+                        color={COLORS.primary}
+                      />
                     </TouchableOpacity>
                   ),
-                })} 
+                })}
               />
-              <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
-              <Stack.Screen name="Foods" component={FoodsScreen} options={{ title: 'Foods' }} />
-              <Stack.Screen name="Workouts" component={WorkoutsScreen} options={{ title: 'Workouts' }} />
-              <Stack.Screen name="SavedWorkouts" component={SavedWorkoutsScreen} options={{ title: 'My Workouts' }} />
-              <Stack.Screen name="LiveWorkout" component={LiveWorkoutScreen} options={{ headerShown: false }} />
-              <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile' }} />
-              <Stack.Screen name="EditBodyInfo" component={EditBodyInfoScreen} options={{ title: 'Edit Body Info' }} />
-              <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
-              <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} options={{ title: 'Verify Email' }} />
-              <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileScreen}
+                options={{ title: 'Profile' }}
+              />
+              <Stack.Screen
+                name="Foods"
+                component={FoodsScreen}
+                options={{ title: 'Foods' }}
+              />
+              <Stack.Screen
+                name="Workouts"
+                component={WorkoutsScreen}
+                options={{ title: 'Workouts' }}
+              />
+              <Stack.Screen
+                name="SavedWorkouts"
+                component={SavedWorkoutsScreen}
+                options={{ title: 'My Workouts' }}
+              />
+              <Stack.Screen
+                name="LiveWorkout"
+                component={LiveWorkoutScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{ title: 'Edit Profile' }}
+              />
+              <Stack.Screen
+                name="EditBodyInfo"
+                component={EditBodyInfoScreen}
+                options={{ title: 'Edit Body Info' }}
+              />
+              <Stack.Screen
+                name="Messages"
+                component={MessagesScreen}
+                options={{ title: 'Messages' }}
+              />
+              <Stack.Screen
+                name="EmailVerification"
+                component={EmailVerificationScreen}
+                options={{ title: 'Verify Email' }}
+              />
+              <Stack.Screen
+                name="ChangePassword"
+                component={ChangePasswordScreen}
+                options={{ title: 'Change Password' }}
+              />
+            </>
+          ) : (
+            <>
+              <Stack.Screen
+                name="Home"
+                component={HomeScreen}
+                options={({ navigation }) => ({
+                  title: 'ICoach',
+                  headerRight: () => (
+                    <TouchableOpacity
+                      style={{ marginRight: 15 }}
+                      onPress={() => navigation.navigate('Messages' as never)}
+                    >
+                      <MaterialIcons
+                        name="message"
+                        size={28}
+                        color={COLORS.primary}
+                      />
+                    </TouchableOpacity>
+                  ),
+                })}
+              />
+              <Stack.Screen
+                name="Profile"
+                component={ProfileScreen}
+                options={{ title: 'Profile' }}
+              />
+              <Stack.Screen
+                name="Foods"
+                component={FoodsScreen}
+                options={{ title: 'Foods' }}
+              />
+              <Stack.Screen
+                name="Workouts"
+                component={WorkoutsScreen}
+                options={{ title: 'Workouts' }}
+              />
+              <Stack.Screen
+                name="SavedWorkouts"
+                component={SavedWorkoutsScreen}
+                options={{ title: 'My Workouts' }}
+              />
+              <Stack.Screen
+                name="LiveWorkout"
+                component={LiveWorkoutScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
+                options={{ title: 'Edit Profile' }}
+              />
+              <Stack.Screen
+                name="EditBodyInfo"
+                component={EditBodyInfoScreen}
+                options={{ title: 'Edit Body Info' }}
+              />
+              <Stack.Screen
+                name="Messages"
+                component={MessagesScreen}
+                options={{ title: 'Messages' }}
+              />
+              <Stack.Screen
+                name="EmailVerification"
+                component={EmailVerificationScreen}
+                options={{ title: 'Verify Email' }}
+              />
+              <Stack.Screen
+                name="ChangePassword"
+                component={ChangePasswordScreen}
+                options={{ title: 'Change Password' }}
+              />
             </>
           )}
         </Stack.Navigator>
       </NavigationContainer>
+
+      <Toast
+        config={toastConfig}
+        position="top"
+        topOffset={55}
+        visibilityTime={3000}
+        autoHide
+      />
+
       {isAuthenticated && navigationRef && (
-        <DrawerMenu 
-          visible={drawerVisible} 
+        <DrawerMenu
+          visible={drawerVisible}
           onClose={() => setDrawerVisible(false)}
           navigation={navigationRef}
         />
@@ -331,7 +520,7 @@ const drawerStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     // Use row direction so the drawer appears from the left
-    flexDirection: 'row', 
+    flexDirection: 'row',
   },
   overlayTouchable: {
     // This will take the remaining space on the right

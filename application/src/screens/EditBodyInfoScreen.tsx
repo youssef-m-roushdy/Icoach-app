@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Platform,
   TextInput,
 } from 'react-native';
@@ -19,8 +18,17 @@ import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
-type EditBodyInfoNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditBodyInfo'>;
+type EditBodyInfoNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'EditBodyInfo'
+>;
 
 const C = {
   primary: '#C5981B',
@@ -40,18 +48,23 @@ interface SectionCardProps {
 
 const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
   const { colors } = useTheme();
-  
+
   return (
-    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+    <View
+      style={[
+        styles.sectionCard,
+        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+      ]}
+    >
       <View style={styles.sectionHeader}>
         <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
           {icon}
         </View>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
       </View>
-      <View style={styles.sectionContent}>
-        {children}
-      </View>
+      <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 };
@@ -64,9 +77,15 @@ interface OptionChipProps {
   icon?: React.ReactNode;
 }
 
-const OptionChip: React.FC<OptionChipProps> = ({ label, selected, onPress, color = C.primary, icon }) => {
+const OptionChip: React.FC<OptionChipProps> = ({
+  label,
+  selected,
+  onPress,
+  color = C.primary,
+  icon,
+}) => {
   const { colors } = useTheme();
-  
+
   return (
     <TouchableOpacity
       activeOpacity={0.7}
@@ -115,11 +134,16 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
   return (
     <View style={styles.measurementInputContainer}>
       <View style={styles.measurementLabelContainer}>
-        <View style={[styles.measurementIcon, { backgroundColor: C.primary + '15' }]}>
+        <View
+          style={[styles.measurementIcon, { backgroundColor: C.primary + '15' }]}
+        >
           {icon}
         </View>
-        <Text style={[styles.measurementLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.measurementLabel, { color: colors.text }]}>
+          {label}
+        </Text>
       </View>
+
       <View
         style={[
           styles.measurementInputWrapper,
@@ -140,7 +164,9 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
           onBlur={() => setIsFocused(false)}
         />
         <View style={[styles.unitBadge, { backgroundColor: colors.iconBg }]}>
-          <Text style={[styles.measurementUnit, { color: colors.textSecondary }]}>{unit}</Text>
+          <Text style={[styles.measurementUnit, { color: colors.textSecondary }]}>
+            {unit}
+          </Text>
         </View>
       </View>
     </View>
@@ -163,13 +189,6 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
     return new Date(1990, 0, 1);
   });
 
-  const formatDate = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   const handleDateChange = (event: any, date?: Date) => {
     setShowPicker(Platform.OS === 'ios');
     if (date) {
@@ -183,6 +202,7 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
       <View style={[styles.dateIconContainer, { backgroundColor: C.primary + '15' }]}>
         <Feather name="calendar" size={18} color={C.primary} />
       </View>
+
       <TouchableOpacity
         style={[
           styles.dateInputWrapper,
@@ -194,7 +214,12 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
         onPress={() => setShowPicker(true)}
         activeOpacity={0.7}
       >
-        <Text style={[styles.dateInputText, { color: value ? colors.text : colors.textSecondary }]}>
+        <Text
+          style={[
+            styles.dateInputText,
+            { color: value ? colors.text : colors.textSecondary },
+          ]}
+        >
           {value || 'Select date'}
         </Text>
         <Feather name="chevron-down" size={18} color={colors.textSecondary} />
@@ -225,8 +250,12 @@ export default function EditBodyInfoScreen() {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [bodyFatPercentage, setBodyFatPercentage] = useState('');
-  const [fitnessGoal, setFitnessGoal] = useState<'weight_loss' | 'muscle_gain' | 'maintenance' | ''>('');
-  const [activityLevel, setActivityLevel] = useState<'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | ''>('');
+  const [fitnessGoal, setFitnessGoal] = useState<
+    'weight_loss' | 'muscle_gain' | 'maintenance' | ''
+  >('');
+  const [activityLevel, setActivityLevel] = useState<
+    'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | ''
+  >('');
 
   useEffect(() => {
     if (user) {
@@ -236,6 +265,7 @@ export default function EditBodyInfoScreen() {
       } else {
         setGender('');
       }
+
       setDateOfBirth(user.dateOfBirth || '');
       setHeight(user.height?.toString() || '');
       setWeight(user.weight?.toString() || '');
@@ -247,40 +277,97 @@ export default function EditBodyInfoScreen() {
 
   const handleSave = async () => {
     if (!token) {
-      Alert.alert('Error', 'Authentication token not found');
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'Authentication token not found',
+      });
+      return;
+    }
+
+    if (height && (isNaN(parseFloat(height)) || parseFloat(height) <= 0)) {
+      showErrorToast({
+        title: 'Invalid Height',
+        message: 'Please enter a valid height',
+      });
+      return;
+    }
+
+    if (weight && (isNaN(parseFloat(weight)) || parseFloat(weight) <= 0)) {
+      showErrorToast({
+        title: 'Invalid Weight',
+        message: 'Please enter a valid weight',
+      });
+      return;
+    }
+
+    if (
+      bodyFatPercentage &&
+      (isNaN(parseFloat(bodyFatPercentage)) ||
+        parseFloat(bodyFatPercentage) < 0 ||
+        parseFloat(bodyFatPercentage) > 100)
+    ) {
+      showErrorToast({
+        title: 'Invalid Body Fat',
+        message: 'Body fat percentage must be between 0 and 100',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
       const updateData: any = {};
 
       if (gender && gender !== user?.gender) updateData.gender = gender;
-      if (dateOfBirth && dateOfBirth !== user?.dateOfBirth) updateData.dateOfBirth = dateOfBirth;
-      if (height && parseFloat(height) !== user?.height) updateData.height = parseFloat(height);
-      if (weight && parseFloat(weight) !== user?.weight) updateData.weight = parseFloat(weight);
-      if (bodyFatPercentage && parseFloat(bodyFatPercentage) !== user?.bodyFatPercentage) {
+      if (dateOfBirth && dateOfBirth !== user?.dateOfBirth) {
+        updateData.dateOfBirth = dateOfBirth;
+      }
+      if (height && parseFloat(height) !== user?.height) {
+        updateData.height = parseFloat(height);
+      }
+      if (weight && parseFloat(weight) !== user?.weight) {
+        updateData.weight = parseFloat(weight);
+      }
+      if (
+        bodyFatPercentage &&
+        parseFloat(bodyFatPercentage) !== user?.bodyFatPercentage
+      ) {
         updateData.bodyFatPercentage = parseFloat(bodyFatPercentage);
       }
-      if (fitnessGoal && fitnessGoal !== user?.fitnessGoal) updateData.fitnessGoal = fitnessGoal;
-      if (activityLevel && activityLevel !== user?.activityLevel) updateData.activityLevel = activityLevel;
+      if (fitnessGoal && fitnessGoal !== user?.fitnessGoal) {
+        updateData.fitnessGoal = fitnessGoal;
+      }
+      if (activityLevel && activityLevel !== user?.activityLevel) {
+        updateData.activityLevel = activityLevel;
+      }
 
       if (Object.keys(updateData).length === 0) {
-        Alert.alert('Info', 'No changes to save');
+        showInfoToast({
+          title: 'No Changes',
+          message: 'There are no changes to save',
+        });
         return;
       }
 
       const response = await userService.updateBodyInformation(updateData, token);
-      
+
       if (response.data && user) {
         updateUser({ ...user, ...response.data });
       }
-      
-      Alert.alert('Success', 'Body information updated successfully', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update body information');
+
+      showSuccessToast({
+        title: 'Body Info Updated',
+        message: 'Your body information has been updated successfully',
+      });
+
+      setTimeout(() => {
+        navigation.goBack();
+      }, 900);
+    } catch (error: unknown) {
+      showErrorToast({
+        title: 'Update Failed',
+        message: getErrorMessage(error) || 'Failed to update body information',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -290,7 +377,7 @@ export default function EditBodyInfoScreen() {
     const h = parseFloat(height);
     const w = parseFloat(weight);
     if (!h || !w || h <= 0 || w <= 0) return null;
-    
+
     const bmi = w / Math.pow(h / 100, 2);
     if (bmi < 18.5) return { label: 'Underweight', color: C.warning };
     if (bmi < 25) return { label: 'Normal', color: C.success };
@@ -307,60 +394,82 @@ export default function EditBodyInfoScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
+
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Edit Body Info</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            Edit Body Info
+          </Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             Update your fitness profile
           </Text>
         </View>
+
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
-        style={styles.content} 
+      <ScrollView
+        style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Personal Details Section */}
-        <SectionCard 
-          title="Personal Details" 
+        <SectionCard
+          title="Personal Details"
           icon={<Feather name="user" size={20} color={C.primary} />}
         >
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Gender</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            Gender
+          </Text>
+
           <View style={styles.genderRow}>
             <OptionChip
               label="Male"
               selected={gender === 'male'}
               onPress={() => setGender('male')}
               color={C.male}
-              icon={<Ionicons name="male" size={18} color={gender === 'male' ? '#FFF' : C.male} />}
+              icon={
+                <Ionicons
+                  name="male"
+                  size={18}
+                  color={gender === 'male' ? '#FFF' : C.male}
+                />
+              }
             />
             <OptionChip
               label="Female"
               selected={gender === 'female'}
               onPress={() => setGender('female')}
               color={C.female}
-              icon={<Ionicons name="female" size={18} color={gender === 'female' ? '#FFF' : C.female} />}
+              icon={
+                <Ionicons
+                  name="female"
+                  size={18}
+                  color={gender === 'female' ? '#FFF' : C.female}
+                />
+              }
             />
           </View>
 
           <View style={styles.inputSpacer} />
-          
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Date of Birth</Text>
-          <DateInput 
-            value={dateOfBirth} 
+
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            Date of Birth
+          </Text>
+
+          <DateInput
+            value={dateOfBirth}
             onChange={(date) => {
               const year = date.getFullYear();
               const month = String(date.getMonth() + 1).padStart(2, '0');
               const day = String(date.getDate()).padStart(2, '0');
               setDateOfBirth(`${year}-${month}-${day}`);
-            }} 
+            }}
           />
         </SectionCard>
 
         {/* Body Measurements Section */}
-        <SectionCard 
-          title="Body Measurements" 
+        <SectionCard
+          title="Body Measurements"
           icon={<MaterialIcons name="straighten" size={20} color={C.primary} />}
         >
           <MeasurementInput
@@ -379,15 +488,34 @@ export default function EditBodyInfoScreen() {
             value={weight}
             onChangeText={setWeight}
             unit="kg"
-            icon={<MaterialIcons name="monitor-weight" size={18} color={C.primary} />}
+            icon={
+              <MaterialIcons
+                name="monitor-weight"
+                size={18}
+                color={C.primary}
+              />
+            }
             placeholder="70"
           />
 
           {bmiCategory && (
-            <View style={[styles.bmiPreview, { backgroundColor: bmiCategory.color + '15', borderColor: bmiCategory.color + '30' }]}>
-              <View style={[styles.bmiDot, { backgroundColor: bmiCategory.color }]} />
+            <View
+              style={[
+                styles.bmiPreview,
+                {
+                  backgroundColor: bmiCategory.color + '15',
+                  borderColor: bmiCategory.color + '30',
+                },
+              ]}
+            >
+              <View
+                style={[styles.bmiDot, { backgroundColor: bmiCategory.color }]}
+              />
               <Text style={[styles.bmiPreviewText, { color: colors.text }]}>
-                Your BMI indicates you are <Text style={{ color: bmiCategory.color, fontWeight: '700' }}>{bmiCategory.label}</Text>
+                Your BMI indicates you are{' '}
+                <Text style={{ color: bmiCategory.color, fontWeight: '700' }}>
+                  {bmiCategory.label}
+                </Text>
               </Text>
             </View>
           )}
@@ -399,41 +527,71 @@ export default function EditBodyInfoScreen() {
             value={bodyFatPercentage}
             onChangeText={setBodyFatPercentage}
             unit="%"
-            icon={<MaterialIcons name="fitness-center" size={18} color={C.primary} />}
+            icon={
+              <MaterialIcons
+                name="fitness-center"
+                size={18}
+                color={C.primary}
+              />
+            }
             placeholder="15"
           />
         </SectionCard>
 
         {/* Fitness Profile Section */}
-        <SectionCard 
-          title="Fitness Profile" 
+        <SectionCard
+          title="Fitness Profile"
           icon={<Ionicons name="fitness" size={20} color={C.primary} />}
         >
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Fitness Goal</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            Fitness Goal
+          </Text>
+
           <View style={styles.goalsContainer}>
             <OptionChip
               label="Weight Loss"
               selected={fitnessGoal === 'weight_loss'}
               onPress={() => setFitnessGoal('weight_loss')}
-              icon={<Feather name="trending-down" size={16} color={fitnessGoal === 'weight_loss' ? '#FFF' : C.primary} />}
+              icon={
+                <Feather
+                  name="trending-down"
+                  size={16}
+                  color={fitnessGoal === 'weight_loss' ? '#FFF' : C.primary}
+                />
+              }
             />
             <OptionChip
               label="Muscle Gain"
               selected={fitnessGoal === 'muscle_gain'}
               onPress={() => setFitnessGoal('muscle_gain')}
-              icon={<Feather name="activity" size={16} color={fitnessGoal === 'muscle_gain' ? '#FFF' : C.primary} />}
+              icon={
+                <Feather
+                  name="activity"
+                  size={16}
+                  color={fitnessGoal === 'muscle_gain' ? '#FFF' : C.primary}
+                />
+              }
             />
             <OptionChip
               label="Maintenance"
               selected={fitnessGoal === 'maintenance'}
               onPress={() => setFitnessGoal('maintenance')}
-              icon={<Feather name="heart" size={16} color={fitnessGoal === 'maintenance' ? '#FFF' : C.primary} />}
+              icon={
+                <Feather
+                  name="heart"
+                  size={16}
+                  color={fitnessGoal === 'maintenance' ? '#FFF' : C.primary}
+                />
+              }
             />
           </View>
 
           <View style={styles.inputSpacer} />
 
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Activity Level</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            Activity Level
+          </Text>
+
           <View style={styles.activityContainer}>
             <OptionChip
               label="Sedentary"
@@ -463,13 +621,28 @@ export default function EditBodyInfoScreen() {
           </View>
 
           {activityLevel && (
-            <View style={[styles.activityDescription, { backgroundColor: colors.iconBg }]}>
-              <Text style={[styles.activityDescriptionText, { color: colors.textSecondary }]}>
-                {activityLevel === 'sedentary' && 'Little to no exercise, desk job'}
-                {activityLevel === 'lightly_active' && 'Light exercise 1-3 days/week'}
-                {activityLevel === 'moderately_active' && 'Moderate exercise 3-5 days/week'}
-                {activityLevel === 'very_active' && 'Hard exercise 6-7 days/week'}
-                {activityLevel === 'extra_active' && 'Very hard exercise, physical job'}
+            <View
+              style={[
+                styles.activityDescription,
+                { backgroundColor: colors.iconBg },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.activityDescriptionText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                {activityLevel === 'sedentary' &&
+                  'Little to no exercise, desk job'}
+                {activityLevel === 'lightly_active' &&
+                  'Light exercise 1-3 days/week'}
+                {activityLevel === 'moderately_active' &&
+                  'Moderate exercise 3-5 days/week'}
+                {activityLevel === 'very_active' &&
+                  'Hard exercise 6-7 days/week'}
+                {activityLevel === 'extra_active' &&
+                  'Very hard exercise, physical job'}
               </Text>
             </View>
           )}
@@ -485,9 +658,11 @@ export default function EditBodyInfoScreen() {
                 style={[styles.cancelButton, { borderColor: colors.divider }]}
                 onPress={() => navigation.goBack()}
               >
-                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: C.primary }]}
                 onPress={handleSave}
@@ -500,7 +675,6 @@ export default function EditBodyInfoScreen() {
           )}
         </View>
 
-        {/* Extra bottom padding */}
         <View style={{ height: 20 }} />
       </ScrollView>
     </View>

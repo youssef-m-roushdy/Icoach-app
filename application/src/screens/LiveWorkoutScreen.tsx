@@ -1,9 +1,9 @@
 /**
  * LiveWorkoutScreen - AI Fitness Engine with Real Pose Detection
- * 
+ *
  * This screen uses MediaPipe Pose Detection via react-native-mediapipe
  * for real-time exercise tracking and rep counting.
- * 
+ *
  * Features:
  * 1. Real camera pose detection (MediaPipe)
  * 2. Exercise selection
@@ -23,12 +23,12 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { 
-  Camera, 
-  useCameraDevices, 
+import {
+  Camera,
+  useCameraDevices,
   useCameraPermission,
 } from 'react-native-vision-camera';
-import { 
+import {
   usePoseDetection,
   Delegate,
   RunningMode,
@@ -47,6 +47,11 @@ import {
   voiceFeedback,
 } from '../services/aiFitnessEngine';
 import { useTheme } from '../context/ThemeContext';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+} from '../utils/toast';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -99,6 +104,8 @@ const LiveWorkoutScreen = () => {
   const frameCountRef = useRef(0);
   const isActiveRef = useRef(false);
   const poseDetectedRef = useRef(false);
+  const lastPoseErrorToastRef = useRef(0);
+  const noCameraToastShownRef = useRef(false);
 
   // Keep isActiveRef in sync
   useEffect(() => {
@@ -110,8 +117,7 @@ const LiveWorkoutScreen = () => {
     const initializeTrainer = () => {
       try {
         trainerRef.current = AIFitnessEngine.getTrainer(selectedExercise);
-        
-        // Verify trainer has analyze method
+
         if (trainerRef.current && typeof trainerRef.current.analyze === 'function') {
           trainerRef.current.reset?.();
           console.log(`✅ Trainer initialized for: ${selectedExercise}`);
@@ -131,7 +137,7 @@ const LiveWorkoutScreen = () => {
   // Handle pose detection results
   const handlePoseResults = useCallback((result: PoseDetectionResultBundle, vc: ViewCoordinator) => {
     frameCountRef.current++;
-    
+
     // Always update to show we're receiving frames
     if (!poseDetectedRef.current) {
       poseDetectedRef.current = true;
@@ -149,37 +155,47 @@ const LiveWorkoutScreen = () => {
       setDebugInfo(`Trainer not ready - Frame: ${frameCountRef.current}`);
       return;
     }
-    
+
     // Process every 2nd frame for performance
     if (frameCountRef.current % 2 !== 0) return;
 
     try {
       console.log('Pose result:', JSON.stringify(result?.results?.length ?? 0));
-      
-      if (result?.results && result.results.length > 0 && result.results[0].landmarks?.length > 0) {
+
+      if (
+        result?.results &&
+        result.results.length > 0 &&
+        result.results[0].landmarks?.length > 0
+      ) {
         const landmarks = convertLandmarks(result.results[0].landmarks[0]);
-        
+
         console.log('Landmarks count:', landmarks.length);
         console.log('Sample landmark 11 (L shoulder):', JSON.stringify(landmarks[11]));
         console.log('Sample landmark 27 (L ankle):', JSON.stringify(landmarks[27]));
-        
+
         if (areLandmarksValid(landmarks)) {
           const analysisResult = trainerRef.current.analyze(landmarks);
-          
+
           console.log('Analysis result:', JSON.stringify(analysisResult));
-          
+
           setResult(analysisResult);
-          const fb = getFeedbackForCode(analysisResult.feedback_code, analysisResult.exercise);
+          const fb = getFeedbackForCode(
+            analysisResult.feedback_code,
+            analysisResult.exercise
+          );
           setFeedback(fb);
           setDebugInfo(`Active - Frame: ${frameCountRef.current}`);
 
           // Voice feedback on change
-          // هنقارن بناءً على الـ Code نفسه مش الـ message عشان نضمن إن الدالة الذكية تشتغل
           if (analysisResult.feedback_code !== lastFeedbackRef.current) {
             lastFeedbackRef.current = analysisResult.feedback_code;
-            
+
             // ✅ التعديل هنا: استخدام speakFeedback بدل speak
-            voiceFeedback.speakFeedback(analysisResult.feedback_code, analysisResult.exercise, { gender: 'female' });
+            voiceFeedback.speakFeedback(
+              analysisResult.feedback_code,
+              analysisResult.exercise,
+              { gender: 'female' }
+            );
           }
         } else {
           setDebugInfo(`Low visibility - show full body (F:${frameCountRef.current})`);
@@ -196,8 +212,21 @@ const LiveWorkoutScreen = () => {
   // Handle pose detection errors
   const handlePoseError = useCallback((error: DetectionError) => {
     console.error('Pose detection error:', error);
-    setPoseStatus(`Error: ${error.message || 'Unknown error'}`);
-    setDebugInfo(`Pose Error: ${error.message}`);
+
+    const message = error.message || 'Unknown pose detection error';
+    setPoseStatus(`Error: ${message}`);
+    setDebugInfo(`Pose Error: ${message}`);
+
+    // Prevent repeated error toasts spamming the user
+    const now = Date.now();
+    if (now - lastPoseErrorToastRef.current > 4000) {
+      lastPoseErrorToastRef.current = now;
+
+      showErrorToast({
+        title: 'Pose Detection Error',
+        message,
+      });
+    }
   }, []);
 
   // Initialize MediaPipe Pose Detection
@@ -207,7 +236,7 @@ const LiveWorkoutScreen = () => {
       onError: handlePoseError,
     },
     RunningMode.LIVE_STREAM,
-    'pose_landmarker_lite.task', // Model name with .task extension
+    'pose_landmarker_lite.task',
     {
       delegate: Delegate.GPU,
       numPoses: 1,
@@ -233,12 +262,16 @@ const LiveWorkoutScreen = () => {
     setFeedback({ message: `Ready for ${selectedExercise.replace('_', ' ')}` });
     lastFeedbackRef.current = '';
     frameCountRef.current = 0;
+    poseDetectedRef.current = false;
+    setPoseStatus('Loading model...');
   }, [selectedExercise]);
 
-  // Request camera permission
+  // Request camera permission on mount
   useEffect(() => {
     if (!hasPermission) {
-      requestPermission();
+      requestPermission().catch((error) => {
+        console.error('Camera permission request failed:', error);
+      });
     }
   }, [hasPermission, requestPermission]);
 
@@ -246,8 +279,40 @@ const LiveWorkoutScreen = () => {
   useEffect(() => {
     if (device) {
       poseDetection.cameraDeviceChangeHandler(device);
+      noCameraToastShownRef.current = false;
+    } else if (!noCameraToastShownRef.current) {
+      noCameraToastShownRef.current = true;
+      showErrorToast({
+        title: 'No Camera Found',
+        message: 'No camera device is available on this device.',
+      });
     }
   }, [device, poseDetection]);
+
+  // Ask permission manually from button
+  const handleRequestPermission = useCallback(async () => {
+    try {
+      const granted = await requestPermission();
+
+      if (!granted) {
+        showErrorToast({
+          title: 'Permission Denied',
+          message: 'Camera permission is required to use live workout tracking.',
+        });
+      } else {
+        showSuccessToast({
+          title: 'Permission Granted',
+          message: 'Camera access enabled successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Permission request error:', error);
+      showErrorToast({
+        title: 'Permission Error',
+        message: 'Unable to request camera permission.',
+      });
+    }
+  }, [requestPermission]);
 
   // Toggle workout
   const toggleWorkout = useCallback(() => {
@@ -255,14 +320,24 @@ const LiveWorkoutScreen = () => {
       setIsActive(false);
       voiceFeedback.stop();
       setFeedback({ message: 'Workout paused' });
+
+      showInfoToast({
+        title: 'Workout Paused',
+        message: `${selectedExercise.replace('_', ' ')} session paused.`,
+      });
     } else {
       setIsActive(true);
       trainerRef.current?.reset?.();
       lastFeedbackRef.current = '';
       frameCountRef.current = 0;
       setFeedback({ message: 'Get in position!' });
+
+      showSuccessToast({
+        title: 'Workout Started',
+        message: `${selectedExercise.replace('_', ' ')} tracking is now active.`,
+      });
     }
-  }, [isActive]);
+  }, [isActive, selectedExercise]);
 
   // Reset workout
   const resetWorkout = useCallback(() => {
@@ -273,6 +348,11 @@ const LiveWorkoutScreen = () => {
     frameCountRef.current = 0;
     setResult(null);
     setFeedback({ message: `Ready for ${selectedExercise.replace('_', ' ')}` });
+
+    showInfoToast({
+      title: 'Workout Reset',
+      message: `${selectedExercise.replace('_', ' ')} session has been reset.`,
+    });
   }, [selectedExercise]);
 
   // Display values
@@ -292,7 +372,10 @@ const LiveWorkoutScreen = () => {
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Select Exercise</Text>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
+            Select Exercise
+          </Text>
+
           <FlatList
             data={EXERCISES}
             keyExtractor={(item) => item}
@@ -300,11 +383,18 @@ const LiveWorkoutScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.exerciseItem,
-                  item === selectedExercise && { backgroundColor: colors.primary + '30' },
+                  item === selectedExercise && {
+                    backgroundColor: colors.primary + '30',
+                  },
                 ]}
                 onPress={() => {
                   setSelectedExercise(item);
                   setShowExerciseModal(false);
+
+                  showInfoToast({
+                    title: 'Exercise Selected',
+                    message: `${item.replace('_', ' ').toUpperCase()} is ready.`,
+                  });
                 }}
               >
                 <Text style={[styles.exerciseItemText, { color: colors.text }]}>
@@ -316,6 +406,7 @@ const LiveWorkoutScreen = () => {
               </TouchableOpacity>
             )}
           />
+
           <TouchableOpacity
             style={[styles.closeButton, { backgroundColor: colors.primary }]}
             onPress={() => setShowExerciseModal(false)}
@@ -330,7 +421,9 @@ const LiveWorkoutScreen = () => {
   // Permission check
   if (!hasPermission) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.centerContent}>
           <Ionicons name="camera-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
@@ -338,7 +431,7 @@ const LiveWorkoutScreen = () => {
           </Text>
           <TouchableOpacity
             style={[styles.permissionButton, { backgroundColor: colors.primary }]}
-            onPress={requestPermission}
+            onPress={handleRequestPermission}
           >
             <Text style={styles.permissionButtonText}>Grant Permission</Text>
           </TouchableOpacity>
@@ -350,7 +443,9 @@ const LiveWorkoutScreen = () => {
   // No camera
   if (!device) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+      >
         <View style={styles.centerContent}>
           <Ionicons name="warning-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
@@ -384,6 +479,7 @@ const LiveWorkoutScreen = () => {
           >
             <Ionicons name="arrow-back" size={28} color="#fff" />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.exerciseSelector}
             onPress={() => setShowExerciseModal(true)}
@@ -393,6 +489,7 @@ const LiveWorkoutScreen = () => {
             </Text>
             <Ionicons name="chevron-down" size={20} color="#fff" />
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.resetButton} onPress={resetWorkout}>
             <Ionicons name="refresh" size={28} color="#fff" />
           </TouchableOpacity>
@@ -408,6 +505,7 @@ const LiveWorkoutScreen = () => {
               {isTimerExercise ? 'TIME' : 'REPS'}
             </Text>
           </View>
+
           <View style={[styles.statBox, !isCorrect && styles.statBoxError]}>
             <Text style={styles.statValue}>{String(stage).toUpperCase()}</Text>
             <Text style={styles.statLabel}>STAGE</Text>
@@ -415,10 +513,12 @@ const LiveWorkoutScreen = () => {
         </View>
 
         {/* Feedback Display */}
-        <View style={[
-          styles.feedbackContainer,
-          !isCorrect && styles.feedbackError
-        ]}>
+        <View
+          style={[
+            styles.feedbackContainer,
+            !isCorrect && styles.feedbackError,
+          ]}
+        >
           <Text style={styles.feedbackText}>{feedback.message}</Text>
           {isActive && (
             <Text style={styles.audioHint}>🔊 Voice feedback enabled</Text>
@@ -449,15 +549,25 @@ const LiveWorkoutScreen = () => {
             {(result as any)?.debug_class || result?.feedback_code || '-'}
           </Text>
           <Text style={styles.debugText}>{debugInfo}</Text>
-          <Text style={[styles.debugText, { color: poseDetectedRef.current ? '#4CAF50' : '#FF9800' }]}>
+          <Text
+            style={[
+              styles.debugText,
+              { color: poseDetectedRef.current ? '#4CAF50' : '#FF9800' },
+            ]}
+          >
             {poseStatus}
           </Text>
         </View>
 
         {/* Status Notice */}
-        <View style={[styles.noticeContainer, isActive && styles.noticeActive]}>
+        <View
+          style={[
+            styles.noticeContainer,
+            isActive && styles.noticeActive,
+          ]}
+        >
           <Text style={styles.noticeText}>
-            {isActive 
+            {isActive
               ? '🎯 POSE DETECTION ACTIVE - Full body in frame'
               : '📸 Position yourself so camera sees full body'}
           </Text>
@@ -472,7 +582,7 @@ const LiveWorkoutScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',  // Camera screen - always dark behind camera feed
+    backgroundColor: '#000', // Camera screen - always dark behind camera feed
   },
   centerContent: {
     flex: 1,

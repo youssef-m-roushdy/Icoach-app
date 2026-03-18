@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ImageBackground,
-  Alert,
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
@@ -19,71 +18,86 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
+import {
+  showSuccessToast,
+  showErrorToast,
+  showInfoToast,
+  getErrorMessage,
+} from '../utils/toast';
 
-type ForgotPasswordNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
+type ForgotPasswordNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ForgotPassword'
+>;
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<ForgotPasswordNavigationProp>();
   const { theme, colors } = useTheme();
+
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
 
   const handleSendResetLink = async () => {
-    // Validation
-    if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
+    if (!email.trim()) {
+      showErrorToast({
+        title: 'Missing Email',
+        message: 'Please enter your email address',
+      });
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+    if (!emailRegex.test(email.trim())) {
+      showErrorToast({
+        title: 'Invalid Email',
+        message: 'Please enter a valid email address',
+      });
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const response = await authService.forgotPassword(email);
-      
-      // Based on Swagger, response contains resetToken in development
+      const response = await authService.forgotPassword(email.trim());
+
       if (response.data) {
         setResetToken(response.data);
       }
-      
+
       setEmailSent(true);
-      Alert.alert(
-        'Email Sent',
-        'If an account exists with this email, you will receive password reset instructions.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // If we have a reset token (development mode), navigate to reset screen
-              if (response.data) {
-                navigation.navigate('ResetPassword', { 
-                  email,
-                  resetToken: response.data 
-                });
-              }
-            },
-          },
-        ]
-      );
-    } catch (error: any) {
+
+      showSuccessToast({
+        title: 'Reset Link Sent',
+        message:
+          'If an account exists with this email, password reset instructions have been sent.',
+      });
+
+      if (response.data) {
+        showInfoToast({
+          title: 'Development Mode',
+          message: 'A reset token is available below for testing.',
+        });
+      }
+    } catch (error: unknown) {
       console.error('❌ Forgot Password Error:', error);
-      
-      // Special case: User not found (404)
-      if (error.message?.toLowerCase().includes('not found')) {
-        Alert.alert(
-          'Email Sent',
-          'If an account exists with this email, you will receive password reset instructions.',
-          [{ text: 'OK' }]
-        );
+
+      const rawMessage = getErrorMessage(error);
+
+      if (rawMessage.toLowerCase().includes('not found')) {
         setEmailSent(true);
+
+        showSuccessToast({
+          title: 'Reset Link Sent',
+          message:
+            'If an account exists with this email, password reset instructions have been sent.',
+        });
       } else {
-        Alert.alert('Error', error.message || 'Failed to send reset email');
+        showErrorToast({
+          title: 'Request Failed',
+          message: rawMessage || 'Failed to send reset email',
+        });
       }
     } finally {
       setIsLoading(false);
@@ -99,11 +113,12 @@ export default function ForgotPasswordScreen() {
           resizeMode="cover"
         />
       )}
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -114,31 +129,70 @@ export default function ForgotPasswordScreen() {
             onPress={() => navigation.goBack()}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
-            <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
+            <Text style={[styles.backButtonText, { color: colors.text }]}>
+              Back
+            </Text>
           </TouchableOpacity>
 
-          <View style={[styles.formContainer, { backgroundColor: theme === 'dark' ? colors.background + 'CC' : colors.card, shadowColor: colors.shadow, borderColor: colors.cardBorder }]}>
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor:
+                  theme === 'dark'
+                    ? colors.background + 'CC'
+                    : colors.card,
+                shadowColor: colors.shadow,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.headerContainer}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
-                <MaterialIcons name="lock-reset" size={50} color={colors.primary} />
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: colors.iconBg },
+                ]}
+              >
+                <MaterialIcons
+                  name="lock-reset"
+                  size={50}
+                  color={colors.primary}
+                />
               </View>
+
               <Text style={[styles.title, { color: colors.text }]}>
                 {emailSent ? 'Check Your Email' : 'Forgot Password'}
               </Text>
+
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                {emailSent 
-                  ? 'We\'ve sent password reset instructions to your email address.'
-                  : 'Enter your email address to reset your password'
-                }
+                {emailSent
+                  ? "We've sent password reset instructions to your email address."
+                  : 'Enter your email address to reset your password'}
               </Text>
             </View>
 
             {!emailSent ? (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: colors.text }]}>Email Address</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
-                    <MaterialIcons name="email" size={20} color={colors.textSecondary} />
+                  <Text style={[styles.inputLabel, { color: colors.text }]}>
+                    Email Address
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      {
+                        backgroundColor: colors.inputBg,
+                        borderColor: colors.inputBorder,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="email"
+                      size={20}
+                      color={colors.textSecondary}
+                    />
                     <TextInput
                       style={[styles.input, { color: colors.text }]}
                       placeholder="Enter your email address"
@@ -155,7 +209,9 @@ export default function ForgotPasswordScreen() {
 
                 <View style={styles.noteContainer}>
                   <MaterialIcons name="info" size={16} color={COLORS.primary} />
-                  <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.noteText, { color: colors.textSecondary }]}
+                  >
                     You will receive a password reset link in your email inbox.
                   </Text>
                 </View>
@@ -166,7 +222,10 @@ export default function ForgotPasswordScreen() {
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <ActivityIndicator size="small" color={COLORS.secondary} />
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.secondary}
+                    />
                   ) : (
                     <Text style={styles.buttonText}>Send Reset Link</Text>
                   )}
@@ -175,40 +234,93 @@ export default function ForgotPasswordScreen() {
             ) : (
               <>
                 <View style={styles.successContainer}>
-                  <MaterialIcons name="mark-email-read" size={60} color={COLORS.success} />
+                  <MaterialIcons
+                    name="mark-email-read"
+                    size={60}
+                    color={COLORS.success}
+                  />
+
                   <Text style={[styles.successTitle, { color: colors.text }]}>
                     Email Sent Successfully
                   </Text>
+
                   <Text style={[styles.successText, { color: colors.textSecondary }]}>
                     We've sent password reset instructions to:{'\n'}
                     <Text style={styles.emailHighlight}>{email}</Text>
                   </Text>
-                  
-                  <View style={[styles.instructionsContainer, { backgroundColor: colors.statBg }]}>
-                    <Text style={[styles.instructionsTitle, { color: colors.text }]}>
+
+                  <View
+                    style={[
+                      styles.instructionsContainer,
+                      { backgroundColor: colors.statBg },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.instructionsTitle, { color: colors.text }]}
+                    >
                       What to do next:
                     </Text>
+
                     <View style={styles.instructionItem}>
-                      <MaterialIcons name="check-circle" size={18} color={COLORS.success} />
-                      <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18}
+                        color={COLORS.success}
+                      />
+                      <Text
+                        style={[
+                          styles.instructionText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
                         Check your email inbox
                       </Text>
                     </View>
+
                     <View style={styles.instructionItem}>
-                      <MaterialIcons name="check-circle" size={18} color={COLORS.success} />
-                      <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18}
+                        color={COLORS.success}
+                      />
+                      <Text
+                        style={[
+                          styles.instructionText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
                         Open the password reset email
                       </Text>
                     </View>
+
                     <View style={styles.instructionItem}>
-                      <MaterialIcons name="check-circle" size={18} color={COLORS.success} />
-                      <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18}
+                        color={COLORS.success}
+                      />
+                      <Text
+                        style={[
+                          styles.instructionText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
                         Click the reset link or use the token provided
                       </Text>
                     </View>
+
                     <View style={styles.instructionItem}>
-                      <MaterialIcons name="check-circle" size={18} color={COLORS.success} />
-                      <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18}
+                        color={COLORS.success}
+                      />
+                      <Text
+                        style={[
+                          styles.instructionText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
                         Create a new secure password
                       </Text>
                     </View>
@@ -220,21 +332,27 @@ export default function ForgotPasswordScreen() {
                       <Text style={[styles.tokenLabel, { color: colors.text }]}>
                         Development Token (for testing):
                       </Text>
+
                       <TouchableOpacity
-                        style={[styles.tokenBox, { backgroundColor: colors.inputBg }]}
+                        style={[
+                          styles.tokenBox,
+                          { backgroundColor: colors.inputBg },
+                        ]}
                         onPress={() => {
-                          // Copy token to clipboard
-                          // You can implement clipboard functionality if needed
+                          // optional: add clipboard functionality later
                         }}
                       >
                         <Text style={styles.tokenText}>{resetToken}</Text>
                       </TouchableOpacity>
+
                       <TouchableOpacity
                         style={[styles.button, styles.resetButton]}
-                        onPress={() => navigation.navigate('ResetPassword', { 
-                          email, 
-                          resetToken 
-                        })}
+                        onPress={() =>
+                          navigation.navigate('ResetPassword', {
+                            email,
+                            resetToken,
+                          })
+                        }
                       >
                         <Text style={styles.buttonText}>Reset Password Now</Text>
                       </TouchableOpacity>
@@ -244,24 +362,39 @@ export default function ForgotPasswordScreen() {
 
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
-                    style={[styles.secondaryButton, { borderColor: colors.textSecondary }]}
+                    style={[
+                      styles.secondaryButton,
+                      { borderColor: colors.textSecondary },
+                    ]}
                     onPress={() => setEmailSent(false)}
                   >
-                    <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+                    <Text
+                      style={[
+                        styles.secondaryButtonText,
+                        { color: colors.text },
+                      ]}
+                    >
                       Try Another Email
                     </Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={[styles.button, styles.resendButton]}
                     onPress={handleSendResetLink}
                     disabled={isLoading}
                   >
                     {isLoading ? (
-                      <ActivityIndicator size="small" color={COLORS.secondary} />
+                      <ActivityIndicator
+                        size="small"
+                        color={COLORS.secondary}
+                      />
                     ) : (
                       <>
-                        <MaterialIcons name="refresh" size={18} color={COLORS.secondary} />
+                        <MaterialIcons
+                          name="refresh"
+                          size={18}
+                          color={COLORS.secondary}
+                        />
                         <Text style={styles.buttonText}>Resend Email</Text>
                       </>
                     )}
