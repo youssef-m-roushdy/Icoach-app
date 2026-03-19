@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Image } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
 
@@ -39,6 +39,8 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Dimensions,
+  SafeAreaView,
+  ScrollView,
 } from 'react-native';
 
 import { MaterialIcons } from '@expo/vector-icons';
@@ -64,7 +66,7 @@ export type RootStackParamList = {
   Workouts: undefined;
   LiveWorkout: undefined;
   SavedWorkouts: undefined;
-  WorkoutHistory: undefined; // ✅ Add WorkoutHistory
+  WorkoutHistory: undefined;
   WorkoutSession: { 
     workoutId: number; 
     workoutName: string; 
@@ -88,9 +90,43 @@ interface DrawerMenuProps {
 }
 
 function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -SCREEN_WIDTH,
+          duration: 250,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.cubic),
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
 
   const handleLogout = async () => {
     try {
@@ -110,174 +146,148 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
     navigation.navigate(screen);
   };
 
+  const handleProfilePress = () => {
+    onClose();
+    navigation.navigate('Profile');
+  };
+
+  // Avatar resolution logic
+  const rawAvatar = user?.photoURL || user?.avatar;
+  const avatarSource =
+    rawAvatar && typeof rawAvatar === 'string' && rawAvatar.startsWith('http')
+      ? { uri: rawAvatar }
+      : null;
+
+  const getUserFullName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.username) {
+      return user.username;
+    }
+    return 'User';
+  };
+
+  const getUserInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user?.firstName) {
+      return user.firstName[0].toUpperCase();
+    }
+    if (user?.username) {
+      return user.username[0].toUpperCase();
+    }
+    return 'U';
+  };
+
+  // Group menu items by category - removed MAIN section
+  const workoutMenuItems = [
+    { icon: 'home', label: 'Home', screen: 'Home' as const },
+    { icon: 'restaurant', label: 'Foods', screen: 'Foods' as const },
+    { icon: 'fitness-center', label: 'Workouts', screen: 'Workouts' as const },
+    { icon: 'bookmark', label: 'My Workouts', screen: 'SavedWorkouts' as const },
+    { icon: 'history', label: 'Workout History', screen: 'WorkoutHistory' as const },
+    { icon: 'trending-up', label: 'My Progress', screen: 'GymProgress' as const },
+    { icon: 'videocam', label: 'AI Workout', screen: 'LiveWorkout' as const },
+    { icon: 'message', label: 'Messages', screen: 'Messages' as const },
+  ];
+
+  const renderMenuItem = (item: { icon: any; label: string; screen: keyof RootStackParamList }) => (
+    <TouchableOpacity
+      key={item.screen}
+      style={styles.menuItem}
+      onPress={() => handleNavigate(item.screen)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.menuIconContainer, { backgroundColor: colors.primary + '15' }]}>
+        <MaterialIcons name={item.icon} size={22} color={colors.primary} />
+      </View>
+      <Text style={[styles.menuText, { color: colors.text }]}>{item.label}</Text>
+    </TouchableOpacity>
+  );
+
+  if (!visible) return null;
+
   return (
-    <>
-      {visible && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
-      <View style={drawerStyles.overlay}>
-        {/* Place drawer first so it is fixed on the left */}
-        <View
-          style={[
-            drawerStyles.drawer,
-            { backgroundColor: colors.background },
-          ]}
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.drawer,
+          {
+            backgroundColor: colors.background,
+            transform: [{ translateX: slideAnim }],
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
+        {/* Header with user info - clickable to profile */}
+        <TouchableOpacity 
+          style={[styles.drawerHeader, { borderBottomColor: 'transparent' }]} 
+          onPress={handleProfilePress}
+          activeOpacity={0.7}
         >
-          <View
-            style={[
-              drawerStyles.header,
-              {
-                paddingTop: insets.top + 20,
-                borderBottomColor: colors.border,
-              },
-            ]}
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <MaterialIcons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.userProfileContainer}>
+            <View style={[styles.userAvatar, { backgroundColor: colors.primary + '20' }]}>
+              {avatarSource ? (
+                <Image source={avatarSource} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarInitials, { color: colors.primary }]}>
+                  {getUserInitials()}
+                </Text>
+              )}
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: colors.text }]}>
+                {getUserFullName()}
+              </Text>
+              <Text style={[styles.userEmail, { color: colors.subtleText }]}>
+                {user?.email || ''}
+              </Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Scrollable menu items - no section headers */}
+        <ScrollView 
+          style={styles.menuScroll}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.menuContent}
+        >
+          {workoutMenuItems.map(renderMenuItem)}
+        </ScrollView>
+
+        {/* Logout button fixed at bottom */}
+        <View style={[styles.logoutSection, { borderTopColor: 'transparent' }]}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            activeOpacity={0.7}
           >
-            <TouchableOpacity
-              style={drawerStyles.closeButton}
-              onPress={onClose}
-            >
-              <MaterialIcons name="close" size={28} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={drawerStyles.menuItems}>
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('Home')}
-            >
-              <MaterialIcons name="home" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Home
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('Profile')}
-            >
-              <MaterialIcons name="person" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Profile
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('Foods')}
-            >
-              <MaterialIcons
-                name="restaurant"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Foods
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('Workouts')}
-            >
-              <MaterialIcons
-                name="fitness-center"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Workouts
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('SavedWorkouts')}
-            >
-              <MaterialIcons
-                name="bookmark"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                My Workouts
-              </Text>
-            </TouchableOpacity>
-
-             <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('WorkoutHistory')} // ✅ Add WorkoutHistory
-            >
-              <MaterialIcons
-                name="history"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Workout History
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('GymProgress')}
-            >
-              <MaterialIcons name="trending-up" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>My Progress</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('LiveWorkout')}
-            >
-              <MaterialIcons
-                name="videocam"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                AI Workout
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={drawerStyles.menuItem}
-              onPress={() => handleNavigate('Messages')}
-            >
-              <MaterialIcons name="message" size={24} color={colors.primary} />
-              <Text style={[drawerStyles.menuText, { color: colors.text }]}>
-                Messages
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View
-            style={[
-              drawerStyles.footer,
-              {
-                paddingBottom: insets.bottom + 20,
-                borderTopColor: colors.border,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={drawerStyles.logoutButton}
-              onPress={handleLogout}
-            >
-              <MaterialIcons name="logout" size={24} color="#ef4444" />
-              <Text style={drawerStyles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={[styles.logoutIconContainer, { backgroundColor: '#ef444415' }]}>
+              <MaterialIcons name="logout" size={22} color="#ef4444" />
+            </View>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* This covers the rest of the screen and closes the drawer when pressed */}
-        <TouchableOpacity
-          style={drawerStyles.overlayTouchable}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-      </View>
-      </View>
-      )}
-    </>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -293,8 +303,8 @@ export const AppNavigator: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[stylesGlobal.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -393,7 +403,7 @@ export const AppNavigator: React.FC = () => {
                       <MaterialIcons
                         name="message"
                         size={28}
-                        color={COLORS.primary}
+                        color={colors.primary}
                       />
                     </TouchableOpacity>
                   ),
@@ -497,74 +507,122 @@ const hasCompletedBodyInformation = (user: any): boolean => {
   );
 };
 
-// Styles
-const drawerStyles = StyleSheet.create({
+const styles = StyleSheet.create({
+  // Drawer styles
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    // Use row direction so the drawer appears from the left
-    flexDirection: 'row',
-  },
-  overlayTouchable: {
-    // This will take the remaining space on the right
-    flex: 1,
   },
   drawer: {
-    width: SCREEN_WIDTH * 0.75,
-    // backgroundColor set dynamically via inline style
     position: 'absolute',
-    left: 0,
     top: 0,
+    left: 0,
     bottom: 0,
-    zIndex: 10,
+    width: SCREEN_WIDTH * 0.8,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  container: {
-    flex: 1,
+  drawerHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  header: {
-    padding: SIZES.lg,
-    borderBottomWidth: 1,
-    // borderBottomColor set dynamically via inline style
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   closeButton: {
-    alignSelf: 'flex-start',
+    padding: 4,
   },
-  menuItems: {
+  userProfileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarInitials: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  userInfo: {
     flex: 1,
-    paddingTop: SIZES.xl,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: 12,
+  },
+  menuScroll: {
+    flex: 1,
+  },
+  menuContent: {
+    paddingVertical: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SIZES.lg,
-    paddingHorizontal: SIZES.xl,
-    gap: SIZES.md,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  menuIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   menuText: {
-    fontSize: SIZES.h3,
-    // color set dynamically via inline style
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
   },
-  footer: {
-    borderTopWidth: 1,
-    // borderTopColor set dynamically via inline style
-    padding: SIZES.lg,
+  logoutSection: {
+    padding: 20,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SIZES.md,
-    paddingHorizontal: SIZES.lg,
-    gap: SIZES.md,
+    paddingVertical: 8,
+  },
+  logoutIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   logoutText: {
-    fontSize: SIZES.body,
+    fontSize: 16,
+    fontWeight: '500',
     color: '#ef4444',
-    fontWeight: '600',
   },
 });
 
-const styles = StyleSheet.create({
+const stylesGlobal = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

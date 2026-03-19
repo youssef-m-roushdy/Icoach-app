@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import Svg, {
   Polygon,
@@ -560,7 +561,11 @@ export default function GymProgressScreen() {
             {
               backgroundColor: colors.surface,
               borderColor: colors.cardBorder,
-              shadowColor: colors.shadow,
+              ...Platform.select({
+                ios: {
+                  shadowColor: colors.shadow,
+                },
+              }),
               opacity: headerFade,
               transform: [{ translateY: cardSlide }],
             },
@@ -596,7 +601,11 @@ export default function GymProgressScreen() {
             {
               backgroundColor: colors.surface,
               borderColor: colors.cardBorder,
-              shadowColor: colors.shadow,
+              ...Platform.select({
+                ios: {
+                  shadowColor: colors.shadow,
+                },
+              }),
               opacity: headerFade,
               transform: [{ translateY: cardSlide }],
             },
@@ -758,10 +767,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   pointsRow: {
     flexDirection: 'row',
