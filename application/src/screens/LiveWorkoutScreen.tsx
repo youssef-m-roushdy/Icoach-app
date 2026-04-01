@@ -18,11 +18,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  SafeAreaView,
   Modal,
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
   useCameraDevices,
@@ -84,6 +84,7 @@ const areLandmarksValid = (landmarks: Landmark[]): boolean => {
 const LiveWorkoutScreen = () => {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { hasPermission, requestPermission } = useCameraPermission();
   const devices = useCameraDevices();
   const device = devices.find((d) => d.position === 'front') || devices[0];
@@ -421,8 +422,8 @@ const LiveWorkoutScreen = () => {
   // Permission check
   if (!hasPermission) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+      <View
+        style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
       >
         <View style={styles.centerContent}>
           <Ionicons name="camera-outline" size={64} color={colors.text} />
@@ -436,15 +437,15 @@ const LiveWorkoutScreen = () => {
             <Text style={styles.permissionButtonText}>Grant Permission</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // No camera
   if (!device) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
+      <View
+        style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
       >
         <View style={styles.centerContent}>
           <Ionicons name="warning-outline" size={64} color={colors.text} />
@@ -452,12 +453,12 @@ const LiveWorkoutScreen = () => {
             No camera device found
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Camera with Pose Detection */}
       <Camera
         ref={cameraRef}
@@ -470,7 +471,7 @@ const LiveWorkoutScreen = () => {
       />
 
       {/* Overlay UI */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -575,7 +576,7 @@ const LiveWorkoutScreen = () => {
       </View>
 
       {renderExerciseModal()}
-    </SafeAreaView>
+    </View>
   );
 };
 

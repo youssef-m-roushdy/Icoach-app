@@ -14,6 +14,7 @@ import {
   Modal,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { workoutSessionService, type CreateWorkoutSessionData } from '../services/workoutSessionService';
@@ -31,6 +32,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
   const { workoutId, workoutName, workoutImage } = route.params;
   const { colors } = useTheme();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // Animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -244,7 +246,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
       >
         <ScrollView 
           showsVerticalScrollIndicator={false} 
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: Math.max(insets.top + 16, 16) }]}
         >
           {/* Header with back button */}
           <View style={styles.header}>

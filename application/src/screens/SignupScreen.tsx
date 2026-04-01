@@ -10,6 +10,7 @@ import {
   Platform,
   TouchableOpacity,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +27,8 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type SignInScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -44,6 +47,7 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Password visibility toggles
   const [showPassword, setShowPassword] = useState(false);
@@ -224,16 +228,22 @@ export default function SignUpScreen() {
     }
   };
 
+  const getInputWrapperStyle = (fieldName: string) => [
+    styles.inputWrapper,
+    {
+      backgroundColor: colors.inputBg,
+      borderColor: focusedField === fieldName ? colors.primary : colors.inputBorder,
+      borderWidth: focusedField === fieldName ? 2 : 1,
+      shadowColor: focusedField === fieldName ? colors.primary : 'transparent',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: focusedField === fieldName ? 0.2 : 0,
+      shadowRadius: 4,
+      elevation: focusedField === fieldName ? 2 : 0,
+    },
+  ];
+
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
-      {theme === 'dark' && (
-        <ImageBackground
-          source={require('../../assets/home.jpeg')}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      )}
-
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -252,10 +262,7 @@ export default function SignUpScreen() {
             style={[
               styles.formContainer,
               {
-                backgroundColor:
-                  theme === 'dark'
-                    ? colors.background + 'CC'
-                    : colors.card,
+                backgroundColor: colors.card,
                 shadowColor: colors.shadow,
                 borderColor: colors.cardBorder,
               },
@@ -273,15 +280,7 @@ export default function SignUpScreen() {
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
                   First Name
                 </Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                >
+                <View style={getInputWrapperStyle('firstName')}>
                   <MaterialIcons
                     name="person-outline"
                     size={20}
@@ -290,9 +289,11 @@ export default function SignUpScreen() {
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="John"
-                    placeholderTextColor={colors.textSecondary}
+                    placeholderTextColor={colors.placeholder}
                     value={firstName}
                     onChangeText={setFirstName}
+                    onFocus={() => setFocusedField('firstName')}
+                    onBlur={() => setFocusedField(null)}
                     autoCapitalize="words"
                   />
                 </View>
@@ -302,15 +303,7 @@ export default function SignUpScreen() {
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
                   Last Name
                 </Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                    },
-                  ]}
-                >
+                <View style={getInputWrapperStyle('lastName')}>
                   <MaterialIcons
                     name="person-outline"
                     size={20}
@@ -319,9 +312,11 @@ export default function SignUpScreen() {
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
                     placeholder="Doe"
-                    placeholderTextColor={colors.textSecondary}
+                    placeholderTextColor={colors.placeholder}
                     value={lastName}
                     onChangeText={setLastName}
+                    onFocus={() => setFocusedField('lastName')}
+                    onBlur={() => setFocusedField(null)}
                     autoCapitalize="words"
                   />
                 </View>
@@ -332,15 +327,7 @@ export default function SignUpScreen() {
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Username
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('username')}>
                 <MaterialIcons
                   name="alternate-email"
                   size={20}
@@ -349,9 +336,11 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="johndoe123"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={username}
                   onChangeText={setUsername}
+                  onFocus={() => setFocusedField('username')}
+                  onBlur={() => setFocusedField(null)}
                   autoCapitalize="none"
                 />
               </View>
@@ -361,15 +350,7 @@ export default function SignUpScreen() {
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Email
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('email')}>
                 <MaterialIcons
                   name="email"
                   size={20}
@@ -378,9 +359,11 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="john@example.com"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={email}
                   onChangeText={setEmail}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -392,15 +375,7 @@ export default function SignUpScreen() {
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Password
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('password')}>
                 <MaterialIcons
                   name="lock"
                   size={20}
@@ -409,9 +384,11 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Create a strong password"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoComplete="password-new"
@@ -443,7 +420,7 @@ export default function SignUpScreen() {
                   <View
                     style={[
                       styles.strengthBar,
-                      { backgroundColor: colors.textSecondary + '20' },
+                      { backgroundColor: colors.border },
                     ]}
                   >
                     <View
@@ -470,15 +447,7 @@ export default function SignUpScreen() {
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Confirm Password
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('confirmPassword')}>
                 <MaterialIcons
                   name="lock"
                   size={20}
@@ -487,9 +456,11 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Confirm your password"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoComplete="password-new"
@@ -518,7 +489,7 @@ export default function SignUpScreen() {
             <View
               style={[
                 styles.requirementsContainer,
-                { backgroundColor: colors.statBg },
+                { backgroundColor: colors.surface },
               ]}
             >
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
@@ -645,7 +616,7 @@ export default function SignUpScreen() {
                     <View
                       style={[
                         styles.dividerLine,
-                        { backgroundColor: colors.textSecondary },
+                        { backgroundColor: colors.border },
                       ]}
                     />
                     <Text
@@ -659,7 +630,7 @@ export default function SignUpScreen() {
                     <View
                       style={[
                         styles.dividerLine,
-                        { backgroundColor: colors.textSecondary },
+                        { backgroundColor: colors.border },
                       ]}
                     />
                   </View>
@@ -701,10 +672,9 @@ const styles = StyleSheet.create({
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
-    marginTop: 180,
-    shadowColor: '#000',
+    marginTop: 120,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 6,
     borderWidth: 1,
@@ -780,7 +750,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: SIZES.small,
-    color: COLORS.error,
     marginTop: SIZES.xs,
     marginLeft: SIZES.xs,
   },

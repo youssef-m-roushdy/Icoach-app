@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -33,6 +34,7 @@ type ForgotPasswordNavigationProp = NativeStackNavigationProp<
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation<ForgotPasswordNavigationProp>();
   const { theme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -125,7 +127,7 @@ export default function ForgotPasswordScreen() {
         >
           {/* Back Button */}
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { paddingTop: Math.max(insets.top + 10, 40) }]}
             onPress={() => navigation.goBack()}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
@@ -434,7 +436,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: SIZES.lg,
-    paddingTop: SIZES.xl,
   },
   backButtonText: {
     fontSize: SIZES.body,

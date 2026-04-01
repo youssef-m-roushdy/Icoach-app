@@ -31,6 +31,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -1266,6 +1267,7 @@ const AnimatedSlide = memo(
 export default function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, token, updateUser } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -1498,7 +1500,7 @@ const handleBack = useCallback(() => {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <Animated.View style={backStyle}>
           <TouchableOpacity
             onPress={handleBack}
@@ -1634,7 +1636,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
     paddingBottom: 4,
   },
   headerSide: {

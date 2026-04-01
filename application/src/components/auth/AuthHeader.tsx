@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS, SIZES } from '../../constants';
 import { useTheme } from '../../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AuthHeaderProps {
   activeTab: 'SignIn' | 'Login';
@@ -10,9 +11,10 @@ interface AuthHeaderProps {
 
 export const AuthHeader: React.FC<AuthHeaderProps> = ({ activeTab, onTabPress }) => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   
   return (
-    <View style={styles.topRight}>
+    <View style={[styles.topRight, { top: Math.max(insets.top + 20, 60) }]}>
       <View style={styles.headerTextContainer}>
         <TouchableOpacity onPress={() => onTabPress('SignIn')}>
           <Text 

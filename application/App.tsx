@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets, Edge } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets, Edge } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, ThemeProvider, useAuth } from './src/context';
 import { useTheme } from './src/context/ThemeContext';
@@ -16,18 +17,17 @@ import { SystemNavigationProvider } from './src/context/SystemNavigationContext'
 const AppContent = () => {
   const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   const isThreeButtonNav = Platform.OS === 'android' && insets.bottom > 35;
-  const edges: Edge[] = isThreeButtonNav 
-    ? ['top', 'right', 'left', 'bottom'] 
+  const edges: Edge[] = isThreeButtonNav
+    ? ['top', 'right', 'left', 'bottom']
     : ['top', 'right', 'left'];
 
   useEffect(() => {
     if (Platform.OS === 'android') {
       const configureNavBar = async () => {
         try {
-          // With edgeToEdgeEnabled the OS keeps the nav bar transparent natively.
-          // We only need to set the button icon colour (light for dark theme, dark for light).
+          // Background color is handled natively by edge-to-edge on Android
           await NavigationBar.setButtonStyleAsync(theme === 'dark' ? 'light' : 'dark');
         } catch (error) {
           console.warn('Navigation bar configuration error:', error);
@@ -39,9 +39,10 @@ const AppContent = () => {
 
   return (
     <SystemNavigationProvider isThreeButtonNav={isThreeButtonNav} systemBottomInset={insets.bottom}>
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={edges}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar translucent backgroundColor="transparent" style={theme === 'dark' ? 'light' : 'dark'} />
         <AppNavigator />
-      </SafeAreaView>
+      </View>
     </SystemNavigationProvider>
   );
 };

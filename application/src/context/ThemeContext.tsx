@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as NavigationBar from 'expo-navigation-bar';
 
 export type ThemeType = 'dark' | 'light';
 
@@ -115,6 +117,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     loadTheme();
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        // Transparency natively ensured by edge-to-edge flags.
+        NavigationBar.setPositionAsync('absolute');
+        NavigationBar.setButtonStyleAsync(theme === 'dark' ? 'light' : 'dark');
+      } catch (e) {
+        console.warn('NavigationBar configuration failed:', e);
+      }
+    }
+  }, [theme]);
 
   const loadTheme = async () => {
     try {

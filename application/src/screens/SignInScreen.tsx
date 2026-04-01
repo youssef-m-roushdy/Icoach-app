@@ -43,6 +43,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleLogin = async () => {
     if (!emailOrUsername.trim() || !password.trim()) {
@@ -112,16 +113,22 @@ export default function SignInScreen() {
     }
   };
 
+  const getInputWrapperStyle = (fieldName: string) => [
+    styles.inputWrapper,
+    {
+      backgroundColor: colors.inputBg,
+      borderColor: focusedField === fieldName ? colors.primary : colors.inputBorder,
+      borderWidth: focusedField === fieldName ? 2 : 1,
+      shadowColor: focusedField === fieldName ? colors.primary : 'transparent',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: focusedField === fieldName ? 0.2 : 0,
+      shadowRadius: 4,
+      elevation: focusedField === fieldName ? 2 : 0,
+    },
+  ];
+
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
-      {theme === 'dark' && (
-        <ImageBackground
-          source={require('../../assets/home.jpeg')}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      )}
-
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -135,7 +142,7 @@ export default function SignInScreen() {
             activeTab="Login"
             onTabPress={(tab) => {
               if (tab === 'SignIn') {
-                navigation.navigate('SignIn');
+                navigation.navigate('SignUp');
               }
             }}
           />
@@ -144,10 +151,7 @@ export default function SignInScreen() {
             style={[
               styles.formContainer,
               {
-                backgroundColor:
-                  theme === 'dark'
-                    ? colors.background + 'CC'
-                    : colors.card,
+                backgroundColor: colors.card,
                 shadowColor: colors.shadow,
                 borderColor: colors.cardBorder,
               },
@@ -166,15 +170,7 @@ export default function SignInScreen() {
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 Email or Username
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('emailOrUsername')}>
                 <MaterialIcons
                   name="person"
                   size={20}
@@ -183,9 +179,11 @@ export default function SignInScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your email or username"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={emailOrUsername}
                   onChangeText={setEmailOrUsername}
+                  onFocus={() => setFocusedField('emailOrUsername')}
+                  onBlur={() => setFocusedField(null)}
                   autoCapitalize="none"
                   autoComplete="email"
                   keyboardType="email-address"
@@ -213,15 +211,7 @@ export default function SignInScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View
-                style={[
-                  styles.inputWrapper,
-                  {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
-                  },
-                ]}
-              >
+              <View style={getInputWrapperStyle('password')}>
                 <MaterialIcons
                   name="lock"
                   size={20}
@@ -230,9 +220,11 @@ export default function SignInScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your password"
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoComplete="password"
@@ -266,7 +258,7 @@ export default function SignInScreen() {
                     <View
                       style={[
                         styles.dividerLine,
-                        { backgroundColor: colors.textSecondary },
+                        { backgroundColor: colors.border },
                       ]}
                     />
                     <Text
@@ -280,7 +272,7 @@ export default function SignInScreen() {
                     <View
                       style={[
                         styles.dividerLine,
-                        { backgroundColor: colors.textSecondary },
+                        { backgroundColor: colors.border },
                       ]}
                     />
                   </View>
@@ -323,9 +315,9 @@ const styles = StyleSheet.create({
     marginHorizontal: SIZES.lg,
     padding: SIZES.xl,
     borderRadius: SIZES.radiusLarge,
-    marginTop: 180,
+    marginTop: 120,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 6,
     borderWidth: 1,

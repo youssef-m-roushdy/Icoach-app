@@ -54,6 +54,7 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
 
+
   const { height: navBarHeight, isGestureMode } = getNavBarInfo();
   const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
 
@@ -729,22 +730,22 @@ export default function ProfileScreen() {
         <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
       </ScrollView>
 
-      {/* ── Image Options Modal ── */}
+      {/* ── Image Options Modal - Using React Native Modal ── */}
       <Modal
         visible={showImageOptions}
-        transparent
+        transparent={true}
         animationType="slide"
-        statusBarTranslucent
         onRequestClose={() => setShowImageOptions(false)}
+        statusBarTranslucent={true}
       >
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowImageOptions(false)} />
-
-          <View style={styles.sheetWrapper}>
-            <Pressable
-              style={[styles.modalSheet, { backgroundColor: modalSheetBg }]}
-              onPress={(e) => e.stopPropagation()}
-            >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setShowImageOptions(false)}
+          />
+          
+          <View style={styles.modalContent}>
+            <View style={[styles.modalSheet, { backgroundColor: modalSheetBg }]}>
               <View style={[styles.modalHandle, { backgroundColor: colors.divider ?? '#C0C0C0' }]} />
               <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
 
@@ -780,9 +781,9 @@ export default function ProfileScreen() {
               >
                 <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
               </TouchableOpacity>
-            </Pressable>
+            </View>
 
-            {/* Button nav: solid black filler. Gesture nav: not rendered (transparent) */}
+            {/* Button nav filler */}
             {!isGestureMode && (
               <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
             )}
@@ -965,8 +966,22 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: 15, fontWeight: '600' },
   versionText: { fontSize: 12, textAlign: 'center', marginBottom: 20 },
 
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
-  sheetWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  modalContent: {
+    width: '100%',
+  },
   modalSheet: {
     width: '100%',
     paddingTop: 12,
@@ -975,12 +990,46 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
   },
-  modalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
-  modalOpt: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 14 },
-  modalOptIcon: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  modalOptText: { fontSize: 15, fontWeight: '500' },
-  modalDivider: { height: 1, marginTop: 8 },
-  modalCancel: { paddingVertical: 16, alignItems: 'center' },
-  modalCancelText: { fontSize: 15, fontWeight: '500' },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalOpt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 14,
+  },
+  modalOptIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalOptText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  modalDivider: {
+    height: 1,
+    marginTop: 8,
+  },
+  modalCancel: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
 });

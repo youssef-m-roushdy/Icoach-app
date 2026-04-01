@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ScrollView,
   Modal,
+  TextInput,
 } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -66,6 +67,12 @@ const WorkoutsScreen = () => {
     limit: 5,
     totalPages: 0,
   });
+
+  // Search state - separate input value from actual search query
+  const [searchInput, setSearchInput] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Filters
   const [filters, setFilters] = useState<WorkoutFilters>({
@@ -141,6 +148,7 @@ const WorkoutsScreen = () => {
       if (selectedTargetArea) params.target_area = selectedTargetArea;
       if (selectedEquipment) params.equipment = selectedEquipment;
       if (selectedLevel) params.level = selectedLevel;
+      if (searchQuery) params.search = searchQuery;
 
       const result = await workoutService.getWorkouts(token, params);
 
@@ -194,7 +202,8 @@ const WorkoutsScreen = () => {
           (selectedBodyPart ||
             selectedTargetArea ||
             selectedEquipment ||
-            selectedLevel)
+            selectedLevel ||
+            searchQuery)
         ) {
           showInfoToast({
             title: 'No Results',
@@ -219,6 +228,7 @@ const WorkoutsScreen = () => {
       setWorkouts([]);
     } finally {
       setLoading(false);
+      setIsSearching(false);
     }
   }, [
     token,
@@ -228,6 +238,7 @@ const WorkoutsScreen = () => {
     selectedTargetArea,
     selectedEquipment,
     selectedLevel,
+    searchQuery,
     checkWorkoutSavedFn,
   ]);
 
@@ -236,16 +247,47 @@ const WorkoutsScreen = () => {
     loadFilters();
   }, [loadFilters]);
 
-  // Load workouts when filters/page change
+  // Load workouts when filters/page/search change
   useEffect(() => {
     loadWorkouts();
   }, [loadWorkouts]);
+
+  // Handle search with debounce - only updates searchQuery after user stops typing
+  const handleSearchChange = (text: string) => {
+    setSearchInput(text);
+    setIsSearching(true);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout to update search query after user stops typing
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+      setPagination((prev) => ({ ...prev, page: 1 }));
+      setIsSearching(false);
+    }, 500);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    
+    showInfoToast({
+      title: 'Search Cleared',
+      message: 'Search filter has been cleared',
+    });
+  };
 
   const clearFilters = () => {
     setSelectedBodyPart('');
     setSelectedTargetArea('');
     setSelectedEquipment('');
     setSelectedLevel('');
+    setSearchInput('');
+    setSearchQuery('');
     setPagination((prev) => ({ ...prev, page: 1 }));
 
     showInfoToast({
@@ -313,7 +355,6 @@ const WorkoutsScreen = () => {
   };
 
   const handleStartSession = (workout: Workout) => {
-    // ✅ Now TypeScript knows this is valid
     navigation.navigate('WorkoutSession', {
       workoutId: workout.id,
       workoutName: workout.name,
@@ -489,7 +530,7 @@ const WorkoutsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Filters */}
+      {/* Filters Header with Search */}
       <View
         style={[
           styles.filtersContainer,
@@ -501,10 +542,33 @@ const WorkoutsScreen = () => {
             Filters
           </Text>
 
+          {/* Search Input */}
+          <View style={styles.searchWrapper}>
+            <View style={[styles.searchInputContainer, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <Ionicons name="search" size={18} color={colors.primary} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search workouts..."
+                placeholderTextColor={colors.placeholder}
+                value={searchInput}
+                onChangeText={handleSearchChange}
+              />
+              {isSearching && (
+                <ActivityIndicator size="small" color={colors.primary} />
+              )}
+              {searchInput !== '' && !isSearching && (
+                <TouchableOpacity onPress={handleClearSearch}>
+                  <Ionicons name="close-circle" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
           {(selectedBodyPart ||
             selectedTargetArea ||
             selectedEquipment ||
-            selectedLevel) && (
+            selectedLevel ||
+            searchQuery) && (
             <TouchableOpacity onPress={clearFilters}>
               <Text style={styles.clearText}>Clear All</Text>
             </TouchableOpacity>
@@ -747,7 +811,8 @@ const WorkoutsScreen = () => {
               {selectedBodyPart ||
               selectedTargetArea ||
               selectedEquipment ||
-              selectedLevel
+              selectedLevel ||
+              searchQuery
                 ? 'No workouts match your filters'
                 : 'No workouts found'}
             </Text>
@@ -983,10 +1048,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   filtersTitle: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  searchWrapper: {
+    flex: 1,
+    minWidth: 150,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 4,
   },
   clearText: {
     fontSize: 14,

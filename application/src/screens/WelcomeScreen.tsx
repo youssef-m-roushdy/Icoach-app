@@ -12,6 +12,7 @@ import {
   Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
@@ -70,6 +71,7 @@ export default function WelcomeScreen() {
   const { theme, colors, toggleTheme } = useTheme();
   const { t } = useTranslation();
   const isLight = theme === 'light';
+  const insets = useSafeAreaInsets();
 
   // ── Animations ──────────────────────────────────────────────────────────────
 
@@ -189,7 +191,7 @@ export default function WelcomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <Image
           source={require('../../assets/icon.png')}
           style={styles.logo}
@@ -423,7 +425,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 58 : 44,
     paddingBottom: 8,
   },
   logo: { width: 56, height: 40, resizeMode: 'contain' },
