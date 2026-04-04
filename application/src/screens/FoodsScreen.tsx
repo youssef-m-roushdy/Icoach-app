@@ -315,14 +315,21 @@ export default function FoodsScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.newScanButton, { backgroundColor: colors.primary }]}
+              style={[styles.newScanButton, { overflow: 'hidden', borderWidth: 0 }]}
               onPress={clearResult}
+              activeOpacity={0.8}
             >
-              <Icon name="camera" size={20} color={theme === 'dark' ? COLORS.white : colors.text} />
+              <LinearGradient
+                colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <Icon name="camera" size={20} color="#FFFFFF" style={{ position: 'relative' }} />
               <Text
                 style={[
                   styles.newScanButtonText,
-                  { color: theme === 'dark' ? COLORS.white : colors.text },
+                  { color: '#FFFFFF', position: 'relative' },
                 ]}
               >
                 Scan Another Food

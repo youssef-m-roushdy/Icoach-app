@@ -78,7 +78,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         overScrollMode="never"
         bounces={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: dynamicPaddingBottom }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: dynamicPaddingBottom - 20 }]}
       >
 
         {/* Professional Header with Quick Actions */}

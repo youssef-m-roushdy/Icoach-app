@@ -861,11 +861,11 @@ const WorkoutsScreen = () => {
 
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
-        <View style={{ backgroundColor: 'transparent', paddingBottom: dynamicPaddingBottom + 5 }}>
+        <View style={{ backgroundColor: 'transparent', paddingBottom: dynamicPaddingBottom }}>
           <View
             style={[
               styles.paginationContainer,
-              { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0, borderRadius: 16, marginHorizontal: 10, marginTop: 5, paddingVertical: 10 },
+              { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0, borderRadius: 16, marginHorizontal: 10, marginVertical: 0, paddingVertical: 5 },
             ]}
           >
             <TouchableOpacity
@@ -935,7 +935,7 @@ const WorkoutsScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.pageInfo, { color: colors.text, marginBottom: 15 }]}>
+          <Text style={[styles.pageInfo, { color: colors.text, marginTop: 0, marginBottom: 0 }]}>
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} workouts)
           </Text>
         </View>
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    paddingBottom: 16, // Reduced from 110, padding is now handled by pageInfo dynamically
+    paddingBottom: 5, // Reduced from 110, padding is now handled by pageInfo dynamically
     borderTopWidth: 1,
   },
   pageNumbersContainer: {
@@ -1075,7 +1075,7 @@ const styles = StyleSheet.create({
   pageInfo: {
     textAlign: 'center',
     fontSize: 12,
-    paddingBottom: 10,
+    paddingBottom: 15,
     paddingTop: 4,
   },
   filtersContainer: {
