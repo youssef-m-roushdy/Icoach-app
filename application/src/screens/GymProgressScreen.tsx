@@ -24,8 +24,10 @@ import Svg, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { progressService } from '../services/progressService';
 import { ApiError } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -336,7 +338,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
         {stats.map((stat, i) => (
           <View
             key={i}
-            style={[styles.statCard, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}
+            style={[styles.statCard, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.statBorder, borderWidth: 1 }]}
           >
             <Text style={[styles.statValue, { color: colors.primary }]}>{stat.value}</Text>
             <Text style={[styles.statLabel, { color: colors.subtleText }]}>{stat.label}</Text>
@@ -344,7 +346,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
         ))}
       </View>
 
-      <View style={[styles.pbSection, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+      <View style={[styles.pbSection, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
         <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>Personal Bests</Text>
         {data.personalBests.length > 0 ? (
           data.personalBests.map((pb: PersonalBest, i: number) => (
@@ -361,7 +363,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
         )}
       </View>
 
-      <View style={[styles.volumeBar, { backgroundColor: colors.statBg, borderColor: colors.cardBorder }]}>
+      <View style={[styles.volumeBar, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
         <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
           {(data.totalVolume / 1000).toFixed(1)}k kg
@@ -409,6 +411,11 @@ const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => voi
 export default function GymProgressScreen() {
   const { colors } = useTheme();
   const { user, token } = useAuth() as any;
+  const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
+  const isThreeButtonNav = systemBottomInset > 24;
+  const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
+
   const [activeTab, setActiveTab] = useState<TabName>('fitness');
   const [progressData, setProgressData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -522,12 +529,22 @@ export default function GymProgressScreen() {
   const pointsPercent = calculatePointsPercentage(progressData.currentPoints, progressData.maxPoints);
 
   return (
-    <View style={[styles.main, { backgroundColor: colors.background }]}>
-      <LinearGradient colors={colors.bgGradient as any} style={StyleSheet.absoluteFill} />
+    <View style={[styles.main, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Animated Gradient Background matches SignIn */}
+      <LinearGradient
+        colors={colors.authBgGradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{ paddingBottom: 40 }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }} // Space for floating bottom nav
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -559,8 +576,9 @@ export default function GymProgressScreen() {
           style={[
             styles.card,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.cardBorder,
+              backgroundColor: colors.authInputBg ?? colors.surface,
+              borderColor: colors.authInputBorder ?? colors.cardBorder,
+              borderWidth: 1,
               ...Platform.select({
                 ios: {
                   shadowColor: colors.shadow,
@@ -599,8 +617,9 @@ export default function GymProgressScreen() {
           style={[
             styles.card,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.cardBorder,
+              backgroundColor: colors.authInputBg ?? colors.surface,
+              borderColor: colors.authInputBorder ?? colors.cardBorder,
+              borderWidth: 1,
               ...Platform.select({
                 ios: {
                   shadowColor: colors.shadow,
@@ -619,7 +638,7 @@ export default function GymProgressScreen() {
           </View>
 
           {/* Tab switcher */}
-          <View style={[styles.tabRow, { backgroundColor: colors.statBg }]}>
+          <View style={[styles.tabRow, { backgroundColor: colors.iconBg ?? colors.statBg }]}>
             {(['fitness', 'training'] as TabName[]).map((tab) => (
               <TouchableOpacity
                 key={tab}
@@ -627,9 +646,9 @@ export default function GymProgressScreen() {
                 style={[
                   styles.tabBtn,
                   activeTab === tab && {
-                    backgroundColor: colors.surface,
+                    backgroundColor: colors.authInputBg ?? colors.surface,
                     borderWidth: 1,
-                    borderColor: colors.primary,
+                    borderColor: colors.authInputBorder ?? colors.primary,
                   },
                 ]}
               >
@@ -696,6 +715,30 @@ export default function GymProgressScreen() {
 // ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   main: { flex: 1 },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -764,17 +807,17 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 20,
     marginBottom: 16,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 32,
+    padding: 24,
     borderWidth: 1,
     ...Platform.select({
       ios: {
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
       },
       android: {
-        elevation: 4,
+        elevation: 10,
       },
     }),
   },
@@ -860,7 +903,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   statCard: {
     width: '48%',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     alignItems: 'center',
@@ -868,7 +911,7 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 24, fontWeight: '800', marginBottom: 3 },
   statLabel: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
-  pbSection: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 12 },
+  pbSection: { borderRadius: 16, padding: 14, borderWidth: 1, marginBottom: 12 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -881,7 +924,7 @@ const styles = StyleSheet.create({
   pbExercise: { flex: 1, fontSize: 14, fontWeight: '500' },
   pbValue: { fontSize: 14, fontWeight: '700' },
   volumeBar: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     flexDirection: 'row',

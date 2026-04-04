@@ -131,20 +131,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout
   // =========================================
   const logout = useCallback(async () => {
-    try {
-      if (token) {
-        await authService.logout(token);
-      }
-    } catch (error) {
-      console.error('Logout API error:', error);
-    } finally {
-      socketService.disconnect();
-
-      setUser(null);
-      setToken(null);
-
-      await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
+    // 1. Fire and forget the API call so the UI doesn't hang waiting for the network
+    if (token) {
+      authService.logout(token).catch(error => {
+        console.error('Logout API error:', error);
+      });
     }
+
+    // 2. Disconnect realtime services
+    socketService.disconnect();
+
+    // 3. Clear local state IMMEDIATELY to trigger the instant jump to WelcomeScreen
+    setUser(null);
+    setToken(null);
+
+    // 4. Remove storage tokens without awaiting
+    AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]).catch(err => {
+      console.error('Failed to clear storage:', err);
+    });
   }, [token]);
 
   // =========================================

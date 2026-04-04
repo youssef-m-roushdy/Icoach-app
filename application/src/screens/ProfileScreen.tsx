@@ -8,11 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   StatusBar,
+  Switch,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +22,7 @@ import { COLORS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import {
   showSuccessToast,
@@ -30,39 +30,80 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-// ─── Gesture vs button nav detection ─────────────────────────────────────────
-function getNavBarInfo(): { height: number; isGestureMode: boolean } {
-  if (Platform.OS !== 'android') return { height: 0, isGestureMode: false };
-  const screenH = Dimensions.get('screen').height;
-  const windowH = Dimensions.get('window').height;
-  const sbH = StatusBar.currentHeight ?? 0;
-  const height = Math.max(screenH - windowH - sbH, 0);
-  // Button nav ≈ 48dp, gesture nav ≈ 24dp — threshold 30dp separates them
-  const isGestureMode = height <= 30;
-  return { height, isGestureMode };
-}
-
 export default function ProfileScreen() {
   const navigation = useNavigation<ProfileNavigationProp>();
-  const { colors, theme } = useTheme();
+  const { colors, theme, toggleTheme } = useTheme();
   const { user: authUser, token, logout, updateUser } = useAuth();
-
+  const { systemBottomInset } = useSystemNavigation();
+  const insets = useSafeAreaInsets();
+  
+  const isThreeButtonNav = systemBottomInset > 24;
+  const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
+  
   const [userData, setUserData] = useState<any>(authUser);
   const [isLoading, setIsLoading] = useState(false);
+
+  const imageOptionsSheetRef = React.useRef<BottomSheetModal>(null);
+  const settingsSheetRef = React.useRef<BottomSheetModal>(null);
+  const imageOptionsSnapPoints = React.useMemo(() => ['30%'], []);
+  const settingsSnapPoints = React.useMemo(() => ['65%', '85%'], []);
+
+  const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
+  
   const [showImageOptions, setShowImageOptions] = useState(false);
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
 
-  const { height: navBarHeight, isGestureMode } = getNavBarInfo();
-  const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
+  const sheetBackground = React.useMemo(
+    () => ({ backgroundColor: modalSheetBg }),
+    [modalSheetBg]
+  );
+  
+  const handleIndicatorStyle = React.useMemo(
+    () => ({ backgroundColor: colors.divider ?? '#C0C0C0', width: 40, height: 4 }),
+    [colors.divider]
+  );
+  
+  const handleImageOptionsSheetChange = useCallback((index: number) => {}, []);
+  const handleSettingsSheetChange = useCallback((index: number) => {}, []);
+
+  const openImageOptionsSheet = useCallback(() => { 
+    imageOptionsSheetRef.current?.present(); 
+  }, []);
+
+  const closeImageOptionsSheet = useCallback(() => { 
+    imageOptionsSheetRef.current?.dismiss(); 
+  }, []);
+  
+  const openSettingsSheet = useCallback(() => {
+    settingsSheetRef.current?.present();
+  }, []);
+
+  const closeSettingsSheet = useCallback(() => { 
+    settingsSheetRef.current?.dismiss(); 
+  }, []);
 
   useEffect(() => {
     if (authUser) setUserData(authUser);
   }, [authUser]);
 
-  // ─── loadProfile ───────────────────────────────────────────────────────────
   const loadProfile = useCallback(async () => {
     if (!token) {
       showErrorToast({
@@ -95,7 +136,6 @@ export default function ProfileScreen() {
     }
   }, [token, updateUser]);
 
-  // ─── uploadProfilePicture ──────────────────────────────────────────────────
   const uploadProfilePicture = useCallback(
     async (uri: string) => {
       if (!token) {
@@ -136,9 +176,8 @@ export default function ProfileScreen() {
     [token, userData, updateUser, loadProfile]
   );
 
-  // ─── handleTakePhoto ───────────────────────────────────────────────────────
   const handleTakePhoto = async () => {
-    setShowImageOptions(false);
+    closeImageOptionsSheet();
     try {
       const image = await ImagePicker.openCamera({
         width: 400,
@@ -171,9 +210,8 @@ export default function ProfileScreen() {
     }
   };
 
-  // ─── handleChooseFromGallery ───────────────────────────────────────────────
   const handleChooseFromGallery = async () => {
-    setShowImageOptions(false);
+    closeImageOptionsSheet();
     try {
       const image = await ImagePicker.openPicker({
         width: 400,
@@ -206,9 +244,8 @@ export default function ProfileScreen() {
     }
   };
 
-  // ─── confirmDeleteProfilePicture ───────────────────────────────────────────
   const confirmDeleteProfilePicture = () => {
-    setShowImageOptions(false);
+    closeImageOptionsSheet();
 
     Alert.alert(
       'Delete Profile Picture',
@@ -257,7 +294,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // ─── handleLogout ──────────────────────────────────────────────────────────
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -267,24 +303,183 @@ export default function ProfileScreen() {
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              navigation.replace('Welcome');
-            } catch (error) {
-              console.error('Logout error:', error);
-              showErrorToast({
-                title: 'Logout Failed',
-                message: 'Something went wrong while logging out',
-              });
-            }
+          onPress: () => {
+            closeSettingsSheet();
+            setTimeout(() => {
+              logout();
+            }, 100);
           },
         },
       ]
     );
   };
 
-  // ─── Loading / error states ────────────────────────────────────────────────
+  const renderImageOptionsModal = () => {
+    return (
+      <BottomSheetModal
+        ref={imageOptionsSheetRef}
+        index={0}
+        enableDynamicSizing={true}
+        onChange={handleImageOptionsSheetChange}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={sheetBackground}
+        handleIndicatorStyle={handleIndicatorStyle}
+        enablePanDownToClose
+      >
+        <BottomSheetView style={[styles.modalContent, { paddingBottom: Math.max(30, systemBottomInset + 4) }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
+
+          <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
+            <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+              <Feather name="camera" size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.modalOptText, { color: colors.text }]}>Take Photo</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.modalOpt} onPress={handleChooseFromGallery}>
+            <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
+              <Feather name="image" size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.modalOptText, { color: colors.text }]}>Choose from Gallery</Text>
+          </TouchableOpacity>
+
+          {userData?.avatar && (
+            <TouchableOpacity style={styles.modalOpt} onPress={confirmDeleteProfilePicture}>
+              <View style={[styles.modalOptIcon, { backgroundColor: COLORS.error + '12' }]}>
+                <Feather name="trash-2" size={20} color={COLORS.error} />
+              </View>
+              <Text style={[styles.modalOptText, { color: COLORS.error }]}>Delete Photo</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={[styles.modalDivider, { backgroundColor: colors.divider ?? '#E0E0E0' }]} />
+          <TouchableOpacity style={styles.modalCancel} onPress={closeImageOptionsSheet}>
+            <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheetModal>
+    );
+  };
+
+  // Settings Modal with Professional Theme Switcher
+  const renderSettingsModal = () => {
+    return (
+      <BottomSheetModal
+        ref={settingsSheetRef}
+        snapPoints={settingsSnapPoints}
+        onChange={handleSettingsSheetChange}
+        enablePanDownToClose={true}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={sheetBackground}
+        handleIndicatorStyle={handleIndicatorStyle}
+      >
+        <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
+          <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 20, marginTop: 10 }]}>Settings & Account</Text>
+          
+          <View style={styles.settingsGroup}>
+            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>ACCOUNT</Text>
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); navigation.navigate('EditProfile'); }}>
+              <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                <Feather name="user" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>Edit Profile</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); navigation.navigate('EditBodyInfo'); }}>
+              <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                <MaterialIcons name="monitor-weight" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>Edit Body Info</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); navigation.navigate('ChangePassword'); }}>
+              <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                <Feather name="lock" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>Change Password</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.settingsGroup}>
+            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>PREFERENCES</Text>
+            
+            {/* Professional Theme Switcher */}
+            <View style={styles.themeSwitcherContainer}>
+              <View style={styles.themeSwitcherHeader}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                  {theme === 'light' ? (
+                    <Feather name="sun" size={18} color={colors.primary} />
+                  ) : (
+                    <Feather name="moon" size={18} color={colors.primary} />
+                  )}
+                </View>
+                <View style={styles.themeSwitcherTextContainer}>
+                  <Text style={[styles.settingsItemText, { color: colors.text }]}>Theme</Text>
+                  <Text style={[styles.themeSwitcherSubtext, { color: colors.textSecondary }]}>
+                    {theme === 'light' ? 'Light Mode' : 'Dark Mode'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={toggleTheme}
+                  activeOpacity={0.8}
+                  style={styles.themeToggleButton}
+                >
+                  <LinearGradient
+                    colors={[colors.primary, colors.secondary || colors.primary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.themeToggleGradient,
+                      { opacity: 0.9 }
+                    ]}
+                  >
+                    <View style={styles.themeToggleContent}>
+                      {theme === 'light' ? (
+                        <>
+                          <Feather name="sun" size={14} color="#FFF" />
+                          <Text style={styles.themeToggleText}>Light</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Feather name="moon" size={14} color="#FFF" />
+                          <Text style={styles.themeToggleText}>Dark</Text>
+                        </>
+                      )}
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: 'Privacy', message: 'Privacy policy coming soon!'}) }}>
+              <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                <Feather name="shield" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>Privacy Policy</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: 'About', message: 'iCoach Version 1.0.0'}) }}>
+              <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                <Feather name="info" size={18} color={colors.primary} />
+              </View>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>About</Text>
+              <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.logoutSettingBtn} onPress={handleLogout}>
+            <Feather name="log-out" size={20} color={COLORS.error} style={{ marginRight: 10 }} />
+            <Text style={{ color: COLORS.error, fontSize: 16, fontWeight: '600' }}>Log Out</Text>
+          </TouchableOpacity>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
@@ -309,7 +504,6 @@ export default function ProfileScreen() {
     );
   }
 
-  // ─── BMI helpers ───────────────────────────────────────────────────────────
   const bmiCategory = userData.bmi
     ? userData.bmi < 18.5 ? 'Underweight'
     : userData.bmi < 25   ? 'Normal'
@@ -327,22 +521,48 @@ export default function ProfileScreen() {
 
   const isLight = theme === 'light';
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+      {/* Animated Gradient Background matches SignIn */}
+      <LinearGradient
+        colors={colors.authBgGradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
       >
-        {/* ── Profile Header ── */}
-        <View style={styles.profileHeader}>
-          <TouchableOpacity
-            style={styles.avatarWrapper}
-            onPress={() => setShowImageOptions(true)}
-            activeOpacity={0.8}
-          >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
+
+      <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: dynamicPaddingBottom }]}
+        >
+          {/* Settings icon */}
+          <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: insets.top + 10 }}>
+            <TouchableOpacity 
+              onPress={openSettingsSheet}
+              style={{
+                width: 40, height: 40, borderRadius: 20, 
+                backgroundColor: colors.surface, 
+                justifyContent: 'center', alignItems: 'center',
+                shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 3
+              }}
+            >
+              <Feather name="settings" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
+            <TouchableOpacity
+              style={styles.avatarWrapper}
+              onPress={openImageOptionsSheet}
+              activeOpacity={0.8}
+            >
             <View
               style={[
                 styles.avatarRing,
@@ -425,7 +645,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Verification Banner ── */}
+        {/* Verification Banner */}
         {userData && !userData.isEmailVerified && (
           <View
             style={[
@@ -460,7 +680,7 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* ── Personal Information ── */}
+        {/* Personal Information */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
@@ -482,7 +702,7 @@ export default function ProfileScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              { backgroundColor: colors.authInputBg ?? colors.surface, borderColor: colors.authInputBorder ?? colors.cardBorder },
             ]}
           >
             {[
@@ -523,7 +743,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Body & Fitness ── */}
+        {/* Body & Fitness */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
@@ -542,7 +762,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Height & Weight */}
           <View style={styles.statsRow}>
             {[
               { icon: 'height',         label: 'Height', value: userData.height || '--', unit: 'cm' },
@@ -552,7 +771,7 @@ export default function ProfileScreen() {
                 key={s.label}
                 style={[
                   styles.statCard,
-                  { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                  { backgroundColor: colors.authInputBg ?? colors.surface, borderColor: colors.authInputBorder ?? colors.cardBorder },
                 ]}
               >
                 <View style={[styles.statIconBox, { backgroundColor: colors.iconBg }]}>
@@ -565,11 +784,10 @@ export default function ProfileScreen() {
             ))}
           </View>
 
-          {/* BMI */}
           <View
             style={[
               styles.wideCard,
-              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              { backgroundColor: colors.authInputBg ?? colors.surface, borderColor: colors.authInputBorder ?? colors.cardBorder },
             ]}
           >
             <View style={styles.wideCardLeft}>
@@ -595,13 +813,12 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Body Fat */}
           <View
             style={[
               styles.wideCard,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.cardBorder,
+                backgroundColor: colors.authInputBg ?? colors.surface,
+                borderColor: colors.authInputBorder ?? colors.cardBorder,
                 marginTop: 10,
               },
             ]}
@@ -621,13 +838,12 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Goals */}
           <View
             style={[
               styles.card,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.cardBorder,
+                backgroundColor: colors.authInputBg ?? colors.surface,
+                borderColor: colors.authInputBorder ?? colors.cardBorder,
                 marginTop: 10,
               },
             ]}
@@ -668,134 +884,107 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Settings ── */}
+        {/* Workout Data - WITH BOTH AI COACH OPTIONS */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Workout Data</Text>
             </View>
           </View>
 
           <View
             style={[
               styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+              { backgroundColor: colors.authInputBg ?? colors.surface, borderColor: colors.authInputBorder ?? colors.cardBorder },
             ]}
           >
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigation.navigate('ChangePassword')}
+              onPress={() => navigation.navigate('SavedWorkouts')}
             >
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="lock" size={17} color={colors.primary} />
+                <Feather name="bookmark" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Change Password</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>Saved Workouts</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
 
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('WorkoutHistory')}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="bell" size={17} color={colors.primary} />
+                <Feather name="clock" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>Workout History</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
 
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            {/* AI Coach Camera Assistant - Live Workout */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LiveWorkout')}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
-                <Feather name="shield" size={17} color={colors.primary} />
+                <MaterialIcons name="videocam" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>AI Coach Camera</Text>
+              <Text style={[styles.menuBadge, { backgroundColor: colors.primary + '20', color: colors.primary }]}>
+                Camera Assistant
+              </Text>
+              <Feather name="chevron-right" size={18} color={colors.subtleText} />
+            </TouchableOpacity>
+
+            <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
+
+            {/* AI Coach Chat Assistant - Chatbot */}
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Chatbot')}>
+              <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
+                <Feather name="message-circle" size={17} color={colors.primary} />
+              </View>
+              <Text style={[styles.menuText, { color: colors.text }]}>AI Coach Chat</Text>
+              <Text style={[styles.menuBadge, { backgroundColor: colors.primary + '20', color: colors.primary }]}>
+                Text Assistant
+              </Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.logoutBtn,
-              { backgroundColor: COLORS.error + '0A', borderColor: COLORS.error + '25' },
-            ]}
-            onPress={handleLogout}
-          >
-            <Feather name="log-out" size={17} color={COLORS.error} />
-            <Text style={[styles.logoutText, { color: COLORS.error }]}>Logout</Text>
-          </TouchableOpacity>
         </View>
 
         <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
       </ScrollView>
 
-      {/* ── Image Options Modal - Using React Native Modal ── */}
-      <Modal
-        visible={showImageOptions}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowImageOptions(false)}
-        statusBarTranslucent={true}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setShowImageOptions(false)}
-          />
-          
-          <View style={styles.modalContent}>
-            <View style={[styles.modalSheet, { backgroundColor: modalSheetBg }]}>
-              <View style={[styles.modalHandle, { backgroundColor: colors.divider ?? '#C0C0C0' }]} />
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
-
-              <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
-                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
-                  <Feather name="camera" size={20} color={colors.primary} />
-                </View>
-                <Text style={[styles.modalOptText, { color: colors.text }]}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.modalOpt} onPress={handleChooseFromGallery}>
-                <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
-                  <Feather name="image" size={20} color={colors.primary} />
-                </View>
-                <Text style={[styles.modalOptText, { color: colors.text }]}>
-                  Choose from Gallery
-                </Text>
-              </TouchableOpacity>
-
-              {userData.avatar && (
-                <TouchableOpacity style={styles.modalOpt} onPress={confirmDeleteProfilePicture}>
-                  <View style={[styles.modalOptIcon, { backgroundColor: COLORS.error + '12' }]}>
-                    <Feather name="trash-2" size={20} color={COLORS.error} />
-                  </View>
-                  <Text style={[styles.modalOptText, { color: COLORS.error }]}>Delete Photo</Text>
-                </TouchableOpacity>
-              )}
-
-              <View style={[styles.modalDivider, { backgroundColor: colors.divider ?? '#E0E0E0' }]} />
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => setShowImageOptions(false)}
-              >
-                <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Button nav filler */}
-            {!isGestureMode && (
-              <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
-            )}
-          </View>
-        </View>
-      </Modal>
+      {renderImageOptionsModal()}
+      {renderSettingsModal()}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { paddingBottom: 40 },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  scrollContent: {},
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 15, marginBottom: 16 },
   retryButton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
@@ -881,11 +1070,26 @@ const styles = StyleSheet.create({
   },
   editPillText: { fontSize: 12, fontWeight: '600' },
 
-  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  card: {
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     gap: 12,
   },
@@ -898,7 +1102,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   infoValue: { fontSize: 14, fontWeight: '600' },
-  rowDivider: { height: 1, marginLeft: 62 },
+  rowDivider: { height: 1, marginLeft: 56 },
 
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   statCard: {
@@ -906,7 +1110,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
   },
   statIconBox: {
@@ -925,8 +1129,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 14,
+    padding: 18,
+    borderRadius: 16,
     borderWidth: 1,
   },
   wideCardLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -938,7 +1142,7 @@ const styles = StyleSheet.create({
   goalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     gap: 12,
   },
@@ -947,55 +1151,59 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     gap: 12,
   },
   menuIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   menuText: { flex: 1, fontSize: 14, fontWeight: '500' },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+  menuBadge: {
+    fontSize: 10,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    overflow: 'hidden',
   },
-  logoutText: { fontSize: 15, fontWeight: '600' },
   versionText: { fontSize: 12, textAlign: 'center', marginBottom: 20 },
 
   // Modal styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
   modalContent: {
     width: '100%',
-  },
-  modalSheet: {
-    width: '100%',
     paddingTop: 12,
-    paddingBottom: 8,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 20,
   },
-  modalHandle: {
+  settingsGroup: {
+    marginBottom: 24,
+  },
+  settingsGroupTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#33333333',
+  },
+  settingsIconContainer: {
     width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  settingsItemText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
   },
   modalTitle: {
     fontSize: 17,
@@ -1031,5 +1239,56 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  logoutSettingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginTop: 20,
+    borderRadius: 12,
+    backgroundColor: COLORS.error + '10',
+    justifyContent: 'center',
+  },
+  // Professional Theme Switcher Styles
+  themeSwitcherContainer: {
+    marginBottom: 8,
+  },
+  themeSwitcherHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  themeSwitcherTextContainer: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  themeSwitcherSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  themeToggleButton: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  themeToggleGradient: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 30,
+  },
+  themeToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  themeToggleText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

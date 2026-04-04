@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,36 +8,39 @@ import {
   ActivityIndicator,
   Platform,
   TextInput,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import type { RootStackParamList } from '../types';
-import { COLORS, SIZES } from '../constants';
-import { useTheme } from '../context/ThemeContext';
-import { userService } from '../services';
-import { useAuth } from '../context';
+  KeyboardAvoidingView,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { MaterialIcons, Feather, Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import type { RootStackParamList } from "../types";
+import { COLORS, SIZES } from "../constants";
+import { useTheme } from "../context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { userService } from "../services";
+import { useAuth } from "../context";
 import {
   showSuccessToast,
   showErrorToast,
   showInfoToast,
   getErrorMessage,
-} from '../utils/toast';
+} from "../utils/toast";
 
 type EditBodyInfoNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'EditBodyInfo'
+  "EditBodyInfo"
 >;
 
 const C = {
-  primary: '#C5981B',
-  primaryLight: 'rgba(197,152,27,0.12)',
-  success: '#10B981',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  male: '#3B82F6',
-  female: '#EC4899',
+  primary: "#C5981B",
+  primaryLight: "rgba(197,152,27,0.12)",
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  male: "#3B82F6",
+  female: "#EC4899",
 };
 
 interface SectionCardProps {
@@ -47,17 +50,25 @@ interface SectionCardProps {
 }
 
 const SectionCard: React.FC<SectionCardProps> = ({ title, icon, children }) => {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
+  const isDarkMode = theme === "dark";
 
   return (
     <View
       style={[
         styles.sectionCard,
-        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        {
+          backgroundColor: colors.authCardBg,
+          borderColor: colors.authCardBorder,
+          shadowColor: isDarkMode ? "#000" : "#000",
+          shadowOpacity: isDarkMode ? 0.3 : 0.1,
+        },
       ]}
     >
       <View style={styles.sectionHeader}>
-        <View style={[styles.sectionIcon, { backgroundColor: C.primary + '15' }]}>
+        <View
+          style={[styles.sectionIcon, { backgroundColor: C.primary + "15" }]}
+        >
           {icon}
         </View>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -93,8 +104,8 @@ const OptionChip: React.FC<OptionChipProps> = ({
       style={[
         styles.optionChip,
         {
-          backgroundColor: selected ? color : colors.iconBg,
-          borderColor: selected ? color : colors.divider,
+          backgroundColor: selected ? color : colors.authInputBg,
+          borderColor: selected ? color : colors.authInputBorder,
         },
       ]}
     >
@@ -102,7 +113,7 @@ const OptionChip: React.FC<OptionChipProps> = ({
       <Text
         style={[
           styles.optionChipText,
-          { color: selected ? '#FFF' : colors.text },
+          { color: selected ? "#FFF" : colors.text },
         ]}
       >
         {label}
@@ -118,6 +129,7 @@ interface MeasurementInputProps {
   unit: string;
   icon: React.ReactNode;
   placeholder?: string;
+  onFocus?: () => void;
 }
 
 const MeasurementInput: React.FC<MeasurementInputProps> = ({
@@ -127,6 +139,7 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
   unit,
   icon,
   placeholder,
+  onFocus: externalOnFocus,
 }) => {
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -135,7 +148,10 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
     <View style={styles.measurementInputContainer}>
       <View style={styles.measurementLabelContainer}>
         <View
-          style={[styles.measurementIcon, { backgroundColor: C.primary + '15' }]}
+          style={[
+            styles.measurementIcon,
+            { backgroundColor: C.primary + "15" },
+          ]}
         >
           {icon}
         </View>
@@ -148,8 +164,16 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
         style={[
           styles.measurementInputWrapper,
           {
-            backgroundColor: colors.background,
-            borderColor: isFocused ? C.primary : colors.divider,
+            backgroundColor: colors.authInputBg,
+            borderColor: isFocused
+              ? colors.authInputBorderFocused
+              : colors.authInputBorder,
+            borderWidth: 1,
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: isFocused ? 0.3 : 0,
+            shadowRadius: isFocused ? 8 : 0,
+            elevation: isFocused ? 4 : 0,
           },
         ]}
       >
@@ -160,11 +184,16 @@ const MeasurementInput: React.FC<MeasurementInputProps> = ({
           keyboardType="numeric"
           placeholder={placeholder}
           placeholderTextColor={colors.textSecondary}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            if (externalOnFocus) externalOnFocus();
+          }}
           onBlur={() => setIsFocused(false)}
         />
         <View style={[styles.unitBadge, { backgroundColor: colors.iconBg }]}>
-          <Text style={[styles.measurementUnit, { color: colors.textSecondary }]}>
+          <Text
+            style={[styles.measurementUnit, { color: colors.textSecondary }]}
+          >
             {unit}
           </Text>
         </View>
@@ -183,14 +212,14 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     if (value) {
-      const [year, month, day] = value.split('-').map(Number);
+      const [year, month, day] = value.split("-").map(Number);
       return new Date(year, month - 1, day);
     }
     return new Date(1990, 0, 1);
   });
 
   const handleDateChange = (event: any, date?: Date) => {
-    setShowPicker(Platform.OS === 'ios');
+    setShowPicker(Platform.OS === "ios");
     if (date) {
       setSelectedDate(date);
       onChange(date);
@@ -199,7 +228,12 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
 
   return (
     <View style={styles.dateInputContainer}>
-      <View style={[styles.dateIconContainer, { backgroundColor: C.primary + '15' }]}>
+      <View
+        style={[
+          styles.dateIconContainer,
+          { backgroundColor: C.primary + "15" },
+        ]}
+      >
         <Feather name="calendar" size={18} color={C.primary} />
       </View>
 
@@ -207,8 +241,9 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
         style={[
           styles.dateInputWrapper,
           {
-            backgroundColor: colors.background,
-            borderColor: colors.divider,
+            backgroundColor: colors.authInputBg,
+            borderColor: colors.authInputBorder,
+            borderWidth: 1,
           },
         ]}
         onPress={() => setShowPicker(true)}
@@ -220,7 +255,7 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
             { color: value ? colors.text : colors.textSecondary },
           ]}
         >
-          {value || 'Select date'}
+          {value || "Select date"}
         </Text>
         <Feather name="chevron-down" size={18} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -229,7 +264,7 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
         <DateTimePicker
           value={selectedDate}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={handleDateChange}
           maximumDate={new Date()}
           minimumDate={new Date(1900, 0, 1)}
@@ -240,62 +275,70 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
 };
 
 export default function EditBodyInfoScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
   const navigation = useNavigation<EditBodyInfoNavigationProp>();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
+  const isDarkMode = theme === "dark";
+  const insets = useSafeAreaInsets();
   const { user, token, updateUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const [gender, setGender] = useState<'male' | 'female' | ''>('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [height, setHeight] = useState('');
-  const [weight, setWeight] = useState('');
-  const [bodyFatPercentage, setBodyFatPercentage] = useState('');
+  const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [bodyFatPercentage, setBodyFatPercentage] = useState("");
   const [fitnessGoal, setFitnessGoal] = useState<
-    'weight_loss' | 'muscle_gain' | 'maintenance' | ''
-  >('');
+    "weight_loss" | "muscle_gain" | "maintenance" | ""
+  >("");
   const [activityLevel, setActivityLevel] = useState<
-    'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extra_active' | ''
-  >('');
+    | "sedentary"
+    | "lightly_active"
+    | "moderately_active"
+    | "very_active"
+    | "extra_active"
+    | ""
+  >("");
 
   useEffect(() => {
     if (user) {
       const userGender = user.gender;
-      if (userGender === 'male' || userGender === 'female') {
+      if (userGender === "male" || userGender === "female") {
         setGender(userGender);
       } else {
-        setGender('');
+        setGender("");
       }
 
-      setDateOfBirth(user.dateOfBirth || '');
-      setHeight(user.height?.toString() || '');
-      setWeight(user.weight?.toString() || '');
-      setBodyFatPercentage(user.bodyFatPercentage?.toString() || '');
-      setFitnessGoal(user.fitnessGoal || '');
-      setActivityLevel(user.activityLevel || '');
+      setDateOfBirth(user.dateOfBirth || "");
+      setHeight(user.height?.toString() || "");
+      setWeight(user.weight?.toString() || "");
+      setBodyFatPercentage(user.bodyFatPercentage?.toString() || "");
+      setFitnessGoal(user.fitnessGoal || "");
+      setActivityLevel(user.activityLevel || "");
     }
   }, [user]);
 
   const handleSave = async () => {
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'Authentication token not found',
+        title: "Authentication Error",
+        message: "Authentication token not found",
       });
       return;
     }
 
     if (height && (isNaN(parseFloat(height)) || parseFloat(height) <= 0)) {
       showErrorToast({
-        title: 'Invalid Height',
-        message: 'Please enter a valid height',
+        title: "Invalid Height",
+        message: "Please enter a valid height",
       });
       return;
     }
 
     if (weight && (isNaN(parseFloat(weight)) || parseFloat(weight) <= 0)) {
       showErrorToast({
-        title: 'Invalid Weight',
-        message: 'Please enter a valid weight',
+        title: "Invalid Weight",
+        message: "Please enter a valid weight",
       });
       return;
     }
@@ -307,8 +350,8 @@ export default function EditBodyInfoScreen() {
         parseFloat(bodyFatPercentage) > 100)
     ) {
       showErrorToast({
-        title: 'Invalid Body Fat',
-        message: 'Body fat percentage must be between 0 and 100',
+        title: "Invalid Body Fat",
+        message: "Body fat percentage must be between 0 and 100",
       });
       return;
     }
@@ -343,21 +386,24 @@ export default function EditBodyInfoScreen() {
 
       if (Object.keys(updateData).length === 0) {
         showInfoToast({
-          title: 'No Changes',
-          message: 'There are no changes to save',
+          title: "No Changes",
+          message: "There are no changes to save",
         });
         return;
       }
 
-      const response = await userService.updateBodyInformation(updateData, token);
+      const response = await userService.updateBodyInformation(
+        updateData,
+        token,
+      );
 
       if (response.data && user) {
         updateUser({ ...user, ...response.data });
       }
 
       showSuccessToast({
-        title: 'Body Info Updated',
-        message: 'Your body information has been updated successfully',
+        title: "Body Info Updated",
+        message: "Your body information has been updated successfully",
       });
 
       setTimeout(() => {
@@ -365,8 +411,8 @@ export default function EditBodyInfoScreen() {
       }, 900);
     } catch (error: unknown) {
       showErrorToast({
-        title: 'Update Failed',
-        message: getErrorMessage(error) || 'Failed to update body information',
+        title: "Update Failed",
+        message: getErrorMessage(error) || "Failed to update body information",
       });
     } finally {
       setIsLoading(false);
@@ -379,19 +425,65 @@ export default function EditBodyInfoScreen() {
     if (!h || !w || h <= 0 || w <= 0) return null;
 
     const bmi = w / Math.pow(h / 100, 2);
-    if (bmi < 18.5) return { label: 'Underweight', color: C.warning };
-    if (bmi < 25) return { label: 'Normal', color: C.success };
-    if (bmi < 30) return { label: 'Overweight', color: C.warning };
-    return { label: 'Obese', color: C.error };
+    if (bmi < 18.5) return { label: "Underweight", color: C.warning };
+    if (bmi < 25) return { label: "Normal", color: C.success };
+    if (bmi < 30) return { label: "Overweight", color: C.warning };
+    return { label: "Obese", color: C.error };
   };
 
   const bmiCategory = getBMICategory();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={(colors as any).authBgGradient || colors.bgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        {/* Decorative Circles */}
+        <View
+          style={[
+            styles.decorativeCircle1,
+            {
+              backgroundColor:
+                (colors as any).authCircle1 || "rgba(255,255,255,0.05)",
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorativeCircle2,
+            {
+              backgroundColor:
+                (colors as any).authCircle2 || "rgba(255,255,255,0.05)",
+            },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorativeCircle3,
+            {
+              backgroundColor:
+                (colors as any).authCircle3 || "rgba(255,255,255,0.05)",
+            },
+          ]}
+        />
+      </LinearGradient>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+      <View
+        style={[
+          styles.header,
+          {
+            borderBottomColor: colors.divider,
+            paddingTop: Math.max(insets.top + 16, 16),
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
@@ -399,7 +491,9 @@ export default function EditBodyInfoScreen() {
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Edit Body Info
           </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          <Text
+            style={[styles.headerSubtitle, { color: colors.textSecondary }]}
+          >
             Update your fitness profile
           </Text>
         </View>
@@ -407,276 +501,343 @@ export default function EditBodyInfoScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
-        {/* Personal Details Section */}
-        <SectionCard
-          title="Personal Details"
-          icon={<Feather name="user" size={20} color={C.primary} />}
+        <ScrollView
+          ref={scrollViewRef}
+          automaticallyAdjustKeyboardInsets={true}
+          style={styles.content}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: Math.max(insets.bottom + 24, 60),
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            Gender
-          </Text>
-
-          <View style={styles.genderRow}>
-            <OptionChip
-              label="Male"
-              selected={gender === 'male'}
-              onPress={() => setGender('male')}
-              color={C.male}
-              icon={
-                <Ionicons
-                  name="male"
-                  size={18}
-                  color={gender === 'male' ? '#FFF' : C.male}
-                />
-              }
-            />
-            <OptionChip
-              label="Female"
-              selected={gender === 'female'}
-              onPress={() => setGender('female')}
-              color={C.female}
-              icon={
-                <Ionicons
-                  name="female"
-                  size={18}
-                  color={gender === 'female' ? '#FFF' : C.female}
-                />
-              }
-            />
-          </View>
-
-          <View style={styles.inputSpacer} />
-
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            Date of Birth
-          </Text>
-
-          <DateInput
-            value={dateOfBirth}
-            onChange={(date) => {
-              const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const day = String(date.getDate()).padStart(2, '0');
-              setDateOfBirth(`${year}-${month}-${day}`);
-            }}
-          />
-        </SectionCard>
-
-        {/* Body Measurements Section */}
-        <SectionCard
-          title="Body Measurements"
-          icon={<MaterialIcons name="straighten" size={20} color={C.primary} />}
-        >
-          <MeasurementInput
-            label="Height"
-            value={height}
-            onChangeText={setHeight}
-            unit="cm"
-            icon={<MaterialIcons name="height" size={18} color={C.primary} />}
-            placeholder="170"
-          />
-
-          <View style={styles.inputSpacer} />
-
-          <MeasurementInput
-            label="Weight"
-            value={weight}
-            onChangeText={setWeight}
-            unit="kg"
-            icon={
-              <MaterialIcons
-                name="monitor-weight"
-                size={18}
-                color={C.primary}
-              />
-            }
-            placeholder="70"
-          />
-
-          {bmiCategory && (
-            <View
-              style={[
-                styles.bmiPreview,
-                {
-                  backgroundColor: bmiCategory.color + '15',
-                  borderColor: bmiCategory.color + '30',
-                },
-              ]}
+          {/* Personal Details Section */}
+          <SectionCard
+            title="Personal Details"
+            icon={<Feather name="user" size={20} color={C.primary} />}
+          >
+            <Text
+              style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              <View
-                style={[styles.bmiDot, { backgroundColor: bmiCategory.color }]}
+              Gender
+            </Text>
+
+            <View style={styles.genderRow}>
+              <OptionChip
+                label="Male"
+                selected={gender === "male"}
+                onPress={() => setGender("male")}
+                color={C.male}
+                icon={
+                  <Ionicons
+                    name="male"
+                    size={18}
+                    color={gender === "male" ? "#FFF" : C.male}
+                  />
+                }
               />
-              <Text style={[styles.bmiPreviewText, { color: colors.text }]}>
-                Your BMI indicates you are{' '}
-                <Text style={{ color: bmiCategory.color, fontWeight: '700' }}>
-                  {bmiCategory.label}
-                </Text>
-              </Text>
+              <OptionChip
+                label="Female"
+                selected={gender === "female"}
+                onPress={() => setGender("female")}
+                color={C.female}
+                icon={
+                  <Ionicons
+                    name="female"
+                    size={18}
+                    color={gender === "female" ? "#FFF" : C.female}
+                  />
+                }
+              />
             </View>
-          )}
 
-          <View style={styles.inputSpacer} />
+            <View style={styles.inputSpacer} />
 
-          <MeasurementInput
-            label="Body Fat"
-            value={bodyFatPercentage}
-            onChangeText={setBodyFatPercentage}
-            unit="%"
-            icon={
-              <MaterialIcons
-                name="fitness-center"
-                size={18}
-                color={C.primary}
-              />
-            }
-            placeholder="15"
-          />
-        </SectionCard>
-
-        {/* Fitness Profile Section */}
-        <SectionCard
-          title="Fitness Profile"
-          icon={<Ionicons name="fitness" size={20} color={C.primary} />}
-        >
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            Fitness Goal
-          </Text>
-
-          <View style={styles.goalsContainer}>
-            <OptionChip
-              label="Weight Loss"
-              selected={fitnessGoal === 'weight_loss'}
-              onPress={() => setFitnessGoal('weight_loss')}
-              icon={
-                <Feather
-                  name="trending-down"
-                  size={16}
-                  color={fitnessGoal === 'weight_loss' ? '#FFF' : C.primary}
-                />
-              }
-            />
-            <OptionChip
-              label="Muscle Gain"
-              selected={fitnessGoal === 'muscle_gain'}
-              onPress={() => setFitnessGoal('muscle_gain')}
-              icon={
-                <Feather
-                  name="activity"
-                  size={16}
-                  color={fitnessGoal === 'muscle_gain' ? '#FFF' : C.primary}
-                />
-              }
-            />
-            <OptionChip
-              label="Maintenance"
-              selected={fitnessGoal === 'maintenance'}
-              onPress={() => setFitnessGoal('maintenance')}
-              icon={
-                <Feather
-                  name="heart"
-                  size={16}
-                  color={fitnessGoal === 'maintenance' ? '#FFF' : C.primary}
-                />
-              }
-            />
-          </View>
-
-          <View style={styles.inputSpacer} />
-
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            Activity Level
-          </Text>
-
-          <View style={styles.activityContainer}>
-            <OptionChip
-              label="Sedentary"
-              selected={activityLevel === 'sedentary'}
-              onPress={() => setActivityLevel('sedentary')}
-            />
-            <OptionChip
-              label="Light"
-              selected={activityLevel === 'lightly_active'}
-              onPress={() => setActivityLevel('lightly_active')}
-            />
-            <OptionChip
-              label="Moderate"
-              selected={activityLevel === 'moderately_active'}
-              onPress={() => setActivityLevel('moderately_active')}
-            />
-            <OptionChip
-              label="Active"
-              selected={activityLevel === 'very_active'}
-              onPress={() => setActivityLevel('very_active')}
-            />
-            <OptionChip
-              label="Extra"
-              selected={activityLevel === 'extra_active'}
-              onPress={() => setActivityLevel('extra_active')}
-            />
-          </View>
-
-          {activityLevel && (
-            <View
-              style={[
-                styles.activityDescription,
-                { backgroundColor: colors.iconBg },
-              ]}
+            <Text
+              style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              <Text
+              Date of Birth
+            </Text>
+
+            <DateInput
+              value={dateOfBirth}
+              onChange={(date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, "0");
+                const day = String(date.getDate()).padStart(2, "0");
+                setDateOfBirth(`${year}-${month}-${day}`);
+              }}
+            />
+          </SectionCard>
+
+          {/* Body Measurements Section */}
+          <SectionCard
+            title="Body Measurements"
+            icon={
+              <MaterialIcons name="straighten" size={20} color={C.primary} />
+            }
+          >
+            <MeasurementInput
+              label="Height"
+              value={height}
+              onChangeText={setHeight}
+              unit="cm"
+              icon={<MaterialIcons name="height" size={18} color={C.primary} />}
+              placeholder="170"
+              onFocus={() =>
+                setTimeout(
+                  () =>
+                    scrollViewRef.current?.scrollTo({ y: 150, animated: true }),
+                  150,
+                )
+              }
+            />
+
+            <View style={styles.inputSpacer} />
+
+            <MeasurementInput
+              label="Weight"
+              value={weight}
+              onChangeText={setWeight}
+              unit="kg"
+              icon={
+                <MaterialIcons
+                  name="monitor-weight"
+                  size={18}
+                  color={C.primary}
+                />
+              }
+              placeholder="70"
+              onFocus={() =>
+                setTimeout(
+                  () =>
+                    scrollViewRef.current?.scrollTo({ y: 250, animated: true }),
+                  150,
+                )
+              }
+            />
+
+            {bmiCategory && (
+              <View
                 style={[
-                  styles.activityDescriptionText,
-                  { color: colors.textSecondary },
+                  styles.bmiPreview,
+                  {
+                    backgroundColor: bmiCategory.color + "15",
+                    borderColor: bmiCategory.color + "30",
+                  },
                 ]}
               >
-                {activityLevel === 'sedentary' &&
-                  'Little to no exercise, desk job'}
-                {activityLevel === 'lightly_active' &&
-                  'Light exercise 1-3 days/week'}
-                {activityLevel === 'moderately_active' &&
-                  'Moderate exercise 3-5 days/week'}
-                {activityLevel === 'very_active' &&
-                  'Hard exercise 6-7 days/week'}
-                {activityLevel === 'extra_active' &&
-                  'Very hard exercise, physical job'}
-              </Text>
-            </View>
-          )}
-        </SectionCard>
-
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          {isLoading ? (
-            <ActivityIndicator size="large" color={C.primary} />
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.cancelButton, { borderColor: colors.divider }]}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>
-                  Cancel
+                <View
+                  style={[
+                    styles.bmiDot,
+                    { backgroundColor: bmiCategory.color },
+                  ]}
+                />
+                <Text style={[styles.bmiPreviewText, { color: colors.text }]}>
+                  Your BMI indicates you are{" "}
+                  <Text style={{ color: bmiCategory.color, fontWeight: "700" }}>
+                    {bmiCategory.label}
+                  </Text>
                 </Text>
-              </TouchableOpacity>
+              </View>
+            )}
 
-              <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: C.primary }]}
-                onPress={handleSave}
-                activeOpacity={0.8}
+            <View style={styles.inputSpacer} />
+
+            <MeasurementInput
+              label="Body Fat"
+              value={bodyFatPercentage}
+              onChangeText={setBodyFatPercentage}
+              unit="%"
+              icon={
+                <MaterialIcons
+                  name="fitness-center"
+                  size={18}
+                  color={C.primary}
+                />
+              }
+              placeholder="15"
+              onFocus={() =>
+                setTimeout(
+                  () =>
+                    scrollViewRef.current?.scrollTo({ y: 350, animated: true }),
+                  150,
+                )
+              }
+            />
+          </SectionCard>
+
+          {/* Fitness Profile Section */}
+          <SectionCard
+            title="Fitness Profile"
+            icon={<Ionicons name="fitness" size={20} color={C.primary} />}
+          >
+            <Text
+              style={[styles.sectionLabel, { color: colors.textSecondary }]}
+            >
+              Fitness Goal
+            </Text>
+
+            <View style={styles.goalsContainer}>
+              <OptionChip
+                label="Weight Loss"
+                selected={fitnessGoal === "weight_loss"}
+                onPress={() => setFitnessGoal("weight_loss")}
+                icon={
+                  <Feather
+                    name="trending-down"
+                    size={16}
+                    color={fitnessGoal === "weight_loss" ? "#FFF" : C.primary}
+                  />
+                }
+              />
+              <OptionChip
+                label="Muscle Gain"
+                selected={fitnessGoal === "muscle_gain"}
+                onPress={() => setFitnessGoal("muscle_gain")}
+                icon={
+                  <Feather
+                    name="activity"
+                    size={16}
+                    color={fitnessGoal === "muscle_gain" ? "#FFF" : C.primary}
+                  />
+                }
+              />
+              <OptionChip
+                label="Maintenance"
+                selected={fitnessGoal === "maintenance"}
+                onPress={() => setFitnessGoal("maintenance")}
+                icon={
+                  <Feather
+                    name="heart"
+                    size={16}
+                    color={fitnessGoal === "maintenance" ? "#FFF" : C.primary}
+                  />
+                }
+              />
+            </View>
+
+            <View style={styles.inputSpacer} />
+
+            <Text
+              style={[styles.sectionLabel, { color: colors.textSecondary }]}
+            >
+              Activity Level
+            </Text>
+
+            <View style={styles.activityContainer}>
+              <OptionChip
+                label="Sedentary"
+                selected={activityLevel === "sedentary"}
+                onPress={() => setActivityLevel("sedentary")}
+              />
+              <OptionChip
+                label="Light"
+                selected={activityLevel === "lightly_active"}
+                onPress={() => setActivityLevel("lightly_active")}
+              />
+              <OptionChip
+                label="Moderate"
+                selected={activityLevel === "moderately_active"}
+                onPress={() => setActivityLevel("moderately_active")}
+              />
+              <OptionChip
+                label="Active"
+                selected={activityLevel === "very_active"}
+                onPress={() => setActivityLevel("very_active")}
+              />
+              <OptionChip
+                label="Extra"
+                selected={activityLevel === "extra_active"}
+                onPress={() => setActivityLevel("extra_active")}
+              />
+            </View>
+
+            {activityLevel && (
+              <View
+                style={[
+                  styles.activityDescription,
+                  { backgroundColor: colors.iconBg },
+                ]}
               >
-                <Feather name="check" size={20} color="#FFF" />
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+                <Text
+                  style={[
+                    styles.activityDescriptionText,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {activityLevel === "sedentary" &&
+                    "Little to no exercise, desk job"}
+                  {activityLevel === "lightly_active" &&
+                    "Light exercise 1-3 days/week"}
+                  {activityLevel === "moderately_active" &&
+                    "Moderate exercise 3-5 days/week"}
+                  {activityLevel === "very_active" &&
+                    "Hard exercise 6-7 days/week"}
+                  {activityLevel === "extra_active" &&
+                    "Very hard exercise, physical job"}
+                </Text>
+              </View>
+            )}
+          </SectionCard>
 
-        <View style={{ height: 20 }} />
-      </ScrollView>
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color={C.primary} />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.cancelButton,
+                    {
+                      backgroundColor: colors.authCardBg,
+                      borderColor: colors.authCardBorder,
+                    },
+                  ]}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[styles.cancelButtonText, { color: colors.text }]}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSave}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={[
+                      colors.primary,
+                      (colors as any).secondary || colors.primary,
+                    ]}
+                    style={styles.saveButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Feather name="check" size={20} color="#FFFFFF" />
+                    <Text style={[styles.saveButtonText, { color: "#FFFFFF" }]}>
+                      Save Changes
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -686,11 +847,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
     paddingBottom: 16,
     borderBottomWidth: 1,
   },
@@ -698,15 +858,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitleContainer: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: -0.5,
   },
   headerSubtitle: {
@@ -720,50 +880,48 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sectionCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 4,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   sectionIcon: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   sectionContent: {
     marginLeft: 48,
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '500',
-    textTransform: 'uppercase',
+    fontWeight: "500",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,
   },
   genderRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   optionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 25,
@@ -775,28 +933,28 @@ const styles = StyleSheet.create({
   },
   optionChipText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   inputSpacer: {
     height: 16,
   },
   dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   dateIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   dateInputWrapper: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -809,25 +967,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   measurementLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   measurementIcon: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
   },
   measurementLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   measurementInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -846,11 +1004,11 @@ const styles = StyleSheet.create({
   },
   measurementUnit: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   bmiPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 12,
     marginTop: 12,
@@ -866,13 +1024,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   goalsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   activityContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   activityDescription: {
@@ -882,11 +1040,11 @@ const styles = StyleSheet.create({
   },
   activityDescriptionText: {
     fontSize: 13,
-    textAlign: 'center',
+    textAlign: "center",
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 8,
     gap: 12,
   },
@@ -895,30 +1053,58 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   saveButton: {
     flex: 1,
     height: 52,
     borderRadius: 26,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: C.primary,
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
+  saveButtonGradient: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+  },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: "700",
+  },
+  decorativeCircle1: {
+    position: "absolute",
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: "absolute",
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: "absolute",
+    top: "30%",
+    left: "-20%",
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
 });

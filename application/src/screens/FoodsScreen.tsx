@@ -15,11 +15,16 @@ import {
   Dimensions,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Feather';
 import Ion from 'react-native-vector-icons/Ionicons';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { foodService } from '../services/api';
 import type { FoodPredictionResponse } from '../services/api';
 import {
@@ -42,31 +47,52 @@ function getNavBarInfo(): { height: number; isGestureMode: boolean } {
 
 export default function FoodsScreen() {
   const { theme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
+  const isThreeButtonNav = systemBottomInset > 24;
+  const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
+
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<FoodPredictionResponse | null>(null);
-  const slideAnim = useState(new Animated.Value(0))[0];
+
+  const imageOptionsSheetRef = React.useRef<BottomSheetModal>(null);
 
   const { height: navBarHeight, isGestureMode } = getNavBarInfo();
   const sheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
 
+  const sheetBackground = React.useMemo(
+    () => ({ backgroundColor: sheetBg }),
+    [sheetBg]
+  );
+  
+  const handleIndicatorStyle = React.useMemo(
+    () => ({ backgroundColor: colors.divider ?? '#C0C0C0', width: 40, height: 4 }),
+    [colors.divider]
+  );
+
+  const renderBackdrop = React.useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
   // ─── Sheet animation ───────────────────────────────────────────────────────
-  const openSheet = () => {
-    setModalVisible(true);
-    Animated.timing(slideAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-  };
+  const openSheet = React.useCallback(() => {
+    imageOptionsSheetRef.current?.present();
+  }, []);
 
-  const closeSheet = () => {
-    Animated.timing(slideAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() =>
-      setModalVisible(false)
-    );
-  };
-
-  const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [300, 0],
-  });
+  const closeSheet = React.useCallback(() => {
+    imageOptionsSheetRef.current?.dismiss();
+  }, []);
 
   // ─── Food prediction ───────────────────────────────────────────────────────
   const predictFood = async (imageUri: string) => {
@@ -211,8 +237,24 @@ export default function FoodsScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Animated Gradient Background matches SignIn */}
+      <LinearGradient
+        colors={colors.authBgGradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
+
+      <ScrollView 
+        style={[styles.container, { paddingTop: insets.top }]}
+        contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }} // Spacer for floating nav
+      >
+        <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>🍎 Food Recognition</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           AI-powered food identification
@@ -232,7 +274,7 @@ export default function FoodsScreen() {
             <View
               style={[
                 styles.predictionCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
+                { backgroundColor: colors.authInputBg || colors.card, borderColor: colors.authInputBorder || colors.border },
               ]}
             >
               <Text style={[styles.foodName, { color: colors.primary }]}>
@@ -257,7 +299,7 @@ export default function FoodsScreen() {
                     key={n.label}
                     style={[
                       styles.nutritionItem,
-                      { backgroundColor: colors.background, borderColor: colors.border },
+                      { backgroundColor: colors.authInputBg || colors.background, borderColor: colors.authInputBorder || colors.border },
                     ]}
                   >
                     <Text style={[styles.nutritionLabel, { color: colors.textSecondary }]}>
@@ -289,7 +331,7 @@ export default function FoodsScreen() {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.scanCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+            style={[styles.scanCard, { backgroundColor: colors.authInputBg || colors.card, borderColor: colors.authInputBorder || colors.primary }]}
             onPress={openSheet}
           >
             <Icon name="camera" size={48} color={colors.primary} />
@@ -300,64 +342,52 @@ export default function FoodsScreen() {
           </TouchableOpacity>
         )}
       </View>
+      </ScrollView>
 
       {/* ── Bottom Sheet Modal ── */}
-      <Modal
-        transparent
-        visible={modalVisible}
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={closeSheet}
+      <BottomSheetModal
+        ref={imageOptionsSheetRef}
+        index={0}
+        enableDynamicSizing={true}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={sheetBackground}
+        handleIndicatorStyle={handleIndicatorStyle}
+        enablePanDownToClose
       >
-        <View style={styles.modalRoot}>
-          <TouchableWithoutFeedback onPress={closeSheet}>
-            <View style={styles.overlay} />
-          </TouchableWithoutFeedback>
+        <BottomSheetView style={[{ paddingBottom: Math.max(30, systemBottomInset + 4) }]}>
+          <View style={{ paddingTop: 10 }}>
+            <TouchableOpacity style={styles.option} onPress={openCamera} activeOpacity={0.7}>
+              <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
+                <Icon name="camera" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: colors.text }]}>Take Photo</Text>
+            </TouchableOpacity>
 
-          <View style={styles.sheetWrapper}>
-            <Animated.View
-              style={[
-                styles.sheet,
-                { backgroundColor: sheetBg, transform: [{ translateY }] },
-              ]}
-            >
-              <View style={[styles.handle, { backgroundColor: colors.divider ?? '#C0C0C0' }]} />
+            <TouchableOpacity style={styles.option} onPress={openGallery} activeOpacity={0.7}>
+              <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
+                <Ion name="images-outline" size={22} color={colors.primary} />
+              </View>
+              <Text style={[styles.optionText, { color: colors.text }]}>
+                Choose from Gallery
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity style={styles.option} onPress={openCamera} activeOpacity={0.7}>
-                <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
-                  <Icon name="camera" size={22} color={colors.primary} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.text }]}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.option} onPress={openGallery} activeOpacity={0.7}>
-                <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
-                  <Ion name="images-outline" size={22} color={colors.primary} />
-                </View>
-                <Text style={[styles.optionText, { color: colors.text }]}>
-                  Choose from Gallery
-                </Text>
-              </TouchableOpacity>
-
-              <View style={[styles.divider, { backgroundColor: colors.divider ?? colors.border }]} />
-              <TouchableOpacity style={styles.cancelBtn} onPress={closeSheet}>
-                <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Button nav: solid black filler. Gesture nav: not rendered */}
-            {!isGestureMode && (
-              <View style={{ width: '100%', height: navBarHeight, backgroundColor: '#000000' }} />
-            )}
+            <View style={[styles.divider, { backgroundColor: colors.divider ?? colors.border }]} />
+            <TouchableOpacity style={styles.cancelBtn} onPress={closeSheet}>
+              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </BottomSheetView>
+      </BottomSheetModal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  decorativeCircle1: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125 },
+  decorativeCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100 },
+  decorativeCircle3: { position: 'absolute', top: '30%', left: '-20%', width: 150, height: 150, borderRadius: 75 },
   content: { padding: SIZES.lg },
   title: { fontSize: SIZES.h1, fontWeight: 'bold', marginBottom: SIZES.sm },
   subtitle: { fontSize: SIZES.body, marginBottom: SIZES.xl },

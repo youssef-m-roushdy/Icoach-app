@@ -8,6 +8,7 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import i18n from './i18n/i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 import './i18n/i18n';
 import { StyleSheet, ActivityIndicator, View, Platform } from 'react-native';
@@ -89,7 +90,9 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <ThemeProvider>
-            <AppContent />
+            <BottomSheetModalProvider>
+              <AppContent />
+            </BottomSheetModalProvider>
           </ThemeProvider>
         </AuthProvider>
       </SafeAreaProvider>

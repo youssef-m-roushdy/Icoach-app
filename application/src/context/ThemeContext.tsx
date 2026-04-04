@@ -7,7 +7,7 @@ export type ThemeType = 'dark' | 'light';
 
 export interface ThemeColors {
   background: string;
-  bgGradient: string[];
+  bgGradient: readonly [string, string, ...string[]];
   primary: string;
   secondary: string;
   text: string;
@@ -36,6 +36,17 @@ export interface ThemeColors {
   statBorder: string;
   error: string;
   placeholder: string;
+  // Auth Screen specific colors
+  authBgGradient: readonly [string, string, ...string[]];
+  authCardBg: string;
+  authCardBorder: string;
+  authInputBg: string;
+  authInputBgFocused: string;
+  authInputBorder: string;
+  authInputBorderFocused: string;
+  authCircle1: string;
+  authCircle2: string;
+  authCircle3: string;
 }
 
 interface ThemeContextType {
@@ -74,6 +85,17 @@ const darkTheme: ThemeColors = {
   statBorder: 'rgba(255, 255, 255, 0.15)',
   error: '#FF6B6B',
   placeholder: '#888',
+  // Auth Dark Mode properties
+  authBgGradient: ['#121212', '#1a1a1a', '#080808'],
+  authCardBg: 'rgba(45, 45, 45, 0.95)',
+  authCardBorder: 'rgba(255, 215, 0, 0.35)',
+  authInputBg: 'rgba(60, 60, 60, 0.95)',
+  authInputBgFocused: 'rgba(255, 215, 0, 0.08)',
+  authInputBorder: 'rgba(255, 215, 0, 0.25)',
+  authInputBorderFocused: '#FFD700',
+  authCircle1: 'rgba(255, 215, 0, 0.15)',
+  authCircle2: 'rgba(255, 225, 0, 0.1)',
+  authCircle3: 'rgba(255, 245, 100, 0.08)',
 };
 
 const lightTheme: ThemeColors = {
@@ -106,6 +128,17 @@ const lightTheme: ThemeColors = {
   statBorder: '#EDE5D8',
   error: '#FF6B6B',
   placeholder: '#9A8A72',
+  // Auth Light Mode properties
+  authBgGradient: ['#fdfdfc', '#f7f5ef', '#ebe5d8'],
+  authCardBg: 'rgba(255, 255, 255, 0.98)',
+  authCardBorder: 'rgba(184, 134, 11, 0.15)',
+  authInputBg: '#FFFFFF',
+  authInputBgFocused: 'rgba(218, 165, 32, 0.02)',
+  authInputBorder: 'rgba(184, 134, 11, 0.1)',
+  authInputBorderFocused: '#C5981B',
+  authCircle1: 'rgba(255, 215, 0, 0.15)',
+  authCircle2: 'rgba(255, 215, 0, 0.1)',
+  authCircle3: 'rgba(255, 215, 0, 0.08)',
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   StyleSheet,
@@ -8,8 +8,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
-  Animated,
-  Easing,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import { LanguageSelector } from '../components/common';
 import { useTheme } from '../context/ThemeContext';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -35,36 +34,67 @@ const FEATURES = [
   { icon: 'chart-line' as const, label: 'Progress' },
 ];
 
-// Each orbit icon: angle in degrees (0=top, clockwise), orbit radius, bob phase offset, color
+// Icons can be positioned totally independent of each other now
+// Positive offsetX moves right, negative moves left
+// Positive offsetY moves down, negative moves up
 const ORBIT_ICONS = [
   {
     icon: 'heart-pulse' as const,
     type: 'mci',
-    angleDeg: 45,
+    offsetX: 20,   // Customize this directly
+    offsetY: -95, // Customize this directly
     color: { light: '#E45A5A', dark: '#FF6B6B' },
   },
   {
-    icon: 'lightning-bolt' as const,
+    icon: 'robot-outline' as const,
     type: 'mci',
-    angleDeg: 135,
-    color: { light: '#C5981B', dark: '#FFD700' },
+    offsetX: 130,
+    offsetY: -20,
+    color: { light: '#9C27B0', dark: '#AB47BC' },
   },
   {
     icon: 'trophy' as const,
     type: 'mci',
-    angleDeg: 225,
+    offsetX: 115,
+    offsetY: 90,
     color: { light: '#E8A317', dark: '#FFD700' },
   },
   {
     icon: 'nutrition' as const,
     type: 'ion',
-    angleDeg: 315,
+    offsetX: 25,
+    offsetY: 135,
     color: { light: '#4CAF50', dark: '#66BB6A' },
+  },
+  {
+    icon: 'chart-line' as const,
+    type: 'mci',
+    offsetX: -75,
+    offsetY: 80,
+    color: { light: '#2196F3', dark: '#42A5F5' },
+  },
+  {
+    icon: 'lightning-bolt' as const,
+    type: 'mci',
+    offsetX: -80,
+    offsetY: -30,
+    color: { light: '#C5981B', dark: '#FFD700' },
   },
 ];
 
-const HERO_SIZE = SCREEN_WIDTH * 0.30;
-const ORBIT_RADIUS = HERO_SIZE * 0.88;
+// Hero center circle
+const HERO_SIZE = SCREEN_WIDTH * 0.28;
+
+// Outer ring — tight enough so icons stay fully on screen
+// Keep it well within screen width (screen - padding on each side)
+const OUTER_RING_RADIUS = SCREEN_WIDTH * 0.30;
+const OUTER_RING_SIZE = OUTER_RING_RADIUS * 2;
+
+// Inner ring — sits between center and outer
+const INNER_RING_RADIUS = SCREEN_WIDTH * 0.20;
+const INNER_RING_SIZE = INNER_RING_RADIUS * 2;
+
+const ICON_SIZE = 42;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
@@ -72,125 +102,28 @@ export default function WelcomeScreen() {
   const { t } = useTranslation();
   const isLight = theme === 'light';
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
 
-  // ── Animations ──────────────────────────────────────────────────────────────
-
-  // 1. Orbit rotation (full 360° over ~9s)
-  const orbitRotation = useRef(new Animated.Value(0)).current;
-
-  // 2. Sun pulse: scale + opacity breathing for the glow rings
-  const sunPulse = useRef(new Animated.Value(0)).current;
-
-  // 3. Per-icon radial pulse — each icon independently breathes closer/farther along its spoke
-  const radialPulses = useRef(ORBIT_ICONS.map(() => new Animated.Value(0))).current;
-
-  // 4. Hero icon entrance scale
-  const heroEntrance = useRef(new Animated.Value(0.72)).current;
-  const heroOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Entrance
-    Animated.parallel([
-      Animated.spring(heroEntrance, {
-        toValue: 1,
-        tension: 55,
-        friction: 9,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Continuous orbit spin
-    Animated.loop(
-      Animated.timing(orbitRotation, {
-        toValue: 1,
-        duration: 9000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Sun pulse loop
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(sunPulse, {
-          toValue: 1,
-          duration: 1800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sunPulse, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Per-icon radial pulse loops — staggered start delays so they move independently
-    const PULSE_DURATION = 2200;
-    radialPulses.forEach((anim, i) => {
-      const delay = i * 550; // stagger each icon by 550ms
-      setTimeout(() => {
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(anim, {
-              toValue: 1,
-              duration: PULSE_DURATION,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-            Animated.timing(anim, {
-              toValue: 0,
-              duration: PULSE_DURATION,
-              easing: Easing.inOut(Easing.sin),
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
-      }, delay);
-    });
-  }, []);
-
-  const orbitDeg = orbitRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // Sun glow inner ring
-  const sunScale1 = sunPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.22],
-  });
-  const sunOpacity1 = sunPulse.interpolate({
-    inputRange: [0, 0.4, 1],
-    outputRange: [0.55, 0.85, 0.3],
-  });
-
-  // Sun glow outer ring
-  const sunScale2 = sunPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.45],
-  });
-  const sunOpacity2 = sunPulse.interpolate({
-    inputRange: [0, 0.35, 1],
-    outputRange: [0.3, 0.5, 0.08],
-  });
-
-  // Hero icon micro-breathe
-  const heroBreath = sunPulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.04],
-  });
+  const handleGetStarted = () => {
+    navigation.navigate('SignIn');
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* ── Header ── */}
+
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
+
+      {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <Image
           source={require('../../assets/icon.png')}
@@ -200,6 +133,7 @@ export default function WelcomeScreen() {
           <TouchableOpacity
             style={[styles.themeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={toggleTheme}
+            activeOpacity={0.7}
           >
             <Ionicons
               name={isLight ? 'moon' : 'sunny'}
@@ -211,150 +145,106 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* ── Hero Section ── */}
+      {/* Hero Section */}
       <View style={styles.heroSection}>
 
-        {/* ── Sun glow rings (behind everything) ── */}
-        <Animated.View
-          pointerEvents="none"
+        {/* Outer ring — icons sit exactly on this */}
+        <View
           style={[
-            styles.sunGlow,
-            styles.sunGlowOuter,
+            styles.outerRing,
             {
-              backgroundColor: isLight ? colors.primary + '18' : colors.primary + '22',
-              transform: [{ scale: sunScale2 }],
-              opacity: sunOpacity2,
-            },
-          ]}
-        />
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.sunGlow,
-            styles.sunGlowInner,
-            {
-              backgroundColor: isLight ? colors.primary + '28' : colors.primary + '35',
-              transform: [{ scale: sunScale1 }],
-              opacity: sunOpacity1,
+              width: OUTER_RING_SIZE,
+              height: OUTER_RING_SIZE,
+              borderRadius: OUTER_RING_RADIUS,
+              borderColor: isLight ? colors.divider : colors.primary + '30',
             },
           ]}
         />
 
-        {/* ── Orbit track rings (static) ── */}
+        {/* Inner ring */}
         <View
           style={[
-            styles.ring,
-            styles.ringOuter,
-            { borderColor: isLight ? colors.divider : colors.primary + '18' },
-          ]}
-        />
-        <View
-          style={[
-            styles.ring,
-            styles.ringInner,
-            { borderColor: isLight ? colors.primary + '14' : colors.primary + '28' },
+            styles.innerRing,
+            {
+              width: INNER_RING_SIZE,
+              height: INNER_RING_SIZE,
+              borderRadius: INNER_RING_RADIUS,
+              borderColor: isLight ? colors.primary + '20' : colors.primary + '20',
+            },
           ]}
         />
 
-        {/* ── Spinning orbit container ── */}
-        <Animated.View
-          style={[
-            styles.orbitContainer,
-            { transform: [{ rotate: orbitDeg }] },
-          ]}
-        >
-        {ORBIT_ICONS.map((item, idx) => {
-            const angleRad = (item.angleDeg * Math.PI) / 180;
-            const cx = Math.sin(angleRad) * ORBIT_RADIUS;
-            const cy = -Math.cos(angleRad) * ORBIT_RADIUS;
+        {/* Icons — positioned manually relative to center */}
+        {ORBIT_ICONS.map((item) => {
+          return (
+            <View
+              key={item.icon}
+              style={[
+                styles.orbitIcon,
+                {
+                  backgroundColor: isLight ? colors.surface : colors.surfaceElevated,
+                  shadowColor: colors.shadow,
+                  transform: [
+                    { translateX: item.offsetX - ICON_SIZE / 2 },
+                    { translateY: item.offsetY - ICON_SIZE / 2 },
+                  ],
+                },
+              ]}
+            >
+              {item.type === 'mci' ? (
+                <MaterialCommunityIcons
+                  name={item.icon as any}
+                  size={18}
+                  color={isLight ? item.color.light : item.color.dark}
+                />
+              ) : (
+                <Ionicons
+                  name={item.icon as any}
+                  size={18}
+                  color={isLight ? item.color.light : item.color.dark}
+                />
+              )}
+            </View>
+          );
+        })}
 
-            // Radial pulse: 0 = pulled 10px toward center, 1 = pushed 10px away from center
-            // This keeps icons in a comfortable middle band — never too close, never too far
-            const RADIAL_RANGE = 10;
-            const radialX = radialPulses[idx].interpolate({
-              inputRange: [0, 1],
-              outputRange: [
-                -Math.sin(angleRad) * RADIAL_RANGE,  // toward center
-                Math.sin(angleRad) * RADIAL_RANGE,   // away from center
-              ],
-            });
-            const radialY = radialPulses[idx].interpolate({
-              inputRange: [0, 1],
-              outputRange: [
-                Math.cos(angleRad) * RADIAL_RANGE,   // toward center
-                -Math.cos(angleRad) * RADIAL_RANGE,  // away from center
-              ],
-            });
-
-            return (
-              <Animated.View
-                key={item.icon}
-                style={[
-                  styles.orbitIcon,
-                  {
-                    backgroundColor: isLight ? colors.surface : colors.surfaceElevated,
-                    shadowColor: colors.shadow,
-                    left: ORBIT_RADIUS + cx - 22,
-                    top: ORBIT_RADIUS + cy - 22,
-                    transform: [
-                      { rotate: orbitRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] }) },
-                      { translateX: radialX },
-                      { translateY: radialY },
-                    ],
-                  },
-                ]}
-              >
-                {item.type === 'mci' ? (
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={20}
-                    color={isLight ? item.color.light : item.color.dark}
-                  />
-                ) : (
-                  <Ionicons
-                    name={item.icon as any}
-                    size={20}
-                    color={isLight ? item.color.light : item.color.dark}
-                  />
-                )}
-              </Animated.View>
-            );
-          })}
-        </Animated.View>
-
-        {/* ── Center hero icon ── */}
-        <Animated.View
+        {/* Center hero icon */}
+        <LinearGradient
+          colors={isLight ? ['#C5981B', '#D4A527'] : ['#FFD700', '#C5981B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[
             styles.heroCircle,
             {
-              backgroundColor: isLight ? colors.statBg : colors.surface,
-              opacity: heroOpacity,
-              transform: [
-                { scale: Animated.multiply(heroEntrance, heroBreath) },
-              ],
+              width: HERO_SIZE * 0.8,
+              height: HERO_SIZE * 0.8,
+              borderRadius: (HERO_SIZE * 0.8) / 2,
+              shadowColor: colors.shadow,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+              elevation: 6,
             },
           ]}
         >
-          <LinearGradient
-            colors={isLight ? ['#C5981B', '#D4A527'] : ['#FFD700', '#C5981B']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroIconCircle}
-          >
-            <MaterialCommunityIcons name="arm-flex" size={52} color="#FFFFFF" />
-          </LinearGradient>
-        </Animated.View>
+          <MaterialCommunityIcons name="arm-flex" size={HERO_SIZE * 0.45} color="#FFFFFF" />
+        </LinearGradient>
 
       </View>
 
-      {/* ── Bottom Sheet ── */}
+      {/* Bottom Sheet */}
       <View
         style={[
           styles.bottomSheet,
           {
-            backgroundColor: isLight ? colors.surface : colors.background,
-            borderColor: isLight ? colors.cardBorder : colors.border + '30',
-            shadowColor: colors.shadow,
+            backgroundColor: colors.authCardBg,
+            borderColor: colors.authCardBorder,
+            shadowColor: '#000',
+            shadowOpacity: isLight ? 0.1 : 0.3,
+            shadowRadius: isLight ? 8 : 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: isLight ? 4 : 8,
+            paddingBottom: Math.max(Platform.OS === 'ios' ? 44 : 32, systemBottomInset + 20),
           },
         ]}
       >
@@ -377,12 +267,12 @@ export default function WelcomeScreen() {
               style={[
                 styles.featurePill,
                 {
-                  backgroundColor: isLight ? colors.statBg : colors.surface,
-                  borderColor: isLight ? colors.divider : colors.border + '30',
+                  backgroundColor: colors.authInputBg,
+                  borderColor: colors.authInputBorder,
                 },
               ]}
             >
-              <MaterialCommunityIcons name={f.icon} size={16} color={colors.primary} />
+              <MaterialCommunityIcons name={f.icon} size={15} color={colors.primary} />
               <Text style={[styles.featureLabel, { color: colors.text }]}>{f.label}</Text>
             </View>
           ))}
@@ -390,7 +280,7 @@ export default function WelcomeScreen() {
 
         <TouchableOpacity
           style={styles.ctaButton}
-          onPress={() => navigation.navigate('SignIn')}
+          onPress={handleGetStarted}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -414,12 +304,34 @@ export default function WelcomeScreen() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  // ── Header ──
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -438,101 +350,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  // ── Hero ──
   heroSection: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Sun glow layers (centered absolutely via negative margin)
-  sunGlow: {
+  outerRing: {
     position: 'absolute',
-    borderRadius: 9999,
-  },
-  sunGlowInner: {
-    width: HERO_SIZE * 1.1,
-    height: HERO_SIZE * 1.1,
-    marginLeft: -(HERO_SIZE * 1.1) / 2,
-    marginTop: -(HERO_SIZE * 1.1) / 2,
-    left: '50%',
-    top: '50%',
-  },
-  sunGlowOuter: {
-    width: HERO_SIZE * 1.65,
-    height: HERO_SIZE * 1.65,
-    marginLeft: -(HERO_SIZE * 1.65) / 2,
-    marginTop: -(HERO_SIZE * 1.65) / 2,
-    left: '50%',
-    top: '50%',
-  },
-
-  // Static decorative rings
-  ring: {
-    position: 'absolute',
-    borderRadius: 9999,
     borderWidth: 1,
   },
-  ringOuter: {
-    width: ORBIT_RADIUS * 2 + 44,
-    height: ORBIT_RADIUS * 2 + 44,
-  },
-  ringInner: {
-    width: ORBIT_RADIUS * 2 - 10,
-    height: ORBIT_RADIUS * 2 - 10,
-  },
 
-  // Orbit container — sized exactly to orbit diameter so icons can be
-  // positioned absolutely within it, then the whole View spins.
-  orbitContainer: {
+  innerRing: {
     position: 'absolute',
-    width: ORBIT_RADIUS * 2,
-    height: ORBIT_RADIUS * 2,
+    borderWidth: 1,
   },
 
-  // Individual orbit icons
   orbitIcon: {
     position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    borderRadius: ICON_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
-  // Center hero
   heroCircle: {
-    width: HERO_SIZE,
-    height: HERO_SIZE,
-    borderRadius: HERO_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroIconCircle: {
-    width: HERO_SIZE * 0.65,
-    height: HERO_SIZE * 0.65,
-    borderRadius: HERO_SIZE * 0.325,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // ── Bottom sheet ──
+  heroIconCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   bottomSheet: {
     paddingHorizontal: 28,
     paddingTop: 32,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     borderWidth: 1,
     borderBottomWidth: 0,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 8,
   },
   titleBlock: { alignItems: 'center', marginBottom: 24 },
   welcomeLabel: {

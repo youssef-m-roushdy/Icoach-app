@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import { useColorScheme, Image, Platform } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 
 // Screen imports
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -24,6 +25,8 @@ import WorkoutsScreen from '../screens/WorkoutsScreen';
 import LiveWorkoutScreen from '../screens/LiveWorkoutScreen';
 import SavedWorkoutsScreen from '../screens/SavedWorkoutsScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
+import ChatbotScreen from '../screens/ChatbotScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
@@ -94,6 +97,10 @@ export type RootStackParamList = {
   Foods: undefined;
   Workouts: undefined;
   Home: undefined;
+  
+  // NEW SCREENS - Add these
+  Chatbot: undefined;
+  Notifications: undefined;
 };
 
 export type BottomTabParamList = {
@@ -206,21 +213,38 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   );
 };
 
-// Custom Tab Bar Component with Modern Design - Fixed at Bottom
+// Custom Tab Bar Component with Modern Design - Floating Capsule
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
+
+  const threeButtonInset = Math.max(40, 0);
+  const geastureSwapInset = Math.max(0, 5);
+  // Detect if using 3-button phone navigation (Android 3-buttons usually have an inset > 24px)
+  const isThreeButtonNav = systemBottomInset > 24;
+
+  const currentRoute = state.routes[state.index];
+  const currentOptions = descriptors[currentRoute.key].options;
+  if (currentOptions.tabBarStyle?.display === 'none') {
+    return null;
+  }
 
   return (
     <View style={[
       styles.tabBarWrapper,
       {
-        backgroundColor: colors.background,
-        borderTopColor: colors.border + '20',
-        paddingBottom: Math.max(insets.bottom, 8),
+        bottom: isThreeButtonNav ? threeButtonInset : geastureSwapInset,
       }
     ]}>
-      <View style={styles.tabBarContainer}>
+      <View style={[
+        styles.tabBarContainer,
+        {
+          backgroundColor: colors.authCardBg || colors.surface,
+          borderColor: colors.authCardBorder || colors.border,
+          paddingBottom: Platform.OS === 'android' ? 16 : 20, // Internal padding only
+        }
+      ]}>
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
           const label = options.tabBarLabel !== undefined
@@ -230,6 +254,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             : route.name;
 
           const isFocused = state.index === index;
+
+          // ... (keep the rest unchanged)
 
           const onPress = () => {
             const event = navigation.emit({
@@ -253,17 +279,17 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           // Get icon based on route name
           const renderIcon = () => {
             const iconColor = isFocused ? colors.primary : colors.subtleText;
-            const iconSize = 24;
+            const iconSize = 22;
 
             switch (route.name) {
               case 'Home':
                 return <Ionicons name={isFocused ? "home" : "home-outline"} size={iconSize} color={iconColor} />;
-              case 'Nutrition':
-                return <MaterialCommunityIcons name={isFocused ? "food-apple" : "food-apple-outline"} size={iconSize} color={iconColor} />;
               case 'Workouts':
-                return <MaterialCommunityIcons name={isFocused ? "dumbbell" : "dumbbell"} size={iconSize} color={iconColor} />;
+                return <Ionicons name={isFocused ? "barbell" : "barbell-outline"} size={iconSize} color={iconColor} />;
               case 'Progress':
                 return <Ionicons name={isFocused ? "trending-up" : "trending-up-outline"} size={iconSize} color={iconColor} />;
+              case 'Nutrition':
+                return <Ionicons name={isFocused ? "restaurant" : "restaurant-outline"} size={iconSize} color={iconColor} />;
               case 'Profile':
                 return <Ionicons name={isFocused ? "person" : "person-outline"} size={iconSize} color={iconColor} />;
               default:
@@ -280,13 +306,11 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               onPress={onPress}
               onLongPress={onLongPress}
               style={styles.tabBarItem}
+              activeOpacity={0.7}
             >
               <View style={[
                 styles.tabIconContainer,
-                isFocused && {
-                  backgroundColor: colors.primary + '10',
-                  transform: [{ scale: 1.05 }],
-                }
+                isFocused && { transform: [{ scale: 1.05 }] }
               ]}>
                 {renderIcon()}
               </View>
@@ -294,17 +318,12 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 styles.tabLabel,
                 {
                   color: isFocused ? colors.primary : colors.subtleText,
-                  fontWeight: isFocused ? '600' : '500',
+                  fontWeight: isFocused ? '600' : '400',
+                  marginTop: -2,
                 }
               ]}>
                 {label}
               </Text>
-              {isFocused && (
-                <View style={[
-                  styles.activeIndicator,
-                  { backgroundColor: colors.primary }
-                ]} />
-              )}
             </TouchableOpacity>
           );
         })}
@@ -313,51 +332,46 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
-// Bottom Tab Navigator (Fixed Bottom Navigation)
+// Bottom Tab Navigator (Floating Navigation)
 function BottomTabNavigator() {
+  const { colors } = useTheme();
+
   return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' }
         }}
-      />
-      <Tab.Screen
-        name="Nutrition"
-        component={FoodsScreen}
-        options={{
-          tabBarLabel: 'Nutrition',
-        }}
-      />
+      >
+        <Tab.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ tabBarLabel: 'Home' }}
+        />
       <Tab.Screen
         name="Workouts"
         component={WorkoutsScreen}
-        options={{
-          tabBarLabel: 'Workouts',
-        }}
+        options={{ tabBarLabel: 'Workouts' }}
       />
       <Tab.Screen
         name="Progress"
         component={GymProgressScreen}
-        options={{
-          tabBarLabel: 'Progress',
-        }}
+        options={{ tabBarLabel: 'Progress' }}
+      />
+      <Tab.Screen
+        name="Nutrition"
+        component={FoodsScreen}
+        options={{ tabBarLabel: 'Nutrition' }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-        }}
+        options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
+    </View>
   );
 }
 
@@ -407,17 +421,11 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
     }
   }, [visible]);
 
-  const handleLogout = async () => {
-    try {
-      onClose();
-      await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }],
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  const handleLogout = () => {
+    onClose();
+    setTimeout(() => {
+      logout();
+    }, 100);
   };
 
   const handleNavigate = (screen: keyof RootStackParamList, params?: any) => {
@@ -481,6 +489,8 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
         { icon: 'history', label: 'Workout History', screen: 'WorkoutHistory' as const },
         { icon: 'trending-up', label: 'My Progress', screen: 'MainTabs' as const, params: { screen: 'Progress' } },
         { icon: 'videocam', label: 'AI Coach', screen: 'LiveWorkout' as const },
+        { icon: 'chat', label: 'AI Coach', screen: 'Chatbot' as const },
+        { icon: 'notifications', label: 'Notifications', screen: 'Notifications' as const },
       ]
     },
     {
@@ -666,6 +676,11 @@ export const AppNavigator: React.FC = () => {
     ? { uri: rawAvatar }
     : { uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.firstName || user?.username || 'U')}&background=FFD700&color=000&bold=true` };
 
+  const needsOnboarding =
+    isAuthenticated && user && !hasCompletedBodyInformation(user);
+
+  const insets = useSafeAreaInsets();
+
   if (isLoading) {
     return (
       <View style={[stylesGlobal.loadingContainer, { backgroundColor: colors.background }]}>
@@ -673,10 +688,6 @@ export const AppNavigator: React.FC = () => {
       </View>
     );
   }
-
-  // Check if user needs onboarding
-  const needsOnboarding =
-    isAuthenticated && user && !hasCompletedBodyInformation(user);
 
   return (
     <>
@@ -732,37 +743,14 @@ export const AppNavigator: React.FC = () => {
             </>
           ) : (
             // Main App Stack
-            <>
+            <Stack.Group screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
               <Stack.Screen
                 name="MainTabs"
                 component={BottomTabNavigator}
-                options={({ navigation }) => ({
-                  header: () => (
-                    <CustomHeader
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
-                      colors={colors}
-                      userImage={userImage}
-                    />
-                  ),
-                })}
               />
               <Stack.Screen
                 name="Profile"
                 component={ProfileScreen}
-                options={({ navigation }) => ({
-                  header: () => (
-                    <CustomHeader
-                      title="Profile"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
-                      colors={colors}
-                      userImage={userImage}
-                      showBack={true}
-                      onBackPress={() => navigation.goBack()}
-                    />
-                  ),
-                })}
               />
               <Stack.Screen
                 name="SavedWorkouts"
@@ -771,10 +759,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Saved Workouts"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -788,10 +775,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Workout History"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -801,53 +787,14 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen
                 name="Foods"
                 component={FoodsScreen}
-                options={({ navigation }) => ({
-                  header: () => (
-                    <CustomHeader
-                      title="Foods"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
-                      colors={colors}
-                      userImage={userImage}
-                      showBack={true}
-                      onBackPress={() => navigation.goBack()}
-                    />
-                  ),
-                })}
               />
               <Stack.Screen
                 name="Workouts"
                 component={WorkoutsScreen}
-                options={({ navigation }) => ({
-                  header: () => (
-                    <CustomHeader
-                      title="Workouts"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
-                      colors={colors}
-                      userImage={userImage}
-                      showBack={true}
-                      onBackPress={() => navigation.goBack()}
-                    />
-                  ),
-                })}
               />
               <Stack.Screen
                 name="GymProgress"
                 component={GymProgressScreen}
-                options={({ navigation }) => ({
-                  header: () => (
-                    <CustomHeader
-                      title="My Progress"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
-                      colors={colors}
-                      userImage={userImage}
-                      showBack={true}
-                      onBackPress={() => navigation.goBack()}
-                    />
-                  ),
-                })}
               />
               <Stack.Screen
                 name="LiveWorkout"
@@ -856,10 +803,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="AI Coach"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -873,10 +819,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Messages"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -890,10 +835,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Edit Profile"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -907,10 +851,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Edit Body Info"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -924,10 +867,9 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Change Password"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
@@ -937,7 +879,7 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen
                 name="WorkoutSession"
                 component={WorkoutSessionScreen}
-                options={{ headerShown: false }}
+                options={{ contentStyle: { paddingTop: 0, backgroundColor: colors.background } }}
               />
               <Stack.Screen
                 name="EmailVerification"
@@ -946,17 +888,49 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Verify Email"
-                      onProfilePress={() => navigation.navigate('Profile')}
-                      onMenuPress={() => setDrawerVisible(true)}
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
                       colors={colors}
-                      userImage={userImage}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
                     />
                   ),
                 })}
               />
-            </>
+              <Stack.Screen
+                name="Chatbot"
+                component={ChatbotScreen}
+                options={({ navigation }) => ({
+                  header: () => (
+                    <CustomHeader
+                      title="AI Coach"
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
+                      colors={colors}
+                      showBack={true}
+                      onBackPress={() => navigation.goBack()}
+                    />
+                  ),
+                })}
+              />
+              
+              <Stack.Screen
+                name="Notifications"
+                component={NotificationsScreen}
+                options={({ navigation }) => ({
+                  header: () => (
+                    <CustomHeader
+                      title="Notifications"
+                      onProfilePress={() => {}}
+                      onMenuPress={() => {}}
+                      colors={colors}
+                      showBack={true}
+                      onBackPress={() => navigation.goBack()}
+                    />
+                  ),
+                })}
+              />
+            </Stack.Group>
           )}
         </Stack.Navigator>
       </NavigationContainer>
@@ -970,7 +944,7 @@ export const AppNavigator: React.FC = () => {
         autoHide
       />
 
-      {isAuthenticated && navigationRef && (
+      {isAuthenticated && navigationRef && false /* Explicitly disabled custom DrawerMenu completely per user request */ && (
         <DrawerMenu
           visible={drawerVisible}
           onClose={() => setDrawerVisible(false)}
@@ -984,31 +958,38 @@ export const AppNavigator: React.FC = () => {
 // Helper function to check if user has completed body information
 const hasCompletedBodyInformation = (user: any): boolean => {
   return !!(
-    user.gender ||
-    user.dateOfBirth ||
-    user.height ||
-    user.weight ||
-    user.fitnessGoal ||
-    user.activityLevel ||
-    user.bodyFatPercentage
+    user?.gender ||
+    user?.dateOfBirth ||
+    user?.height ||
+    user?.weight ||
+    user?.fitnessGoal ||
+    user?.activityLevel ||
+    user?.bodyFatPercentage ||
+    user?.onboardingSkipped
   );
 };
 
 const styles = StyleSheet.create({
-  // Tab Bar Styles - Fixed at Bottom
+  // Tab Bar Styles - Floating Capsule
   tabBarWrapper: {
-    borderTopWidth: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 8,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 10,
   },
   tabBarContainer: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingHorizontal: 12,
     justifyContent: 'space-evenly',
+    borderRadius: 50, // Fully rounded all sides
+    borderWidth: 1, // Full border
+    marginHorizontal: 4, // Optional: gives a tiny bit of breathing room so the rounded sides look like a true pill
+    marginBottom: 8, // Lifts the pill slightly off the absolute bottom
   },
   tabBarItem: {
     flex: 1,
@@ -1018,15 +999,15 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   tabIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20, // To give a pill-shaped background when active
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 0,
     letterSpacing: 0.3,
     textAlign: 'center',

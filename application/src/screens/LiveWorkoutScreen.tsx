@@ -21,7 +21,9 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Camera,
@@ -298,8 +300,9 @@ const LiveWorkoutScreen = () => {
       if (!granted) {
         showErrorToast({
           title: 'Permission Denied',
-          message: 'Camera permission is required to use live workout tracking.',
+          message: 'Camera permission is required. Opening Settings...',
         });
+        Linking.openSettings();
       } else {
         showSuccessToast({
           title: 'Permission Granted',
@@ -425,16 +428,28 @@ const LiveWorkoutScreen = () => {
       <View
         style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
       >
+        <LinearGradient
+          colors={colors.authBgGradient || ['#000', '#000']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.centerContent}>
           <Ionicons name="camera-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
             Camera permission required
           </Text>
           <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: colors.primary }]}
+            style={[styles.permissionButton, { overflow: 'hidden' }]}
             onPress={handleRequestPermission}
           >
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            <LinearGradient
+              colors={[colors.primary, (colors as any).secondary || colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={[styles.permissionButtonText, { position: 'relative' }]}>Grant Permission</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -447,6 +462,12 @@ const LiveWorkoutScreen = () => {
       <View
         style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
       >
+        <LinearGradient
+          colors={colors.authBgGradient || ['#000', '#000']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.centerContent}>
           <Ionicons name="warning-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
@@ -530,16 +551,28 @@ const LiveWorkoutScreen = () => {
         <TouchableOpacity
           style={[
             styles.actionButton,
-            isActive ? styles.stopButton : styles.startButton,
+            { overflow: 'hidden', borderWidth: 0, backgroundColor: isActive ? '#f44336' : 'transparent' }
           ]}
           onPress={toggleWorkout}
         >
+          {!isActive && colors.authBgGradient && (
+             <LinearGradient
+               colors={[
+                 colors.primary,
+                 (colors as any).secondary || colors.primary,
+               ]}
+               start={{ x: 0, y: 0 }}
+               end={{ x: 1, y: 0 }}
+               style={StyleSheet.absoluteFillObject}
+             />
+          )}
           <Ionicons
             name={isActive ? 'pause' : 'play'}
             size={40}
             color="#fff"
+            style={{ position: 'relative' }}
           />
-          <Text style={styles.actionButtonText}>
+          <Text style={[styles.actionButtonText, { position: 'relative' }]}>
             {isActive ? 'PAUSE' : 'START'}
           </Text>
         </TouchableOpacity>

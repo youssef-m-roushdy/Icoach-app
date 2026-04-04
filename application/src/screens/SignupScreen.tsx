@@ -12,16 +12,18 @@ import {
   TextInput,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../types';
 import { CustomButton, GoogleButton } from '../components/common';
-import { AuthHeader } from '../components/auth';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
 import { useAuth } from '../context';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import {
   showSuccessToast,
   showErrorToast,
@@ -39,6 +41,8 @@ export default function SignUpScreen() {
   const navigation = useNavigation<SignInScreenNavigationProp>();
   const { theme, colors } = useTheme();
   const { login } = useAuth();
+  const { systemBottomInset } = useSystemNavigation();
+  const insets = useSafeAreaInsets();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -48,6 +52,8 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const isDarkMode = theme === 'dark';
 
   // Password visibility toggles
   const [showPassword, setShowPassword] = useState(false);
@@ -231,41 +237,70 @@ export default function SignUpScreen() {
   const getInputWrapperStyle = (fieldName: string) => [
     styles.inputWrapper,
     {
-      backgroundColor: colors.inputBg,
-      borderColor: focusedField === fieldName ? colors.primary : colors.inputBorder,
+      backgroundColor: focusedField === fieldName 
+        ? colors.authInputBgFocused
+        : colors.authInputBg,
+      borderColor: focusedField === fieldName 
+        ? colors.authInputBorderFocused 
+        : colors.authInputBorder,
       borderWidth: focusedField === fieldName ? 2 : 1,
-      shadowColor: focusedField === fieldName ? colors.primary : 'transparent',
+      shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: focusedField === fieldName ? 0.2 : 0,
-      shadowRadius: 4,
-      elevation: focusedField === fieldName ? 2 : 0,
+      shadowOpacity: focusedField === fieldName ? 0.3 : 0,
+      shadowRadius: focusedField === fieldName ? 8 : 0,
+      elevation: focusedField === fieldName ? 4 : 0,
     },
   ];
 
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        {/* Decorative Circles */}
+        <View style={[styles.decorativeCircle1, { 
+          backgroundColor: colors.authCircle1 
+        }]} />
+        <View style={[styles.decorativeCircle2, { 
+          backgroundColor: colors.authCircle2
+        }]} />
+        <View style={[styles.decorativeCircle3, { 
+          backgroundColor: colors.authCircle3
+        }]} />
+      </LinearGradient>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer, 
+            { 
+              paddingTop: Math.max(40, insets.top + 20),
+              paddingBottom: Math.max(40, systemBottomInset + 20) 
+            }
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <AuthHeader
-            activeTab="SignIn"
-            onTabPress={(tab) => tab === 'Login' && navigation.navigate('Login')}
-          />
 
           <View
             style={[
               styles.formContainer,
               {
-                backgroundColor: colors.card,
-                shadowColor: colors.shadow,
-                borderColor: colors.cardBorder,
-              },
+                backgroundColor: colors.authCardBg,
+                borderColor: colors.authCardBorder,
+                shadowColor: isDarkMode ? '#000' : '#000',
+                shadowOpacity: isDarkMode ? 0.3 : 0.1,
+                shadowRadius: isDarkMode ? 10 : 8,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: isDarkMode ? 8 : 4,
+              }
             ]}
           >
             <Text style={[styles.title, { color: colors.text }]}>
@@ -605,12 +640,21 @@ export default function SignUpScreen() {
                 <ActivityIndicator size="large" color={colors.primary} />
               ) : (
                 <>
-                  <CustomButton
-                    title="Create Account"
-                    variant="primary"
+                  <TouchableOpacity
+                    style={[styles.signUpButton]}
                     onPress={handleSignUp}
-                    buttonStyle={styles.signUpButton}
-                  />
+                    activeOpacity={0.8}
+                  >
+                    <LinearGradient
+                      colors={[colors.primary, colors.secondary]}
+                      style={styles.signInGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <Text style={[styles.signInButtonText, { color: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>Create Account</Text>
+                      <MaterialIcons name="arrow-forward" size={20} color={isDarkMode ? '#1A1A1A' : '#FFFFFF'} />
+                    </LinearGradient>
+                  </TouchableOpacity>
 
                   <View style={styles.divider}>
                     <View
@@ -666,18 +710,19 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   formContainer: {
-    marginHorizontal: SIZES.lg,
+    width: '90%',
     padding: SIZES.xl,
-    borderRadius: SIZES.radiusLarge,
-    marginTop: 120,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 32,
     borderWidth: 1,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+    marginTop: 20,
   },
   title: {
     fontSize: SIZES.h1,
@@ -710,15 +755,14 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: SIZES.radiusMedium,
-    borderWidth: 1,
-    paddingHorizontal: SIZES.md,
+    borderRadius: 16,
+    paddingHorizontal: 16,
     height: 56,
   },
   input: {
     flex: 1,
-    fontSize: SIZES.body,
-    paddingHorizontal: SIZES.sm,
+    fontSize: 16,
+    paddingHorizontal: 12,
     height: 56,
   },
   visibilityButton: {
@@ -777,6 +821,25 @@ const styles = StyleSheet.create({
   },
   signUpButton: {
     marginBottom: SIZES.lg,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  signInGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  signInButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   divider: {
     flexDirection: 'row',
@@ -806,5 +869,29 @@ const styles = StyleSheet.create({
   loginLink: {
     fontSize: SIZES.body,
     fontWeight: 'bold',
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
 });

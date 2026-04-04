@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import type { RootStackParamList } from '../types/navigation';
@@ -11,6 +12,7 @@ const AuthCallbackScreen: React.FC = () => {
   const route = useRoute<AuthCallbackRouteProp>();
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { setAuthState } = useAuth();
 
   useEffect(() => {
@@ -50,7 +52,7 @@ const AuthCallbackScreen: React.FC = () => {
   }, [route.params, navigation, setAuthState]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={[styles.text, { color: colors.textSecondary }]}>Completing authentication...</Text>
     </View>

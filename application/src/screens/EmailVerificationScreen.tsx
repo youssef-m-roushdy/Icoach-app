@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import {
@@ -30,6 +31,7 @@ type EmailVerificationNavigationProp = NativeStackNavigationProp<
 export default function EmailVerificationScreen() {
   const navigation = useNavigation<EmailVerificationNavigationProp>();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, token, updateUser } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -138,7 +140,7 @@ export default function EmailVerificationScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >

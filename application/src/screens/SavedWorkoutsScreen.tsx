@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,10 +12,13 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { savedWorkoutService, workoutService } from '../services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   showSuccessToast,
@@ -23,6 +26,8 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 interface Workout {
   id: number;
@@ -66,8 +71,10 @@ interface ApiResponse {
 }
 
 const SavedWorkoutsScreen = () => {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { token } = useAuth();
   const { theme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkoutItem[]>([]);
@@ -175,7 +182,7 @@ const SavedWorkoutsScreen = () => {
           }));
         }
 
-        // Optional info toast لو مفيش نتائج بعد الفلترة
+        // Optional info toast if no results after filters
         if (
           savedWorkoutsData.length === 0 &&
           (selectedBodyPart || selectedLevel)
@@ -207,6 +214,14 @@ const SavedWorkoutsScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStartSession = (workout: Workout) => {
+    navigation.navigate('WorkoutSession', {
+      workoutId: workout.id,
+      workoutName: workout.name,
+      workoutImage: workout.gif_link,
+    });
   };
 
   const handleDeleteWorkout = (savedWorkoutId: number, workoutName: string) => {
@@ -315,7 +330,6 @@ const SavedWorkoutsScreen = () => {
     const currentPage = pagination.page;
     const totalPages = pagination.totalPages;
 
-    // Show first page
     if (currentPage > 2) {
       pages.push(1);
       if (currentPage > 3) {
@@ -323,12 +337,10 @@ const SavedWorkoutsScreen = () => {
       }
     }
 
-    // Show pages around current page
     for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
       pages.push(i);
     }
 
-    // Show last page
     if (currentPage < totalPages - 1) {
       if (currentPage < totalPages - 2) {
         pages.push('...');
@@ -369,40 +381,50 @@ const SavedWorkoutsScreen = () => {
   };
 
   const renderWorkoutItem = ({ item }: { item: Workout }) => {
-    // Find the saved workout item that contains this workout
     const savedWorkoutItem = savedWorkouts.find((sw) => sw.workoutId === item.id);
 
     return (
-      <View style={[styles.workoutCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
-        <View style={styles.workoutHeader}>
-          <Text style={[styles.workoutName, { color: colors.text }]}>{item.name}</Text>
-          {savedWorkoutItem && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteWorkout(savedWorkoutItem.id, item.name)}
-            >
-              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {item.gif_link && (
+      <View
+        style={[
+          styles.workoutCard,
+          { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, borderWidth: 1 },
+        ]}
+      >
+        {item.gif_link ? (
           <Image source={{ uri: item.gif_link }} style={styles.workoutGif} />
-        )}
+        ) : null}
 
         <View style={styles.workoutInfo}>
+          <View style={styles.workoutNameRow}>
+            <Text style={[styles.workoutName, { color: colors.text }]}>
+              {item.name}
+            </Text>
+
+            {savedWorkoutItem && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteWorkout(savedWorkoutItem.id, item.name)}
+              >
+                <Ionicons name="trash-outline" size={28} color="#FF3B30" />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
-            <Ionicons name="body" size={14} color={colors.textSecondary} /> {item.body_part} - {item.target_area}
+            <Ionicons name="body" size={14} color={colors.textSecondary} />{' '}
+            {item.body_part} - {item.target_area}
           </Text>
 
           {item.equipment && (
             <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
-              <Ionicons name="barbell" size={14} color={colors.textSecondary} /> {item.equipment}
+              <Ionicons name="barbell" size={14} color={colors.textSecondary} />{' '}
+              {item.equipment}
             </Text>
           )}
 
           <Text style={[styles.workoutDetail, { color: colors.textSecondary }]}>
-            <Ionicons name="trophy" size={14} color={colors.textSecondary} /> {item.level}
+            <Ionicons name="trophy" size={14} color={colors.textSecondary} />{' '}
+            {item.level}
           </Text>
 
           {item.description && (
@@ -413,30 +435,63 @@ const SavedWorkoutsScreen = () => {
               {item.description}
             </Text>
           )}
+
+          {/* Start Session Button */}
+          <TouchableOpacity
+            style={[styles.startButton, { overflow: 'hidden' }]}
+            onPress={() => handleStartSession(item)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={[colors.primary, (colors as any).secondary || colors.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Ionicons name="play" size={20} color="#FFFFFF" />
+            <Text style={styles.startButtonText}>Start Session</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   };
 
-  if (loading && !refreshing) {
+  if (loading && !refreshing && workouts.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.centerContainer, { backgroundColor: colors.background, paddingTop: insets.top }]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Filters - Only Body Part and Level */}
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Animated Gradient Background matches WorkoutsScreen */}
+      <LinearGradient
+        colors={colors.authBgGradient as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
+
+      {/* Filters Header */}
       <View
         style={[
           styles.filtersContainer,
-          { backgroundColor: colors.background, borderBottomColor: colors.border },
+          { backgroundColor: 'transparent', borderBottomColor: 'transparent' },
         ]}
       >
         <View style={styles.filtersHeader}>
-          <Text style={[styles.filtersTitle, { color: colors.text }]}>Filters</Text>
+          <Text style={[styles.filtersTitle, { color: colors.text }]}>
+            Filters
+          </Text>
+
           {(selectedBodyPart || selectedLevel) && (
             <TouchableOpacity onPress={clearFilters}>
               <Text style={styles.clearText}>Clear All</Text>
@@ -447,7 +502,7 @@ const SavedWorkoutsScreen = () => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.filterRow}>
             <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: colors.primary }]}
+              style={[styles.filterButton, { backgroundColor: colors.authInputBg || colors.primary, borderColor: colors.authInputBorder || colors.primary, borderWidth: 1 }]}
               onPress={() => {
                 setCurrentFilter('bodyPart');
                 setShowFilterModal(true);
@@ -456,7 +511,7 @@ const SavedWorkoutsScreen = () => {
               <Text
                 style={[
                   styles.filterButtonText,
-                  { color: theme === 'dark' ? '#000000' : '#FFFFFF' },
+                  { color: colors.text },
                 ]}
               >
                 {selectedBodyPart || 'Body Part'}
@@ -464,12 +519,12 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="chevron-down"
                 size={16}
-                color={theme === 'dark' ? '#000000' : '#FFFFFF'}
+                color={colors.text}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: colors.primary }]}
+              style={[styles.filterButton, { backgroundColor: colors.authInputBg || colors.primary, borderColor: colors.authInputBorder || colors.primary, borderWidth: 1 }]}
               onPress={() => {
                 setCurrentFilter('level');
                 setShowFilterModal(true);
@@ -478,7 +533,7 @@ const SavedWorkoutsScreen = () => {
               <Text
                 style={[
                   styles.filterButtonText,
-                  { color: theme === 'dark' ? '#000000' : '#FFFFFF' },
+                  { color: colors.text },
                 ]}
               >
                 {selectedLevel || 'Level'}
@@ -486,7 +541,7 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="chevron-down"
                 size={16}
-                color={theme === 'dark' ? '#000000' : '#FFFFFF'}
+                color={colors.text}
               />
             </TouchableOpacity>
           </View>
@@ -569,13 +624,15 @@ const SavedWorkoutsScreen = () => {
         data={workouts}
         renderItem={renderWorkoutItem}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: pagination && pagination.totalPages > 1 ? 16 : Math.max(insets.bottom + 20, 20) }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="fitness-outline" size={64} color={colors.primary} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              No saved workouts found
+              {selectedBodyPart || selectedLevel
+                ? 'No saved workouts match your filters'
+                : 'No saved workouts found'}
             </Text>
             <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
               Save workouts to see them here
@@ -586,11 +643,11 @@ const SavedWorkoutsScreen = () => {
 
       {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
-        <>
+        <View style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
           <View
             style={[
               styles.paginationContainer,
-              { backgroundColor: colors.background, borderTopColor: colors.border },
+              { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0, borderRadius: 16, marginHorizontal: 10, marginTop: 10, paddingVertical: 10 },
             ]}
           >
             <TouchableOpacity
@@ -658,15 +715,10 @@ const SavedWorkoutsScreen = () => {
             </TouchableOpacity>
           </View>
 
-          <Text
-            style={[
-              styles.pageInfo,
-              { color: colors.text, backgroundColor: colors.background },
-            ]}
-          >
+          <Text style={[styles.pageInfo, { color: colors.text }]}>
             Page {pagination.page} of {pagination.totalPages} ({pagination.total} workouts)
           </Text>
-        </>
+        </View>
       )}
     </View>
   );
@@ -676,6 +728,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  decorativeCircle1: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125 },
+  decorativeCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100 },
+  decorativeCircle3: { position: 'absolute', top: '30%', left: '-20%', width: 150, height: 150, borderRadius: 75 },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -683,19 +738,20 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    flexGrow: 1,
+    paddingBottom: 16,
   },
   workoutCard: {
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    borderWidth: 2,
+    marginHorizontal: 12,
+    borderWidth: 1.5,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
   },
-  workoutHeader: {
+  workoutNameRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -706,17 +762,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
     flex: 1,
-    marginRight: 12,
   },
   deleteButton: {
     padding: 4,
+    marginLeft: 8,
   },
   workoutGif: {
     width: '100%',
     height: 200,
     borderRadius: 12,
     marginBottom: 16,
-    backgroundColor: '#1a1a1a',
   },
   workoutInfo: {
     marginBottom: 8,
@@ -730,6 +785,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
     lineHeight: 20,
   },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  startButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -739,6 +809,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptySubText: {
     fontSize: 14,
@@ -749,7 +820,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    borderTopWidth: 1,
+    paddingBottom: 8,
   },
   pageNumbersContainer: {
     flexDirection: 'row',
@@ -778,8 +849,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   pageNumberTextActive: {
-    fontWeight: 'bold',
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   pageNumberDots: {
     paddingHorizontal: 8,
@@ -788,6 +859,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     paddingBottom: 16,
+    paddingTop: 0,
   },
   filtersContainer: {
     padding: 16,

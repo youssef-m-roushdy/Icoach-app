@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import {
@@ -32,6 +33,7 @@ type ChangePasswordNavigationProp = NativeStackNavigationProp<
 export default function ChangePasswordScreen() {
   const navigation = useNavigation<ChangePasswordNavigationProp>();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { token, logout } = useAuth();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -113,7 +115,6 @@ export default function ChangePasswordScreen() {
 
       setTimeout(async () => {
         await logout();
-        navigation.replace('Login');
       }, 1200);
     } catch (error: unknown) {
       console.error('❌ Change Password Error:', error);
@@ -171,7 +172,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,6 +20,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { authService } from '../services';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import {
   showSuccessToast,
   showErrorToast,
@@ -35,11 +37,15 @@ export default function ForgotPasswordScreen() {
   const navigation = useNavigation<ForgotPasswordNavigationProp>();
   const { theme, colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const isDarkMode = theme === 'dark';
 
   const handleSendResetLink = async () => {
     if (!email.trim()) {
@@ -106,28 +112,62 @@ export default function ForgotPasswordScreen() {
     }
   };
 
+  const getInputWrapperStyle = (fieldName: string) => [
+    styles.inputWrapper,
+    {
+      backgroundColor: focusedField === fieldName 
+        ? colors.authInputBgFocused
+        : colors.authInputBg,
+      borderColor: focusedField === fieldName 
+        ? colors.authInputBorderFocused 
+        : colors.authInputBorder,
+      borderWidth: focusedField === fieldName ? 2 : 1,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: focusedField === fieldName ? 0.3 : 0,
+      shadowRadius: focusedField === fieldName ? 8 : 0,
+      elevation: focusedField === fieldName ? 4 : 0,
+    },
+  ];
+
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
-      {theme === 'dark' && (
-        <ImageBackground
-          source={require('../../assets/home.jpeg')}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
-      )}
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { 
+          backgroundColor: colors.authCircle1
+        }]} />
+        <View style={[styles.decorativeCircle2, { 
+          backgroundColor: colors.authCircle2
+        }]} />
+        <View style={[styles.decorativeCircle3, { 
+          backgroundColor: colors.authCircle3
+        }]} />
+      </LinearGradient>
 
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { 
+              paddingTop: Math.max(40, insets.top + 20),
+              paddingBottom: Math.max(40, systemBottomInset + 20) 
+            }
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Back Button */}
           <TouchableOpacity
-            style={[styles.backButton, { paddingTop: Math.max(insets.top + 10, 40) }]}
+            style={[styles.backButton, { top: Math.max(insets.top + 10, 40) }]}
             onPress={() => navigation.goBack()}
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
@@ -140,12 +180,13 @@ export default function ForgotPasswordScreen() {
             style={[
               styles.formContainer,
               {
-                backgroundColor:
-                  theme === 'dark'
-                    ? colors.background + 'CC'
-                    : colors.card,
-                shadowColor: colors.shadow,
-                borderColor: colors.cardBorder,
+                backgroundColor: colors.authCardBg,
+                borderColor: colors.authCardBorder,
+                shadowColor: isDarkMode ? '#000' : '#000',
+                shadowOpacity: isDarkMode ? 0.3 : 0.1,
+                shadowRadius: isDarkMode ? 10 : 8,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: isDarkMode ? 8 : 4,
               },
             ]}
           >
@@ -181,26 +222,20 @@ export default function ForgotPasswordScreen() {
                     Email Address
                   </Text>
 
-                  <View
-                    style={[
-                      styles.inputWrapper,
-                      {
-                        backgroundColor: colors.inputBg,
-                        borderColor: colors.inputBorder,
-                      },
-                    ]}
-                  >
+                  <View style={getInputWrapperStyle('email')}>
                     <MaterialIcons
                       name="email"
                       size={20}
-                      color={colors.textSecondary}
+                      color={focusedField === 'email' ? colors.primary : colors.textSecondary}
                     />
                     <TextInput
                       style={[styles.input, { color: colors.text }]}
                       placeholder="Enter your email address"
-                      placeholderTextColor={colors.textSecondary}
+                      placeholderTextColor={isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
                       value={email}
                       onChangeText={setEmail}
+                      onFocus={() => setFocusedField('email')}
+                      onBlur={() => setFocusedField(null)}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
@@ -219,17 +254,24 @@ export default function ForgotPasswordScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.button, isLoading && styles.buttonDisabled]}
+                  style={[styles.button, isLoading && styles.buttonDisabled, { overflow: 'hidden' }]}
                   onPress={handleSendResetLink}
                   disabled={isLoading}
+                  activeOpacity={0.8}
                 >
+                  <LinearGradient
+                    colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
                   {isLoading ? (
                     <ActivityIndicator
                       size="small"
-                      color={COLORS.secondary}
+                      color="#FFFFFF"
                     />
                   ) : (
-                    <Text style={styles.buttonText}>Send Reset Link</Text>
+                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>Send Reset Link</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -404,16 +446,6 @@ export default function ForgotPasswordScreen() {
                 </View>
               </>
             )}
-
-            {/* Back to Login */}
-            <TouchableOpacity
-              style={styles.loginLink}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={[styles.loginLinkText, { color: colors.primary }]}>
-                Back to Sign In
-              </Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -430,28 +462,32 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 10,
     padding: SIZES.lg,
   },
   backButtonText: {
     fontSize: SIZES.body,
     fontWeight: '600',
-    marginLeft: SIZES.xs,
+    marginLeft: 4,
   },
   formContainer: {
-    marginHorizontal: SIZES.lg,
+    width: '90%',
     padding: SIZES.xl,
-    borderRadius: 20,
-    marginTop: 60,
+    borderRadius: 32,
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowRadius: 20,
+    elevation: 10,
   },
   headerContainer: {
     alignItems: 'center',
@@ -487,15 +523,14 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: SIZES.radiusMedium,
-    borderWidth: 1,
-    paddingHorizontal: SIZES.md,
+    borderRadius: 16,
+    paddingHorizontal: 16,
     height: 56,
   },
   input: {
     flex: 1,
-    fontSize: SIZES.body,
-    paddingHorizontal: SIZES.sm,
+    fontSize: 16,
+    paddingHorizontal: 12,
     height: 56,
   },
   noteContainer: {
@@ -518,8 +553,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SIZES.sm,
     backgroundColor: COLORS.primary,
-    paddingVertical: SIZES.md,
-    borderRadius: SIZES.radiusMedium,
+    paddingVertical: 16,
+    borderRadius: 16,
     marginBottom: SIZES.lg,
   },
   buttonDisabled: {
@@ -603,23 +638,40 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.lg,
   },
   secondaryButton: {
-    paddingVertical: SIZES.md,
-    borderRadius: SIZES.radiusMedium,
+    paddingVertical: 16,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    fontSize: SIZES.body,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   resendButton: {
     marginBottom: 0,
   },
-  loginLink: {
-    alignItems: 'center',
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
   },
-  loginLinkText: {
-    fontSize: SIZES.body,
-    fontWeight: 'bold',
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
 });

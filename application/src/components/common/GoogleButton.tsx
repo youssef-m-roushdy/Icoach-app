@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -30,33 +30,54 @@ interface GoogleButtonProps {
 
 export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) => {
   const [isInProgress, setIsInProgress] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
   const navigation = useNavigation();
   const { setAuthState } = useAuth();
-  const { colors } = useTheme();
+  const { theme, colors } = useTheme();
+  const isDarkMode = theme === 'dark';
 
   const buttonText = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google';
 
+  // Configure Google Sign-In once when component mounts
+  useEffect(() => {
+    const configureGoogleSignIn = async () => {
+      try {
+        await GoogleSignin.configure({
+          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+          offlineAccess: true,
+          forceCodeForRefreshToken: true,
+          profileImageSize: 120,
+        });
+        setIsConfigured(true);
+        console.log('✅ Google Sign-In configured successfully');
+      } catch (error) {
+        console.error('❌ Failed to configure Google Sign-In:', error);
+      }
+    };
+
+    configureGoogleSignIn();
+  }, []);
+
   const handleGoogleLogin = async () => {
-    if (isInProgress) return;
+    if (isInProgress || !isConfigured) return;
 
     setIsInProgress(true);
 
     try {
       console.log('🔵 Starting native Google Sign-In...');
 
-      await GoogleSignin.hasPlayServices();
+      // Check if Google Play Services are available (Android only)
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true, // This shows a native dialog if needed
+      });
 
+      // This opens the NATIVE account picker modal - NO BROWSER!
       const response = await GoogleSignin.signIn();
 
       if (isSuccessResponse(response)) {
         console.log('✅ Got user info from Google:', response.data);
 
         const { idToken, user } = response.data;
-
-        console.log('📧 Email:', user.email);
-        console.log('👤 Name:', user.name);
-        console.log('🖼️ Photo:', user.photo);
-        console.log('🆔 ID Token:', idToken);
 
         if (!idToken) {
           throw new Error('No ID token received from Google');
@@ -79,22 +100,13 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
           throw new Error(data.message || 'Server authentication failed');
         }
 
-        console.log('✅ Server authentication successful');
-        console.log('📦 Full Server Response:', JSON.stringify(data, null, 2));
-        console.log('👤 User Data:', data.data.user);
-        console.log('🔑 Access Token:', data.data.accessToken);
-        console.log('🔄 Refresh Token:', data.data.refreshToken);
-
-        // Optional local cache
+        // Store tokens locally
         await AsyncStorage.setItem('token', data.data.accessToken);
+        if (data.data.refreshToken) {
+          await AsyncStorage.setItem('refreshToken', data.data.refreshToken);
+        }
 
-        const userData = {
-          ...data.data.user,
-          photo: user.photo,
-          googleId: user.id,
-        };
-        await AsyncStorage.setItem('googleUser', JSON.stringify(userData));
-
+        // Set auth state in context
         await setAuthState(
           data.data.accessToken,
           data.data.user,
@@ -112,12 +124,18 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
       let errorMessage = 'Failed to sign in with Google. Please try again.';
 
       if (isErrorWithCode(error)) {
-        if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-          errorMessage = 'Sign-in was cancelled';
-        } else if (error.code === statusCodes.IN_PROGRESS) {
-          errorMessage = 'Sign-in is already in progress';
-        } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-          errorMessage = 'Google Play Services not available';
+        switch (error.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            errorMessage = 'Sign-in was cancelled';
+            break;
+          case statusCodes.IN_PROGRESS:
+            errorMessage = 'Sign-in is already in progress';
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            errorMessage = 'Google Play Services not available';
+            break;
+          default:
+            errorMessage = error.message || errorMessage;
         }
       }
 
@@ -134,11 +152,14 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
     <TouchableOpacity
       style={[
         styles.button,
-        { backgroundColor: colors.card, borderColor: colors.border },
-        isInProgress && styles.buttonDisabled,
+        {
+          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+        },
+        (isInProgress || !isConfigured) && styles.buttonDisabled,
       ]}
       onPress={handleGoogleLogin}
-      disabled={isInProgress}
+      disabled={isInProgress || !isConfigured}
       activeOpacity={0.8}
     >
       {isInProgress ? (
@@ -164,9 +185,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: SIZES.radiusLarge,
+    borderRadius: 16,
     borderWidth: 1,
-    marginTop: 16,
+    marginTop: 8,
     width: '100%',
   },
   buttonDisabled: {

@@ -34,7 +34,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import * as Haptics from 'expo-haptics';
@@ -496,7 +498,6 @@ const Step1Gender = memo(
 
     const handleSelect = useCallback(
       (g: 'male' | 'female') => {
-        void Haptics.selectionAsync().catch(() => {});
         setGender(g);
       },
       [setGender]
@@ -681,7 +682,7 @@ const Step2Birthday = memo(
         <Animated.View
           style={[
             styles.datePicker,
-            { backgroundColor: colors.surface, borderColor: colors.divider },
+            { backgroundColor: colors.authInputBg, borderColor: colors.authInputBorder },
             cardStyle,
           ]}
         >
@@ -791,7 +792,7 @@ const Step3Height = memo(
         <Animated.View
           style={[
             styles.heightValBox,
-            { backgroundColor: colors.surface },
+            { backgroundColor: colors.authInputBg, borderColor: colors.authInputBorder, borderWidth: 1 },
             valStyle,
           ]}
         >
@@ -910,8 +911,8 @@ const GoalItem = memo(
     }));
 
     const cardStyle = useAnimatedStyle(() => ({
-      borderColor: fillSV.value > 0.5 ? C.primary : colors.divider,
-      backgroundColor: fillSV.value > 0.5 ? C.primary : colors.surface,
+      borderColor: fillSV.value > 0.5 ? C.primary : colors.authInputBorder,
+      backgroundColor: fillSV.value > 0.5 ? C.primary : colors.authInputBg,
     }));
 
     return (
@@ -961,8 +962,8 @@ const ActivityItem = memo(
     }));
 
     const cardStyle = useAnimatedStyle(() => ({
-      borderColor: fillSV.value > 0.5 ? C.primary : colors.divider,
-      backgroundColor: fillSV.value > 0.5 ? C.primary : colors.surface,
+      borderColor: fillSV.value > 0.5 ? C.primary : colors.authInputBorder,
+      backgroundColor: fillSV.value > 0.5 ? C.primary : colors.authInputBg,
     }));
 
     return (
@@ -1126,7 +1127,6 @@ const Step5Goals = memo(
 
     const handleGoal = useCallback(
       (id: string) => {
-        void Haptics.selectionAsync().catch(() => {});
         setFitnessGoal(id);
       },
       [setFitnessGoal]
@@ -1134,7 +1134,6 @@ const Step5Goals = memo(
 
     const handleActivity = useCallback(
       (id: string) => {
-        void Haptics.selectionAsync().catch(() => {});
         setActivityLevel(id);
       },
       [setActivityLevel]
@@ -1266,8 +1265,10 @@ const AnimatedSlide = memo(
 // ═════════════════════════════════════════════════════════════════════════════
 export default function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
+  const isDarkMode = theme === 'dark';
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
   const { user, token, updateUser } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -1430,24 +1431,20 @@ export default function OnboardingScreen() {
     if (Object.keys(body).length > 0) {
       const res = await userService.updateBodyInformation(body, token);
 
-      if (res.data && user) {
-        updateUser({ ...user, ...res.data });
-      }
-
-      void Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      ).catch(() => {});
-
       showSuccessToast({
         title: 'Profile Completed',
         message: 'Your onboarding is complete. Welcome to ICoach!',
       });
 
-      setTimeout(() => {
-        navigation.replace('Home');
-      }, 900);
+      if (res.data && user) {
+        setTimeout(() => {
+          updateUser({ ...user, ...res.data });
+        }, 900);
+      }
     } else {
-      navigation.replace('Home');
+      if (user) {
+        updateUser({ ...user, onboardingSkipped: true } as any);
+      }
     }
   } catch (error: unknown) {
     void Haptics.notificationAsync(
@@ -1477,19 +1474,15 @@ export default function OnboardingScreen() {
 ]);
 
 const handleNext = useCallback(() => {
-  void Haptics.selectionAsync().catch(() => {});
+    if (step < TOTAL_STEPS - 1) {
+      goTo(step + 1);
+    } else {
+      handleSubmit();
+    }
+  }, [step, goTo, handleSubmit]);
 
-  if (step < TOTAL_STEPS - 1) {
-    goTo(step + 1);
-  } else {
-    handleSubmit();
-  }
-}, [step, goTo, handleSubmit]);
-
-const handleBack = useCallback(() => {
-  if (step > 0) {
-    void Haptics.selectionAsync().catch(() => {});
-    goTo(step - 1);
+  const handleBack = useCallback(() => {
+    if (step > 0) {
   }
 }, [step, goTo]);
 
@@ -1499,6 +1492,25 @@ const handleBack = useCallback(() => {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Animated Gradient Background */}
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        {/* Decorative Circles */}
+        <View style={[styles.decorativeCircle1, { 
+          backgroundColor: colors.authCircle1
+        }]} />
+        <View style={[styles.decorativeCircle2, { 
+          backgroundColor: colors.authCircle2
+        }]} />
+        <View style={[styles.decorativeCircle3, { 
+          backgroundColor: colors.authCircle3
+        }]} />
+      </LinearGradient>
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
         <Animated.View style={backStyle}>
@@ -1513,7 +1525,11 @@ const handleBack = useCallback(() => {
         </Animated.View>
 
         <TouchableOpacity
-          onPress={() => navigation.replace('Home')}
+          onPress={() => {
+            if (user) {
+              updateUser({ ...user, onboardingSkipped: true } as any);
+            }
+          }}
           style={styles.headerSide}
         >
           <Text style={[styles.skipTxt, { color: colors.textSecondary }]}>
@@ -1522,103 +1538,123 @@ const handleBack = useCallback(() => {
         </TouchableOpacity>
       </View>
 
-      {/* Progress */}
-      <ProgressDots current={step} />
-      <View style={styles.stepCounter}>
-        <Text style={[styles.stepCounterText, { color: colors.textSecondary }]}>
-          {step + 1} of {TOTAL_STEPS}
-        </Text>
-      </View>
+      <View
+        style={[
+          styles.mainCard,
+          {
+            backgroundColor: colors.authCardBg,
+            borderColor: colors.authCardBorder,
+            shadowColor: isDarkMode ? '#000' : '#000',
+            shadowOpacity: isDarkMode ? 0.3 : 0.1,
+            shadowRadius: isDarkMode ? 10 : 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: isDarkMode ? 8 : 4,
+          },
+        ]}
+      >
+        {/* Progress */}
+        <ProgressDots current={step} />
+        <View style={styles.stepCounter}>
+          <Text style={[styles.stepCounterText, { color: colors.textSecondary }]}>
+            {step + 1} of {TOTAL_STEPS}
+          </Text>
+        </View>
 
-      {/* Slides */}
-      <GestureDetector gesture={panGesture}>
-        <View style={styles.railClip}>
-          <Animated.View style={[styles.rail, railStyle]}>
-            <AnimatedSlide index={0} railX={railX}>
-              <Step1Gender
-                isActive={step === 0}
-                gender={gender}
-                setGender={setGender}
-              />
-            </AnimatedSlide>
+        {/* Slides */}
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.railClip}>
+            <Animated.View style={[styles.rail, railStyle]}>
+              <AnimatedSlide index={0} railX={railX}>
+                <Step1Gender
+                  isActive={step === 0}
+                  gender={gender}
+                  setGender={setGender}
+                />
+              </AnimatedSlide>
 
-            <AnimatedSlide index={1} railX={railX}>
-              <Step2Birthday
-                isActive={step === 1}
-                days={days}
-                months={months}
-                years={years}
-                birthDay={birthDay}
-                birthMonth={birthMonth}
-                birthYear={birthYear}
-                currentYear={currentYear}
-                setBirthDay={setBirthDay}
-                setBirthMonth={setBirthMonth}
-                setBirthYear={setBirthYear}
-              />
-            </AnimatedSlide>
+              <AnimatedSlide index={1} railX={railX}>
+                <Step2Birthday
+                  isActive={step === 1}
+                  days={days}
+                  months={months}
+                  years={years}
+                  birthDay={birthDay}
+                  birthMonth={birthMonth}
+                  birthYear={birthYear}
+                  currentYear={currentYear}
+                  setBirthDay={setBirthDay}
+                  setBirthMonth={setBirthMonth}
+                  setBirthYear={setBirthYear}
+                />
+              </AnimatedSlide>
 
-            <AnimatedSlide index={2} railX={railX}>
-              <Step3Height
-                isActive={step === 2}
-                height={height}
-                gender={gender}
-                onChange={setHeight}
-              />
-            </AnimatedSlide>
+              <AnimatedSlide index={2} railX={railX}>
+                <Step3Height
+                  isActive={step === 2}
+                  height={height}
+                  gender={gender}
+                  onChange={setHeight}
+                />
+              </AnimatedSlide>
 
-            <AnimatedSlide index={3} railX={railX}>
-              <Step4Weight
-                isActive={step === 3}
-                weight={weight}
-                height={height}
-                onChange={setWeight}
-              />
-            </AnimatedSlide>
+              <AnimatedSlide index={3} railX={railX}>
+                <Step4Weight
+                  isActive={step === 3}
+                  weight={weight}
+                  height={height}
+                  onChange={setWeight}
+                />
+              </AnimatedSlide>
 
-            <AnimatedSlide index={4} railX={railX}>
-              <Step5Goals
-                isActive={step === 4}
-                fitnessGoal={fitnessGoal}
-                activityLevel={activityLevel}
-                setFitnessGoal={setFitnessGoal}
-                setActivityLevel={setActivityLevel}
-              />
-            </AnimatedSlide>
+              <AnimatedSlide index={4} railX={railX}>
+                <Step5Goals
+                  isActive={step === 4}
+                  fitnessGoal={fitnessGoal}
+                  activityLevel={activityLevel}
+                  setFitnessGoal={setFitnessGoal}
+                  setActivityLevel={setActivityLevel}
+                />
+              </AnimatedSlide>
+            </Animated.View>
+          </View>
+        </GestureDetector>
+
+        {/* Button */}
+        <View 
+          style={[
+            styles.btnWrap,
+            { paddingBottom: Math.max(Platform.OS === 'ios' ? 40 : 24, systemBottomInset + 20) }
+          ]}
+        >
+          <Animated.View style={btnAnimStyle}>
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: C.primary }]}
+              onPress={handleNext}
+              onPressIn={onPressIn}
+              onPressOut={onPressOut}
+              disabled={isLoading}
+              activeOpacity={1}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <View style={styles.btnContent}>
+                  <Text style={styles.btnTxt}>
+                    {isLastStep ? 'Get Started' : 'Continue'}
+                  </Text>
+                  {!isLastStep && (
+                    <Ionicons
+                      name="arrow-forward"
+                      size={20}
+                      color="#FFF"
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
           </Animated.View>
         </View>
-      </GestureDetector>
-
-      {/* Button */}
-      <View style={styles.btnWrap}>
-        <Animated.View style={btnAnimStyle}>
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: C.primary }]}
-            onPress={handleNext}
-            onPressIn={onPressIn}
-            onPressOut={onPressOut}
-            disabled={isLoading}
-            activeOpacity={1}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <View style={styles.btnContent}>
-                <Text style={styles.btnTxt}>
-                  {isLastStep ? 'Get Started' : 'Continue'}
-                </Text>
-                {!isLastStep && (
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color="#FFF"
-                    style={{ marginLeft: 8 }}
-                  />
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
       </View>
     </View>
   );
@@ -1631,12 +1667,47 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  // ── Decorative Circles ──
+  decorativeCircle1: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    top: -100,
+    right: -50,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    top: 250,
+    left: -80,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    bottom: -150,
+    right: -100,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 4,
+  },
+  mainCard: {
+    flex: 1,
+    marginTop: 16,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    marginHorizontal: -1,
+    overflow: 'hidden',
   },
   headerSide: {
     width: 70,
@@ -1989,7 +2060,6 @@ const styles = StyleSheet.create({
   // Button
   btnWrap: {
     paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     paddingTop: 12,
   },
   btn: {
