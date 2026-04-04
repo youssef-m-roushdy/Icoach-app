@@ -115,13 +115,11 @@ export default function ForgotPasswordScreen() {
   const getInputWrapperStyle = (fieldName: string) => [
     styles.inputWrapper,
     {
-      backgroundColor: focusedField === fieldName 
-        ? colors.authInputBgFocused
-        : colors.authInputBg,
+      backgroundColor: colors.authInputBg,
       borderColor: focusedField === fieldName 
         ? colors.authInputBorderFocused 
         : colors.authInputBorder,
-      borderWidth: focusedField === fieldName ? 2 : 1,
+      borderWidth: 1,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: focusedField === fieldName ? 0.3 : 0,

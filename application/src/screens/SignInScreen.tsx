@@ -111,13 +111,11 @@ export default function SignInScreen() {
   const getInputWrapperStyle = (fieldName: string) => [
     styles.inputWrapper,
     {
-      backgroundColor: focusedField === fieldName 
-        ? colors.authInputBgFocused
-        : colors.authInputBg,
+      backgroundColor: colors.authInputBg,
       borderColor: focusedField === fieldName 
         ? colors.authInputBorderFocused 
         : colors.authInputBorder,
-      borderWidth: focusedField === fieldName ? 2 : 1,
+      borderWidth: 1,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: focusedField === fieldName ? 0.3 : 0,
@@ -288,8 +286,8 @@ export default function SignInScreen() {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                       >
-                        <Text style={[styles.signInButtonText, { color: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>Sign In</Text>
-                        <Feather name="arrow-right" size={20} color={isDarkMode ? '#1A1A1A' : '#FFFFFF'} />
+                        <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>Sign In</Text>
+                        <Feather name="arrow-right" size={20} color="#FFFFFF" />
                       </LinearGradient>
                     </TouchableOpacity>
 

@@ -319,8 +319,8 @@ export default function ResetPasswordScreen() {
                   style={[
                     styles.inputWrapper,
                     {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
+                      backgroundColor: colors.authInputBg || colors.inputBg,
+                      borderColor: colors.authInputBorder || colors.inputBorder,
                     },
                   ]}
                 >
@@ -360,8 +360,8 @@ export default function ResetPasswordScreen() {
                 style={[
                   styles.inputWrapper,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: (colors as any).authInputBg || colors.inputBg,
+                    borderColor: (colors as any).authInputBorder || colors.inputBorder,
                   },
                 ]}
               >
@@ -440,8 +440,8 @@ export default function ResetPasswordScreen() {
                 style={[
                   styles.inputWrapper,
                   {
-                    backgroundColor: colors.inputBg,
-                    borderColor: colors.inputBorder,
+                    backgroundColor: (colors as any).authInputBg || colors.inputBg,
+                    borderColor: (colors as any).authInputBorder || colors.inputBorder,
                   },
                 ]}
               >

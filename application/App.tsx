@@ -9,6 +9,8 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import i18n from './i18n/i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import Toast from 'react-native-toast-message';
+import toastConfig, { isDarkRef } from './src/constants/toastConfig';
 
 import './i18n/i18n';
 import { StyleSheet, ActivityIndicator, View, Platform } from 'react-native';
@@ -19,6 +21,9 @@ const AppContent = () => {
   const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // Write to the ref synchronously on every render — no stale closures
+  isDarkRef.current = theme === 'dark';
+
   const isThreeButtonNav = Platform.OS === 'android' && insets.bottom > 35;
   const edges: Edge[] = isThreeButtonNav
     ? ['top', 'right', 'left', 'bottom']
@@ -28,7 +33,6 @@ const AppContent = () => {
     if (Platform.OS === 'android') {
       const configureNavBar = async () => {
         try {
-          // Background color is handled natively by edge-to-edge on Android
           await NavigationBar.setButtonStyleAsync(theme === 'dark' ? 'light' : 'dark');
         } catch (error) {
           console.warn('Navigation bar configuration error:', error);
@@ -43,6 +47,8 @@ const AppContent = () => {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar translucent backgroundColor="transparent" style={theme === 'dark' ? 'light' : 'dark'} />
         <AppNavigator />
+        {/* Static config — isDarkRef.current is read fresh each time a toast appears */}
+        <Toast config={toastConfig} />
       </View>
     </SystemNavigationProvider>
   );
@@ -99,7 +105,6 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
-
 
 const styles = StyleSheet.create({
   flex: {

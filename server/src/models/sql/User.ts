@@ -293,7 +293,7 @@ User.init(
           msg: 'Password must be between 8 and 128 characters',
         },
         is: {
-          args: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+          args: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/,
           msg: 'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character',
         },
       },

@@ -1,95 +1,182 @@
 import React from 'react';
-import { StyleSheet, TextStyle, ViewStyle } from 'react-native';
-import {
-  BaseToast,
-  ErrorToast,
-  ToastConfig,
-} from 'react-native-toast-message';
-import { COLORS } from '../constants/colors';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { ToastConfig } from 'react-native-toast-message';
+import { Ionicons } from '@expo/vector-icons';
 
-const getContainerStyle = (
-  isDark: boolean,
-  accentColor: string
-): ViewStyle => ({
-  borderLeftColor: accentColor,
-  backgroundColor: isDark ? COLORS.modalBackground : COLORS.lightCard,
-  borderColor: isDark ? COLORS.darkGray : COLORS.lightBorder,
-  shadowOpacity: isDark ? 0.22 : 0.12,
-});
+type ToastVariant = 'success' | 'error' | 'info';
 
-const getTitleStyle = (isDark: boolean): TextStyle => ({
-  color: isDark ? COLORS.white : COLORS.lightText,
-});
+interface ToastColors {
+  accent: string;
+  iconBg: string;
+  cardBg: string;
+  cardBorder: string;
+  titleColor: string;
+  subtitleColor: string;
+  shadowColor: string;
+  shadowOpacity: number;
+}
 
-const getSubtitleStyle = (isDark: boolean): TextStyle => ({
-  color: isDark ? COLORS.textSecondary : COLORS.lightTextSecondary,
-});
+const LIGHT_COLORS: Record<ToastVariant, ToastColors> = {
+  success: {
+    accent: '#C5981B',
+    iconBg: 'rgba(197,152,27,0.12)',
+    cardBg: '#FFFFFF',
+    cardBorder: 'rgba(197,152,27,0.25)',
+    titleColor: '#1A1A1A',
+    subtitleColor: '#6B7280',
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+  },
+  error: {
+    accent: '#E53E3E',
+    iconBg: 'rgba(229,62,62,0.10)',
+    cardBg: '#FFFFFF',
+    cardBorder: 'rgba(229,62,62,0.20)',
+    titleColor: '#1A1A1A',
+    subtitleColor: '#6B7280',
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+  },
+  info: {
+    accent: '#C5981B',
+    iconBg: 'rgba(197,152,27,0.10)',
+    cardBg: '#FFFFFF',
+    cardBorder: 'rgba(197,152,27,0.20)',
+    titleColor: '#1A1A1A',
+    subtitleColor: '#6B7280',
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+  },
+};
 
-export const createToastConfig = (isDark: boolean): ToastConfig => ({
-  success: (props) => (
-    <BaseToast
-      {...props}
-      style={[styles.toast, getContainerStyle(isDark, COLORS.success)]}
-      contentContainerStyle={styles.content}
-      text1Style={[styles.text1, getTitleStyle(isDark)]}
-      text2Style={[styles.text2, getSubtitleStyle(isDark)]}
-      text1NumberOfLines={1}
-      text2NumberOfLines={2}
-    />
-  ),
+const DARK_COLORS: Record<ToastVariant, ToastColors> = {
+  success: {
+    accent: '#FFD700',
+    iconBg: 'rgba(255,215,0,0.12)',
+    cardBg: 'rgba(45,45,45,0.95)',
+    cardBorder: 'rgba(255,215,0,0.35)',
+    titleColor: '#FFFFFF',
+    subtitleColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+  },
+  error: {
+    accent: '#FC8181',
+    iconBg: 'rgba(252,129,129,0.12)',
+    cardBg: 'rgba(45,45,45,0.95)',
+    cardBorder: 'rgba(252,129,129,0.20)',
+    titleColor: '#FFFFFF',
+    subtitleColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+  },
+  info: {
+    accent: '#FFD700',
+    iconBg: 'rgba(255,215,0,0.10)',
+    cardBg: 'rgba(45,45,45,0.95)',
+    cardBorder: 'rgba(255,215,0,0.15)',
+    titleColor: '#FFFFFF',
+    subtitleColor: 'rgba(255,255,255,0.55)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+  },
+};
 
-  error: (props) => (
-    <ErrorToast
-      {...props}
-      style={[styles.toast, getContainerStyle(isDark, COLORS.error)]}
-      contentContainerStyle={styles.content}
-      text1Style={[styles.text1, getTitleStyle(isDark)]}
-      text2Style={[styles.text2, getSubtitleStyle(isDark)]}
-      text1NumberOfLines={1}
-      text2NumberOfLines={2}
-    />
-  ),
+const ICONS: Record<ToastVariant, keyof typeof Ionicons.glyphMap> = {
+  success: 'checkmark-circle',
+  error: 'close-circle',
+  info: 'information-circle',
+};
 
-  info: (props) => (
-    <BaseToast
-      {...props}
-      style={[styles.toast, getContainerStyle(isDark, COLORS.primary)]}
-      contentContainerStyle={styles.content}
-      text1Style={[styles.text1, getTitleStyle(isDark)]}
-      text2Style={[styles.text2, getSubtitleStyle(isDark)]}
-      text1NumberOfLines={1}
-      text2NumberOfLines={2}
-    />
-  ),
-});
+// Module-level ref — written by AppContent on every render
+export const isDarkRef = { current: false };
+
+const CustomToast: React.FC<{ text1?: string; text2?: string; variant: ToastVariant }> = ({
+  text1,
+  text2,
+  variant,
+}) => {
+  const c = isDarkRef.current ? DARK_COLORS[variant] : LIGHT_COLORS[variant];
+
+  return (
+    <View style={[styles.card, {
+      backgroundColor: c.cardBg,
+      borderColor: c.cardBorder,
+      shadowColor: c.shadowColor,
+      shadowOpacity: c.shadowOpacity,
+    }]}>
+      <View style={[styles.accentBar, { backgroundColor: c.accent }]} />
+      <View style={[styles.iconWrapper, { backgroundColor: c.iconBg }]}>
+        <Ionicons name={ICONS[variant]} size={22} color={c.accent} />
+      </View>
+      <View style={styles.textContainer}>
+        {text1 ? (
+          <Text style={[styles.title, { color: c.titleColor }]} numberOfLines={1}>
+            {text1}
+          </Text>
+        ) : null}
+        {text2 ? (
+          <Text style={[styles.subtitle, { color: c.subtitleColor }]} numberOfLines={2}>
+            {text2}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+};
+
+const config: ToastConfig = {
+  success: ({ text1, text2 }) => <CustomToast text1={text1} text2={text2} variant="success" />,
+  error:   ({ text1, text2 }) => <CustomToast text1={text1} text2={text2} variant="error" />,
+  info:    ({ text1, text2 }) => <CustomToast text1={text1} text2={text2} variant="info" />,
+};
+
+export default config;
 
 const styles = StyleSheet.create({
-  toast: {
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     width: '92%',
     minHeight: 64,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderLeftWidth: 5,
-    paddingVertical: 6,
-
-    // Shadow
-    shadowColor: '#000',
-    shadowRadius: 8,
+    paddingVertical: 12,
+    paddingRight: 16,
+    paddingLeft: 0,
+    overflow: 'hidden',
     shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 6,
   },
-
-  content: {
-    paddingHorizontal: 14,
+  accentBar: {
+    width: 4,
+    alignSelf: 'stretch',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    marginRight: 12,
   },
-
-  text1: {
+  iconWrapper: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 2,
+  },
+  title: {
     fontSize: 15,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
-
-  text2: {
+  subtitle: {
     fontSize: 13,
     fontWeight: '400',
+    lineHeight: 18,
   },
 });

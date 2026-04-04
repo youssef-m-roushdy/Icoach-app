@@ -10,10 +10,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import {
@@ -30,9 +32,11 @@ type EmailVerificationNavigationProp = NativeStackNavigationProp<
 
 export default function EmailVerificationScreen() {
   const navigation = useNavigation<EmailVerificationNavigationProp>();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
   const { user, token, updateUser } = useAuth();
+  const isDarkMode = theme === 'dark';
 
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -139,20 +143,53 @@ export default function EmailVerificationScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.content}>
-        {/* Icon */}
-        <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
-          <MaterialIcons
-            name={user?.isEmailVerified ? 'verified' : 'email'}
-            size={80}
-            color={user?.isEmailVerified ? COLORS.success : colors.primary}
-          />
-        </View>
+    <View style={[styles.background, { backgroundColor: colors.background }]}>
+      {/* Animated Gradient Background */}
+      <LinearGradient
+        colors={(colors as any).authBgGradient || [colors.background, colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: (colors as any).authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: (colors as any).authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: (colors as any).authCircle3 }]} />
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { 
+            paddingTop: Math.max(40, insets.top + 20),
+            paddingBottom: Math.max(40, systemBottomInset + 20) 
+          }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.content,
+            {
+              backgroundColor: (colors as any).authCardBg || colors.card,
+              borderColor: (colors as any).authCardBorder || colors.border,
+              shadowColor: isDarkMode ? '#000' : '#000',
+              shadowOpacity: isDarkMode ? 0.3 : 0.1,
+              shadowRadius: isDarkMode ? 10 : 8,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: isDarkMode ? 8 : 4,
+              borderWidth: (colors as any).authCardBorder ? 1 : 0,
+            }
+          ]}
+        >
+          {/* Icon */}
+          <View style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}>
+            <MaterialIcons
+              name={user?.isEmailVerified ? 'verified' : 'email'}
+              size={80}
+              color={user?.isEmailVerified ? COLORS.success : colors.primary}
+            />
+          </View>
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>
@@ -174,8 +211,8 @@ export default function EmailVerificationScreen() {
             style={[
               styles.emailBox,
               {
-                backgroundColor: colors.inputBg,
-                borderColor: colors.inputBorder,
+                backgroundColor: (colors as any).authInputBg || colors.inputBg,
+                borderColor: (colors as any).authInputBorder || colors.inputBorder,
               },
             ]}
           >
@@ -246,25 +283,30 @@ export default function EmailVerificationScreen() {
         {!user?.isEmailVerified && (
           <>
             <TouchableOpacity
-              style={[
-                styles.button,
-                isLoading && styles.buttonDisabled,
-              ]}
+              style={[styles.signInButton, isLoading && styles.buttonDisabled]}
               onPress={handleSendVerificationEmail}
               disabled={isLoading}
+              activeOpacity={0.8}
             >
+              <LinearGradient
+                colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                style={styles.signInGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
               {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={isDarkMode ? '#1A1A1A' : '#FFFFFF'} />
               ) : (
                 <>
-                  <MaterialIcons name="send" size={20} color="#FFFFFF" />
-                  <Text style={styles.buttonText}>
+                  <MaterialIcons name="send" size={20} color={'#FFFFFF'} />
+                  <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>
                     {emailSent
                       ? 'Resend Verification Email'
                       : 'Send Verification Email'}
                   </Text>
                 </>
               )}
+              </LinearGradient>
             </TouchableOpacity>
 
             <Text style={[styles.helpText, { color: colors.textSecondary }]}>
@@ -273,11 +315,10 @@ export default function EmailVerificationScreen() {
           </>
         )}
 
-        {/* Back / Continue Button */}
         <TouchableOpacity
           style={[
             styles.backButton,
-            { borderColor: colors.inputBorder },
+            { borderColor: (colors as any).authInputBorder || colors.inputBorder },
             user?.isEmailVerified && styles.verifiedBackButton,
           ]}
           onPress={() => navigation.goBack()}
@@ -295,22 +336,53 @@ export default function EmailVerificationScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
-    flex: 1,
-    paddingHorizontal: SIZES.lg,
-    paddingVertical: SIZES.xl,
+    width: '90%',
+    borderRadius: 32,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
   },
   iconContainer: {
     width: 160,
@@ -399,10 +471,28 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
-    fontSize: SIZES.body,
-    fontWeight: 'bold',
+  signInButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    width: '100%',
+  },
+  signInGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  signInButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   helpText: {
     fontSize: SIZES.small,

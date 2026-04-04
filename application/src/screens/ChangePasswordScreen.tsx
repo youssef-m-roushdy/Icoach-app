@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COLORS, SIZES } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import {
@@ -32,14 +34,17 @@ type ChangePasswordNavigationProp = NativeStackNavigationProp<
 
 export default function ChangePasswordScreen() {
   const navigation = useNavigation<ChangePasswordNavigationProp>();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { systemBottomInset } = useSystemNavigation();
   const { token, logout } = useAuth();
+  const isDarkMode = theme === 'dark';
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // Password visibility toggles
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -170,159 +175,202 @@ export default function ChangePasswordScreen() {
 
   const passwordStrength = getPasswordStrength(newPassword);
 
+  const getInputWrapperStyle = (fieldName: string) => [
+    styles.inputWrapper,
+    {
+      backgroundColor: (colors as any).authInputBg || colors.inputBg,
+      borderColor: focusedField === fieldName 
+        ? (colors as any).authInputBorderFocused || colors.primary
+        : (colors as any).authInputBorder || colors.inputBorder,
+      borderWidth: 1,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: focusedField === fieldName ? 0.3 : 0,
+      shadowRadius: focusedField === fieldName ? 8 : 0,
+      elevation: focusedField === fieldName ? 4 : 0,
+    },
+  ];
+
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <View style={[styles.background, { backgroundColor: colors.background }]}>
+      {/* Animated Gradient Background */}
+      <LinearGradient
+        colors={(colors as any).authBgGradient || [colors.background, colors.background]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
       >
-        <View style={styles.content}>
-          {/* Header Icon */}
-          <View
-            style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}
+        <View style={[styles.decorativeCircle1, { backgroundColor: (colors as any).authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: (colors as any).authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: (colors as any).authCircle3 }]} />
+      </LinearGradient>
+
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { 
+              paddingTop: Math.max(40, insets.top + 20),
+              paddingBottom: Math.max(40, systemBottomInset + 20) 
+            }
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <MaterialIcons
-              name="lock-reset"
-              size={60}
-              color={colors.primary}
-            />
-          </View>
-
-          <Text style={[styles.title, { color: colors.text }]}>
-            Change Password
-          </Text>
-          <Text style={[styles.description, { color: colors.textSecondary }]}>
-            Enter your current password and choose a new secure password
-          </Text>
-
-          {/* Current Password */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Current Password
+            <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+            <Text style={[styles.backButtonText, { color: colors.text }]}>
+              Back
             </Text>
+          </TouchableOpacity>
+
+          <View
+            style={[
+              styles.formContainer,
+              {
+                backgroundColor: (colors as any).authCardBg || colors.card,
+                borderColor: (colors as any).authCardBorder || colors.border,
+                shadowColor: isDarkMode ? '#000' : '#000',
+                shadowOpacity: isDarkMode ? 0.3 : 0.1,
+                shadowRadius: isDarkMode ? 10 : 8,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: isDarkMode ? 8 : 4,
+                borderWidth: (colors as any).authCardBorder ? 1 : 0,
+              }
+            ]}
+          >
+            {/* Header Icon */}
             <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
+              style={[styles.iconContainer, { backgroundColor: colors.iconBg }]}
             >
               <MaterialIcons
-                name="lock-outline"
-                size={20}
-                color={colors.textSecondary}
+                name="lock-reset"
+                size={60}
+                color={colors.primary}
               />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Enter current password"
-                placeholderTextColor={colors.textSecondary}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                secureTextEntry={!showCurrentPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-              >
-                <MaterialIcons
-                  name={showCurrentPassword ? 'visibility' : 'visibility-off'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
             </View>
-          </View>
 
-          {/* New Password */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              New Password
+            <Text style={[styles.title, { color: colors.text }]}>
+              Change Password
             </Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <MaterialIcons
-                name="lock"
-                size={20}
-                color={colors.textSecondary}
-              />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Enter new password"
-                placeholderTextColor={colors.textSecondary}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry={!showNewPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowNewPassword(!showNewPassword)}
-              >
-                <MaterialIcons
-                  name={showNewPassword ? 'visibility' : 'visibility-off'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
+              Enter your current password and choose a new secure password
+            </Text>
 
-            {newPassword.length > 0 && (
-              <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
-                Password Strength: {passwordStrength.text}
+            {/* Current Password */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Current Password
               </Text>
-            )}
-          </View>
-
-          {/* Confirm Password */}
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>
-              Confirm New Password
-            </Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                {
-                  backgroundColor: colors.inputBg,
-                  borderColor: colors.inputBorder,
-                },
-              ]}
-            >
-              <MaterialIcons
-                name="lock"
-                size={20}
-                color={colors.textSecondary}
-              />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Confirm new password"
-                placeholderTextColor={colors.textSecondary}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
+              <View style={getInputWrapperStyle('currentPassword')}>
                 <MaterialIcons
-                  name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                  name="lock-outline"
                   size={20}
-                  color={colors.textSecondary}
+                  color={focusedField === 'currentPassword' ? colors.primary : colors.textSecondary}
                 />
-              </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Enter current password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  onFocus={() => setFocusedField('currentPassword')}
+                  onBlur={() => setFocusedField(null)}
+                  secureTextEntry={!showCurrentPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                >
+                  <MaterialIcons
+                    name={showCurrentPassword ? 'visibility' : 'visibility-off'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
+
+            {/* New Password */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                New Password
+              </Text>
+              <View style={getInputWrapperStyle('newPassword')}>
+                <MaterialIcons
+                  name="lock"
+                  size={20}
+                  color={focusedField === 'newPassword' ? colors.primary : colors.textSecondary}
+                />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Enter new password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  onFocus={() => setFocusedField('newPassword')}
+                  onBlur={() => setFocusedField(null)}
+                  secureTextEntry={!showNewPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                >
+                  <MaterialIcons
+                    name={showNewPassword ? 'visibility' : 'visibility-off'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {newPassword.length > 0 && (
+                <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
+                  Password Strength: {passwordStrength.text}
+                </Text>
+              )}
+            </View>
+
+            {/* Confirm Password */}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Confirm New Password
+              </Text>
+              <View style={getInputWrapperStyle('confirmPassword')}>
+                <MaterialIcons
+                  name="lock"
+                  size={20}
+                  color={focusedField === 'confirmPassword' ? colors.primary : colors.textSecondary}
+                />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Confirm new password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <MaterialIcons
+                    name={showConfirmPassword ? 'visibility' : 'visibility-off'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </View>
 
             {confirmPassword.length > 0 && newPassword !== confirmPassword && (
               <Text style={[styles.errorText, { color: COLORS.error }]}>
@@ -438,31 +486,35 @@ export default function ChangePasswordScreen() {
             <View style={styles.noteContainer}>
               <MaterialIcons name="info" size={14} color={COLORS.primary} />
               <Text style={styles.noteText}>
-                Note: Your server does not consider underscore (_) as a special character
+                Note: special characters like (!, @, #, $, %, ^, &, *, _).
               </Text>
             </View>
           </View>
 
           {/* Change Password Button */}
           <TouchableOpacity
-            style={[
-              styles.button,
-              { backgroundColor: colors.primary },
-              isLoading && styles.buttonDisabled,
-            ]}
+            style={[styles.signInButton, isLoading && styles.buttonDisabled]}
             onPress={handleChangePassword}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>Change Password</Text>
-            )}
+            <LinearGradient
+              colors={[colors.primary, (colors as any).secondary || colors.primary]}
+              style={styles.signInGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={'#FFFFFF'} />
+              ) : (
+                <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>Change Password</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           {/* Cancel Button */}
           <TouchableOpacity
-            style={[styles.cancelButton, { borderColor: colors.inputBorder }]}
+            style={[styles.cancelButton, { borderColor: colors.border || colors.inputBorder }]}
             onPress={() => navigation.goBack()}
           >
             <Text style={[styles.cancelButtonText, { color: colors.text }]}>
@@ -472,6 +524,7 @@ export default function ChangePasswordScreen() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -600,4 +653,83 @@ const styles = StyleSheet.create({
     fontSize: SIZES.body,
     fontWeight: '600',
   },
+  signInButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  signInGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  signInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  background: {
+    flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  backButtonText: {
+    marginLeft: 4,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  formContainer: {
+    width: '90%',
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    marginTop: 40,
+    alignItems: 'stretch',
+    alignSelf: 'center',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
 });

@@ -237,13 +237,11 @@ export default function SignUpScreen() {
   const getInputWrapperStyle = (fieldName: string) => [
     styles.inputWrapper,
     {
-      backgroundColor: focusedField === fieldName 
-        ? colors.authInputBgFocused
-        : colors.authInputBg,
+      backgroundColor: colors.authInputBg,
       borderColor: focusedField === fieldName 
         ? colors.authInputBorderFocused 
         : colors.authInputBorder,
-      borderWidth: focusedField === fieldName ? 2 : 1,
+      borderWidth: 1,
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: focusedField === fieldName ? 0.3 : 0,
@@ -418,7 +416,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Create a strong password"
+                  placeholder="Create password"
                   placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
@@ -490,7 +488,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Confirm your password"
+                  placeholder="Confirm password"
                   placeholderTextColor={colors.placeholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -630,7 +628,14 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  Special character (optional)
+                  Special character
+                </Text>
+              </View>
+
+              <View style={styles.noteContainer}>
+                <MaterialIcons name="info" size={14} color={COLORS.primary} />
+                <Text style={styles.noteText}>
+                  Note: special characters like (!, @, #, $, %, ^, &, *, _).
                 </Text>
               </View>
             </View>
@@ -651,8 +656,8 @@ export default function SignUpScreen() {
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                     >
-                      <Text style={[styles.signInButtonText, { color: isDarkMode ? '#1A1A1A' : '#FFFFFF' }]}>Create Account</Text>
-                      <MaterialIcons name="arrow-forward" size={20} color={isDarkMode ? '#1A1A1A' : '#FFFFFF'} />
+                      <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>Create Account</Text>
+                      <MaterialIcons name="arrow-forward" size={20} color="#FFFFFF" />
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -815,6 +820,22 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: SIZES.small,
+  },
+  noteContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SIZES.sm,
+    marginTop: SIZES.sm,
+    padding: SIZES.sm,
+    backgroundColor: `${COLORS.primary}10`,
+    borderRadius: SIZES.radiusSmall,
+  },
+  noteText: {
+    fontSize: SIZES.small,
+    color: COLORS.primary,
+    flex: 1,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
   buttonContainer: {
     width: '100%',

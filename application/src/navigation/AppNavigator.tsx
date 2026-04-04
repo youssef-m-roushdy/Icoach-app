@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Toast from 'react-native-toast-message';
+
 import { useColorScheme, Image, Platform } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
@@ -51,7 +51,7 @@ import {
 
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
-import { createToastConfig } from '../constants/toastConfig';
+
 
 // Type definitions
 export type RootStackParamList = {
@@ -627,8 +627,6 @@ export const AppNavigator: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigationRef, setNavigationRef] = useState<any>(null);
 
-  const toastConfig = useMemo(() => createToastConfig(!!isDark), [isDark]);
-
   // Close drawer when navigation state changes (user navigates to a different screen)
   useEffect(() => {
     if (!navigationRef) return;
@@ -935,14 +933,6 @@ export const AppNavigator: React.FC = () => {
         </Stack.Navigator>
       </NavigationContainer>
       <SystemNavigationBarProtector />
-
-      <Toast
-        config={toastConfig}
-        position="top"
-        topOffset={55}
-        visibilityTime={3000}
-        autoHide
-      />
 
       {isAuthenticated && navigationRef && false /* Explicitly disabled custom DrawerMenu completely per user request */ && (
         <DrawerMenu
