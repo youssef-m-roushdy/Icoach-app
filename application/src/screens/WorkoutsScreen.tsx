@@ -283,7 +283,7 @@ const WorkoutsScreen = () => {
       setSearchQuery(text);
       setPagination((prev) => ({ ...prev, page: 1 }));
       setIsSearching(false);
-    }, 500);
+    }, 100);
   };
 
   const handleClearSearch = () => {

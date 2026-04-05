@@ -81,41 +81,51 @@ export const hideToast = () => {
 
 // ⚠️ Extract readable error message safely
 export const getErrorMessage = (error: unknown): string => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'response' in error
-  ) {
-    const err = error as {
-      response?: {
-        data?: {
-          message?: string;
-          error?: string;
-          errors?: { message?: string }[];
-        };
-      };
-      message?: string;
-    };
+  if (typeof error === 'string') {
+    return error;
+  }
 
-    if (err.response?.data?.message) {
-      return err.response.data.message;
+  if (typeof error !== 'object' || error === null) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  const err = error as any;
+  const errorData = err.response?.data || err.data;
+
+  if (errorData) {
+    // 1. Handle nested validation details: { error: { details: [{ message: "..." }] } }
+    if (errorData.error?.details && Array.isArray(errorData.error.details)) {
+      const messages = errorData.error.details
+        .map((e: any) => e.message || e.msg || (typeof e === 'string' ? e : JSON.stringify(e)));
+      if (messages.length > 0) return messages.join('\n');
     }
 
-    if (err.response?.data?.error) {
-      return err.response.data.error;
+    // 2. Handle flat errors array: { errors: [{ msg: "..." }] }
+    if (errorData.errors && Array.isArray(errorData.errors)) {
+      const messages = errorData.errors
+        .map((e: any) => e.message || e.msg || (typeof e === 'string' ? e : JSON.stringify(e)));
+      if (messages.length > 0) return messages.join('\n');
     }
 
-    if (err.response?.data?.errors?.[0]?.message) {
-      return err.response.data.errors[0].message!;
+    // 3. Handle direct array response
+    if (Array.isArray(errorData)) {
+      const messages = errorData
+        .map((e: any) => e.message || e.msg || (typeof e === 'string' ? e : JSON.stringify(e)));
+      if (messages.length > 0) return messages.join('\n');
     }
 
-    if (err.message) {
-      return err.message;
+    // 4. Return direct string properties if available
+    if (typeof errorData.error === 'string') {
+      return errorData.error;
+    }
+
+    if (typeof errorData.message === 'string') {
+      return errorData.message;
     }
   }
 
-  if (error instanceof Error) {
-    return error.message;
+  if (err.message && typeof err.message === 'string') {
+    return err.message;
   }
 
   return 'Something went wrong. Please try again.';

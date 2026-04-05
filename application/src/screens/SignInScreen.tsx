@@ -94,7 +94,7 @@ export default function SignInScreen() {
         rawMessage.toLowerCase().includes('incorrect password') ||
         rawMessage.toLowerCase().includes('user not found')
       ) {
-        displayMessage = 'Invalid email/username or password. Please try again.';
+        displayMessage = 'Invalid Credentials. Please try again.';
       } else if (rawMessage.toLowerCase().includes('email not verified')) {
         displayMessage = 'Please verify your email address before logging in.';
       }

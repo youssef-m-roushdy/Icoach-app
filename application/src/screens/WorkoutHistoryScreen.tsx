@@ -225,13 +225,19 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
           },
         );
       } else {
+        console.log(response?.message)
         showErrorToast({
           title: "Error",
           message: response?.message || "Failed to load workout sessions",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.log("Failed to load sessions full error:", JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      if (error?.response?.data) {
+        console.log("Error response data:", JSON.stringify(error.response.data, null, 2));
+      }
       console.error("Failed to load sessions:", error);
+
       showErrorToast({
         title: "Error",
         message: getErrorMessage(error) || "Failed to load workout sessions",
