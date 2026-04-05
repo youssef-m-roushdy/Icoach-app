@@ -20,8 +20,9 @@ import {
   Dimensions,
   Modal,
   FlatList,
-  ActivityIndicator,
   Linking,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,16 +50,220 @@ import {
   voiceFeedback,
 } from '../services/aiFitnessEngine';
 import { useTheme } from '../context/ThemeContext';
-import {
-  showSuccessToast,
-  showErrorToast,
-  showInfoToast,
-} from '../utils/toast';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Supported exercises
 const EXERCISES = AIFitnessEngine.getSupportedExercises();
+
+type ExerciseDifficulty = 'Beginner' | 'Advanced';
+
+const EXERCISE_DIFFICULTY_MAP: Record<string, ExerciseDifficulty> = {
+  // Beginner
+  knee_pushup: 'Beginner',
+  knee_push_up: 'Beginner',
+  bent_knee_dip: 'Beginner',
+  standing_overhead_press: 'Beginner',
+  front_raises: 'Beginner',
+  chair_squat: 'Beginner',
+  static_split_squat: 'Beginner',
+  glute_bridge: 'Beginner',
+  bird_dog: 'Beginner',
+  high_plank: 'Beginner',
+  crunch: 'Beginner',
+  knee_tucks: 'Beginner',
+  knee_tap: 'Beginner',
+  jumping_jacks: 'Beginner',
+  side_lying_leg_raise: 'Beginner',
+
+  // Advanced
+  classic_pushup: 'Advanced',
+  classic_push_up: 'Advanced',
+  straight_leg_dip: 'Advanced',
+  pike_pushup: 'Advanced',
+  lateral_raises: 'Advanced',
+  squat: 'Advanced',
+  reverse_lunge: 'Advanced',
+  donkey_kick: 'Advanced',
+  superman: 'Advanced',
+  elbow_plank: 'Advanced',
+  v_ups: 'Advanced',
+  leg_raises: 'Advanced',
+  high_knees: 'Advanced',
+  inchworm: 'Advanced',
+  toe_touch: 'Advanced',
+};
+
+const EXERCISE_INSTRUCTIONS = {
+  squat: {
+    desc: 'Stand with feet shoulder-width apart. Lower your hips deep down as if sitting in an invisible chair (knees bent < 90°), then drive back up.',
+    orientation: 'Vertical',
+    position: 'Front View',
+  },
+  superman: {
+    desc: 'Lie face down on the floor with arms extended forward. Simultaneously lift your arms, chest, and legs off the ground. Hold, then lower.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  leg_raises: {
+    desc: 'Lie flat on your back, hands under glutes. Keep legs straight and lift them until vertical (90°). Lower slowly without touching the ground.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  high_plank: {
+    desc: 'Get into a pushup position on your hands and toes. Keep arms straight and body in a straight line from head to heels. Engage core and hold.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  elbow_plank: {
+    desc: 'Similar to High Plank but support your weight on your forearms (elbows). Keep your body straight and core tight.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  crunch: {
+    desc: "Lie on your back, knees bent. Hands behind head. Lift your shoulders and upper back off the floor using your abs. Don't pull your neck.",
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  jumping_jacks: {
+    desc: 'Start standing. Jump feet wide apart while raising arms overhead. Jump feet back together while lowering arms.',
+    orientation: 'Vertical',
+    position: 'Front View',
+  },
+  lateral_raises: {
+    desc: 'Stand tall. Lift your arms out to the sides until they reach shoulder height (T-shape), then lower slowly.',
+    orientation: 'Vertical',
+    position: 'Front View',
+  },
+  front_raises: {
+    desc: 'Stand tall. Lift your arms straight out in front of you until shoulder height, then lower slowly.',
+    orientation: 'Vertical',
+    position: 'Side View',
+  },
+  standing_overhead_press: {
+    desc: 'Stand tall. Raise hands from shoulder level straight up over your head until arms are extended, then lower.',
+    orientation: 'Horizontal',
+    position: 'Front View',
+  },
+  high_knees: {
+    desc: 'Run in place, driving your knees up towards your chest as high and fast as possible. Pump your arms.',
+    orientation: 'Vertical',
+    position: 'Front View',
+  },
+  knee_tap: {
+    desc: 'Stand tall. Lift your right knee and tap it with your left hand. Switch immediately. Keep an upright posture.',
+    orientation: 'Horizontal',
+    position: 'Front View',
+  },
+  pike_pushup: {
+    desc: 'Start in downward dog (inverted V-shape). Lower head towards floor by bending elbows, then push back up.',
+    orientation: 'Horizontal',
+    position: 'Side View: Phone on your LEFT side',
+  },
+  static_split_squat: {
+    desc: 'Split stance. Lower hips until both knees are bent approx 90°. Keep feet fixed; move up and down.',
+    orientation: 'Vertical',
+    position: 'Side View',
+  },
+  chair_squat: {
+    desc: 'Stand in front of a chair. Lower hips back until you lightly touch the seat, then push through heels to stand.',
+    orientation: 'Vertical',
+    position: 'Side View',
+  },
+  glute_bridge: {
+    desc: 'Lie on back, knees bent. Lift hips toward ceiling until body forms a straight line. Squeeze glutes at the top.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  bird_dog: {
+    desc: 'Start on hands and knees. Extend right arm forward and left leg backward until straight. Hold, return and switch.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  reverse_lunge: {
+    desc: 'Stand tall. Step one foot backward and lower hips until both knees are bent at 90°. Push off back foot to return.',
+    orientation: 'Vertical',
+    position: 'Side View',
+  },
+  v_ups: {
+    desc: 'Lie flat on your back. Simultaneously lift your straight legs and torso up to touch your toes, forming a V shape.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  bent_knee_dip: {
+    desc: 'Hands on a chair behind you. Feet flat on floor, knees bent 90°. Lower hips by bending elbows, then push up.',
+    orientation: 'Vertical',
+    position: 'Side View',
+  },
+  knee_pushup: {
+    desc: 'Pushup position but with knees on the ground. Lower chest to floor, then push back up.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  classic_pushup: {
+    desc: 'High plank on toes. Lower chest to floor until elbows are at 90°, then push back up explosively.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  straight_leg_dip: {
+    desc: 'Hands on a chair behind you. Extend legs fully forward. Lower body by bending elbows, then push up.',
+    orientation: 'Vertical',
+    position: 'Side View: Phone on your RIGHT side',
+  },
+  toe_touch: {
+    desc: 'Stand tall. Kick right leg straight forward and up while reaching to touch toes with left hand. Switch sides.',
+    orientation: 'Vertical',
+    position: 'Front View',
+  },
+  inchworm: {
+    desc: 'Stand tall. Hinge at hips to touch floor, walk hands out into high plank, hold briefly, walk hands back and stand up.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  side_lying_leg_raise: {
+    desc: 'Lie on side with legs straight. Lift top leg towards ceiling. Lower slowly without touching bottom leg.',
+    orientation: 'Horizontal',
+    position: 'Side View, Head towards camera',
+  },
+  knee_tucks: {
+    desc: 'Sit on floor, lean back slightly with hands for support. Pull both knees into chest, then extend legs out.',
+    orientation: 'Horizontal',
+    position: 'Side View',
+  },
+  donkey_kick: {
+    desc: 'Start on all fours. Kick one leg backwards and upwards towards ceiling (knee bent 90°). Squeeze glutes.',
+    orientation: 'Horizontal',
+    position: 'Side View: Active leg facing the camera',
+  },
+};
+
+const getExerciseDifficulty = (exercise: string): ExerciseDifficulty => {
+  const normalized = exercise.toLowerCase().trim().replace(/\s+/g, '_');
+
+  if (EXERCISE_DIFFICULTY_MAP[exercise]) {
+    return EXERCISE_DIFFICULTY_MAP[exercise];
+  }
+
+  if (EXERCISE_DIFFICULTY_MAP[normalized]) {
+    return EXERCISE_DIFFICULTY_MAP[normalized];
+  }
+
+  const compactPushupKey = normalized
+    .replace('classic_push_up', 'classic_pushup')
+    .replace('knee_push_up', 'knee_pushup');
+
+  if (EXERCISE_DIFFICULTY_MAP[compactPushupKey]) {
+    return EXERCISE_DIFFICULTY_MAP[compactPushupKey];
+  }
+
+  // Default fallback: always return one of the two only
+  return 'Advanced';
+};
+
+const ORDERED_EXERCISES = [
+  ...EXERCISES.filter((item) => getExerciseDifficulty(item) === 'Beginner'),
+  ...EXERCISES.filter((item) => getExerciseDifficulty(item) === 'Advanced'),
+];
 
 /**
  * Convert MediaPipe landmarks to our Landmark format
@@ -95,6 +300,9 @@ const LiveWorkoutScreen = () => {
   // State
   const [selectedExercise, setSelectedExercise] = useState<string>('jumping_jacks');
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [result, setResult] = useState<ExerciseResult | null>(null);
   const [feedback, setFeedback] = useState({ message: 'Select an exercise' });
@@ -114,6 +322,16 @@ const LiveWorkoutScreen = () => {
   useEffect(() => {
     isActiveRef.current = isActive;
   }, [isActive]);
+
+  useEffect(() => {
+    setShowTooltip(true);
+
+    const timer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [selectedExercise]);
 
   // INITIALIZE: Create trainer instance on component mount
   useEffect(() => {
@@ -193,7 +411,6 @@ const LiveWorkoutScreen = () => {
           if (analysisResult.feedback_code !== lastFeedbackRef.current) {
             lastFeedbackRef.current = analysisResult.feedback_code;
 
-            // ✅ التعديل هنا: استخدام speakFeedback بدل speak
             voiceFeedback.speakFeedback(
               analysisResult.feedback_code,
               analysisResult.exercise,
@@ -220,15 +437,10 @@ const LiveWorkoutScreen = () => {
     setPoseStatus(`Error: ${message}`);
     setDebugInfo(`Pose Error: ${message}`);
 
-    // Prevent repeated error toasts spamming the user
+    // Preserve existing structure without showing toast messages
     const now = Date.now();
     if (now - lastPoseErrorToastRef.current > 4000) {
       lastPoseErrorToastRef.current = now;
-
-      showErrorToast({
-        title: 'Pose Detection Error',
-        message,
-      });
     }
   }, []);
 
@@ -285,10 +497,6 @@ const LiveWorkoutScreen = () => {
       noCameraToastShownRef.current = false;
     } else if (!noCameraToastShownRef.current) {
       noCameraToastShownRef.current = true;
-      showErrorToast({
-        title: 'No Camera Found',
-        message: 'No camera device is available on this device.',
-      });
     }
   }, [device, poseDetection]);
 
@@ -298,25 +506,17 @@ const LiveWorkoutScreen = () => {
       const granted = await requestPermission();
 
       if (!granted) {
-        showErrorToast({
-          title: 'Permission Denied',
-          message: 'Camera permission is required. Opening Settings...',
-        });
         Linking.openSettings();
-      } else {
-        showSuccessToast({
-          title: 'Permission Granted',
-          message: 'Camera access enabled successfully.',
-        });
       }
     } catch (error) {
       console.error('Permission request error:', error);
-      showErrorToast({
-        title: 'Permission Error',
-        message: 'Unable to request camera permission.',
-      });
     }
   }, [requestPermission]);
+
+  const handleShowInstructions = useCallback(() => {
+    setShowInstructionsModal(true);
+    setShowTooltip(false);
+  }, []);
 
   // Toggle workout
   const toggleWorkout = useCallback(() => {
@@ -324,24 +524,14 @@ const LiveWorkoutScreen = () => {
       setIsActive(false);
       voiceFeedback.stop();
       setFeedback({ message: 'Workout paused' });
-
-      showInfoToast({
-        title: 'Workout Paused',
-        message: `${selectedExercise.replace('_', ' ')} session paused.`,
-      });
     } else {
       setIsActive(true);
       trainerRef.current?.reset?.();
       lastFeedbackRef.current = '';
       frameCountRef.current = 0;
       setFeedback({ message: 'Get in position!' });
-
-      showSuccessToast({
-        title: 'Workout Started',
-        message: `${selectedExercise.replace('_', ' ')} tracking is now active.`,
-      });
     }
-  }, [isActive, selectedExercise]);
+  }, [isActive]);
 
   // Reset workout
   const resetWorkout = useCallback(() => {
@@ -352,11 +542,6 @@ const LiveWorkoutScreen = () => {
     frameCountRef.current = 0;
     setResult(null);
     setFeedback({ message: `Ready for ${selectedExercise.replace('_', ' ')}` });
-
-    showInfoToast({
-      title: 'Workout Reset',
-      message: `${selectedExercise.replace('_', ' ')} session has been reset.`,
-    });
   }, [selectedExercise]);
 
   // Display values
@@ -366,13 +551,175 @@ const LiveWorkoutScreen = () => {
   const stage = (result as any)?.stage ?? '-';
   const isCorrect = (result as any)?.is_correct ?? true;
 
+  const filteredExercises = ORDERED_EXERCISES.filter((item) =>
+    item.replace(/_/g, ' ').toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
+  const renderInstructionsModal = () => {
+    const instructions =
+      EXERCISE_INSTRUCTIONS[selectedExercise as keyof typeof EXERCISE_INSTRUCTIONS];
+
+    const exerciseName = selectedExercise.replace(/_/g, ' ').toUpperCase();
+
+    const description =
+      instructions?.desc ||
+      'No instructions available for this exercise yet.';
+    const orientation =
+      instructions?.orientation ||
+      'Please place the phone clearly so your full body is visible.';
+    const position =
+      instructions?.position ||
+      'Stand or position yourself so the camera can detect your movement clearly.';
+
+    return (
+      <Modal
+        visible={showInstructionsModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowInstructionsModal(false)}
+      >
+        <View style={styles.instructionsOverlay}>
+          <View
+            style={[
+              styles.instructionsCard,
+              { backgroundColor: colors.card, borderColor: colors.primary + '33' },
+            ]}
+          >
+            <View style={styles.instructionsHeader}>
+              <View
+                style={[
+                  styles.instructionsIconWrap,
+                  { backgroundColor: colors.primary + '18' },
+                ]}
+              >
+                <Ionicons
+                  name="information-circle"
+                  size={26}
+                  color={colors.primary}
+                />
+              </View>
+
+              <View style={styles.instructionsHeaderTextWrap}>
+                <Text style={[styles.instructionsTitle, { color: colors.text }]}>
+                  How to play
+                </Text>
+                <Text
+                  style={[styles.instructionsExerciseName, { color: colors.primary }]}
+                  numberOfLines={2}
+                >
+                  {exerciseName}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.instructionsCloseIcon}
+                onPress={() => setShowInstructionsModal(false)}
+              >
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.instructionsScrollContent}
+            >
+              <View
+                style={[
+                  styles.instructionsSection,
+                  { backgroundColor: colors.background, borderColor: colors.primary + '1A' },
+                ]}
+              >
+                <View style={styles.instructionsSectionHeader}>
+                  <Ionicons name="warning" size={18} color={colors.primary} />
+                  <Text style={[styles.instructionsSectionTitle, { color: colors.text }]}>
+                    Instructions
+                  </Text>
+                </View>
+                <Text style={[styles.instructionsBodyText, { color: colors.text }]}>
+                  {description}
+                </Text>
+              </View>
+
+              <View style={styles.instructionsInfoRow}>
+                <View
+                  style={[
+                    styles.instructionsMiniCard,
+                    { backgroundColor: colors.background, borderColor: colors.primary + '1A' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.instructionsMiniIcon,
+                      { backgroundColor: colors.primary + '18' },
+                    ]}
+                  >
+                    <Ionicons name="phone-portrait" size={18} color={colors.primary} />
+                  </View>
+                  <Text
+                    style={[styles.instructionsMiniLabel, { color: colors.text }]}
+                  >
+                    Phone Orientation
+                  </Text>
+                  <Text
+                    style={[styles.instructionsMiniValue, { color: colors.primary }]}
+                  >
+                    {orientation}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.instructionsMiniCard,
+                    { backgroundColor: colors.background, borderColor: colors.primary + '1A' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.instructionsMiniIcon,
+                      { backgroundColor: colors.primary + '18' },
+                    ]}
+                  >
+                    <Ionicons name="body" size={18} color={colors.primary} />
+                  </View>
+                  <Text
+                    style={[styles.instructionsMiniLabel, { color: colors.text }]}
+                  >
+                    Body Position
+                  </Text>
+                  <Text
+                    style={[styles.instructionsMiniValue, { color: colors.primary }]}
+                  >
+                    {position}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[
+                styles.instructionsPrimaryButton,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={() => setShowInstructionsModal(false)}
+            >
+              <Text style={styles.instructionsPrimaryButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   // Exercise modal
   const renderExerciseModal = () => (
     <Modal
       visible={showExerciseModal}
       animationType="slide"
       transparent
-      onRequestClose={() => setShowExerciseModal(false)}
+      onRequestClose={() => {
+        setShowExerciseModal(false);
+        setSearchQuery('');
+      }}
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
@@ -380,40 +727,101 @@ const LiveWorkoutScreen = () => {
             Select Exercise
           </Text>
 
-          <FlatList
-            data={EXERCISES}
-            keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.exerciseItem,
-                  item === selectedExercise && {
-                    backgroundColor: colors.primary + '30',
-                  },
-                ]}
-                onPress={() => {
-                  setSelectedExercise(item);
-                  setShowExerciseModal(false);
+          <View
+            style={[
+              styles.searchContainer,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border || 'rgba(255,255,255,0.12)',
+              },
+            ]}
+          >
+            <Ionicons
+              name="search"
+              size={18}
+              color={colors.text}
+              style={styles.searchIcon}
+            />
 
-                  showInfoToast({
-                    title: 'Exercise Selected',
-                    message: `${item.replace('_', ' ').toUpperCase()} is ready.`,
-                  });
-                }}
-              >
-                <Text style={[styles.exerciseItemText, { color: colors.text }]}>
-                  {item.replace('_', ' ').toUpperCase()}
-                </Text>
-                {item === selectedExercise && (
-                  <Ionicons name="checkmark" size={24} color={colors.primary} />
-                )}
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search exercise..."
+              placeholderTextColor="#999"
+              style={[styles.searchInput, { color: colors.text }]}
+            />
+
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#999" />
               </TouchableOpacity>
             )}
+          </View>
+
+          <FlatList
+            data={filteredExercises}
+            keyExtractor={(item) => item}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <View style={styles.emptySearchContainer}>
+                <Text style={[styles.emptySearchText, { color: colors.text }]}>
+                  No exercises found
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => {
+              const difficulty = getExerciseDifficulty(item);
+
+              const badgeStyle =
+                difficulty === 'Beginner'
+                  ? styles.beginnerBadge
+                  : styles.advancedBadge;
+
+              const badgeTextStyle =
+                difficulty === 'Beginner'
+                  ? styles.beginnerBadgeText
+                  : styles.advancedBadgeText;
+
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.exerciseItem,
+                    item === selectedExercise && {
+                      backgroundColor: colors.primary + '30',
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedExercise(item);
+                    setShowExerciseModal(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  <View style={styles.exerciseItemContent}>
+                    <Text style={[styles.exerciseItemText, { color: colors.text }]}>
+                      {item.replace(/_/g, ' ').toUpperCase()}
+                    </Text>
+
+                    <View style={[styles.badgeContainer, badgeStyle]}>
+                      <Text style={[styles.badgeText, badgeTextStyle]}>
+                        {difficulty}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {item === selectedExercise && (
+                    <Ionicons name="checkmark" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            }}
           />
 
           <TouchableOpacity
             style={[styles.closeButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowExerciseModal(false)}
+            onPress={() => {
+              setShowExerciseModal(false);
+              setSearchQuery('');
+            }}
           >
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
@@ -426,7 +834,10 @@ const LiveWorkoutScreen = () => {
   if (!hasPermission) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) },
+        ]}
       >
         <LinearGradient
           colors={colors.authBgGradient || ['#000', '#000']}
@@ -449,7 +860,9 @@ const LiveWorkoutScreen = () => {
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFillObject}
             />
-            <Text style={[styles.permissionButtonText, { position: 'relative' }]}>Grant Permission</Text>
+            <Text style={[styles.permissionButtonText, { position: 'relative' }]}>
+              Grant Permission
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -460,7 +873,10 @@ const LiveWorkoutScreen = () => {
   if (!device) {
     return (
       <View
-        style={[styles.container, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) }]}
+        style={[
+          styles.container,
+          { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 20) },
+        ]}
       >
         <LinearGradient
           colors={colors.authBgGradient || ['#000', '#000']}
@@ -492,7 +908,15 @@ const LiveWorkoutScreen = () => {
       />
 
       {/* Overlay UI */}
-      <View style={[styles.overlay, { paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(insets.top, 20),
+            paddingBottom: Math.max(insets.bottom, 20),
+          },
+        ]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -502,15 +926,48 @@ const LiveWorkoutScreen = () => {
             <Ionicons name="arrow-back" size={28} color="#fff" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.exerciseSelector}
-            onPress={() => setShowExerciseModal(true)}
-          >
-            <Text style={styles.exerciseName}>
-              {selectedExercise.replace('_', ' ').toUpperCase()}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerCenterGroup}>
+            <TouchableOpacity
+              style={styles.exerciseSelector}
+              onPress={() => setShowExerciseModal(true)}
+            >
+              <Text style={styles.exerciseName} numberOfLines={1}>
+                {selectedExercise.replace('_', ' ').toUpperCase()}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#fff" />
+            </TouchableOpacity>
+
+            <View style={styles.howToPlayWrapper}>
+              <TouchableOpacity
+                style={styles.howToPlayButton}
+                onPress={handleShowInstructions}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="information-circle"
+                  size={20}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+
+              {showTooltip && (
+                <View
+                  style={[
+                    styles.tooltipBubble,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Text style={styles.tooltipText}>How to play</Text>
+                  <View
+                    style={[
+                      styles.tooltipArrow,
+                      { borderBottomColor: colors.primary },
+                    ]}
+                  />
+                </View>
+              )}
+            </View>
+          </View>
 
           <TouchableOpacity style={styles.resetButton} onPress={resetWorkout}>
             <Ionicons name="refresh" size={28} color="#fff" />
@@ -551,20 +1008,24 @@ const LiveWorkoutScreen = () => {
         <TouchableOpacity
           style={[
             styles.actionButton,
-            { overflow: 'hidden', borderWidth: 0, backgroundColor: isActive ? '#f44336' : 'transparent' }
+            {
+              overflow: 'hidden',
+              borderWidth: 0,
+              backgroundColor: isActive ? '#f44336' : 'transparent',
+            },
           ]}
           onPress={toggleWorkout}
         >
           {!isActive && colors.authBgGradient && (
-             <LinearGradient
-               colors={[
-                 colors.primary,
-                 (colors as any).secondary || colors.primary,
-               ]}
-               start={{ x: 0, y: 0 }}
-               end={{ x: 1, y: 0 }}
-               style={StyleSheet.absoluteFillObject}
-             />
+            <LinearGradient
+              colors={[
+                colors.primary,
+                (colors as any).secondary || colors.primary,
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFillObject}
+            />
           )}
           <Ionicons
             name={isActive ? 'pause' : 'play'}
@@ -609,6 +1070,7 @@ const LiveWorkoutScreen = () => {
       </View>
 
       {renderExerciseModal()}
+      {renderInstructionsModal()}
     </View>
   );
 };
@@ -635,24 +1097,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  headerCenterGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 10,
+    minWidth: 0,
+  },
   backButton: {
     padding: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 25,
   },
   exerciseSelector: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 25,
+    marginRight: 8,
   },
   exerciseName: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 5,
+    marginRight: 6,
+    flex: 1,
+  },
+  howToPlayWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  howToPlayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tooltipBubble: {
+    position: 'absolute',
+    top: 44,
+    right: -6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    zIndex: 10,
+    minWidth: 92,
+    alignItems: 'center',
+  },
+  tooltipText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    top: -6,
+    right: 16,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
   resetButton: {
     padding: 10,
@@ -772,13 +1286,39 @@ const styles = StyleSheet.create({
   modalContent: {
     borderRadius: 20,
     padding: 20,
-    maxHeight: '70%',
+    maxHeight: '75%',
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    minHeight: 48,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 10,
+  },
+  emptySearchContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptySearchText: {
+    fontSize: 16,
+    opacity: 0.8,
   },
   exerciseItem: {
     flexDirection: 'row',
@@ -789,8 +1329,39 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
+  exerciseItemContent: {
+    flex: 1,
+    marginRight: 12,
+  },
   exerciseItemText: {
     fontSize: 18,
+  },
+  badgeContainer: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  beginnerBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.35)',
+  },
+  beginnerBadgeText: {
+    color: '#2E7D32',
+  },
+  advancedBadge: {
+    backgroundColor: 'rgba(255, 87, 34, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 87, 34, 0.35)',
+  },
+  advancedBadgeText: {
+    color: '#D84315',
   },
   closeButton: {
     paddingVertical: 15,
@@ -802,6 +1373,112 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+
+  instructionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  instructionsCard: {
+    borderRadius: 24,
+    padding: 20,
+    maxHeight: '78%',
+    borderWidth: 1,
+  },
+  instructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  instructionsIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  instructionsHeaderTextWrap: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  instructionsTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  instructionsExerciseName: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  instructionsCloseIcon: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  instructionsScrollContent: {
+    paddingBottom: 8,
+  },
+  instructionsSection: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  instructionsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+  },
+  instructionsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  instructionsBodyText: {
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  instructionsInfoRow: {
+    gap: 12,
+  },
+  instructionsMiniCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+  },
+  instructionsMiniIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  instructionsMiniLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    opacity: 0.8,
+    marginBottom: 6,
+  },
+  instructionsMiniValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  instructionsPrimaryButton: {
+    marginTop: 18,
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  instructionsPrimaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });
 
