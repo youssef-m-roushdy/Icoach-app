@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   StatusBar,
@@ -33,6 +32,7 @@ import {
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SuccessModal from '../components/common/SuccessModal';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -57,6 +57,8 @@ export default function ProfileScreen() {
   const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
   
   const [showImageOptions, setShowImageOptions] = useState(false);
+  const [showDeletePicConfirm, setShowDeletePicConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -246,72 +248,55 @@ export default function ProfileScreen() {
 
   const confirmDeleteProfilePicture = () => {
     closeImageOptionsSheet();
+    setShowDeletePicConfirm(true);
+  };
 
-    Alert.alert(
-      'Delete Profile Picture',
-      'Are you sure you want to delete your profile picture?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) {
-              showErrorToast({
-                title: 'Authentication Error',
-                message: 'No authentication token found',
-              });
-              return;
-            }
+  const proceedDeleteProfilePicture = async () => {
+    setShowDeletePicConfirm(false);
+    if (!token) {
+      showErrorToast({
+        title: 'Authentication Error',
+        message: 'No authentication token found',
+      });
+      return;
+    }
 
-            setIsLoading(true);
-            try {
-              await userService.deleteProfilePicture(token);
-              console.log('✅ Profile picture deleted');
+    setIsLoading(true);
+    try {
+      await userService.deleteProfilePicture(token);
+      console.log('✅ Profile picture deleted');
 
-              const updatedUserData = { ...userData, avatar: null };
-              setUserData(updatedUserData);
-              updateUser(updatedUserData);
+      const updatedUserData = { ...userData, avatar: null };
+      setUserData(updatedUserData);
+      updateUser(updatedUserData);
 
-              showSuccessToast({
-                title: 'Profile Picture Deleted',
-                message: 'Your profile picture has been deleted successfully',
-              });
+      showSuccessToast({
+        title: 'Profile Picture Deleted',
+        message: 'Your profile picture has been deleted successfully',
+      });
 
-              await loadProfile();
-            } catch (error: unknown) {
-              console.error('❌ Delete Error:', error);
-              showErrorToast({
-                title: 'Delete Failed',
-                message: getErrorMessage(error) || 'Failed to delete profile picture',
-              });
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ]
-    );
+      await loadProfile();
+    } catch (error: unknown) {
+      console.error('❌ Delete Error:', error);
+      showErrorToast({
+        title: 'Delete Failed',
+        message: getErrorMessage(error) || 'Failed to delete profile picture',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            closeSettingsSheet();
-            setTimeout(() => {
-              logout();
-            }, 100);
-          },
-        },
-      ]
-    );
+    setShowLogoutConfirm(true);
+  };
+
+  const proceedLogout = () => {
+    setShowLogoutConfirm(false);
+    closeSettingsSheet();
+    setTimeout(() => {
+      logout();
+    }, 100);
   };
 
   const renderImageOptionsModal = () => {
@@ -955,6 +940,28 @@ export default function ProfileScreen() {
 
       {renderImageOptionsModal()}
       {renderSettingsModal()}
+
+      <SuccessModal
+        visible={showDeletePicConfirm}
+        title="Delete Profile Picture"
+        message="Are you sure you want to delete your profile picture?"
+        primaryButtonText="Delete"
+        onPrimaryPress={proceedDeleteProfilePicture}
+        secondaryButtonText="Cancel"
+        onSecondaryPress={() => setShowDeletePicConfirm(false)}
+        iconName="trash-outline"
+      />
+
+      <SuccessModal
+        visible={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        primaryButtonText="Logout"
+        onPrimaryPress={proceedLogout}
+        secondaryButtonText="Cancel"
+        onSecondaryPress={() => setShowLogoutConfirm(false)}
+        iconName="log-out-outline"
+      />
     </View>
   );
 }

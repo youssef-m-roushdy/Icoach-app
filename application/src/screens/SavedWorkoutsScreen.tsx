@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Image,
   RefreshControl,
-  Alert,
   ScrollView,
   Modal,
 } from 'react-native';
@@ -26,6 +25,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+import SuccessModal from '../components/common/SuccessModal';
 
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -98,6 +98,9 @@ const SavedWorkoutsScreen = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [currentFilter, setCurrentFilter] = useState<'bodyPart' | 'level' | null>(null);
+  
+  // Deletion Modal state
+  const [workoutToRemove, setWorkoutToRemove] = useState<{id: number, name: string} | null>(null);
 
   // Load filters
   useEffect(() => {
@@ -225,26 +228,13 @@ const SavedWorkoutsScreen = () => {
   };
 
   const handleDeleteWorkout = (savedWorkoutId: number, workoutName: string) => {
-    Alert.alert(
-      'Remove Workout',
-      `Are you sure you want to remove "${workoutName}" from saved workouts?`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => deleteWorkout(savedWorkoutId),
-        },
-      ]
-    );
+    setWorkoutToRemove({ id: savedWorkoutId, name: workoutName });
   };
 
-  const deleteWorkout = async (savedWorkoutId: number) => {
+  const confirmDeleteWorkout = async () => {
     try {
-      if (!token) return;
+      if (!workoutToRemove || !token) return;
+      const savedWorkoutId = workoutToRemove.id;
 
       const result = await savedWorkoutService.removeWorkoutFromSaveList(
         savedWorkoutId,
@@ -292,6 +282,8 @@ const SavedWorkoutsScreen = () => {
         title: 'Remove Failed',
         message: getErrorMessage(error) || 'Failed to remove workout',
       });
+    } finally {
+      setWorkoutToRemove(null);
     }
   };
 
@@ -720,6 +712,18 @@ const SavedWorkoutsScreen = () => {
           </Text>
         </View>
       )}
+
+      {/* Confirmation Modal for Deletion */}
+      <SuccessModal
+        visible={!!workoutToRemove}
+        title="Remove Workout"
+        message={`Are you sure you want to remove "${workoutToRemove?.name}" from your saved workouts?`}
+        primaryButtonText="Remove"
+        onPrimaryPress={confirmDeleteWorkout}
+        secondaryButtonText="Cancel"
+        onSecondaryPress={() => setWorkoutToRemove(null)}
+        iconName="trash-outline"
+      />
     </View>
   );
 };

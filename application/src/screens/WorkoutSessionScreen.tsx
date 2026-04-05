@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -25,6 +24,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import SuccessModal from "../components/common/SuccessModal";
+import { showErrorToast, getErrorMessage } from "../utils/toast";
 
 interface Set {
   id: string;
@@ -53,6 +54,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     // Fade in animation when screen appears
@@ -78,7 +80,10 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
     if (sets.length > 1) {
       setSets(sets.filter((set) => set.id !== id));
     } else {
-      Alert.alert("Cannot Remove", "You need at least one set");
+      showErrorToast({
+        title: "Cannot Remove",
+        message: "You need at least one set",
+      });
     }
   };
 
@@ -98,16 +103,19 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
   const validateForm = (): boolean => {
     if (!duration || parseInt(duration) <= 0) {
-      Alert.alert(
-        "Validation Error",
-        "Please enter a valid duration in minutes",
-      );
+      showErrorToast({
+        title: "Validation Error",
+        message: "Please enter a valid duration in minutes",
+      });
       return false;
     }
 
     const validSets = sets.filter((s) => s.reps && s.weight);
     if (validSets.length === 0) {
-      Alert.alert("Validation Error", "Please add at least one complete set");
+      showErrorToast({
+        title: "Validation Error",
+        message: "Please add at least one complete set",
+      });
       return false;
     }
 
@@ -116,12 +124,18 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
       const weightNum = parseFloat(set.weight);
 
       if (isNaN(repsNum) || repsNum <= 0) {
-        Alert.alert("Validation Error", "Reps must be a positive number");
+        showErrorToast({
+          title: "Validation Error",
+          message: "Reps must be a positive number",
+        });
         return false;
       }
 
       if (isNaN(weightNum) || weightNum < 0) {
-        Alert.alert("Validation Error", "Weight cannot be negative");
+        showErrorToast({
+          title: "Validation Error",
+          message: "Weight cannot be negative",
+        });
         return false;
       }
     }
@@ -170,10 +184,10 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
     if (!validateForm()) return;
 
     if (!token) {
-      Alert.alert(
-        "Authentication Error",
-        "You need to be logged in to save workout sessions",
-      );
+      showErrorToast({
+        title: "Authentication Error",
+        message: "You need to be logged in to save workout sessions",
+      });
       return;
     }
 
@@ -203,30 +217,14 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
       );
 
       if (response.success) {
-        Alert.alert(
-          "Success! 🎉",
-          "Workout session saved successfully. Your progress has been updated!",
-          [
-            {
-              text: "View Progress",
-              onPress: () => {
-                navigation.navigate("GymProgress");
-              },
-            },
-            {
-              text: "Done",
-              style: "cancel",
-              onPress: () => navigation.goBack(),
-            },
-          ],
-        );
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       console.error("Failed to save workout session:", error);
-      Alert.alert(
-        "Error",
-        error.message || "Failed to save workout session. Please try again.",
-      );
+      showErrorToast({
+        title: "Error",
+        message: getErrorMessage(error) || "Failed to save workout session. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -685,6 +683,23 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
           </View>
         </ScrollView>
       </Animated.View>
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Success! 🎉"
+        message="Workout session saved successfully. Your progress has been updated!"
+        primaryButtonText="View Progress"
+        onPrimaryPress={() => {
+          setShowSuccessModal(false);
+          navigation.navigate("GymProgress");
+        }}
+        secondaryButtonText="Done"
+        onSecondaryPress={() => {
+          setShowSuccessModal(false);
+          navigation.goBack();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
