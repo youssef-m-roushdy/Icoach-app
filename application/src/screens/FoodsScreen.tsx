@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   StatusBar,
   Dimensions,
   TouchableWithoutFeedback,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
@@ -57,6 +58,9 @@ export default function FoodsScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<FoodPredictionResponse | null>(null);
 
+  // Track modal open state for back button handling
+  const [isImageOptionsModalOpen, setIsImageOptionsModalOpen] = useState(false);
+
   const imageOptionsSheetRef = React.useRef<BottomSheetModal>(null);
 
   const { height: navBarHeight, isGestureMode } = getNavBarInfo();
@@ -87,12 +91,29 @@ export default function FoodsScreen() {
 
   // ─── Sheet animation ───────────────────────────────────────────────────────
   const openSheet = React.useCallback(() => {
+    setIsImageOptionsModalOpen(true);
     imageOptionsSheetRef.current?.present();
   }, []);
 
   const closeSheet = React.useCallback(() => {
+    setIsImageOptionsModalOpen(false);
     imageOptionsSheetRef.current?.dismiss();
   }, []);
+
+  // Handle hardware back button press
+  useEffect(() => {
+    const backAction = () => {
+      if (isImageOptionsModalOpen) {
+        closeSheet();
+        return true; // Prevent default back behavior
+      }
+      return false; // Allow default back behavior (navigation)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [isImageOptionsModalOpen, closeSheet]);
 
   // ─── Food prediction ───────────────────────────────────────────────────────
   const predictFood = async (imageUri: string) => {
@@ -356,6 +377,7 @@ export default function FoodsScreen() {
         ref={imageOptionsSheetRef}
         index={0}
         enableDynamicSizing={true}
+        onChange={(index) => setIsImageOptionsModalOpen(index >= 0)}
         backdropComponent={renderBackdrop}
         backgroundStyle={sheetBackground}
         handleIndicatorStyle={handleIndicatorStyle}

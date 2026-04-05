@@ -11,6 +11,7 @@ import {
   StatusBar,
   Switch,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,6 +23,7 @@ import { useTheme } from '../context/ThemeContext';
 import { userService } from '../services';
 import { useAuth } from '../context';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
+
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import {
   showSuccessToast,
@@ -60,6 +62,10 @@ export default function ProfileScreen() {
   const [showDeletePicConfirm, setShowDeletePicConfirm] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // Track modal open states for back button handling
+  const [isImageOptionsModalOpen, setIsImageOptionsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
@@ -83,24 +89,52 @@ export default function ProfileScreen() {
     [colors.divider]
   );
   
-  const handleImageOptionsSheetChange = useCallback((index: number) => {}, []);
-  const handleSettingsSheetChange = useCallback((index: number) => {}, []);
+  const handleImageOptionsSheetChange = useCallback((index: number) => {
+    setIsImageOptionsModalOpen(index >= 0);
+  }, []);
+
+  const handleSettingsSheetChange = useCallback((index: number) => {
+    setIsSettingsModalOpen(index >= 0);
+  }, []);
 
   const openImageOptionsSheet = useCallback(() => { 
+    setIsImageOptionsModalOpen(true);
     imageOptionsSheetRef.current?.present(); 
   }, []);
 
   const closeImageOptionsSheet = useCallback(() => { 
+    setIsImageOptionsModalOpen(false);
     imageOptionsSheetRef.current?.dismiss(); 
   }, []);
   
   const openSettingsSheet = useCallback(() => {
+    setIsSettingsModalOpen(true);
     settingsSheetRef.current?.present();
   }, []);
 
   const closeSettingsSheet = useCallback(() => { 
+    setIsSettingsModalOpen(false);
     settingsSheetRef.current?.dismiss(); 
   }, []);
+
+  // Handle hardware back button press
+  useEffect(() => {
+    const backAction = () => {
+      if (isImageOptionsModalOpen) {
+        closeImageOptionsSheet();
+        return true; // Prevent default back behavior
+      }
+      if (isSettingsModalOpen) {
+        closeSettingsSheet();
+        return true; // Prevent default back behavior
+      }
+      return false; // Allow default back behavior (navigation)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [isImageOptionsModalOpen, isSettingsModalOpen, closeImageOptionsSheet, closeSettingsSheet]);
 
   useEffect(() => {
     if (authUser) setUserData(authUser);

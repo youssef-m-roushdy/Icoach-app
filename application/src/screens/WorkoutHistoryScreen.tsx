@@ -17,6 +17,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  BackHandler,
 } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -85,6 +86,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const filterScrollViewRef = useRef<any>(null);
   const editSheetRef = useRef<BottomSheetModal>(null);
   const deleteSheetRef = useRef<BottomSheetModal>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   // Snap points
   const filterSnapPoints = useMemo(() => ["85%"], []);
@@ -98,7 +100,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 5,
     totalPages: 0,
   });
 
@@ -131,25 +133,48 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const [deletingSession, setDeletingSession] =
     useState<WorkoutSessionWithDetails | null>(null);
 
+  // Track modal open states for back button handling
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
   // ── Bottom sheet open/close handlers ──────────────────────────────────────
   const openFilterSheet = useCallback(
-    () => filterSheetRef.current?.present(),
+    () => {
+      setIsFilterModalOpen(true);
+      filterSheetRef.current?.present();
+    },
     [],
   );
   const closeFilterSheet = useCallback(
-    () => filterSheetRef.current?.dismiss(),
+    () => {
+      setIsFilterModalOpen(false);
+      filterSheetRef.current?.dismiss();
+    },
     [],
   );
 
-  const openEditSheet = useCallback(() => editSheetRef.current?.present(), []);
-  const closeEditSheet = useCallback(() => editSheetRef.current?.dismiss(), []);
+  const openEditSheet = useCallback(() => {
+    setIsEditModalOpen(true);
+    editSheetRef.current?.present();
+  }, []);
+  const closeEditSheet = useCallback(() => {
+    setIsEditModalOpen(false);
+    editSheetRef.current?.dismiss();
+  }, []);
 
   const openDeleteSheet = useCallback(
-    () => deleteSheetRef.current?.present(),
+    () => {
+      setIsDeleteModalOpen(true);
+      deleteSheetRef.current?.present();
+    },
     [],
   );
   const closeDeleteSheet = useCallback(
-    () => deleteSheetRef.current?.dismiss(),
+    () => {
+      setIsDeleteModalOpen(false);
+      deleteSheetRef.current?.dismiss();
+    },
     [],
   );
 
@@ -192,6 +217,53 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     minDuration,
     minVolume,
   ]);
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [pagination.page]);
+
+  const goToPage = useCallback((page: number) => {
+    if (page >= 1 && page <= pagination.totalPages && page !== pagination.page) {
+      setPagination((prev) => ({ ...prev, page }));
+    }
+  }, [pagination.totalPages, pagination.page]);
+
+  const goToNextPage = () => goToPage(pagination.page + 1);
+  const goToPreviousPage = () => goToPage(pagination.page - 1);
+  const goToFirstPage = () => goToPage(1);
+  const goToLastPage = () => goToPage(pagination.totalPages);
+
+  // Handle hardware back button press
+  useEffect(() => {
+    const backAction = () => {
+      // If on a page other than 1, go to previous page
+      if (pagination && pagination.page > 1) {
+        goToPage(pagination.page - 1);
+        return true; // Prevent default back behavior
+      }
+
+      if (isFilterModalOpen) {
+        closeFilterSheet();
+        return true; // Prevent default back behavior
+      }
+      if (isEditModalOpen) {
+        closeEditSheet();
+        return true; // Prevent default back behavior
+      }
+      if (isDeleteModalOpen) {
+        closeDeleteSheet();
+        return true; // Prevent default back behavior
+      }
+      return false; // Allow default back behavior (navigation)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [pagination, isFilterModalOpen, isEditModalOpen, isDeleteModalOpen, closeFilterSheet, closeEditSheet, closeDeleteSheet, goToPage]);
 
   const loadSessions = async () => {
     try {
@@ -271,10 +343,57 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     });
   };
 
-  const loadMore = () => {
-    if (pagination.page < pagination.totalPages) {
-      setPagination((prev) => ({ ...prev, page: prev.page + 1 }));
+  const renderPageNumbers = () => {
+    if (!pagination || pagination.totalPages === 0) return null;
+
+    const pages = [];
+    const currentPage = pagination.page;
+    const totalPages = pagination.totalPages;
+
+    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI perfectly completely static
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if (endPage - startPage < 4) {
+      if (startPage === 1) {
+        endPage = Math.min(totalPages, 5);
+      } else if (endPage === totalPages) {
+        startPage = Math.max(1, totalPages - 4);
+      }
     }
+
+    for (let i = startPage; i <= endPage; i++) {
+     pages.push(i);
+    }
+
+    return pages.map((page) => {
+      return (
+        <TouchableOpacity
+          key={page}
+          style={[
+            styles.pageNumber,
+            page === currentPage && [
+              styles.pageNumberActive,
+              { backgroundColor: colors.primary },
+            ],
+            page !== currentPage && {
+              backgroundColor: colors.primary,
+              opacity: 0.3,
+            },
+          ]}
+          onPress={() => goToPage(page as number)}
+        >
+          <Text
+            style={[
+              styles.pageNumberText,
+              page === currentPage && styles.pageNumberTextActive,
+            ]}
+          >
+            {page}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
   };
 
   // ── Edit handlers ──────────────────────────────────────────────────────────
@@ -924,12 +1043,15 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       )}
 
       <FlatList
+        ref={flatListRef}
         data={filteredSessions}
         renderItem={renderSessionItem}
         keyExtractor={(item) => item.id.toString()}
+        extraData={pagination.page}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: Math.max(insets.bottom + 20, 20) },
+          // Only add padding if pagination is not shown, otherwise pageInfo handles the padding!
+          (!pagination || pagination.totalPages <= 1) && { paddingBottom: Math.max(insets.bottom + 20, 20) }
         ]}
         refreshControl={
           <RefreshControl
@@ -939,8 +1061,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             tintColor={colors.primary}
           />
         }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View
@@ -971,19 +1091,93 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             </Text>
           </View>
         }
-        ListFooterComponent={
-          pagination.page < pagination.totalPages ? (
-            <View style={styles.loaderFooter}>
-              <ActivityIndicator size="small" color={colors.primary} />
-            </View>
-          ) : null
-        }
       />
 
-      {filteredSessions.length > 0 && (
-        <Text style={[styles.paginationInfo, { color: colors.subtleText }]}>
-          Showing {filteredSessions.length} of {pagination.total} sessions
-        </Text>
+      {/* Pagination Controls */}
+      {pagination && pagination.totalPages > 1 && (
+        <View style={{ backgroundColor: 'transparent', paddingBottom: 0 }}>
+          <View
+            style={[
+              styles.paginationContainer,
+              { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0, borderRadius: 16, marginHorizontal: 10, marginVertical: 0 },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.navButton, pagination.page === 1 && styles.navButtonDisabled]}
+              onPress={goToFirstPage}
+              disabled={pagination.page === 1}
+            >
+              <Ionicons
+                name="play-back"
+                size={20}
+                color={pagination.page === 1 ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navButton, pagination.page === 1 && styles.navButtonDisabled]}
+              onPress={goToPreviousPage}
+              disabled={pagination.page === 1}
+            >
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color={pagination.page === 1 ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pageNumbersContainer}
+              style={{ flexGrow: 0, flexShrink: 1 }}
+            >
+              {renderPageNumbers()}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[
+                styles.navButton,
+                pagination.page === pagination.totalPages && styles.navButtonDisabled,
+              ]}
+              onPress={goToNextPage}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={
+                  pagination.page === pagination.totalPages
+                    ? colors.textSecondary
+                    : colors.primary
+                }
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.navButton,
+                pagination.page === pagination.totalPages && styles.navButtonDisabled,
+              ]}
+              onPress={goToLastPage}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              <Ionicons
+                name="play-forward"
+                size={20}
+                color={
+                  pagination.page === pagination.totalPages
+                    ? colors.textSecondary
+                    : colors.primary
+                }
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.pageInfo, { color: colors.text, marginTop: 0, marginBottom: 0, textAlign: 'center' }]}>
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} sessions)
+          </Text>
+        </View>
       )}
 
       {/* Filter Bottom Sheet */}
@@ -991,6 +1185,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         ref={filterSheetRef}
         index={0}
         snapPoints={filterSnapPoints}
+        onChange={(index) => setIsFilterModalOpen(index >= 0)}
         backdropComponent={renderBackdrop}
         backgroundStyle={sheetBackground}
         handleIndicatorStyle={handleIndicatorStyle}
@@ -1337,6 +1532,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         ref={editSheetRef}
         index={0}
         snapPoints={editSnapPoints}
+        onChange={(index) => setIsEditModalOpen(index >= 0)}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         backgroundStyle={sheetBackground}
@@ -1618,6 +1814,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         ref={deleteSheetRef}
         index={0}
         snapPoints={deleteSnapPoints}
+        onChange={(index) => setIsDeleteModalOpen(index >= 0)}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         backgroundStyle={sheetBackground}
@@ -2072,4 +2269,53 @@ const styles = StyleSheet.create({
   cancelDeleteText: { fontSize: 16, fontWeight: "600" },
   confirmDeleteButton: {},
   confirmDeleteText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+
+  // Pagination styles
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    paddingBottom: 5,
+    borderTopWidth: 1,
+  },
+  pageNumbersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  navButton: {
+    padding: 8,
+    marginHorizontal: 4,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  pageNumber: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 2,
+    borderRadius: 6,
+  },
+  pageNumberActive: {
+    opacity: 1,
+  },
+  pageNumberText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  pageNumberTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  pageNumberDots: {
+    paddingHorizontal: 8,
+  },
+  pageInfo: {
+    textAlign: 'center',
+    fontSize: 12,
+    paddingBottom: 15,
+    paddingTop: 4,
+  },
 });

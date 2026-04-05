@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ScrollView,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
@@ -304,16 +305,38 @@ const SavedWorkoutsScreen = () => {
     setRefreshing(false);
   };
 
-  const goToPage = (page: number) => {
+  const goToPage = useCallback((page: number) => {
     if (page >= 1 && page <= pagination.totalPages && page !== pagination.page) {
       setPagination((prev) => ({ ...prev, page }));
     }
-  };
+  }, [pagination.totalPages, pagination.page]);
 
   const goToNextPage = () => goToPage(pagination.page + 1);
   const goToPreviousPage = () => goToPage(pagination.page - 1);
   const goToFirstPage = () => goToPage(1);
   const goToLastPage = () => goToPage(pagination.totalPages);
+
+  // Handle hardware back button press
+  useEffect(() => {
+    const backAction = () => {
+      // If on a page other than 1, go to previous page
+      if (pagination && pagination.page > 1) {
+        goToPage(pagination.page - 1);
+        return true; // Prevent default back behavior
+      }
+
+      if (showFilterModal) {
+        setShowFilterModal(false);
+        return true; // Prevent default back behavior
+      }
+
+      return false; // Allow default back behavior (navigation)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [pagination, showFilterModal, goToPage]);
 
   const renderPageNumbers = () => {
     if (!pagination || pagination.totalPages === 0) return null;
@@ -322,33 +345,23 @@ const SavedWorkoutsScreen = () => {
     const currentPage = pagination.page;
     const totalPages = pagination.totalPages;
 
-    if (currentPage > 2) {
-      pages.push(1);
-      if (currentPage > 3) {
-        pages.push('...');
+    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI completely static
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if (endPage - startPage < 4) {
+      if (startPage === 1) {
+        endPage = Math.min(totalPages, 5);
+      } else if (endPage === totalPages) {
+        startPage = Math.max(1, totalPages - 4);
       }
     }
 
-    for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
-      pages.push(i);
+    for (let i = startPage; i <= endPage; i++) {
+     pages.push(i);
     }
 
-    if (currentPage < totalPages - 1) {
-      if (currentPage < totalPages - 2) {
-        pages.push('...');
-      }
-      pages.push(totalPages);
-    }
-
-    return pages.map((page, index) => {
-      if (page === '...') {
-        return (
-          <Text key={`dots-${index}`} style={[styles.pageNumberDots, { color: colors.primary }]}>
-            ...
-          </Text>
-        );
-      }
-
+    return pages.map((page) => {
       return (
         <TouchableOpacity
           key={page}
@@ -666,7 +679,14 @@ const SavedWorkoutsScreen = () => {
               />
             </TouchableOpacity>
 
-            <View style={styles.pageNumbersContainer}>{renderPageNumbers()}</View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pageNumbersContainer}
+              style={{ flexGrow: 0, flexShrink: 1 }}
+            >
+              {renderPageNumbers()}
+            </ScrollView>
 
             <TouchableOpacity
               style={[
