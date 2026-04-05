@@ -148,12 +148,19 @@ const DatePickerWheel = memo(
     const { colors } = useTheme();
     const ref = React.useRef<ScrollView>(null);
     const IH = 50;
+    const VISIBLE = 3;
+    const containerHeight = IH * VISIBLE;
 
     useEffect(() => {
-      setTimeout(() => {
+      const id = setTimeout(() => {
         ref.current?.scrollTo({ y: selectedIndex * IH, animated: false });
-      }, 50);
+      }, 150);
+      return () => clearTimeout(id);
     }, []);
+
+    useEffect(() => {
+      ref.current?.scrollTo({ y: selectedIndex * IH, animated: true });
+    }, [selectedIndex]);
 
     const handleScrollEnd = useCallback(
       (e: any) => {
@@ -166,21 +173,44 @@ const DatePickerWheel = memo(
       [selectedIndex, onSelect, items.length]
     );
 
+    const handleScrollEndDrag = useCallback(
+      (e: any) => {
+        const velocity = e.nativeEvent.velocity?.y || 0;
+        if (Math.abs(velocity) < 0.1) {
+          handleScrollEnd(e);
+        }
+      },
+      [handleScrollEnd]
+    );
+
     return (
-      <View style={{ width, height: IH * 3 }}>
-        <View style={styles.pickerHighlight} pointerEvents="none" />
+      <View style={{ width, height: containerHeight }}>
+        {/* Highlight bar — exactly one item tall, vertically centered */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: IH, // one item from top = center of 3-item window
+            left: 6,
+            right: 6,
+            height: IH,
+            backgroundColor: C.primaryLight,
+            borderRadius: 10,
+            zIndex: 1,
+          }}
+        />
         <ScrollView
           ref={ref}
           showsVerticalScrollIndicator={false}
           snapToInterval={IH}
           decelerationRate="fast"
           onMomentumScrollEnd={handleScrollEnd}
-          onScrollEndDrag={handleScrollEnd}
-          contentContainerStyle={{ paddingVertical: IH }}
+          onScrollEndDrag={handleScrollEndDrag}
           nestedScrollEnabled
         >
+          <View style={{ height: IH }} />
           {items.map((item, i) => (
-            <View key={i} style={[styles.pickerItem, { height: IH }]}>
+            <View key={i} style={{ height: IH, justifyContent: 'center', alignItems: 'center' }}>
               <Text
                 style={[
                   styles.pickerText,
@@ -195,6 +225,7 @@ const DatePickerWheel = memo(
               </Text>
             </View>
           ))}
+          <View style={{ height: IH }} />
         </ScrollView>
       </View>
     );
