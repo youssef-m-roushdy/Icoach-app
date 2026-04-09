@@ -9,11 +9,12 @@ import {
   Image,
   RefreshControl,
   ScrollView,
-  Modal,
   BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -99,6 +100,43 @@ const SavedWorkoutsScreen = () => {
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [currentFilter, setCurrentFilter] = useState<'bodyPart' | 'level' | null>(null);
+
+  const filterSheetRef = useRef<BottomSheetModal>(null);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  const sheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
+  const sheetBackground = React.useMemo(
+    () => ({ backgroundColor: sheetBg }),
+    [sheetBg]
+  );
+
+  const handleIndicatorStyle = React.useMemo(
+    () => ({ backgroundColor: colors.divider ?? '#C0C0C0', width: 40, height: 4 }),
+    [colors.divider]
+  );
+
+  const openFilterSheet = useCallback((filterType: 'bodyPart' | 'level') => {
+    setCurrentFilter(filterType);
+    setShowFilterModal(true);
+    filterSheetRef.current?.present();
+  }, []);
+
+  const closeFilterSheet = useCallback(() => {
+    setShowFilterModal(false);
+    filterSheetRef.current?.dismiss();
+  }, []);
   
   // Deletion Modal state
   const [workoutToRemove, setWorkoutToRemove] = useState<{id: number, name: string} | null>(null);
@@ -319,14 +357,14 @@ const SavedWorkoutsScreen = () => {
   // Handle hardware back button press
   useEffect(() => {
     const backAction = () => {
-      // If on a page other than 1, go to previous page
-      if (pagination && pagination.page > 1) {
-        goToPage(pagination.page - 1);
+      if (showFilterModal) {
+        closeFilterSheet();
         return true; // Prevent default back behavior
       }
 
-      if (showFilterModal) {
-        setShowFilterModal(false);
+      // If on a page other than 1, go to previous page
+      if (pagination && pagination.page > 1) {
+        goToPage(pagination.page - 1);
         return true; // Prevent default back behavior
       }
 
@@ -336,7 +374,7 @@ const SavedWorkoutsScreen = () => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
 
     return () => backHandler.remove();
-  }, [pagination, showFilterModal, goToPage]);
+  }, [pagination, showFilterModal, goToPage, closeFilterSheet]);
 
   const renderPageNumbers = () => {
     if (!pagination || pagination.totalPages === 0) return null;
@@ -507,16 +545,26 @@ const SavedWorkoutsScreen = () => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.filterRow}>
             <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: colors.authInputBg || colors.primary, borderColor: colors.authInputBorder || colors.primary, borderWidth: 1 }]}
-              onPress={() => {
-                setCurrentFilter('bodyPart');
-                setShowFilterModal(true);
-              }}
+              style={[
+                styles.filterButton,
+                selectedBodyPart 
+                  ? { borderColor: colors.primary, borderWidth: 1, overflow: 'hidden' }
+                  : { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.border, borderWidth: 1 }
+              ]}
+              onPress={() => openFilterSheet('bodyPart')}
             >
+              {selectedBodyPart ? (
+                <LinearGradient
+                  colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              ) : null}
               <Text
                 style={[
                   styles.filterButtonText,
-                  { color: colors.text },
+                  { color: selectedBodyPart ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
                 {selectedBodyPart || 'Body Part'}
@@ -524,21 +572,32 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="chevron-down"
                 size={16}
-                color={colors.text}
+                color={selectedBodyPart ? '#FFFFFF' : colors.text}
+                style={{ zIndex: 1 }}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterButton, { backgroundColor: colors.authInputBg || colors.primary, borderColor: colors.authInputBorder || colors.primary, borderWidth: 1 }]}
-              onPress={() => {
-                setCurrentFilter('level');
-                setShowFilterModal(true);
-              }}
+              style={[
+                styles.filterButton,
+                selectedLevel
+                  ? { borderColor: colors.primary, borderWidth: 1, overflow: 'hidden' }
+                  : { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.border, borderWidth: 1 }
+              ]}
+              onPress={() => openFilterSheet('level')}
             >
+              {selectedLevel ? (
+                <LinearGradient
+                  colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              ) : null}
               <Text
                 style={[
                   styles.filterButtonText,
-                  { color: colors.text },
+                  { color: selectedLevel ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
                 {selectedLevel || 'Level'}
@@ -546,7 +605,8 @@ const SavedWorkoutsScreen = () => {
               <Ionicons
                 name="chevron-down"
                 size={16}
-                color={colors.text}
+                color={selectedLevel ? '#FFFFFF' : colors.text}
+                style={{ zIndex: 1 }}
               />
             </TouchableOpacity>
           </View>
@@ -554,76 +614,74 @@ const SavedWorkoutsScreen = () => {
       </View>
 
       {/* Filter Modal */}
-      <Modal
-        visible={showFilterModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowFilterModal(false)}
+      <BottomSheetModal
+        ref={filterSheetRef}
+        snapPoints={['50%', '70%']}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={sheetBackground}
+        handleIndicatorStyle={handleIndicatorStyle}
+        onDismiss={() => setShowFilterModal(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFilterModal(false)}
+        <BottomSheetView
+          style={[
+            styles.bottomSheetContent,
+            { paddingBottom: Math.max(30, insets.bottom + 4) },
+          ]}
         >
-          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Select {currentFilter === 'bodyPart' ? 'Body Part' : 'Level'}
-              </Text>
-              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalScroll}>
-              <TouchableOpacity
-                style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                onPress={() => {
-                  if (currentFilter === 'bodyPart') setSelectedBodyPart('');
-                  else if (currentFilter === 'level') setSelectedLevel('');
-                  setShowFilterModal(false);
-                }}
-              >
-                <Text style={[styles.modalOptionText, { color: colors.text }]}>All</Text>
-              </TouchableOpacity>
-
-              {currentFilter === 'bodyPart' &&
-                filters.bodyParts.map((part) => (
-                  <TouchableOpacity
-                    key={part}
-                    style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      setSelectedBodyPart(part);
-                      setShowFilterModal(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, { color: colors.text }]}>{part}</Text>
-                    {selectedBodyPart === part && (
-                      <Ionicons name="checkmark" size={20} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-
-              {currentFilter === 'level' &&
-                filters.levels.map((level) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[styles.modalOption, { borderBottomColor: colors.border }]}
-                    onPress={() => {
-                      setSelectedLevel(level);
-                      setShowFilterModal(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, { color: colors.text }]}>{level}</Text>
-                    {selectedLevel === level && (
-                      <Ionicons name="checkmark" size={20} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-            </ScrollView>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.authInputBorder || colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Select {currentFilter === 'bodyPart' ? 'Body Part' : 'Level'}
+            </Text>
           </View>
-        </TouchableOpacity>
-      </Modal>
+
+          <BottomSheetScrollView style={styles.modalScroll}>
+            <TouchableOpacity
+              style={[styles.modalOption, { borderBottomColor: colors.authInputBorder || colors.border }]}
+              onPress={() => {
+                if (currentFilter === 'bodyPart') setSelectedBodyPart('');
+                else if (currentFilter === 'level') setSelectedLevel('');
+                closeFilterSheet();
+              }}
+            >
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>All</Text>
+            </TouchableOpacity>
+
+            {currentFilter === 'bodyPart' &&
+              filters.bodyParts.map((part) => (
+                <TouchableOpacity
+                  key={part}
+                  style={[styles.modalOption, { borderBottomColor: colors.authInputBorder || colors.border }]}
+                  onPress={() => {
+                    setSelectedBodyPart(part);
+                    closeFilterSheet();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: colors.text }]}>{part}</Text>
+                  {selectedBodyPart === part && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+
+            {currentFilter === 'level' &&
+              filters.levels.map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[styles.modalOption, { borderBottomColor: colors.authInputBorder || colors.border }]}
+                  onPress={() => {
+                    setSelectedLevel(level);
+                    closeFilterSheet();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, { color: colors.text }]}>{level}</Text>
+                  {selectedLevel === level && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+          </BottomSheetScrollView>
+        </BottomSheetView>
+      </BottomSheetModal>
 
       <FlatList
         data={workouts}
@@ -958,6 +1016,10 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 16,
+  },
+  bottomSheetContent: {
+    flex: 1,
+    paddingHorizontal: 0,
   },
 });
 
