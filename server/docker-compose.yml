@@ -92,11 +92,17 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-5000}
       
-      # JWT
-      JWT_SECRET: ${JWT_SECRET}
+      # JWT Configuration
+      # Asymmetric keys for ACCESS token
+      JWT_ACCESS_PRIVATE_KEY_PATH: ${JWT_ACCESS_PRIVATE_KEY_PATH:-/app/keys/private.pem}
+      JWT_ACCESS_PUBLIC_KEY_PATH: ${JWT_ACCESS_PUBLIC_KEY_PATH:-/app/keys/public.pem}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      
+      # Symmetric secret for REFRESH token
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      
+      # JWT Metadata
       JWT_ISSUER: ${JWT_ISSUER:-icoach-app}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-icoach-users}
       
@@ -147,11 +153,15 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+    
     volumes:
       - ./uploads:/app/uploads
       - ./logs:/app/logs
+      - ./keys:/app/keys                    # Mount RSA keys folder
+    
     networks:
       - icoach-network
+    
     depends_on:
       postgres:
         condition: service_healthy

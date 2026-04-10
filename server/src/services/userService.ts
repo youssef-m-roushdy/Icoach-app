@@ -514,39 +514,49 @@ export class UserService {
   }
 
   /**
-   * Generate access token
+   * Generate ACCESS token (RS256 - asymmetric)
    */
   static generateAccessToken(id: number, email: string, role: string): string {
-    const secret = jwtConfig.secret;
-    if (!secret) {
-      throw new Error('JWT_SECRET is not defined');
+    const privateKey = jwtConfig.access.privateKey;
+    if (!privateKey) {
+      throw new Error('RSA private key not configured for access tokens');
     }
     
     const options: SignOptions = {
-      expiresIn: jwtConfig.expiresIn,
+      expiresIn: jwtConfig.access.expiresIn as any,
       issuer: jwtConfig.issuer,
       audience: jwtConfig.audience,
-    } as SignOptions;
+      algorithm: jwtConfig.access.algorithm
+    };
     
-    return jwt.sign({ id, email, role }, secret, options);
+    return jwt.sign({ 
+      id, 
+      email, 
+      role, 
+      type: 'access' 
+    }, privateKey, options);
   }
 
   /**
-   * Generate refresh token
+   * Generate REFRESH token (HS256 - symmetric)
    */
   static generateRefreshToken(id: number): string {
-    const secret = jwtConfig.refreshSecret;
+    const secret = jwtConfig.refresh.secret;
     if (!secret) {
-      throw new Error('JWT_REFRESH_SECRET is not defined');
+      throw new Error('JWT_REFRESH_SECRET is not configured');
     }
     
     const options: SignOptions = {
-      expiresIn: jwtConfig.refreshExpiresIn,
+      expiresIn: jwtConfig.refresh.expiresIn as any,
       issuer: jwtConfig.issuer,
       audience: jwtConfig.audience,
-    } as SignOptions;
+      algorithm: jwtConfig.refresh.algorithm
+    };
     
-    return jwt.sign({ id, type: 'refresh' }, secret, options);
+    return jwt.sign({ 
+      id, 
+      type: 'refresh' 
+    }, secret, options);
   }
 
   /**
@@ -557,12 +567,17 @@ export class UserService {
     refreshToken: string;
   }> {
     try {
-      const secret = jwtConfig.refreshSecret;
+      const secret = jwtConfig.refresh.secret;
       if (!secret) {
-        throw new ValidationError('JWT_REFRESH_SECRET is not defined');
+        throw new ValidationError('JWT_REFRESH_SECRET is not configured');
       }
       
-      const decoded = jwt.verify(refreshToken, secret) as any;
+      // Verify refresh token (HS256)
+      const decoded = jwt.verify(refreshToken, secret, {
+        algorithms: [jwtConfig.refresh.algorithm],
+        issuer: jwtConfig.issuer,
+        audience: jwtConfig.audience
+      }) as any;
       
       if (decoded.type !== 'refresh') {
         throw new ValidationError('Invalid token type');
@@ -573,6 +588,7 @@ export class UserService {
         throw new ValidationError('User not found or inactive');
       }
 
+      // Generate new tokens
       const newAccessToken = this.generateAccessToken(user.id, user.email, user.role);
       const newRefreshToken = this.generateRefreshToken(user.id);
 

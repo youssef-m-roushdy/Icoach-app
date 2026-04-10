@@ -3,7 +3,7 @@ Database models matching the existing Food schema
 """
 from sqlalchemy import Column, Integer, String, Numeric, DateTime
 from sqlalchemy.sql import func
-from ..config.database import Base
+from config.database import Base
 
 
 class Food(Base):

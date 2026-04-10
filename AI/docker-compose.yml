@@ -1,27 +1,96 @@
-version: "3.8"
-
 services:
-  api:
-    build: .
-    image: icoach-food-api:latest
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: icoach-qdrant
     ports:
-      - "8000:8000"
-    environment:
-      # Connect to postgres container on the server network
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=icoach_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=123
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEBUG=False
+      - "${QDRANT_PORT:-6333}:6333"
     volumes:
-      - ./:/app
+      - qdrant_storage:/qdrant/storage
     restart: unless-stopped
     networks:
       - server_icoach-network
 
+  api:
+    build: .
+    image: icoach-food-api:latest
+    container_name: icoach-food-api
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - API_TITLE=${API_TITLE:-Food Recognition API}
+      - API_VERSION=${API_VERSION:-1.0.0}
+      - API_DESCRIPTION=${API_DESCRIPTION:-AI-powered food recognition API}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - DEBUG=${DEBUG:-False}
+
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-icoach_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-123}
+
+      - IMG_SIZE=${IMG_SIZE:-224}
+      - NUM_CLASSES=${NUM_CLASSES:-100}
+      - MODEL_PATH=/app/Modules/best_model_food100.keras
+      - CLASS_NAMES_PATH=/app/Modules/class_names.json
+
+      - MAX_UPLOAD_SIZE=${MAX_UPLOAD_SIZE:-10485760}
+
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:8081}
+
+      - JWT_PUBLIC_KEY_PATH=/app/keys/public.pem
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_ISSUER=${JWT_ISSUER:-icoach-app}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-icoach-users}
+
+      - NODEJS_API_URL=http://server:5000
+
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+
+      - QDRANT_URL=http://qdrant:6333
+
+      - REDIS_URL=redis://redis:6379/1
+
+      - SERPER_API_KEY=${SERPER_API_KEY:-}
+
+      - RAG_SIMILARITY_THRESHOLD=${RAG_SIMILARITY_THRESHOLD:-0.72}
+      - RAG_MAX_TOKENS=${RAG_MAX_TOKENS:-600}
+      - RAG_TEMPERATURE=${RAG_TEMPERATURE:-0.3}
+      - RAG_TOP_K_RESULTS=${RAG_TOP_K_RESULTS:-3}
+
+      - TOKEN_LIMIT_FREE=${TOKEN_LIMIT_FREE:-10000}
+      - TOKEN_LIMIT_PRO=${TOKEN_LIMIT_PRO:-100000}
+      - TOKEN_LIMIT_PREMIUM=${TOKEN_LIMIT_PREMIUM:-500000}
+
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=/app/logs/app.log
+
+    volumes:
+      - ./keys:/app/keys
+      - ./logs:/app/logs
+
+    restart: unless-stopped
+    networks:
+      - server_icoach-network
+    depends_on:
+      - qdrant
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   server_icoach-network:
     external: true
+    name: server_icoach-network
+
+volumes:
+  qdrant_storage:
+    driver: local

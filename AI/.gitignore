@@ -90,3 +90,10 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# RSA Keys (sensitive authentication)
+keys/
+*.pem
+*.key
+*.crt
+*.cert

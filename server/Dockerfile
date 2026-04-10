@@ -57,7 +57,7 @@ COPY --from=builder /app/.sequelizerc ./
 COPY --from=builder /app/data ./data
 
 # Create necessary directories and set permissions
-RUN mkdir -p logs uploads && \
+RUN mkdir -p logs uploads keys && \
     chown -R nodejs:nodejs /app
 
 # Switch to non-root user

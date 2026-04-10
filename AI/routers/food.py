@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import logging
 
-from ..config import get_settings, get_db
-from ..models import PredictionResponse, ErrorResponse, FoodResponse
-from ..services import get_model, get_food_service
+from config import get_settings, get_db
+from models import PredictionResponse, ErrorResponse, FoodResponse
+from services import get_model, get_food_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()

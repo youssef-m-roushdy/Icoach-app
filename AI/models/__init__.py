@@ -6,11 +6,21 @@ from .schemas import (
     ErrorResponse,
     HealthResponse
 )
+from .rag_models import (
+    ChatRequest,
+    ChatResponse,
+    TokenUsageResponse,
+    UserContext
+)
 
 __all__ = [
     "Food",
     "FoodResponse",
     "PredictionResponse",
     "ErrorResponse",
-    "HealthResponse"
+    "HealthResponse",
+    "ChatRequest",
+    "ChatResponse",
+    "TokenUsageResponse",
+    "UserContext"
 ]

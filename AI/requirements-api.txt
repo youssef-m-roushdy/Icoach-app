@@ -8,6 +8,7 @@ python-multipart>=0.0.6
 # Database
 sqlalchemy>=2.0.25
 psycopg2-binary>=2.9.9
+asyncpg>=0.29.0       
 
 # Configuration
 pydantic>=2.5.0
@@ -20,6 +21,47 @@ tensorflow>=2.16.0
 numpy>=1.24.0
 pillow>=10.0.0
 
-# Utilities
+# Authentication & Security
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+PyJWT>=2.8.0
+
+# ============================================
+# RAG SYSTEM DEPENDENCIES
+# ============================================
+
+# OpenAI for LLM and Embeddings
+openai>=1.12.0
+
+# Vector Database (Qdrant)
+qdrant-client>=1.9.0
+
+# Redis for Rate Limiting & Caching
+redis>=5.0.1
+
+# HTTP Client for Node.js API calls
+httpx>=0.26.0
+
+# Token Counting for Cost Management
+tiktoken>=0.5.2
+
+# Web Search (Optional)
+beautifulsoup4>=4.12.0
+
+# Utilities
+python-multipart>=0.0.6
+
+# ============================================
+# DEVELOPMENT & MONITORING (Optional)
+# ============================================
+
+# For monitoring
+prometheus-client>=0.19.0
+
+# For debugging
+rich>=13.7.0
+
+# For testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+httpx>=0.26.0  # for testing async endpoints
