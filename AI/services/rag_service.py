@@ -81,7 +81,7 @@ class RAGService:
                     FROM fitness_plans
                     WHERE "userId" = :user_id
                     AND status = 'active'
-                    AND (expires_at IS NULL OR expires_at > NOW())
+                    AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
                 """),
                 {"user_id": user_id}
             )
