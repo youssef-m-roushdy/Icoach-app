@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
+import { jwtConfig } from '../config/jwt.js';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -14,15 +15,16 @@ interface DecodedToken {
   id: number;
   email: string;
   role: string;
+  type: string;
 }
 
 /**
- * Middleware to authenticate JWT tokens
+ * Middleware to authenticate JWT tokens (RS256 access tokens)
  */
 export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       throw new UnauthorizedError('Authentication required. Please provide a valid authorization token.');
     }
@@ -31,19 +33,29 @@ export const authenticate = (req: Request, res: Response, next: NextFunction): v
       throw new UnauthorizedError('Invalid authorization format. Use Bearer token.');
     }
 
-    const token = authHeader.split(' ')[1]; // Bearer <token>
-    
+    const token = authHeader.split(' ')[1];
+
     if (!token) {
       throw new UnauthorizedError('Authentication token is missing.');
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
+    // FIX: use RS256 public key instead of the old JWT_SECRET
+    const publicKey = jwtConfig.access.publicKey;
+    if (!publicKey) {
       throw new Error('JWT configuration error');
     }
 
-    const decoded = jwt.verify(token, secret) as DecodedToken;
-    
+    const decoded = jwt.verify(token, publicKey, {
+      algorithms: [jwtConfig.access.algorithm], // 'RS256'
+      issuer: jwtConfig.issuer,
+      audience: jwtConfig.audience,
+    }) as DecodedToken;
+
+    // Ensure this is an access token, not a refresh token
+    if (decoded.type !== 'access') {
+      throw new UnauthorizedError('Invalid token type. Access token required.');
+    }
+
     (req as AuthenticatedRequest).user = {
       id: decoded.id,
       email: decoded.email,
@@ -69,7 +81,7 @@ export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const user = (req as AuthenticatedRequest).user;
-      
+
       if (!user) {
         throw new UnauthorizedError('Authentication required to access this resource.');
       }
@@ -92,7 +104,7 @@ export const authorizeOwnerOrAdmin = (req: Request, res: Response, next: NextFun
   try {
     const user = (req as AuthenticatedRequest).user;
     const id = req.params.id;
-    
+
     if (!user) {
       throw new UnauthorizedError('Authentication required to access this resource.');
     }
@@ -107,7 +119,6 @@ export const authorizeOwnerOrAdmin = (req: Request, res: Response, next: NextFun
       throw new ForbiddenError('Invalid resource identifier.');
     }
 
-    // Allow if user is admin or owns the resource
     if (user.role === 'admin' || user.id === resourceUserId) {
       next();
     } else {
@@ -125,32 +136,31 @@ export const authorizeOwnerOrAdmin = (req: Request, res: Response, next: NextFun
 export const optionalAuthenticate = (req: Request, res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
-      return next();
-    }
+
+    if (!authHeader) return next();
 
     const token = authHeader.split(' ')[1];
-    
-    if (!token) {
-      return next();
-    }
+    if (!token) return next();
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      return next();
-    }
+    const publicKey = jwtConfig.access.publicKey;
+    if (!publicKey) return next();
 
-    const decoded = jwt.verify(token, secret) as DecodedToken;
-    
-    (req as AuthenticatedRequest).user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-    };
+    const decoded = jwt.verify(token, publicKey, {
+      algorithms: [jwtConfig.access.algorithm],
+      issuer: jwtConfig.issuer,
+      audience: jwtConfig.audience,
+    }) as DecodedToken;
+
+    if (decoded.type === 'access') {
+      (req as AuthenticatedRequest).user = {
+        id: decoded.id,
+        email: decoded.email,
+        role: decoded.role,
+      };
+    }
 
     next();
-  } catch (error) {
+  } catch {
     // If token is invalid, continue without user info
     next();
   }

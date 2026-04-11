@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { WorkoutSession, Workout } from '../models/sql/index.js';
+import { WorkoutSession, Workout, WorkoutSessionSet } from '../models/sql/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { MetricsCalculationService } from '../services/metricsCalculationService.js';
 import { UserMetrics } from '../models/sql/index.js';
@@ -15,10 +15,6 @@ interface AuthenticatedRequest extends Request {
 
 /**
  * Get all workout sessions for the authenticated user with optional filtering and pagination
- * Supports filtering by:
- * - Date range (startDate, endDate)
- * - Text search on workout name, body part, target area (bodyPart, targetArea, workoutName)
- * - Numeric filters (minDuration, minVolume)
  */
 export const getWorkoutSessions = async (
   req: Request,
@@ -67,13 +63,12 @@ export const getWorkoutSessions = async (
     }
 
     if (minVolume) {
-      sessionWhere.volume = { [Op.gte]: parseFloat(minVolume as string) };
+      sessionWhere.totalVolume = { [Op.gte]: parseFloat(minVolume as string) };
     }
 
     // Build filter conditions for Workout (through include)
     const workoutWhere: any = {};
 
-    // Text search filters
     if (bodyPart) {
       workoutWhere.body_part = { [Op.iLike]: `%${bodyPart}%` };
     }
@@ -86,30 +81,44 @@ export const getWorkoutSessions = async (
       workoutWhere.name = { [Op.iLike]: `%${workoutName}%` };
     }
 
-    // Build include with where conditions if any text filters are applied
-    const include: any = {
-      model: Workout,
-      as: 'workout',
-      attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
-    };
+    const include: any = [
+      {
+        model: Workout,
+        as: 'workout',
+        attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link', 'equipment', 'level'],
+      },
+      {
+        model: WorkoutSessionSet,
+        as: 'sets',
+        attributes: ['id', 'setNumber', 'reps', 'weight', 'isCompleted', 'completedAt', 'restTimeSeconds'],
+        separate: true,
+        order: [['setNumber', 'ASC']],
+      },
+    ];
 
     // Only add where clause to include if there are text filters
     if (Object.keys(workoutWhere).length > 0) {
-      include.where = workoutWhere;
+      include[0].where = workoutWhere;
     }
 
     const { count, rows } = await WorkoutSession.findAndCountAll({
       where: sessionWhere,
-      include: [include],
+      include,
       limit: limitNum,
       offset,
       order: [['completedAt', 'DESC']],
-      distinct: true, // Important for correct count when using include with where
+      distinct: true,
     });
+
+    // Format response with sets
+    const formattedRows = rows.map(session => ({
+      ...session.toJSON(),
+      total_sets: session.sets?.length || 0,
+    }));
 
     res.status(200).json({
       success: true,
-      data: rows,
+      data: formattedRows,
       pagination: {
         total: count,
         page: pageNum,
@@ -144,7 +153,13 @@ export const getWorkoutSessionById = async (
         {
           model: Workout,
           as: 'workout',
-          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link', 'equipment', 'level'],
+          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link', 'equipment', 'level', 'description'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          attributes: ['id', 'setNumber', 'reps', 'weight', 'isCompleted', 'completedAt', 'restTimeSeconds', 'notes'],
+          order: [['setNumber', 'ASC']],
         },
       ],
     });
@@ -153,9 +168,25 @@ export const getWorkoutSessionById = async (
       throw new NotFoundError('Workout session not found');
     }
 
+    // Calculate additional stats
+    const sets = workoutSession.sets || [];
+    const completedSets = sets.filter(s => s.isCompleted).length;
+    const isBodyweightOnly = sets.every(s => Number(s.weight) === 0);
+
     res.status(200).json({
       success: true,
-      data: workoutSession,
+      data: {
+        ...workoutSession.toJSON(),
+        stats: {
+          totalSets: sets.length,
+          completedSets,
+          isBodyweightOnly,
+          maxWeight: workoutSession.maxWeight,
+          averageWeight: sets.length > 0 
+            ? sets.reduce((sum, s) => sum + Number(s.weight), 0) / sets.length 
+            : 0,
+        },
+      },
     });
   } catch (error) {
     next(error);
@@ -163,7 +194,7 @@ export const getWorkoutSessionById = async (
 };
 
 /**
- * Create a new workout session
+ * Create a new workout session with sets
  */
 export const createWorkoutSession = async (
   req: Request,
@@ -179,12 +210,9 @@ export const createWorkoutSession = async (
     const {
       workoutId,
       duration,
-      sets,
-      reps,
-      weight,
-      volume,
       completedAt,
       notes,
+      sets, // Array of { reps, weight, completed_at, rest_time_seconds, notes }
     } = req.body;
 
     // Verify workout exists
@@ -193,23 +221,38 @@ export const createWorkoutSession = async (
       throw new NotFoundError('Workout not found');
     }
 
-    // Calculate volume if not provided
-    const calculatedVolume = volume || (weight * reps * sets);
+    // Validate sets
+    if (!sets || !Array.isArray(sets) || sets.length === 0) {
+      throw new AppError('At least one set is required', 400);
+    }
 
     // Create workout session
     const workoutSession = await WorkoutSession.create({
       userId: user.id,
       workoutId,
       duration,
-      sets,
-      reps,
-      weight,
-      volume: calculatedVolume,
       completedAt: completedAt || new Date(),
       notes,
     });
 
-    // Fetch created session with workout details
+    // Create sets
+    const setRecords = await WorkoutSessionSet.bulkCreate(
+      sets.map((set, index) => ({
+        sessionId: workoutSession.id,
+        setNumber: index + 1,
+        reps: set.reps,
+        weight: set.weight || 0,
+        isCompleted: set.is_completed ?? true,
+        completedAt: set.completed_at || (set.is_completed !== false ? new Date() : null),
+        restTimeSeconds: set.rest_time_seconds,
+        notes: set.notes,
+      }))
+    );
+
+    // Recalculate session totals
+    await workoutSession.recalculateTotals();
+
+    // Fetch created session with all details
     const sessionWithDetails = await WorkoutSession.findByPk(workoutSession.id, {
       include: [
         {
@@ -217,10 +260,15 @@ export const createWorkoutSession = async (
           as: 'workout',
           attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
         },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          order: [['setNumber', 'ASC']],
+        },
       ],
     });
 
-    // Update user metrics in the background (don't await)
+    // Update user metrics in the background
     MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
       console.error('Failed to update user metrics:', error);
     });
@@ -253,12 +301,9 @@ export const updateWorkoutSession = async (
     const {
       workoutId,
       duration,
-      sets,
-      reps,
-      weight,
-      volume,
       completedAt,
       notes,
+      sets, // Optional - if provided, replaces all sets
     } = req.body;
 
     const workoutSession = await WorkoutSession.findOne({
@@ -277,43 +322,51 @@ export const updateWorkoutSession = async (
       }
     }
 
-    // Prepare update data
-    const updateData: any = {
-      workoutId,
-      duration,
-      sets,
-      reps,
-      weight,
-      completedAt,
-      notes,
-    };
-
-    // Calculate volume if weight, reps, or sets changed and volume not provided
-    if ((weight || reps || sets) && !volume) {
-      const newWeight = weight || workoutSession.weight;
-      const newReps = reps || workoutSession.reps;
-      const newSets = sets || workoutSession.sets;
-      updateData.volume = newWeight * newReps * newSets;
-    } else if (volume) {
-      updateData.volume = volume;
-    }
-
-    // Remove undefined values
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
+    // Update session basic info
+    await workoutSession.update({
+      workoutId: workoutId || workoutSession.workoutId,
+      duration: duration || workoutSession.duration,
+      completedAt: completedAt || workoutSession.completedAt,
+      notes: notes !== undefined ? notes : workoutSession.notes,
     });
 
-    await workoutSession.update(updateData);
+    // Update sets if provided
+    if (sets && Array.isArray(sets)) {
+      // Delete existing sets
+      await WorkoutSessionSet.destroy({
+        where: { sessionId: workoutSession.id },
+      });
 
-    // Fetch updated session with workout details
+      // Create new sets
+      await WorkoutSessionSet.bulkCreate(
+        sets.map((set, index) => ({
+          sessionId: workoutSession.id,
+          setNumber: index + 1,
+          reps: set.reps,
+          weight: set.weight || 0,
+          isCompleted: set.is_completed ?? true,
+          completedAt: set.completed_at || (set.is_completed !== false ? new Date() : null),
+          restTimeSeconds: set.rest_time_seconds,
+          notes: set.notes,
+        }))
+      );
+
+      // Recalculate session totals
+      await workoutSession.recalculateTotals();
+    }
+
+    // Fetch updated session with all details
     const updatedSession = await WorkoutSession.findByPk(id, {
       include: [
         {
           model: Workout,
           as: 'workout',
           attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          order: [['setNumber', 'ASC']],
         },
       ],
     });
@@ -326,6 +379,244 @@ export const updateWorkoutSession = async (
     res.status(200).json({
       success: true,
       message: 'Workout session updated successfully',
+      data: updatedSession,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Add a set to an existing workout session
+ */
+export const addSetToWorkoutSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { reps, weight, is_completed, rest_time_seconds, notes } = req.body;
+
+    const workoutSession = await WorkoutSession.findOne({
+      where: { id: sessionId, userId: user.id },
+    });
+
+    if (!workoutSession) {
+      throw new NotFoundError('Workout session not found');
+    }
+
+    // Get next set number
+    const nextSetNumber = await WorkoutSessionSet.getNextSetNumber(workoutSession.id);
+
+    // Create new set
+    const newSet = await WorkoutSessionSet.create({
+      sessionId: workoutSession.id,
+      setNumber: nextSetNumber,
+      reps,
+      weight: weight || 0,
+      isCompleted: is_completed ?? true,
+      completedAt: is_completed !== false ? new Date() : null,
+      restTimeSeconds: rest_time_seconds,
+      notes,
+    });
+
+    // Recalculate session totals
+    await workoutSession.recalculateTotals();
+
+    // Fetch updated session
+    const updatedSession = await WorkoutSession.findByPk(sessionId, {
+      include: [
+        {
+          model: Workout,
+          as: 'workout',
+          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          order: [['setNumber', 'ASC']],
+        },
+      ],
+    });
+
+    // Update user metrics
+    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
+      console.error('Failed to update user metrics:', error);
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Set ${nextSetNumber} added successfully`,
+      data: updatedSession,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update a specific set in a workout session
+ */
+export const updateWorkoutSessionSet = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+    const setId = Array.isArray(req.params.setId) ? req.params.setId[0] : req.params.setId;
+    const { reps, weight, is_completed, rest_time_seconds, notes } = req.body;
+
+    // Verify session belongs to user
+    const workoutSession = await WorkoutSession.findOne({
+      where: { id: sessionId, userId: user.id },
+    });
+
+    if (!workoutSession) {
+      throw new NotFoundError('Workout session not found');
+    }
+
+    // Find the set
+    const set = await WorkoutSessionSet.findOne({
+      where: { id: setId, sessionId },
+    });
+
+    if (!set) {
+      throw new NotFoundError('Set not found');
+    }
+
+    // Update set
+    await set.update({
+      reps: reps ?? set.reps,
+      weight: weight !== undefined ? weight : set.weight,
+      isCompleted: is_completed ?? set.isCompleted,
+      completedAt: is_completed === true && !set.isCompleted ? new Date() : set.completedAt,
+      restTimeSeconds: rest_time_seconds !== undefined ? rest_time_seconds : set.restTimeSeconds,
+      notes: notes !== undefined ? notes : set.notes,
+    });
+
+    // Recalculate session totals
+    await workoutSession.recalculateTotals();
+
+    // Fetch updated session
+    const updatedSession = await WorkoutSession.findByPk(sessionId, {
+      include: [
+        {
+          model: Workout,
+          as: 'workout',
+          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          order: [['setNumber', 'ASC']],
+        },
+      ],
+    });
+
+    // Update user metrics
+    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
+      console.error('Failed to update user metrics:', error);
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Set updated successfully',
+      data: updatedSession,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete a specific set from a workout session
+ */
+export const deleteWorkoutSessionSet = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+    const setId = Array.isArray(req.params.setId) ? req.params.setId[0] : req.params.setId;
+
+    // Verify session belongs to user
+    const workoutSession = await WorkoutSession.findOne({
+      where: { id: sessionId, userId: user.id },
+    });
+
+    if (!workoutSession) {
+      throw new NotFoundError('Workout session not found');
+    }
+
+    // Find and delete the set
+    const set = await WorkoutSessionSet.findOne({
+      where: { id: setId, sessionId },
+    });
+
+    if (!set) {
+      throw new NotFoundError('Set not found');
+    }
+
+    await set.destroy();
+
+    // Renumber remaining sets
+    const remainingSets = await WorkoutSessionSet.findAll({
+      where: { sessionId },
+      order: [['setNumber', 'ASC']],
+    });
+
+    for (let i = 0; i < remainingSets.length; i++) {
+      const currentSet = remainingSets[i];
+      if (currentSet) {
+        await currentSet.update({ setNumber: i + 1 });
+      }
+    }
+
+    // Recalculate session totals
+    await workoutSession.recalculateTotals();
+
+    // Fetch updated session
+    const updatedSession = await WorkoutSession.findByPk(sessionId, {
+      include: [
+        {
+          model: Workout,
+          as: 'workout',
+          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          order: [['setNumber', 'ASC']],
+        },
+      ],
+    });
+
+    // Update user metrics
+    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
+      console.error('Failed to update user metrics:', error);
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Set deleted successfully',
       data: updatedSession,
     });
   } catch (error) {
@@ -357,6 +648,7 @@ export const deleteWorkoutSession = async (
       throw new NotFoundError('Workout session not found');
     }
 
+    // Sets will be automatically deleted due to CASCADE
     await workoutSession.destroy();
 
     // Update user metrics in the background
@@ -398,21 +690,33 @@ export const getWorkoutSessionStats = async (
         userId: user.id,
         completedAt: { [Op.gte]: startDate },
       },
-      attributes: ['completedAt', 'duration', 'volume'],
+      attributes: ['completedAt', 'duration', 'totalVolume', 'totalSets', 'totalReps', 'maxWeight'],
       order: [['completedAt', 'ASC']],
+      include: [
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          attributes: ['reps', 'weight'],
+        },
+      ],
     });
 
     // Calculate statistics
     const totalSessions = sessions.length;
     const totalDuration = sessions.reduce((sum, s) => sum + s.duration, 0);
-    const totalVolume = sessions.reduce((sum, s) => sum + Number(s.volume), 0);
+    const totalVolume = sessions.reduce((sum, s) => sum + Number(s.totalVolume), 0);
+    const totalSets = sessions.reduce((sum, s) => sum + (s.totalSets || 0), 0);
+    const totalReps = sessions.reduce((sum, s) => sum + (s.totalReps || 0), 0);
     
+    // Find max weight across all sessions
+    const maxWeight = sessions.length > 0 
+      ? Math.max(...sessions.map(s => Number(s.maxWeight) || 0))
+      : 0;
+
     // Group by date for chart data
     const chartData = sessions.reduce((acc: Record<string, any>, session) => {
-      // Safety check in case completedAt is missing/null to prevent runtime errors
       if (!session.completedAt) return acc;
 
-      // FIX: Use substring(0, 10) to guarantee a string type
       const date = new Date(session.completedAt).toISOString().substring(0, 10);
       
       if (!acc[date]) {
@@ -421,11 +725,45 @@ export const getWorkoutSessionStats = async (
           sessions: 0,
           duration: 0,
           volume: 0,
+          sets: 0,
+          reps: 0,
         };
       }
       acc[date].sessions += 1;
       acc[date].duration += session.duration;
-      acc[date].volume += Number(session.volume);
+      acc[date].volume += Number(session.totalVolume) || 0;
+      acc[date].sets += session.totalSets || 0;
+      acc[date].reps += session.totalReps || 0;
+      return acc;
+    }, {});
+
+    // Workout type distribution - FIXED: Include Workout association
+    const workoutTypes = await WorkoutSession.findAll({
+      where: {
+        userId: user.id,
+        completedAt: { [Op.gte]: startDate },
+      },
+      attributes: ['id'],
+      include: [
+        {
+          model: Workout,
+          as: 'workout',
+          attributes: ['id', 'name', 'body_part'],
+          required: true, // Only include sessions with valid workout
+        },
+      ],
+    });
+
+    const typeDistribution = workoutTypes.reduce((acc: Record<string, any>, session) => {
+      // Access the included workout through the association
+      const workout = (session as any).workout;
+      if (workout) {
+        const key = workout.body_part || 'Other';
+        if (!acc[key]) {
+          acc[key] = { type: key, count: 0 };
+        }
+        acc[key].count += 1;
+      }
       return acc;
     }, {});
 
@@ -436,10 +774,16 @@ export const getWorkoutSessionStats = async (
           totalSessions,
           totalDuration,
           totalVolume,
+          totalSets,
+          totalReps,
+          maxWeight,
           averageDuration: totalSessions > 0 ? Math.round(totalDuration / totalSessions) : 0,
           averageVolume: totalSessions > 0 ? Math.round(totalVolume / totalSessions) : 0,
+          averageSets: totalSessions > 0 ? Math.round(totalSets / totalSessions) : 0,
+          averageReps: totalSessions > 0 ? Math.round(totalReps / totalSessions) : 0,
         },
         chartData: Object.values(chartData),
+        typeDistribution: Object.values(typeDistribution),
       },
     });
   } catch (error) {

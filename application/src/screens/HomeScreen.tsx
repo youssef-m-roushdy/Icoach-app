@@ -7,6 +7,10 @@ import {
   ScrollView,
   Image,
   Platform,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
@@ -14,6 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useStepCounter } from '../hooks/useStepCounter';
+import { useWaterIntake } from '../hooks/useWaterIntake';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -30,7 +35,16 @@ export default function HomeScreen() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
+  
   const stepData = useStepCounter();
+  const waterData = useWaterIntake();
+  
+  // Goal editing states
+  const [showStepGoalModal, setShowStepGoalModal] = useState(false);
+  const [showWaterGoalModal, setShowWaterGoalModal] = useState(false);
+  const [tempStepGoal, setTempStepGoal] = useState('');
+  const [tempWaterGoal, setTempWaterGoal] = useState('');
+  
   const { systemBottomInset } = useSystemNavigation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -52,13 +66,82 @@ export default function HomeScreen() {
     }
   };
 
+  const handleNavigateToHistory = () => {
+    // Navigate to water intake history screen
+    // navigation.navigate('WaterHistory' as never);
+    console.log('Navigate to water history');
+  };
+
+  const handleNavigateToStepHistory = () => {
+    // Navigate to step history screen
+    // navigation.navigate('StepHistory' as never);
+    console.log('Navigate to step history');
+  };
+
+  // Step Goal Handlers
+  const handleEditStepGoal = () => {
+    setTempStepGoal(stepData.goal.toString());
+    setShowStepGoalModal(true);
+  };
+
+  const handleSaveStepGoal = async () => {
+    const newGoal = parseInt(tempStepGoal, 10);
+    if (isNaN(newGoal) || newGoal < 1000 || newGoal > 50000) {
+      Alert.alert('Invalid Goal', 'Please enter a goal between 1,000 and 50,000 steps');
+      return;
+    }
+    
+    await stepData.updateGoal(newGoal);
+    setShowStepGoalModal(false);
+    Alert.alert('Success', `Daily step goal updated to ${newGoal.toLocaleString()} steps`);
+  };
+
+  // Water Goal Handlers
+  const handleEditWaterGoal = () => {
+    setTempWaterGoal(waterData.goalInLiters.toString());
+    setShowWaterGoalModal(true);
+  };
+
+  const handleSaveWaterGoal = async () => {
+    const newGoal = parseFloat(tempWaterGoal);
+    if (isNaN(newGoal) || newGoal < 0.5 || newGoal > 10) {
+      Alert.alert('Invalid Goal', 'Please enter a goal between 0.5 and 10 liters');
+      return;
+    }
+    
+    await waterData.updateGoal(newGoal);
+    setShowWaterGoalModal(false);
+    Alert.alert('Success', `Daily water goal updated to ${newGoal}L (${Math.round(newGoal * 1000)}ml)`);
+  };
+
+  const handleAddWater = (amount: number, unit: 'L' | 'ML') => {
+    waterData.addWater(amount, unit);
+  };
+
+  const handleQuickAdd = (presetIndex: number) => {
+    const preset = waterData.quickAddPresets[presetIndex];
+    if (preset) {
+      waterData.addWater(preset.amount, preset.unit);
+    }
+  };
+
+  const showWaterPresetOptions = () => {
+    Alert.alert(
+      'Add Water',
+      'Choose amount to add',
+      [
+        ...waterData.quickAddPresets.map((preset) => ({
+          text: preset.label,
+          onPress: () => waterData.addWater(preset.amount, preset.unit),
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const INITIAL_MEALS = ['Breakfast', 'Lunch', 'Workout Meal', 'Dinner'];
   const EXTRA_MEALS = ['Morning Snack', 'Evening Snack', 'Post-Workout Shake'];
   const displayedMeals = showAll ? [...INITIAL_MEALS, ...EXTRA_MEALS] : INITIAL_MEALS;
-
-  const waterGoal = 8;
-  const waterDrank = 0;
-  const waterProgress = waterDrank / waterGoal;
 
   return (
     <View style={[styles.main, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -127,7 +210,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleNavigateToStepHistory}>
               <Text style={[styles.sectionLink, { color: colors.primary }]}>Details →</Text>
             </TouchableOpacity>
           </View>
@@ -137,24 +220,44 @@ export default function HomeScreen() {
               <View style={styles.cardTitleRow}>
                 <MaterialCommunityIcons name="shoe-print" size={20} color={colors.primary} />
                 <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Steps</Text>
+                {stepData.isSyncing && (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                )}
               </View>
-              <View style={[styles.stepGoalChip, { backgroundColor: `${colors.primary}10` }]}>
-                <Text style={[styles.stepGoalText, { color: colors.primary }]}>Goal: {stepData.goal.toLocaleString()}</Text>
-              </View>
+              <TouchableOpacity 
+                style={[styles.stepGoalChip, { backgroundColor: `${colors.primary}10` }]}
+                onPress={handleEditStepGoal}
+              >
+                <Text style={[styles.stepGoalText, { color: colors.primary }]}>
+                  Goal: {stepData.goal.toLocaleString()} ✎
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.stepsMainRow}>
               <View style={styles.stepsMetric}>
-                <Text style={[styles.stepsValue, { color: colors.text }]}>{stepData.steps.toLocaleString()}</Text>
+                <Text style={[styles.stepsValue, { color: stepData.progress >= 1 ? SUCCESS : colors.text }]}>
+                  {stepData.steps.toLocaleString()}
+                </Text>
                 <Text style={[styles.stepsUnit, { color: colors.textSecondary }]}>steps</Text>
               </View>
               <View style={styles.progressWrapper}>
                 <View style={[styles.progressBarBg, { backgroundColor: colors.progressBg }]}>
-                  <View style={[styles.progressBarFill, { backgroundColor: colors.primary, width: `${stepData.progress * 100}%` }]} />
+                  <View style={[
+                    styles.progressBarFill, 
+                    { 
+                      backgroundColor: stepData.progress >= 1 ? SUCCESS : colors.primary, 
+                      width: `${Math.min(stepData.progress * 100, 100)}%` 
+                    }
+                  ]} />
                 </View>
                 <View style={styles.progressStats}>
-                  <Text style={[styles.progressPercent, { color: colors.primary }]}>{Math.round(stepData.progress * 100)}%</Text>
-                  <Text style={[styles.progressRemaining, { color: colors.textSecondary }]}>{stepData.remaining.toLocaleString()} left</Text>
+                  <Text style={[styles.progressPercent, { color: stepData.progress >= 1 ? SUCCESS : colors.primary }]}>
+                    {Math.round(stepData.progress * 100)}%
+                  </Text>
+                  <Text style={[styles.progressRemaining, { color: colors.textSecondary }]}>
+                    {stepData.remaining.toLocaleString()} left
+                  </Text>
                 </View>
               </View>
             </View>
@@ -183,6 +286,15 @@ export default function HomeScreen() {
                 <Text style={styles.errorText}>{stepData.error}</Text>
               </View>
             )}
+
+            {stepData.progress >= 1 && (
+              <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
+                <Ionicons name="trophy" size={16} color={SUCCESS} />
+                <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
+                  🎉 Daily step goal achieved! Great job!
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -202,11 +314,11 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Daily Water Intake - Professional */}
+        {/* Daily Water Intake - Professional with Real Data */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Hydration</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={handleNavigateToHistory}>
               <Text style={[styles.sectionLink, { color: colors.primary }]}>History →</Text>
             </TouchableOpacity>
           </View>
@@ -216,28 +328,69 @@ export default function HomeScreen() {
               <View style={styles.cardTitleRow}>
                 <MaterialCommunityIcons name="water" size={20} color={colors.primary} />
                 <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Water Intake</Text>
+                {waterData.isSyncing && (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                )}
               </View>
-              <View style={[styles.waterGoalChip, { backgroundColor: `${colors.primary}10` }]}>
-                <Text style={[styles.waterGoalText, { color: colors.primary }]}>Goal: {waterGoal} cups</Text>
-              </View>
+              <TouchableOpacity 
+                style={[styles.waterGoalChip, { backgroundColor: `${colors.primary}10` }]}
+                onPress={handleEditWaterGoal}
+              >
+                <Text style={[styles.waterGoalText, { color: colors.primary }]}>
+                  Goal: {waterData.cupsGoal} cups ✎
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.waterMain}>
               <View style={styles.waterCircleContainer}>
-                <View style={[styles.waterCircle, { borderColor: colors.primary, backgroundColor: colors.iconBg }]}>
-                  <Text style={[styles.waterCount, { color: colors.primary }]}>{waterDrank}</Text>
+                <View style={[
+                  styles.waterCircle, 
+                  { 
+                    borderColor: waterData.isCompleted ? SUCCESS : colors.primary, 
+                    backgroundColor: colors.iconBg 
+                  }
+                ]}>
+                  <Text style={[styles.waterCount, { color: waterData.isCompleted ? SUCCESS : colors.primary }]}>
+                    {waterData.cupsAmount}
+                  </Text>
                   <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>cups</Text>
                 </View>
+                {waterData.streakDays > 0 && (
+                  <View style={[styles.streakBadge, { backgroundColor: `${WARNING}20` }]}>
+                    <MaterialCommunityIcons name="fire" size={12} color={WARNING} />
+                    <Text style={[styles.streakText, { color: WARNING }]}>{waterData.streakDays} day streak</Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.waterDetails}>
                 <View style={styles.waterProgressSection}>
                   <View style={[styles.waterProgressBarBg, { backgroundColor: colors.progressBg }]}>
-                    <View style={[styles.waterProgressBarFill, { backgroundColor: colors.primary, width: `${waterProgress * 100}%` }]} />
+                    <View style={[
+                      styles.waterProgressBarFill, 
+                      { 
+                        backgroundColor: waterData.isCompleted ? SUCCESS : colors.primary, 
+                        width: `${waterData.progress * 100}%` 
+                      }
+                    ]} />
                   </View>
                   <Text style={[styles.waterProgressText, { color: colors.textSecondary }]}>
-                    {waterDrank} of {waterGoal} cups completed
+                    {waterData.cupsAmount} of {waterData.cupsGoal} cups completed
                   </Text>
+                </View>
+
+                <View style={styles.waterQuickActions}>
+                  {waterData.quickAddPresets.slice(0, 3).map((preset, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.quickAddChip, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30` }]}
+                      onPress={() => handleQuickAdd(index)}
+                      disabled={waterData.isSyncing}
+                    >
+                      <Text style={[styles.quickAddText, { color: colors.primary }]}>+{preset.label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
 
                 <TouchableOpacity 
@@ -249,9 +402,12 @@ export default function HomeScreen() {
                     shadowOpacity: 0.2, 
                     shadowRadius: 8, 
                     elevation: 5,
-                    marginTop: 8
+                    marginTop: 8,
+                    opacity: waterData.isSyncing ? 0.6 : 1,
                   }} 
                   activeOpacity={0.8}
+                  onPress={showWaterPresetOptions}
+                  disabled={waterData.isSyncing}
                 >
                   <LinearGradient
                     colors={[colors.primary, colors.secondary || colors.primary]}
@@ -260,7 +416,9 @@ export default function HomeScreen() {
                     end={{ x: 1, y: 0 }}
                   >
                     <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.addWaterBtnText}>Add Glass</Text>
+                    <Text style={styles.addWaterBtnText}>
+                      {waterData.isSyncing ? 'Adding...' : 'Add Water'}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -268,31 +426,150 @@ export default function HomeScreen() {
 
             <View style={styles.waterStatsRow}>
               <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>2000</Text>
+                <Text style={[styles.waterStatValue, { color: colors.text }]}>
+                  {Math.round(waterData.goalInML)}
+                </Text>
                 <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Target</Text>
                 <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
               </View>
               <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>0</Text>
+                <Text style={[styles.waterStatValue, { color: colors.text }]}>
+                  {Math.round(waterData.amountInML)}
+                </Text>
                 <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Consumed</Text>
                 <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
               </View>
               <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>2000</Text>
+                <Text style={[styles.waterStatValue, { color: colors.text }]}>
+                  {Math.round(waterData.remainingML)}
+                </Text>
                 <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Remaining</Text>
                 <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
               </View>
             </View>
+
+            {waterData.error && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                <Text style={styles.errorText}>{waterData.error}</Text>
+              </View>
+            )}
+
+            {waterData.isCompleted && (
+              <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
+                <Ionicons name="trophy" size={16} color={SUCCESS} />
+                <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
+                  🎉 Daily hydration goal achieved! Great job!
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Step Goal Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showStepGoalModal}
+        onRequestClose={() => setShowStepGoalModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Step Goal</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Set your daily step goal (1,000 - 50,000)
+            </Text>
+            <TextInput
+              style={[styles.modalInput, { 
+                backgroundColor: colors.statBg, 
+                borderColor: colors.cardBorder,
+                color: colors.text 
+              }]}
+              value={tempStepGoal}
+              onChangeText={setTempStepGoal}
+              keyboardType="numeric"
+              placeholder="Enter steps"
+              placeholderTextColor={colors.textSecondary}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.cardBorder }]}
+                onPress={() => setShowStepGoalModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={handleSaveStepGoal}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Water Goal Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showWaterGoalModal}
+        onRequestClose={() => setShowWaterGoalModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Water Goal</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Set your daily water goal in liters (0.5 - 10.0)
+            </Text>
+            <View style={styles.inputWithUnit}>
+              <TextInput
+                style={[styles.modalInput, { 
+                  backgroundColor: colors.statBg, 
+                  borderColor: colors.cardBorder,
+                  color: colors.text,
+                  flex: 1,
+                }]}
+                value={tempWaterGoal}
+                onChangeText={setTempWaterGoal}
+                keyboardType="decimal-pad"
+                placeholder="Enter liters"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+              />
+              <Text style={[styles.inputUnit, { color: colors.textSecondary }]}>L</Text>
+            </View>
+            {tempWaterGoal && !isNaN(parseFloat(tempWaterGoal)) && (
+              <Text style={[styles.mlPreview, { color: colors.primary }]}>
+                = {Math.round(parseFloat(tempWaterGoal) * 1000)} ml ({Math.round((parseFloat(tempWaterGoal) * 1000) / 250)} cups)
+              </Text>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton, { borderColor: colors.cardBorder }]}
+                onPress={() => setShowWaterGoalModal(false)}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
+                onPress={handleSaveWaterGoal}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-// Professional Meal Card Component
+// Professional Meal Card Component (unchanged)
 const MealCard = ({ title }: { title: string }) => {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
@@ -786,6 +1063,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  streakText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
   waterDetails: {
     flex: 1,
     justifyContent: 'center',
@@ -805,6 +1095,21 @@ const styles = StyleSheet.create({
   },
   waterProgressText: {
     fontSize: 11,
+  },
+  waterQuickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  quickAddChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  quickAddText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   addWaterBtn: {
     flexDirection: 'row',
@@ -843,6 +1148,108 @@ const styles = StyleSheet.create({
   },
   waterStatUnit: {
     fontSize: 9,
+  },
+  goalAchievedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  goalAchievedText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 350,
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInput: {
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  inputWithUnit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  inputUnit: {
+    fontSize: 16,
+    fontWeight: '600',
+    width: 30,
+  },
+  mlPreview: {
+    fontSize: 13,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

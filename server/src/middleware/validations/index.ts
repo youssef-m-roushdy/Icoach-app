@@ -33,6 +33,7 @@ export {
   validateUpdateWorkoutSession,
   validateWorkoutSessionQuery,
   validateWorkoutSessionId,
+  validateWorkoutSessionStats,
 } from './workoutSessionValidation.js';
 
 // User Metrics validations
@@ -55,3 +56,34 @@ export {
   validateProgressHistoryQuery,
   validateProgressDashboardQuery,
 } from './progressValidation.js';
+
+export {
+  validateSyncDailyActivity,
+  validateUpdateDailyGoal,
+  validateDailyActivityHistory,
+  validateWeeklySummary,
+} from './dailyActivityValidation.js';
+
+export {
+  validateSyncWaterIntake,
+  validateAddWaterIntake,
+  validateUpdateWaterGoal,
+  validateWaterIntakeHistory,
+  validateWeeklyWaterSummary,
+  validateMonthlyWaterSummary,
+  validateGetWaterIntakeByDate,
+  validateBulkAddWaterIntake,
+  validateWaterStatsQuery
+} from './waterIntakeValidation.js';
+
+export {
+  validateAddSetToWorkoutSession,
+  validateUpdateWorkoutSessionSet,
+  validateBulkUpdateSets,
+  validateReorderSets,
+  validateMarkSetCompleted,
+  validateDeleteWorkoutSessionSet,
+  validateGetWorkoutSessionSet,
+  validateGetSessionSets,
+  validateBulkAddSetsToWorkoutSession,
+} from './workoutSessionSetValidation.js';

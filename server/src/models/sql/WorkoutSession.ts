@@ -1,3 +1,4 @@
+// models/sql/WorkoutSession.ts
 import {
   DataTypes,
   Model,
@@ -5,18 +6,23 @@ import {
   type CreationOptional,
   type InferAttributes,
   type InferCreationAttributes,
+  type HasManyGetAssociationsMixin,
+  type HasManyAddAssociationMixin,
+  type HasManyCountAssociationsMixin,
+  type NonAttribute,
 } from 'sequelize';
 import { sequelize } from '../../config/database.js';
+import WorkoutSessionSet from './WorkoutSessionSet.js';
 
 export interface WorkoutSessionAttributes {
   id: number;
   userId: number;
   workoutId: number;
   duration: number; // in minutes
-  volume: number; // total weight lifted (kg) - (weight * reps * sets)
-  sets: number;
-  reps: number;
-  weight: number; // weight used per set (kg)
+  totalVolume: number; // sum of all set volumes
+  totalSets: number; // count of sets
+  totalReps: number; // sum of all reps
+  maxWeight: number; // max weight used in any set
   completedAt: Date;
   notes?: string | null;
   createdAt: Date;
@@ -27,6 +33,10 @@ export interface WorkoutSessionCreationAttributes
   extends Optional<
     WorkoutSessionAttributes,
     | 'id'
+    | 'totalVolume'
+    | 'totalSets'
+    | 'totalReps'
+    | 'maxWeight'
     | 'notes'
     | 'createdAt'
     | 'updatedAt'
@@ -40,18 +50,76 @@ class WorkoutSession extends Model<
   declare userId: number;
   declare workoutId: number;
   declare duration: number;
-  declare volume: number;
-  declare sets: number;
-  declare reps: number;
-  declare weight: number;
+  declare totalVolume: CreationOptional<number>;
+  declare totalSets: CreationOptional<number>;
+  declare totalReps: CreationOptional<number>;
+  declare maxWeight: CreationOptional<number>;
   declare completedAt: Date;
   declare notes: string | null;
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
 
-  // Calculate volume helper
-  calculateVolume(): number {
-    return this.weight * this.reps * this.sets;
+  // Association methods
+  declare getSets: HasManyGetAssociationsMixin<WorkoutSessionSet>;
+  declare addSet: HasManyAddAssociationMixin<WorkoutSessionSet, number>;
+  declare countSets: HasManyCountAssociationsMixin;
+
+  // Sets association
+  declare sets?: NonAttribute<WorkoutSessionSet[]>;
+
+  // Instance methods
+  async recalculateTotals(): Promise<void> {
+    const sets = await this.getSets();
+    
+    this.totalSets = sets.length;
+    this.totalReps = sets.reduce((sum, set) => sum + set.reps, 0);
+    this.totalVolume = sets.reduce((sum, set) => sum + set.getVolume(), 0);
+    this.maxWeight = sets.length > 0 
+      ? Math.max(...sets.map(set => set.weight || 0)) 
+      : 0;
+    
+    await this.save();
+  }
+
+  // Get formatted summary
+  getSummary(): string {
+    return `${this.totalSets} sets, ${this.totalReps} reps, ${this.totalVolume}kg volume`;
+  }
+
+  // Check if bodyweight only workout
+  async isBodyweightOnly(): Promise<boolean> {
+    const sets = await this.getSets();
+    return sets.every(set => set.weight === 0);
+  }
+
+  // Static methods
+  static async getUserSessions(
+    userId: number,
+    limit: number = 20
+  ): Promise<WorkoutSession[]> {
+    return this.findAll({
+      where: { userId },
+      order: [['completedAt', 'DESC']],
+      limit,
+    });
+  }
+
+  static async getPersonalBest(
+    userId: number,
+    workoutId: number
+  ): Promise<{ maxWeight: number; maxVolume: number } | null> {
+    const sessions = await this.findAll({
+      where: { userId, workoutId },
+      order: [['completedAt', 'DESC']],
+      limit: 50,
+    });
+
+    if (sessions.length === 0) return null;
+
+    return {
+      maxWeight: Math.max(...sessions.map(s => s.maxWeight || 0)),
+      maxVolume: Math.max(...sessions.map(s => s.totalVolume || 0)),
+    };
   }
 }
 
@@ -61,11 +129,12 @@ WorkoutSession.init(
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
+      field: 'id',
     },
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'user_id', // ADD THIS
+      field: 'user_id',
       references: {
         model: 'users',
         key: 'id',
@@ -75,7 +144,7 @@ WorkoutSession.init(
     workoutId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'workout_id', // ADD THIS
+      field: 'workout_id',
       references: {
         model: 'workouts',
         key: 'id',
@@ -93,50 +162,35 @@ WorkoutSession.init(
         },
       },
     },
-    volume: {
+    totalVolume: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
-      field: 'volume',
+      field: 'total_volume',
     },
-    sets: {
+    totalSets: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'sets',
-      validate: {
-        min: {
-          args: [1],
-          msg: 'Sets must be at least 1',
-        },
-      },
+      defaultValue: 0,
+      field: 'total_sets',
     },
-    reps: {
+    totalReps: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'reps',
-      validate: {
-        min: {
-          args: [1],
-          msg: 'Reps must be at least 1',
-        },
-      },
+      defaultValue: 0,
+      field: 'total_reps',
     },
-    weight: {
+    maxWeight: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      field: 'weight',
-      validate: {
-        min: {
-          args: [0],
-          msg: 'Weight cannot be negative',
-        },
-      },
+      defaultValue: 0,
+      field: 'max_weight',
     },
     completedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'completed_at', // ADD THIS
+      field: 'completed_at',
     },
     notes: {
       type: DataTypes.TEXT,
@@ -147,13 +201,13 @@ WorkoutSession.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'created_at', // ADD THIS
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at', // ADD THIS
+      field: 'updated_at',
     },
   },
   {
@@ -161,32 +215,25 @@ WorkoutSession.init(
     tableName: 'workout_sessions',
     modelName: 'WorkoutSession',
     timestamps: true,
-    underscored: true, // ADD THIS to help with snake_case
+    underscored: true,
     indexes: [
       {
-        fields: ['user_id'], // Change to snake_case
+        fields: ['user_id'],
+        name: 'workout_sessions_user_id_idx',
       },
       {
-        fields: ['workout_id'], // Change to snake_case
+        fields: ['workout_id'],
+        name: 'workout_sessions_workout_id_idx',
       },
       {
-        fields: ['completed_at'], // Change to snake_case
+        fields: ['completed_at'],
+        name: 'workout_sessions_completed_at_idx',
+      },
+      {
+        fields: ['user_id', 'completed_at'],
+        name: 'workout_sessions_user_completed_idx',
       },
     ],
-    hooks: {
-      beforeCreate: async (session: WorkoutSession) => {
-        // Auto-calculate volume if not set
-        if (!session.volume) {
-          session.volume = session.weight * session.reps * session.sets;
-        }
-      },
-      beforeUpdate: async (session: WorkoutSession) => {
-        // Recalculate volume if weight, reps, or sets changed
-        if (session.changed('weight') || session.changed('reps') || session.changed('sets')) {
-          session.volume = session.weight * session.reps * session.sets;
-        }
-      },
-    },
   }
 );
 

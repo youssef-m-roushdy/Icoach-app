@@ -11,6 +11,9 @@ import UserInjury from './UserInjury.js';
 import WorkoutSession from './WorkoutSession.js';
 import UserMetrics from './UserMetrics.js';
 import PersonalBest from './PersonalBest.js';
+import DailyActivity from './DailyActivity.js'; // ✅ Already imported
+import WaterIntake from './WaterIntake.js';
+import WorkoutSessionSet from './WorkoutSessionSet.js';
 
 // Define associations
 
@@ -57,6 +60,25 @@ PersonalBest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Workout.hasMany(PersonalBest, { foreignKey: 'workoutId', as: 'personalBests' });
 PersonalBest.belongsTo(Workout, { foreignKey: 'workoutId', as: 'workout' });
 
+// DailyActivity ↔ User (one-to-many)
+User.hasMany(DailyActivity, { foreignKey: 'userId', as: 'activities' });
+DailyActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// WaterIntake model associations (if you have a WaterIntake model, you would define it similarly to DailyActivity)
+ User.hasMany(WaterIntake, { foreignKey: 'userId', as: 'waterIntakes' });
+ WaterIntake.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// WorkoutSession -> WorkoutSessionSet (one-to-many)
+WorkoutSession.hasMany(WorkoutSessionSet, {
+  foreignKey: 'sessionId',
+  as: 'sets',
+  onDelete: 'CASCADE',
+});
+WorkoutSessionSet.belongsTo(WorkoutSession, {
+  foreignKey: 'sessionId',
+  as: 'session',
+});
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -73,9 +95,12 @@ export {
   ChatHistory,
   WorkoutSession,
   UserMetrics,
-  PersonalBest,  
+  PersonalBest,
+  DailyActivity, 
   WorkoutInjury,
   UserInjury,
+  WaterIntake,
+  WorkoutSessionSet,
 };
 
 // Export types
@@ -91,6 +116,9 @@ export type { UserInjuryAttributes, UserInjuryCreationAttributes } from './UserI
 export type { WorkoutSessionAttributes, WorkoutSessionCreationAttributes } from './WorkoutSession.js';
 export type { UserMetricsAttributes, UserMetricsCreationAttributes } from './UserMetrics.js';
 export type { PersonalBestAttributes, PersonalBestCreationAttributes } from './PersonalBest.js';
+export type { DailyActivityAttributes, DailyActivityCreationAttributes } from './DailyActivity.js'; 
+export type { WaterIntakeAttributes, WaterIntakeCreationAttributes } from './WaterIntake.js'; 
+export type { WorkoutSessionSetAttributes, WorkoutSessionSetCreationAttributes } from './WorkoutSessionSet.js';
 
 // Default export with all models for convenience
 const sqlModels = {
@@ -106,6 +134,9 @@ const sqlModels = {
   WorkoutSession,
   UserMetrics,
   PersonalBest,
+  DailyActivity, 
+  WaterIntake, 
+  WorkoutSessionSet,
 };
 
 export default sqlModels;

@@ -1,4 +1,4 @@
-import { WorkoutSession, PersonalBest, User, UserMetrics } from '../models/sql/index.js';
+import { WorkoutSession, WorkoutSessionSet, PersonalBest, User, UserMetrics } from '../models/sql/index.js';
 import { Op, Sequelize } from 'sequelize';
 
 interface MetricsResult {
@@ -27,7 +27,7 @@ export class MetricsCalculationService {
     const [
       totalWorkouts,
       weeklyWorkouts,
-      totalVolume,
+      totalVolumeData,
       personalBests,
       streaks,
       userData
@@ -41,6 +41,8 @@ export class MetricsCalculationService {
         attributes: ['height', 'weight', 'activityLevel', 'fitnessGoal']
       })
     ]);
+
+    const totalVolume = totalVolumeData;
 
     if (totalWorkouts === 0) {
       return {
@@ -90,7 +92,7 @@ export class MetricsCalculationService {
   private static async getTotalVolume(userId: number): Promise<number> {
     const result = await WorkoutSession.findAll({
       where: { userId },
-      attributes: [[Sequelize.fn('SUM', Sequelize.col('volume')), 'totalVolume']],
+      attributes: [[Sequelize.fn('SUM', Sequelize.col('total_volume')), 'totalVolume']],
       raw: true
     });
     const v = (result[0] as any)?.totalVolume;
@@ -102,13 +104,8 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // FIX #3 — Weekly average based on *active weeks*, not a flat /7
+  // Weekly average based on active weeks
   // ---------------------------------------------------------------------------
-  /**
-   * Returns average workouts per week across all weeks since the user's first workout.
-   * This prevents a brand-new user who did 2 sessions today from showing weeklyAvg=0.28
-   * (which is meaningless) — instead they correctly show 2.0 for their first week.
-   */
   private static async calculateWeeklyAverage(userId: number): Promise<number> {
     const firstSession = await WorkoutSession.findOne({
       where: { userId },
@@ -122,7 +119,6 @@ export class MetricsCalculationService {
     const firstDate = new Date(firstSession.completedAt as Date);
     const now = new Date();
 
-    // Number of full weeks since first workout (minimum 1 to avoid division by zero)
     const msPerWeek = 7 * 24 * 60 * 60 * 1000;
     const weeksSinceStart = Math.max(1, (now.getTime() - firstDate.getTime()) / msPerWeek);
 
@@ -130,7 +126,7 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // Streak calculation (unchanged — this was correct)
+  // Streak calculation
   // ---------------------------------------------------------------------------
   private static async calculateStreaks(userId: number): Promise<{
     currentStreak: number;
@@ -179,7 +175,7 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // Strength score (unchanged — correct)
+  // Strength score
   // ---------------------------------------------------------------------------
   private static async calculateStrengthScore(userId: number, bodyWeight: number): Promise<number> {
     const pbs = await PersonalBest.findAll({
@@ -195,16 +191,32 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // Endurance score (unchanged — correct)
+  // Endurance score - UPDATED for normalized schema
   // ---------------------------------------------------------------------------
   private static async calculateEnduranceScore(userId: number): Promise<number> {
     const sessions = await WorkoutSession.findAll({
-      where: { userId }, order: [['completedAt', 'DESC']], limit: 10
+      where: { userId },
+      order: [['completedAt', 'DESC']],
+      limit: 10,
+      include: [{
+        model: WorkoutSessionSet,
+        as: 'sets',
+        attributes: ['reps'],
+      }]
     });
+
     if (!sessions || sessions.length === 0) return 0;
 
-    let totalReps = 0, totalSets = 0;
-    for (const s of sessions) { totalReps += s.reps; totalSets += s.sets; }
+    let totalReps = 0;
+    let totalSets = 0;
+
+    for (const session of sessions) {
+      const sets = session.sets || [];
+      for (const set of sets) {
+        totalReps += set.reps;
+      }
+      totalSets += sets.length;
+    }
 
     const avgReps = totalReps / sessions.length;
     const avgSets = totalSets / sessions.length;
@@ -212,67 +224,36 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // FIX #4 — Consistency: penalise inactivity this week, require sustained effort
+  // Consistency score
   // ---------------------------------------------------------------------------
-  /**
-   * Consistency score (0–10).
-   *
-   * Combines three signals:
-   *  1. workoutsThisWeek  — are you active right now?       (weight 40%)
-   *  2. weeklyAvg         — sustained habit over all time?  (weight 40%)
-   *  3. currentStreak     — days-in-a-row bonus             (weight 20%)
-   *
-   * Target for a "perfect 10": 5 workouts/week, weeklyAvg ≥ 4, streak ≥ 14 days.
-   * A user inactive for a week immediately gets a low score here because
-   * workoutsThisWeek=0 contributes 0 to 40% of the total.
-   */
   private static calculateConsistencyScore(
     workoutsThisWeek: number,
     currentStreak: number,
     weeklyAvg: number,
   ): number {
-    const TARGET_WEEKLY   = 5;  // workouts/week considered "perfect"
-    const TARGET_AVG      = 4;  // avg workouts/week for full avg score
-    const TARGET_STREAK   = 14; // 2-week streak = full streak score
+    const TARGET_WEEKLY   = 5;
+    const TARGET_AVG      = 4;
+    const TARGET_STREAK   = 14;
 
-    const weeklyPart  = Math.min(workoutsThisWeek / TARGET_WEEKLY, 1) * 4;  // 0–4
-    const avgPart     = Math.min(weeklyAvg / TARGET_AVG, 1) * 4;            // 0–4
-    const streakPart  = Math.min(currentStreak / TARGET_STREAK, 1) * 2;     // 0–2
+    const weeklyPart  = Math.min(workoutsThisWeek / TARGET_WEEKLY, 1) * 4;
+    const avgPart     = Math.min(weeklyAvg / TARGET_AVG, 1) * 4;
+    const streakPart  = Math.min(currentStreak / TARGET_STREAK, 1) * 2;
 
-    return Number((weeklyPart + avgPart + streakPart).toFixed(1)); // 0–10
+    return Number((weeklyPart + avgPart + streakPart).toFixed(1));
   }
 
   // ---------------------------------------------------------------------------
-  // Volume score (unchanged — correct)
+  // Volume score
   // ---------------------------------------------------------------------------
   private static calculateVolumeScore(totalVolume: number): number {
     return Number(Math.min((totalVolume / 100_000) * 10, 10).toFixed(1));
   }
 
   // ---------------------------------------------------------------------------
-  // FIX #1 & #2 — Progress score: no false +5 baseline, inactivity penalised
+  // Progress score - UPDATED for normalized schema
   // ---------------------------------------------------------------------------
-  /**
-   * Progress score (0–10).
-   *
-   * What went wrong before:
-   *  - `improvement + 5` gave a 5/10 floor to everyone with ≥2 sessions,
-   *    and any volume bump (even 1 extra rep) pushed it to 9+.
-   *  - There was no penalty for doing nothing after those 2 sessions.
-   *
-   * New design:
-   *  1. Require sessions spread across at least MIN_DAY_SPREAD different calendar
-   *     days — two sessions in one day don't count as "progress over time".
-   *  2. Map improvement onto 0–10 with NO artificial offset:
-   *       0% change  → 5.0   (neutral — you maintained)
-   *      +50% change → 10.0  (excellent)
-   *      -50% change → 0.0   (regressing)
-   *  3. Apply an inactivity penalty: for every day since your last workout
-   *     beyond a 3-day grace period, subtract 0.5 (floored at 0).
-   *     A week of inactivity = 4 extra days × 0.5 = −2 points.
-   */
   private static async calculateProgressScore(userId: number): Promise<number> {
-    const MIN_DAY_SPREAD = 3; // sessions must span at least 3 different days
+    const MIN_DAY_SPREAD = 3;
 
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -280,7 +261,7 @@ export class MetricsCalculationService {
     const sessions = await WorkoutSession.findAll({
       where: { userId, completedAt: { [Op.gte]: oneMonthAgo } },
       order: [['completedAt', 'ASC']],
-      attributes: ['completedAt', 'volume'],
+      attributes: ['completedAt', 'total_volume'],
     });
 
     if (!sessions || sessions.length < 2) return 0;
@@ -289,28 +270,25 @@ export class MetricsCalculationService {
     const dayMap = new Map<string, number>();
     for (const s of sessions) {
       const day = new Date(s.completedAt as Date).toISOString().substring(0, 10);
-      const vol = Number(s.volume || 0);
+      const vol = Number(s.totalVolume || 0);
       dayMap.set(day, Math.max(dayMap.get(day) ?? 0, vol));
     }
 
-    if (dayMap.size < MIN_DAY_SPREAD) return 0; // not enough distinct training days
+    if (dayMap.size < MIN_DAY_SPREAD) return 0;
 
     const days = [...dayMap.keys()].sort();
     const firstDayKey = days[0];
     const lastDayKey  = days[days.length - 1];
 
-    // Both keys are guaranteed to exist since dayMap.size >= MIN_DAY_SPREAD
     const firstVol = dayMap.get(firstDayKey as string) ?? 0;
     const lastVol  = dayMap.get(lastDayKey  as string) ?? 0;
 
     if (firstVol === 0) return 0;
 
-    // Map improvement % onto 0–10 centred at 5 for 0% change
-    // ±50% improvement maps to ±5 points from the 5.0 midpoint
-    const improvementPct = (lastVol - firstVol) / firstVol; // e.g. 0.10 = 10%
+    const improvementPct = (lastVol - firstVol) / firstVol;
     const baseScore = Math.max(0, Math.min(5 + improvementPct * 10, 10));
 
-    // Inactivity penalty: deduct 0.5 per day inactive beyond a 3-day grace period
+    // Inactivity penalty
     const lastSession = sessions[sessions.length - 1];
     if (!lastSession?.completedAt) return Number(baseScore.toFixed(1));
     const lastDate = new Date(lastSession.completedAt as Date);
@@ -318,20 +296,15 @@ export class MetricsCalculationService {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const daysSinceLast = Math.floor((today.getTime() - lastDate.getTime()) / 86_400_000);
     const GRACE_DAYS    = 3;
-    const PENALTY_RATE  = 0.5; // per day beyond grace period
+    const PENALTY_RATE  = 0.5;
     const penalty = Math.max(0, (daysSinceLast - GRACE_DAYS) * PENALTY_RATE);
 
     return Number(Math.max(0, baseScore - penalty).toFixed(1));
   }
 
   // ---------------------------------------------------------------------------
-  // Habits score — EMA (unchanged — this was already correct)
+  // Habits score — EMA
   // ---------------------------------------------------------------------------
-  /**
-   * Habits score (0–10) using Exponential Moving Average.
-   * Based on the Loop Habit Tracker algorithm.
-   * α=0.05 rise, β=0.03 decay — new users start near 0, can't spike instantly.
-   */
   private static async calculateHabitsScoreEMA(userId: number): Promise<number> {
     const sessions = await WorkoutSession.findAll({
       where: { userId },
@@ -371,7 +344,7 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // Composite scores (unchanged)
+  // Composite scores
   // ---------------------------------------------------------------------------
 
   private static calculateFitnessScore(metrics: {
