@@ -6,7 +6,6 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import date
 import redis.asyncio as redis
-from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -16,8 +15,7 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Initialize clients
-openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+# Initialize Qdrant client only (OpenAI client removed)
 qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL)
 
 # Database setup
@@ -131,7 +129,7 @@ class RAGService:
         
         async with AsyncSessionLocal() as session:
             await session.execute(
-                            text("""
+                text("""
                     INSERT INTO chat_history (id, "userId", role, content, "createdAt")
                     VALUES (gen_random_uuid(), :user_id, :role, :content, NOW())
                 """),
@@ -170,3 +168,53 @@ class TokenBudgetService:
         key = f"budget:{user_id}:{date.today()}"
         await redis_client.incrby(key, tokens)
         await redis_client.expire(key, 86400)  # 24 hours
+
+
+class RedisCacheService:
+    """Service for caching semantic embeddings and RAG responses in Redis"""
+    
+    def __init__(self):
+        self.redis_client = None
+    
+    async def get_redis(self):
+        if not self.redis_client:
+            self.redis_client = await redis.from_url(settings.REDIS_URL, decode_responses=True)
+        return self.redis_client
+
+    async def get_cached_embedding(self, query_text: str) -> Optional[List[float]]:
+        import hashlib
+        query_hash = hashlib.sha256(query_text.encode('utf-8')).hexdigest()
+        key = f"cache:embed:{query_hash}"
+        redis_client = await self.get_redis()
+        data = await redis_client.get(key)
+        if data:
+            return json.loads(data)
+        return None
+
+    async def set_cached_embedding(self, query_text: str, embedding: List[float], ttl_seconds: int = 604800):
+        # Default TTL 7 days
+        import hashlib
+        query_hash = hashlib.sha256(query_text.encode('utf-8')).hexdigest()
+        key = f"cache:embed:{query_hash}"
+        redis_client = await self.get_redis()
+        await redis_client.setex(key, ttl_seconds, json.dumps(embedding))
+
+    async def get_cached_response(self, query_text: str, user_context: str) -> Optional[Dict[str, Any]]:
+        import hashlib
+        combined = f"{query_text}||{user_context}"
+        cache_hash = hashlib.sha256(combined.encode('utf-8')).hexdigest()
+        key = f"cache:rag_resp:{cache_hash}"
+        redis_client = await self.get_redis()
+        data = await redis_client.get(key)
+        if data:
+            return json.loads(data)
+        return None
+
+    async def set_cached_response(self, query_text: str, user_context: str, response_data: Dict[str, Any], ttl_seconds: int = 86400):
+        # Default TTL 24 hours
+        import hashlib
+        combined = f"{query_text}||{user_context}"
+        cache_hash = hashlib.sha256(combined.encode('utf-8')).hexdigest()
+        key = f"cache:rag_resp:{cache_hash}"
+        redis_client = await self.get_redis()
+        await redis_client.setex(key, ttl_seconds, json.dumps(response_data))

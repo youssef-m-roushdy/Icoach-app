@@ -7,6 +7,7 @@ Fixes:
   - not_found_strategy computed here to keep ResponseFormatter clean
   - de-duplication of chunks by text content (same chunk from two domains)
   - embedding errors are caught separately so we know exactly what failed
+  - Uses sentence-transformers for local embeddings (no OpenAI)
 """
 
 import json
@@ -16,7 +17,7 @@ from pathlib import Path
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from openai import AsyncOpenAI, AuthenticationError
+from sentence_transformers import SentenceTransformer
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 
@@ -26,7 +27,8 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-_openai = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+# Initialize sentence-transformers for local embeddings (free, no API key)
+_embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 _qdrant = AsyncQdrantClient(url=settings.QDRANT_URL)
 
 # Minimum cosine similarity to treat a result as relevant
@@ -36,7 +38,7 @@ TOP_K                = getattr(settings, "RAG_TOP_K_RESULTS", 3)
 
 def _choose_not_found_strategy(clf: dict, message: str) -> str:
     """Decide how ResponseFormatter should handle a zero-result query."""
-    if getattr(clf, "get", lambda *a: None)("needs_web_search") and True:
+    if clf.get("needs_web_search", False):
         # web_context may already be populated by ScopeGuard
         return "use_web_context"
     word_count = len(message.split())
@@ -67,19 +69,11 @@ class RAGRetrieverMiddleware(BaseHTTPMiddleware):
             request.state.not_found_strategy = _choose_not_found_strategy(clf, message)
             return await call_next(request)
 
-        # ── generate query embedding ────────────────────────────────
+        # ── generate query embedding using sentence-transformers ─────
         try:
-            emb_resp    = await _openai.embeddings.create(
-                model=settings.OPENAI_EMBEDDING_MODEL,
-                input=message,
-            )
-            query_vector = emb_resp.data[0].embedding
-        except AuthenticationError:
-            logger.error("OpenAI auth failed during embedding generation")
-            request.state.not_found          = True
-            request.state.chunks             = []
-            request.state.not_found_strategy = "general_knowledge"
-            return await call_next(request)
+            # Generate embedding locally (no API call)
+            query_vector = _embedding_model.encode(message).tolist()
+            logger.info(f"Generated embedding for: {message[:50]}...")
         except Exception as exc:
             logger.error(f"Embedding generation failed: {exc}")
             request.state.not_found          = True
@@ -93,13 +87,14 @@ class RAGRetrieverMiddleware(BaseHTTPMiddleware):
 
         for domain in domains:
             try:
-                results = await _qdrant.search(
+                # Use query_points instead of search (qdrant-client >= 1.17)
+                response = await _qdrant.query_points(
                     collection_name=domain,
-                    query_vector=query_vector,
+                    query=query_vector,
                     limit=TOP_K,
                     score_threshold=SIMILARITY_THRESHOLD,
                 )
-                for r in results:
+                for r in response.points:
                     text = r.payload.get("text", "").strip()
                     if not text or text in seen_texts:
                         continue
@@ -111,7 +106,7 @@ class RAGRetrieverMiddleware(BaseHTTPMiddleware):
                         "id":     str(r.id),
                     })
                 logger.info(
-                    f"Qdrant [{domain}] — {len(results)} results "
+                    f"Qdrant [{domain}] — {len(response.points)} results "
                     f"(threshold={SIMILARITY_THRESHOLD})"
                 )
             except UnexpectedResponse as exc:

@@ -8,6 +8,7 @@ Fixes:
   - handles all 4 not_found strategies properly
   - injects real user injuries + active plans into the system prompt
   - call_next is called at the END so all middlewares before it have already set state
+  - Uses Groq API for LLM responses
 """
 
 import json
@@ -19,7 +20,7 @@ from datetime import datetime
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from openai import AsyncOpenAI
+from openai import AuthenticationError, RateLimitError
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import get_settings
@@ -27,7 +28,14 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+# ============================================
+# Initialize Groq client
+# ============================================
+
+from services.groq_service import get_groq_service
+_client = get_groq_service()
+_model = settings.GROQ_MODEL
+logger.info("✅ Response Formatter using Groq API")
 
 # How many tokens to allow in the LLM's reply
 MAX_REPLY_TOKENS = 700
@@ -48,7 +56,7 @@ def _build_user_profile(request: Request) -> str:
     )
 
     return (
-        f"User profile:\n"
+        f"--- Constraint Filters (User Profile) ---\n"
         f"  Name: {meta.get('name', 'Unknown')}\n"
         f"  Goal: {meta.get('fitness_goal', 'general fitness')}\n"
         f"  Weight: {meta.get('weight_kg', '?')} kg  |  Height: {meta.get('height_cm', '?')} cm\n"
@@ -56,13 +64,17 @@ def _build_user_profile(request: Request) -> str:
         f"  Activity level: {meta.get('activity_level', 'unknown')}\n"
         f"  Known injuries: {injury_str}\n"
         f"  Active plans: {plan_str}\n"
+        f"-----------------------------------------\n"
     )
 
 
 BASE_SYSTEM = (
-    "You are ICoach — a professional gym coach and nutritionist AI assistant. "
+    "You are ICoach — a professional gym coach, physical therapist coordinator, and nutritionist AI assistant. "
     "Always be helpful, safe, and evidence-based. "
-    "If a recommendation could be unsafe given the user's injuries, warn them clearly. "
+    "If the topic is completely outside fitness, nutrition, or health, politely decline to answer and guide the user back to fitness/health topics.\n"
+    "Crucial Rule: Ignore any Knowledge Candidates (retrieved snippets) that conflict with the Constraint Filters (for example, if a retrieved workout interacts with an injured area!). The Constraint Filters represent absolute physical limitations.\n"
+    "1. Handling Strong/Severe Injuries: If a user has a strong injury, strictly ADVISE them to stay away from exercises that target or stress the injured area. Recommend an alternative training program that completely avoids these muscle groups to prevent further harm, and urge consulting a doctor.\n"
+    "2. Handling Weak/Mild Injuries: If a user mentions a weak/recovering injury, design a rehabilitation-focused training program geared toward strengthening that exact target area. Incorporate light, therapeutic exercises that speed up the curing process and improve muscle stability.\n"
     "Reply in the same language the user wrote in (Arabic or English).\n\n"
 )
 
@@ -135,44 +147,59 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
                 f"[{c['domain'].upper()}] {c['text']}"
                 for c in chunks
             )
-            context = rag_context
+            context = f"--- Knowledge Candidates (Qdrant) ---\n{rag_context}\n--------------------------------------"
             if web_ctx:
                 context += f"\n\nLatest web information:\n{web_ctx}"
 
             system = (
                 BASE_SYSTEM
                 + user_profile
-                + "\nAnswer ONLY using the provided context. "
-                "If the context doesn't fully cover the question, say what you know "
-                "and note the gap. Do not make up information."
+                + "\nAnswer ONLY using the provided Knowledge Candidates and your domain expertise, while strictly obeying Constraint Filters. "
+                "If the Knowledge Candidates don't fully cover the question, say what you know "
+                "and note the gap. Do not make up information that isn't supported."
             )
 
         # ════════════════════════════════════════════════════════════
-        # Call LLM
+        # Call Groq LLM
         # ════════════════════════════════════════════════════════════
+        
+        user_content = (
+            f"Context:\n{context}\n\nQuestion: {message}"
+            if context
+            else f"Question: {message}"
+        )
+        
         try:
-            user_content = (
-                f"Context:\n{context}\n\nQuestion: {message}"
-                if context
-                else f"Question: {message}"
-            )
-
-            llm_resp = await _client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
+            llm_resp = await _client.chat_completion(
                 messages=[
                     {"role": "system", "content": system},
-                    {"role": "user",   "content": user_content},
+                    {"role": "user", "content": user_content}
                 ],
                 max_tokens=MAX_REPLY_TOKENS,
-                temperature=0.3,
+                temperature=0.3
             )
-
-            reply       = llm_resp.choices[0].message.content or ""
+            reply = llm_resp.choices[0].message.content or ""
             tokens_used = llm_resp.usage.total_tokens
 
+        except AuthenticationError:
+            logger.error("Groq API authentication failed — check your API key")
+            reply = (
+                "Sorry, the AI service is not configured correctly. Please contact support.\n\n"
+                "عذراً، خدمة الذكاء الاصطناعي غير مهيأة بشكل صحيح. يرجى الاتصال بالدعم."
+            )
+            tokens_used = 0
+            
+        except RateLimitError:
+            logger.warning("Rate limit hit during response generation")
+            reply = (
+                "The AI service is busy right now. Please try again in a few moments.\n\n"
+                "خدمة الذكاء الاصطناعي مشغولة حالياً. حاول مرة أخرى بعد قليل."
+            )
+            tokens_used = 0
+            
         except Exception as exc:
-            logger.error(f"LLM call failed: {exc}")
-            reply       = (
+            logger.error(f"Groq LLM call failed: {exc}")
+            reply = (
                 "Sorry, I couldn't generate a response right now. Please try again.\n\n"
                 "عذراً، حدث خطأ أثناء توليد الرد. حاول مرة أخرى."
             )
@@ -184,7 +211,7 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
         if user_id:
             try:
                 from services.rag_service import RAGService
-                await RAGService.save_chat_history(user_id, "user",      message)
+                await RAGService.save_chat_history(user_id, "user", message)
                 await RAGService.save_chat_history(user_id, "assistant", reply)
             except Exception as exc:
                 logger.warning(f"Chat history save failed (non-fatal): {exc}")
@@ -193,14 +220,14 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
         # Store result — TokenBudgetMiddleware will deduct actual_tokens_used
         # ════════════════════════════════════════════════════════════
         result = {
-            "reply":       reply,
+            "reply": reply,
             "tokens_used": tokens_used,
-            "sources":     list({c["domain"] for c in chunks}),
-            "type":        "answer" if not not_found else strategy,
-            "timestamp":   datetime.utcnow().isoformat(),
+            "sources": list({c["domain"] for c in chunks}),
+            "type": "answer" if not not_found else strategy,
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
-        request.state.final_response     = result
+        request.state.final_response = result
         request.state.actual_tokens_used = tokens_used
 
         logger.info(

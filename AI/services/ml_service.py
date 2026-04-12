@@ -2,8 +2,8 @@
 Machine Learning model service for food recognition
 """
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+import keras
+from keras import layers
 import numpy as np
 import json
 from PIL import Image

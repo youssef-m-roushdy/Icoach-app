@@ -130,11 +130,11 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Error loading ML model: {e}")
     
-    # Check RAG configuration
-    if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your-key-here":
-        logger.info("✅ OpenAI API key configured")
+    # Check RAG configuration (Groq instead of OpenAI)
+    if settings.GROQ_API_KEY and settings.GROQ_API_KEY != "your-groq-api-key-here":
+        logger.info("✅ Groq API key configured")
     else:
-        logger.warning("⚠️ OpenAI API key not configured - RAG chat will be limited")
+        logger.warning("⚠️ Groq API key not configured - RAG chat will be limited")
     
     if settings.QDRANT_URL:
         logger.info(f"✅ Qdrant vector database configured: {settings.QDRANT_URL}")
@@ -176,7 +176,7 @@ async def health_check():
         "version": settings.API_VERSION,
         "features": {
             "food_recognition": True,
-            "rag_chat": bool(settings.OPENAI_API_KEY and settings.OPENAI_API_KEY != "your-key-here"),
+            "rag_chat": bool(settings.GROQ_API_KEY and settings.GROQ_API_KEY != "your-groq-api-key-here"),
             "auth": bool(settings.public_key)
         }
     }

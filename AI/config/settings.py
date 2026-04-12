@@ -47,11 +47,6 @@ class Settings(BaseSettings):
     # Node.js API Integration
     NODEJS_API_URL: str = "http://localhost:5000"
     
-    # OpenAI Configuration
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o-mini"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    
     # Vector Database (Qdrant)
     QDRANT_URL: str = "http://localhost:6333"
     
@@ -67,7 +62,7 @@ class Settings(BaseSettings):
     RAG_TEMPERATURE: float = 0.3
     RAG_TOP_K_RESULTS: int = 3
     
-    # Token Limits (MUST match .env variable names exactly)
+    # Token Limits
     TOKEN_LIMIT_FREE: int = 10000
     TOKEN_LIMIT_PRO: int = 100000
     TOKEN_LIMIT_PREMIUM: int = 500000
@@ -76,6 +71,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_WINDOW: int = 60
     
+    # Groq API Configuration 
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    USE_GROQ: bool = True 
+       
     # Logging
     LOG_LEVEL: str = "INFO"
     
@@ -113,11 +114,9 @@ class Settings(BaseSettings):
     @property
     def public_key(self) -> Optional[str]:
         """Get RSA public key for JWT verification"""
-        # Return directly if set as string
         if self.JWT_PUBLIC_KEY:
             return self.JWT_PUBLIC_KEY
         
-        # Otherwise load from file
         key_path = Path(self.JWT_PUBLIC_KEY_PATH)
         if key_path.exists():
             try:
@@ -125,13 +124,7 @@ class Settings(BaseSettings):
                     return f.read()
             except Exception:
                 return None
-        
         return None
-    
-    @property
-    def is_rag_configured(self) -> bool:
-        """Check if RAG system is properly configured"""
-        return bool(self.OPENAI_API_KEY and self.QDRANT_URL)
     
     @property
     def is_web_search_configured(self) -> bool:
