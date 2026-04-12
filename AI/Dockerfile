@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -17,6 +17,7 @@ WORKDIR /app
 COPY requirements-api.txt /app/requirements-api.txt
 
 RUN pip install --upgrade pip setuptools wheel \
+    && pip install torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r /app/requirements-api.txt
 
 COPY . /app
