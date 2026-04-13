@@ -87,3 +87,18 @@ export {
   validateGetSessionSets,
   validateBulkAddSetsToWorkoutSession,
 } from './workoutSessionSetValidation.js';
+
+export {
+  validateCreateMessage,
+  validateChatHistoryQuery,
+  validateUpdateMessage,
+  validateGetMessageById,
+  validateDeleteMessage,
+  validateClearHistory,
+  validateBatchCreateMessages,
+  validateGetConversationContext,
+  validateMessageIdParam,
+  validateChatDateRange,
+  validateSearchMessages,
+  validateExportChat,
+} from './chatHistoryValidations.js';

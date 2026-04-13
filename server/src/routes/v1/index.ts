@@ -9,6 +9,7 @@ import progressRoutes from './progressRoutes.js';
 import dailyActivityRoutes from './dailyActivityRoutes.js';
 import waterIntakeRoutes from './waterIntakeRoutes.js';
 import workoutSessionSetRoutes from './workoutSessionSetRoutes.js';
+import chatHistoryRoutes from './chatHistoryRoutes.js';
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.use('/progress', progressRoutes);
 router.use('/daily-active', dailyActivityRoutes);
 router.use('/water-intake', waterIntakeRoutes);
 router.use('/workout-sessions/:sessionId/sets', workoutSessionSetRoutes);
+router.use('/chat-history', chatHistoryRoutes);
 
 export default router;
