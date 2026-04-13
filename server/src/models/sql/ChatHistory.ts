@@ -11,7 +11,8 @@ import { sequelize } from '../../config/database.js';
 export interface ChatHistoryAttributes {
   id: string;
   userId: number;
-  role: 'user' | 'assistant' | 'system';
+  session_id: string; // ✨ تم الإضافة لربط المحادثات
+  role: 'user' | 'assistant' | 'system' | 'tool'; // ✨ تم التحديث ليشمل tool
   content: string;
   createdAt: Date;
 }
@@ -21,12 +22,14 @@ export interface ChatHistoryCreationAttributes
     ChatHistoryAttributes,
     | 'id'
     | 'createdAt'
+    | 'session_id' // اختياري وقت الإنشاء لأننا حاطين Default
   > { }
 
 class ChatHistory extends Model<InferAttributes<ChatHistory>, InferCreationAttributes<ChatHistory>> {
   declare id: CreationOptional<string>;
   declare userId: number;
-  declare role: 'user' | 'assistant' | 'system';
+  declare session_id: string; // ✨ تم الإضافة
+  declare role: 'user' | 'assistant' | 'system' | 'tool'; // ✨ تم التحديث
   declare content: string;
   declare readonly createdAt: CreationOptional<Date>;
 }
@@ -47,8 +50,15 @@ ChatHistory.init(
       },
       onDelete: 'CASCADE',
     },
+    // ✨ العمود الجديد لتمييز جلسات الدردشة
+    session_id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      allowNull: false,
+    },
+    // ✨ تحديث النوع ليشمل 'tool' وهو ضروري لنتائج البحث
     role: {
-      type: DataTypes.ENUM('user', 'assistant', 'system'),
+      type: DataTypes.ENUM('user', 'assistant', 'system', 'tool'),
       allowNull: false,
     },
     content: {

@@ -1,13 +1,13 @@
 """
 Response Formatter Middleware
-Fixes:
+  - Constructs hybrid prompts with: System → Memory → Recent Chat → RAG Knowledge → Query
   - stores result in request.state.final_response so chat_router returns it properly
   - no Redis connection inside this middleware (TokenBudgetMiddleware owns Redis)
   - actual_tokens_used stored in state so TokenBudgetMiddleware can deduct correctly
   - saves chat history (user + assistant turns) via RAGService
+  - indexes conversation turns in Qdrant for long-term memory
   - handles all 4 not_found strategies properly
   - injects real user injuries + active plans into the system prompt
-  - call_next is called at the END so all middlewares before it have already set state
   - Uses Groq API for LLM responses
 """
 
@@ -68,6 +68,37 @@ def _build_user_profile(request: Request) -> str:
     )
 
 
+def _build_long_term_memory_context(long_term_memories: list) -> str:
+    """Format long-term memory results into a readable context block."""
+    if not long_term_memories:
+        return ""
+    
+    lines = ["--- Relevant Past Conversations (from memory) ---"]
+    for mem in long_term_memories:
+        role_label = "You" if mem.get("role") == "assistant" else "User"
+        lines.append(f"  [{role_label}]: {mem['text']}")
+    lines.append("------------------------------------------------")
+    return "\n".join(lines)
+
+
+def _build_conversation_messages(short_term_memory: list) -> list:
+    """
+    Convert short-term memory into proper LLM message objects.
+    This gives the LLM real multi-turn context instead of stuffing
+    everything into the system prompt.
+    """
+    messages = []
+    for msg in short_term_memory:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if role == "system":
+            # System notes (e.g. "[3 earlier messages omitted]")
+            messages.append({"role": "system", "content": content})
+        elif role in ("user", "assistant"):
+            messages.append({"role": role, "content": content})
+    return messages
+
+
 BASE_SYSTEM = (
     "You are ICoach — a professional gym coach, physical therapist coordinator, and nutritionist AI assistant. "
     "Always be helpful, safe, and evidence-based. "
@@ -76,6 +107,14 @@ BASE_SYSTEM = (
     "1. Handling Strong/Severe Injuries: If a user has a strong injury, strictly ADVISE them to stay away from exercises that target or stress the injured area. Recommend an alternative training program that completely avoids these muscle groups to prevent further harm, and urge consulting a doctor.\n"
     "2. Handling Weak/Mild Injuries: If a user mentions a weak/recovering injury, design a rehabilitation-focused training program geared toward strengthening that exact target area. Incorporate light, therapeutic exercises that speed up the curing process and improve muscle stability.\n"
     "Reply in the same language the user wrote in (Arabic or English).\n\n"
+)
+
+MEMORY_SYSTEM_ADDENDUM = (
+    "You have access to the user's recent conversation history and relevant past interactions. "
+    "Use this context to maintain conversational continuity. "
+    "If the user refers to something discussed earlier, check the provided memory context. "
+    "Do NOT fabricate past conversations that aren't in the provided context. "
+    "Prefer information from the user's own history over generic knowledge when relevant.\n\n"
 )
 
 
@@ -88,8 +127,10 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
         try:
             data    = json.loads(request.state.cached_body)
             message = data.get("message", "").strip()
+            conversation_id = data.get("conversation_id", None)
         except Exception:
             message = ""
+            conversation_id = None
 
         user_id      = getattr(request.state, "user_id", None)
         user_profile = _build_user_profile(request)
@@ -98,9 +139,26 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
         web_ctx      = getattr(request.state, "web_context", "") or ""
         chunks       = getattr(request.state, "chunks", []) or []
 
+        # ── Memory context from MemoryMiddleware ─────────────────────
+        short_term_memory = getattr(request.state, "short_term_memory", []) or []
+        long_term_memory  = getattr(request.state, "long_term_memory", []) or []
+        memory_used       = getattr(request.state, "memory_used", False)
+
         # ════════════════════════════════════════════════════════════
         # Build system prompt + context based on what was retrieved
         # ════════════════════════════════════════════════════════════
+
+        # Start with base system prompt + user profile
+        system_parts = [BASE_SYSTEM, user_profile]
+
+        # Add memory awareness instructions if memory is available
+        if memory_used:
+            system_parts.append(MEMORY_SYSTEM_ADDENDUM)
+
+        # Add long-term memory context (semantically relevant past conversations)
+        long_term_ctx = _build_long_term_memory_context(long_term_memory)
+        if long_term_ctx:
+            system_parts.append(long_term_ctx)
 
         if not_found:
             # ── strategy: ask for clarification ─────────────────────
@@ -114,6 +172,7 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
                     "tokens_used": 0,
                     "sources":     [],
                     "type":        "clarification_needed",
+                    "memory_used": memory_used,
                     "timestamp":   datetime.utcnow().isoformat(),
                 }
                 request.state.final_response  = result
@@ -122,20 +181,16 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
 
             # ── strategy: web results available ─────────────────────
             elif strategy == "use_web_context" and web_ctx:
-                system = (
-                    BASE_SYSTEM
-                    + user_profile
-                    + "\nUse ONLY the web search results below to answer. "
+                system_parts.append(
+                    "\nUse ONLY the web search results below to answer. "
                     "Mention that the information comes from recent web sources."
                 )
                 context = f"Web search results:\n{web_ctx}"
 
             # ── strategy: LLM general knowledge + disclaimer ─────────
             else:   # general_knowledge or use_web_context without web_ctx
-                system = (
-                    BASE_SYSTEM
-                    + user_profile
-                    + "\nAnswer from your general knowledge. "
+                system_parts.append(
+                    "\nAnswer from your general knowledge. "
                     "At the end of your reply add: "
                     "'⚠️ Note: This is general advice, not from your personal plan.'"
                 )
@@ -151,30 +206,41 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
             if web_ctx:
                 context += f"\n\nLatest web information:\n{web_ctx}"
 
-            system = (
-                BASE_SYSTEM
-                + user_profile
-                + "\nAnswer ONLY using the provided Knowledge Candidates and your domain expertise, while strictly obeying Constraint Filters. "
+            system_parts.append(
+                "\nAnswer ONLY using the provided Knowledge Candidates and your domain expertise, while strictly obeying Constraint Filters. "
                 "If the Knowledge Candidates don't fully cover the question, say what you know "
                 "and note the gap. Do not make up information that isn't supported."
             )
 
         # ════════════════════════════════════════════════════════════
-        # Call Groq LLM
+        # Build the messages array with proper multi-turn context
         # ════════════════════════════════════════════════════════════
-        
+
+        system_prompt = "\n".join(system_parts)
+
+        # Start with the system message
+        messages = [{"role": "system", "content": system_prompt}]
+
+        # Add short-term conversation history as real user/assistant turns
+        # This gives the LLM proper multi-turn conversational context
+        conversation_msgs = _build_conversation_messages(short_term_memory)
+        messages.extend(conversation_msgs)
+
+        # Build the current user message with RAG context
         user_content = (
             f"Context:\n{context}\n\nQuestion: {message}"
             if context
             else f"Question: {message}"
         )
+        messages.append({"role": "user", "content": user_content})
+
+        # ════════════════════════════════════════════════════════════
+        # Call Groq LLM
+        # ════════════════════════════════════════════════════════════
         
         try:
             llm_resp = await _client.chat_completion(
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_content}
-                ],
+                messages=messages,
                 max_tokens=MAX_REPLY_TOKENS,
                 temperature=0.3
             )
@@ -206,15 +272,33 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
             tokens_used = 0
 
         # ════════════════════════════════════════════════════════════
-        # Persist chat history (fire-and-forget, never crash the request)
+        # Persist chat history + index in vector memory
+        # (fire-and-forget, never crash the request)
         # ════════════════════════════════════════════════════════════
         if user_id:
             try:
-                from services.rag_service import RAGService
+                from services.rag_service import RAGService, ConversationMemoryService
+                
+                # Save to PostgreSQL (source of truth for short-term memory)
                 await RAGService.save_chat_history(user_id, "user", message)
                 await RAGService.save_chat_history(user_id, "assistant", reply)
+                
+                # Index in Qdrant for long-term semantic memory
+                memory_svc = ConversationMemoryService()
+                await memory_svc.index_conversation_turn(
+                    user_id=user_id,
+                    role="user",
+                    content=message,
+                    session_id=conversation_id,
+                )
+                await memory_svc.index_conversation_turn(
+                    user_id=user_id,
+                    role="assistant",
+                    content=reply,
+                    session_id=conversation_id,
+                )
             except Exception as exc:
-                logger.warning(f"Chat history save failed (non-fatal): {exc}")
+                logger.warning(f"Chat history/memory save failed (non-fatal): {exc}")
 
         # ════════════════════════════════════════════════════════════
         # Store result — TokenBudgetMiddleware will deduct actual_tokens_used
@@ -224,6 +308,7 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
             "tokens_used": tokens_used,
             "sources": list({c["domain"] for c in chunks}),
             "type": "answer" if not not_found else strategy,
+            "memory_used": memory_used,
             "timestamp": datetime.utcnow().isoformat(),
         }
 
@@ -232,7 +317,9 @@ class ResponseFormatterMiddleware(BaseHTTPMiddleware):
 
         logger.info(
             f"Response ready — user={user_id} tokens={tokens_used} "
-            f"sources={result['sources']} type={result['type']}"
+            f"sources={result['sources']} type={result['type']} "
+            f"memory={memory_used} short_term={len(short_term_memory)} "
+            f"long_term={len(long_term_memory)}"
         )
 
         # call_next passes control to the router

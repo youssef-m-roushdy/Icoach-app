@@ -60,10 +60,10 @@ app.add_middleware(
 # Order matters: Last added executes FIRST
 # ============================================
 
-# 6. Response Formatter (LAST - formats and sends response)
+# 7. Response Formatter (LAST - formats and sends response)
 app.add_middleware(ResponseFormatterMiddleware)
 
-# 5. RAG Retriever (retrieves from vector database)
+# 6. RAG Retriever (retrieves from vector database)
 app.add_middleware(RAGRetrieverMiddleware)
 
 # 4. Scope Guard (handles out-of-scope and web search)

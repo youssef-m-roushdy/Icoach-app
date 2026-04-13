@@ -23,6 +23,7 @@ class ChatResponse(BaseModel):
     tokens_used: int
     sources: List[str] = []
     type: str  # answer, clarification, out_of_scope, error
+    memory_used: bool = False  # whether conversational memory was used
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

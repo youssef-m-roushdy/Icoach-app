@@ -41,6 +41,7 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
         tokens_used = final["tokens_used"],
         sources     = final.get("sources", []),
         type        = final.get("type", "answer"),
+        memory_used = final.get("memory_used", False),
         timestamp   = datetime.fromisoformat(final["timestamp"])
                       if isinstance(final.get("timestamp"), str)
                       else datetime.utcnow(),

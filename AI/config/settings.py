@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     RAG_TEMPERATURE: float = 0.3
     RAG_TOP_K_RESULTS: int = 3
     
+    # Memory Settings (Hybrid Short-Term + Long-Term)
+    MEMORY_SHORT_TERM_MESSAGES: int = 8
+    MEMORY_LONG_TERM_TOP_K: int = 3
+    MEMORY_SIMILARITY_THRESHOLD: float = 0.65
+    MEMORY_COLLECTION_NAME: str = "chat_memory"
+    MEMORY_MAX_CONTEXT_TOKENS: int = 1500
+    
     # Token Limits
     TOKEN_LIMIT_FREE: int = 10000
     TOKEN_LIMIT_PRO: int = 100000

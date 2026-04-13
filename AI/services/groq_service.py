@@ -41,6 +41,17 @@ class GroqService:
         logger.warning("Groq embeddings not supported, using mock")
         return [0.0] * 768
 
+    @staticmethod
+    def count_tokens(text: str) -> int:
+        """Estimate token count using tiktoken (GPT-4o-mini tokenizer as proxy)."""
+        try:
+            import tiktoken
+            enc = tiktoken.encoding_for_model("gpt-4o-mini")
+            return len(enc.encode(text))
+        except Exception:
+            # Fallback: ~4 chars per token
+            return len(text) // 4
+
 
 _groq_service = None
 

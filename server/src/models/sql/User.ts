@@ -36,6 +36,7 @@ interface UserAttributes {
   lastLogin?: Date;
   role: 'user' | 'coach' | 'admin';
   authProvider: 'regular' | 'google';
+  medicalNotes?: any; // JSONB field for coach's quick notes about user injuries/conditions
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,9 +64,36 @@ interface UserCreationAttributes
     | 'passwordResetExpires'
     | 'lastLogin'
     | 'authProvider'
+    | 'medicalNotes'
     | 'createdAt'
     | 'updatedAt'
   > {}
+
+// Medical notes interface for better type safety
+export interface MedicalNotes {
+  injuries?: Array<{
+    id: string;
+    bodyPart: string;
+    description: string;
+    severity: 'mild' | 'moderate' | 'severe';
+    dateRecorded: Date;
+    status: 'active' | 'recovering' | 'healed';
+    notes?: string;
+  }>;
+  conditions?: Array<{
+    id: string;
+    name: string;
+    description: string;
+    diagnosedDate?: Date;
+    medication?: string[];
+    notes?: string;
+  }>;
+  allergies?: string[];
+  restrictions?: string[];
+  quickNotes?: string; // For general coach notes
+  lastUpdatedBy?: number; // Coach ID who last updated
+  lastUpdatedAt?: Date;
+}
 
 // User model class
 class User extends Model<
@@ -98,6 +126,7 @@ class User extends Model<
   declare lastLogin: Date | null;
   declare role: CreationOptional<'user' | 'coach' | 'admin'>;
   declare authProvider: CreationOptional<'regular' | 'google'>;
+  declare medicalNotes: any | null; // JSONB field for coach's quick notes
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
 
@@ -192,6 +221,45 @@ class User extends Model<
     
     const completedFields = fitnessFields.filter(field => this[field as keyof User] != null);
     return Math.round((completedFields.length / fitnessFields.length) * 100);
+  }
+
+  // Helper method to add a medical note
+  addMedicalNote(note: string, coachId: number): void {
+    const currentNotes: MedicalNotes = this.medicalNotes || {};
+    
+    this.medicalNotes = {
+      ...currentNotes,
+      quickNotes: currentNotes.quickNotes 
+        ? `${currentNotes.quickNotes}\n[${new Date().toISOString()}] ${note}`
+        : `[${new Date().toISOString()}] ${note}`,
+      lastUpdatedBy: coachId,
+      lastUpdatedAt: new Date()
+    };
+  }
+
+  // Helper method to add an injury
+  addInjury(injury: {
+    bodyPart: string;
+    description: string;
+    severity: 'mild' | 'moderate' | 'severe';
+    status?: 'active' | 'recovering' | 'healed';
+    notes?: string;
+  }): void {
+    const currentNotes: MedicalNotes = this.medicalNotes || {};
+    const injuries = currentNotes.injuries || [];
+    
+    injuries.push({
+      id: Math.random().toString(36).substr(2, 9),
+      ...injury,
+      dateRecorded: new Date(),
+      status: injury.status || 'active'
+    });
+    
+    this.medicalNotes = {
+      ...currentNotes,
+      injuries,
+      lastUpdatedAt: new Date()
+    };
   }
 
   // Static methods
@@ -475,6 +543,12 @@ User.init(
         },
       },
     },
+    medicalNotes: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: null,
+      comment: "Coach's quick notes about user injuries and medical conditions (Active Context Snapshot)",
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -509,6 +583,11 @@ User.init(
       },
       {
         fields: ['createdAt'],
+      },
+      // Add GIN index for JSONB queries if needed
+      {
+        fields: ['medicalNotes'],
+        using: 'gin',
       },
     ],
     hooks: {
