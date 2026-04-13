@@ -5,7 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
+// REMOVED: import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { configurePassport } from './config/passport.js';
@@ -32,8 +32,8 @@ const PORT = process.env.PORT || 5000;
 // Initialize Socket.IO
 socketService.initialize(httpServer);
 
-// Trust proxy (for rate limiting and IP detection)
-app.set('trust proxy', 1);
+// Trust proxy for proper IP detection (IMPORTANT: Now trusts gateway's X-Forwarded-For)
+app.set('trust proxy', true); // Changed from 1 to true to trust all proxies in development
 
 // ============= EJS CONFIGURATION =============
 // Configure EJS template engine for web pages
@@ -68,32 +68,42 @@ const corsOptions = {
     'http://localhost:19000',
     'http://localhost:19001',
     'exp://localhost:8081',
-    'exp://192.168.1.6:8081'
+    'exp://192.168.1.6:8081',
+    'http://localhost:8080' // ADDED: Allow gateway origin
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Forwarded-For'],
 };
 
 // Apply CORS to API routes only (not to web views)
 app.use('/api', cors(corsOptions));
 
-// Rate limiting for all routes
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
+// REMOVED: Rate limiting middleware - Now handled by API Gateway
+// const limiter = rateLimit({ ... });
+// app.use(limiter);
 
 // ============= LOGGING MIDDLEWARE =============
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined'));
+  // Custom morgan token for client IP (from X-Forwarded-For)
+  morgan.token('client-ip', (req) => {
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    
+    // Handle X-Forwarded-For header (could be string or string[])
+    if (xForwardedFor) {
+      if (Array.isArray(xForwardedFor)) {
+        return xForwardedFor[0]?.trim() || 'unknown';
+      }
+      return xForwardedFor.split(',')[0]?.trim() || 'unknown';
+    }
+    
+    // Fallback to connection remote address
+    return req.socket?.remoteAddress || 
+           req.connection?.remoteAddress || 
+           'unknown';
+  });
+  
+  app.use(morgan(':method :url :status :response-time ms - :client-ip'));
 }
 
 // ============= BODY PARSING MIDDLEWARE =============
@@ -117,12 +127,33 @@ import webRoutes from './routes/web/publicRoutes.js';
 
 // Health check endpoint (accessible via web and API)
 app.get('/health', (req, res) => {
+  // Safely extract client IP from X-Forwarded-For header
+  let clientIp = 'unknown';
+  
+  const forwarded = req.headers['x-forwarded-for'];
+  
+  if (forwarded) {
+    if (typeof forwarded === 'string') {
+      clientIp = forwarded.split(',')[0]?.trim() || 'unknown';
+    } else if (Array.isArray(forwarded) && forwarded.length > 0) {
+      clientIp = String(forwarded[0]).trim();
+    }
+  }
+  
+  // Fallback to socket remote address
+  if (clientIp === 'unknown') {
+    clientIp = req.socket?.remoteAddress || 
+               req.connection?.remoteAddress || 
+               'unknown';
+  }
+  
   res.status(200).json({ 
     success: true,
     status: 'OK', 
     message: 'iCoach server is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
+    clientIp: clientIp,
   });
 });
 
@@ -153,6 +184,7 @@ const startServer = async () => {
       console.log(`🌐 Web views available at: http://localhost:${PORT}`);
       console.log(`📖 API documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🔌 WebSocket server ready for connections`);
+      console.log(`🛡️ Rate limiting DISABLED - Handled by API Gateway`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -2,11 +2,17 @@
 // API configuration
 // ===============================
 import type { User } from '../types';
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-export const AI_API_URL =
-  process.env.EXPO_PUBLIC_AI_API_URL || 'http://localhost:8000';
+// SINGLE ENTRY POINT - API Gateway
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api';
+
+// REMOVED: AI_API_URL - Now everything goes through the gateway
+// export const AI_API_URL = ... // DELETE THIS LINE
+
+// WebSocket URL (if needed)
+export const WS_URL =
+  process.env.EXPO_PUBLIC_WS_URL || 'ws://localhost:8080';
 
 // ===============================
 // Global refresh token handler
@@ -248,7 +254,6 @@ export const authService = {
   },
 
   // Logout user
-  // Best-effort: even if request fails, local logout can still continue
   async logout(token: string): Promise<void> {
     try {
       await request('/v1/users/logout', {
@@ -475,10 +480,10 @@ export const workoutService = {
 };
 
 // ===============================
-// Food AI Service
+// Food AI Service (UPDATED - Through Gateway)
 // ===============================
 export const foodService = {
-  // Predict food from image
+  // Predict food from image - NOW THROUGH GATEWAY
   async predictFood(imageUri: string): Promise<FoodPredictionResponse> {
     try {
       const formData = new FormData();
@@ -492,7 +497,8 @@ export const foodService = {
       // @ts-ignore - React Native handles file objects differently
       formData.append('file', file);
 
-      const response = await fetch(`${AI_API_URL}/api/food/predict`, {
+      // UPDATED: Use API_BASE_URL with /v1/food-recognition/predict
+      const response = await fetch(`${API_BASE_URL}/v1/food-recognition/predict`, {
         method: 'POST',
         body: formData,
       });
@@ -509,8 +515,6 @@ export const foodService = {
         );
       }
 
-      // هنا بنرجع الداتا حتى لو success = false
-      // علشان الشاشة تقدر تتعامل مع no-result أو suggestions بدون throw
       return (data || {
         success: false,
         message: 'Invalid response from AI service',
@@ -592,7 +596,7 @@ export const savedWorkoutService = {
     );
   },
 
-  // Backward-compatible alias (keep existing screens working)
+  // Backward-compatible alias
   async AddWorkoutToSaveList(workoutId: number, token: string): Promise<any> {
     return this.addWorkoutToSaveList(workoutId, token);
   },
@@ -634,4 +638,11 @@ export const savedWorkoutService = {
   ): Promise<any> {
     return this.checkWorkoutIsInSavedList(savedWorkoutId, token);
   },
+};
+
+// ===============================
+// WebSocket Helper (Optional)
+// ===============================
+export const createWebSocket = (path: string = '/hub'): WebSocket => {
+  return new WebSocket(`${WS_URL}${path}`);
 };

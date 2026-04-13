@@ -145,10 +145,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FILE: /app/logs/app.log
       
-      # Rate Limiting
-      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
-      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
-      
       # Cloudinary Configuration (Image Upload)
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}

@@ -1,0 +1,206 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/v1/auth/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/auth/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "15m",
+        "PeriodTimespan": 900,
+        "Limit": 20,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/users/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/users/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "15m",
+        "PeriodTimespan": 900,
+        "Limit": 50,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/workout-sessions/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/workout-sessions/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "15m",
+        "PeriodTimespan": 900,
+        "Limit": 100,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/progress/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/progress/{everything}",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/foods/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/foods/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/saved-workouts/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/saved-workouts/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","DELETE"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/daily-active/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/daily-active/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/water-intake/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/water-intake/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PUT"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/chat-history/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/chat-history/{everything}",
+      "UpstreamHttpMethod": ["GET","POST","PATCH","DELETE"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 60,
+        "Limit": 30,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "Key": "websocket-raw",
+      "DownstreamPathTemplate": "/hub/{everything}",
+      "DownstreamScheme": "ws",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/hub/{everything}",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "Key": "socketio-http",
+      "DownstreamPathTemplate": "/socket.io/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/socket.io/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
+      "AddHeadersToRequest": {
+        "X-Forwarded-Proto": "http",
+        "X-Forwarded-For": "{RemoteIpAddress}"
+      },
+      "RateLimitOptions": {
+        "EnableRateLimiting": false
+      }
+    },
+    {
+      "Key": "socketio-ws",
+      "DownstreamPathTemplate": "/socket.io/{everything}",
+      "DownstreamScheme": "ws",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
+      "UpstreamPathTemplate": "/socket.io/{everything}",
+      "UpstreamHttpMethod": ["GET"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": false
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/food/predict",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/api/v1/food-recognition/predict",
+      "UpstreamHttpMethod": ["POST"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 60,
+        "Limit": 10,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/food/predict-top",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/api/v1/food-recognition/predict-top",
+      "UpstreamHttpMethod": ["POST"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 60,
+        "Limit": 10,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/chat",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/api/v1/ai/chat",
+      "UpstreamHttpMethod": ["POST"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "PeriodTimespan": 60,
+        "Limit": 20,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/chat/tokens/usage",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/api/v1/ai/chat/tokens/usage",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/docs",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/fastapi-docs",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/openapi.json",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
+      "UpstreamPathTemplate": "/fastapi-openapi.json",
+      "UpstreamHttpMethod": ["GET"]
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://localhost:8080",
+    "RequestIdKey": "X-Request-Id",
+    "RateLimitOptions": {
+      "EnableRateLimiting": true,
+      "Period": "15m",
+      "PeriodTimespan": 900,
+      "Limit": 100,
+      "ClientIdHeader": "X-Forwarded-For",
+      "QuotaExceededMessage": "Too many requests. Please retry in {0} seconds.",
+      "HttpStatusCode": 429,
+      "DisableRateLimitHeaders": false
+    }
+  }
+}
