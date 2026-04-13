@@ -2,55 +2,62 @@ import logging
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
 class ProfileService:
-    """خدمة جلب البيانات الشخصية والطبية للمستخدم"""
+    """Service to fetch user personal and medical data"""
     
     @staticmethod
     async def get_user_context(user_id: int, session: AsyncSession) -> Dict[str, Any]:
-        """جلب بروفايل المستخدم والملف الطبي (JSONB)"""
+        """Fetch user profile and medical file (JSONB)"""
         try:
-            # لاحظ: استدعاء medical_notes اللي هو JSONB
+            # 1. Execute query with double quotes for CamelCase column names
             result = await session.execute(
                 text("""
                     SELECT "firstName", "lastName", height, weight, 
                            "fitnessGoal", "activityLevel", gender, "dateOfBirth", bmi,
-                           medical_notes 
+                           "medicalNotes" 
                     FROM users 
                     WHERE id = :user_id AND "isActive" = true
                 """),
                 {"user_id": user_id}
             )
-            user = result.fetchone()
             
-            if not user:
+            # Fetch row as Mapping to easily access CamelCase columns
+            row = result.fetchone()
+            
+            if not row:
                 return {}
-            
-            # حساب العمر
+
+            # 2. Calculate age from date of birth
             age = None
-            if user.dateOfBirth:
-                from datetime import date
+            if row.dateOfBirth:
                 today = date.today()
-                age = today.year - user.dateOfBirth.year - ((today.month, today.day) < (user.dateOfBirth.month, user.dateOfBirth.day))
+                dob = row.dateOfBirth
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
             
+            # 3. Build dictionary with snake_case names for the test script
+            # Note: Using row.columnName because SQLAlchemy reads them that way from SELECT
             return {
                 "user_id": user_id,
                 "profile": {
-                    "name": f"{user.firstName} {user.lastName}",
-                    "height_cm": user.height,
-                    "weight_kg": user.weight,
-                    "bmi": user.bmi,
-                    "fitness_goal": user.fitnessGoal,
-                    "activity_level": user.activityLevel,
-                    "gender": user.gender,
+                    "name": f"{row.firstName} {row.lastName}",
+                    "height_cm": row.height,
+                    "weight_kg": row.weight,
+                    "bmi": row.bmi,
+                    "fitness_goal": row.fitnessGoal,
+                    "activity_level": row.activityLevel,
+                    "gender": row.gender,
                     "age": age
                 },
-                # إرجاع الـ JSONB الطبي مباشرة
-                "medical_notes": user.medical_notes if user.medical_notes else []
+                "medical_notes": row.medicalNotes if row.medicalNotes else []
             }
             
         except Exception as e:
             logger.error(f"Error fetching user profile: {e}")
+            # Print full error to console for debugging
+            import traceback
+            traceback.print_exc()
             return {}
