@@ -1,71 +1,105 @@
-"""
-Chat Router — RAG-powered chat endpoint
-Fixes:
-  - reads request.state.final_response (set by ResponseFormatterMiddleware)
-  - /tokens/usage still guarded by auth (user_id must exist)
-  - proper HTTP status codes on errors
-"""
-
 import logging
+import uuid
 from datetime import datetime
-
 from fastapi import APIRouter, Request, HTTPException, status
+from pydantic import BaseModel
 
-from models.rag_models import ChatRequest, ChatResponse, TokenUsageResponse
-from services.rag_service import TokenBudgetService
+# استدعاء الخدمة الجديدة اللي عملناها للتوكنز
+from services.token_service import TokenService
 
 logger = logging.getLogger(__name__)
 router  = APIRouter(prefix="/api/chat", tags=["Chat"])
-_token_svc = TokenBudgetService()
 
+# إنشاء نسخة واحدة من الخدمة لاستخدامها في الراوتر
+_token_svc = TokenService()
+
+class ChatRequest(BaseModel):
+    content: str
+    session_id: str | None = None
+
+class ChatResponse(BaseModel):
+    reply: str
+    session_id: str
+    tokens_used: int = 0
+    type: str = "answer"
+    timestamp: datetime
 
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
-    """
-    RAG chat endpoint.
-    All heavy lifting is done by the middleware pipeline.
-    This handler just returns whatever the pipeline produced.
-    """
-    final = getattr(request.state, "final_response", None)
+    # ─── 1. Identity Extraction ───
+    # سحب بيانات اليوزر من الـ state (اللي الـ Auth Dependency ملاه)
+    user_id = getattr(request.state, "user_id", None)
+    tier    = getattr(request.state, "tier", "free")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User identity not found")
 
-    if final is None:
-        # Should never happen if all middlewares are registered correctly
-        logger.error("final_response not set — middleware pipeline may be broken")
+    # ─── 2. Token Budget Check (التحقق من الرصيد) ───
+    # بنكلم الخدمة تتأكد من Redis قبل ما نكمل
+    is_ok, used, limit = await _token_svc.check_budget(user_id, tier, chat_request.content)
+    if not is_ok:
+        logger.warning(f"⚠️ Token limit hit for user {user_id}: {used}/{limit}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Chat processing failed — please try again",
+            status_code=429,
+            detail=f"لقد استهلكت حدك اليومي من التوكنز ({used}/{limit}). برجاء المحاولة غداً."
         )
 
+    # ─── 3. Session Management ───
+    current_session_id = chat_request.session_id or str(uuid.uuid4())
+
+    # ─── 4. Scope Guard (حماية المحتوى) ───
+    user_message = chat_request.content.lower()
+    forbidden_topics = ["politics", "سياسة", "music", "أغاني", "joke", "نكتة", "movies", "أفلام", "code", "برمجة", "اقتصاد"]
+    
+    if any(topic in user_message for topic in forbidden_topics):
+        logger.warning(f"🚫 Out of scope message from user {user_id}")
+        return ChatResponse(
+            reply="أنا مساعدك الرياضي والطبي فقط. لا يمكنني مناقشة هذه المواضيع.",
+            session_id=current_session_id,
+            type="out_of_scope",
+            timestamp=datetime.utcnow()
+        )
+
+    # ─── 5. Response Logic (Sprint 1 Placeholder) ───
+    # في Sprint 2 هنا هيكون فيه مناداة للـ RAG Service والـ LLM
+    reply_text = f"تم استلام رسالتك: '{chat_request.content}'. (هذا رد تجريبي لسبراينت 1)"
+    
+    # حساب التوكنز التقريبي (لحد ما نربط الـ AI فعلياً)
+    actual_tokens = 150 
+    
+    # ─── 6. Commit Usage (خصم التوكنز فعلياً من Redis) ───
+    await _token_svc.update_usage(user_id, actual_tokens)
+
     return ChatResponse(
-        reply       = final["reply"],
-        tokens_used = final["tokens_used"],
-        sources     = final.get("sources", []),
-        type        = final.get("type", "answer"),
-        memory_used = final.get("memory_used", False),
-        timestamp   = datetime.fromisoformat(final["timestamp"])
-                      if isinstance(final.get("timestamp"), str)
-                      else datetime.utcnow(),
+        reply=reply_text,
+        session_id=current_session_id,
+        tokens_used=actual_tokens,
+        type="answer",
+        timestamp=datetime.utcnow()
     )
 
-
-@router.get("/tokens/usage", response_model=TokenUsageResponse)
+@router.get("/tokens/usage")
 async def get_token_usage(request: Request):
-    """
-    Return today's token usage for the authenticated user.
-    Auth middleware must have already validated the JWT.
-    """
+    # سحب الهوية
     user_id = getattr(request.state, "user_id", None)
+    tier    = getattr(request.state, "tier", "free")
+    
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    tier  = getattr(request.state, "tier", "free")
-    usage = await _token_svc.get_usage(user_id, tier)
+    # جلب الاستهلاك الحقيقي من Redis
+    r = await _token_svc.get_redis()
+    from datetime import date
+    key = f"budget:{user_id}:{date.today()}"
+    
+    used = int(await r.get(key) or 0)
+    limit = settings.token_limits.get(tier, 10000)
 
-    return TokenUsageResponse(
-        user_id          = user_id,
-        tier             = tier,
-        tokens_used_today= usage["used"],
-        daily_limit      = usage["limit"],
-        remaining        = usage["remaining"],
-        reset_time       = "midnight UTC",
-    )
+    return {
+        "user_id": user_id,
+        "tier": tier,
+        "tokens_used_today": used,
+        "daily_limit": limit,
+        "remaining": max(0, limit - used),
+        "reset_time": "midnight UTC"
+    }

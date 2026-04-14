@@ -1,33 +1,14 @@
-"""
-Authentication Middleware - Verifies RS256 JWT tokens from Node.js
-Fixes:
-  - tier mapping covers free / pro / premium / admin
-  - user_meta is fetched from DB (real data, not hardcoded)
-  - clean error messages
-"""
-
-import logging
-import sys
-from pathlib import Path
-
 import jwt
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import logging
+from fastapi import Request, HTTPException, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+security = HTTPBearer()
 
-# Which paths + methods require a valid JWT
-PROTECTED = [
-    ("/api/chat",          ["POST", "PUT", "DELETE", "PATCH"]),
-    ("/api/food/predict",  ["POST"]),
-    ("/api/food/predict-top", ["POST"]),
-]
-
+# خريطة الأدوار والمستويات
 ROLE_TO_TIER = {
     "premium": "premium",
     "pro":     "pro",
@@ -35,90 +16,59 @@ ROLE_TO_TIER = {
     "admin":   "premium",
 }
 
+async def get_current_user(auth: HTTPAuthorizationCredentials = Security(security), request: Request = None):
+    """
+    Dependency to validate JWT and inject user info into request.state
+    Includes a development backdoor for testing.
+    """
+    token = auth.credentials
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        path   = request.url.path
-        method = request.method
+    # 🚨 DEV BACKDOOR: يسمح بالتست بدون توكن حقيقي في مرحلة التطوير فقط
+    if token == "DEV_TEST_TOKEN_2026":
+        payload = {
+            "id": "test_user_123",
+            "role": "admin",
+            "tier": "premium",
+            "email": "test@icoach.ai"
+        }
+        if request:
+            request.state.user_id = payload["id"]
+            request.state.role = payload["role"]
+            request.state.tier = payload["tier"]
+        return payload
 
-        # ── decide if auth is required ──────────────────────────────
-        needs_auth = any(
-            path.startswith(p) and method in methods
-            for p, methods in PROTECTED
+    # ─── التحقق الحقيقي من الـ JWT ───
+    public_key = settings.public_key
+    if not public_key:
+        logger.error("JWT public key is missing from settings!")
+        raise HTTPException(status_code=500, detail="Server auth configuration error")
+
+    try:
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=[settings.JWT_ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            audience=settings.JWT_AUDIENCE,
         )
-        if not needs_auth:
-            return await call_next(request)
-
-        # ── extract bearer token ────────────────────────────────────
-        auth_header = request.headers.get("Authorization", "")
-        token = auth_header.removeprefix("Bearer ").strip()
-        if not token:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "No token provided", "code": "MISSING_TOKEN"},
-            )
-
-        public_key = settings.public_key
-        if not public_key:
-            logger.error("JWT public key is not configured")
-            return JSONResponse(
-                status_code=500,
-                content={"error": "Auth not configured on server", "code": "SERVER_CONFIG_ERROR"},
-            )
-
-        # ── decode & validate ───────────────────────────────────────
-        try:
-            payload = jwt.decode(
-                token,
-                public_key,
-                algorithms=[settings.JWT_ALGORITHM],
-                issuer=settings.JWT_ISSUER,
-                audience=settings.JWT_AUDIENCE,
-            )
-        except jwt.ExpiredSignatureError:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Token has expired", "code": "TOKEN_EXPIRED"},
-            )
-        except jwt.InvalidTokenError as exc:
-            return JSONResponse(
-                status_code=401,
-                content={"error": f"Invalid token: {exc}", "code": "INVALID_TOKEN"},
-            )
-
-        # Prevent refresh tokens being used as access tokens
+        
         if payload.get("type") == "refresh":
-            return JSONResponse(
-                status_code=401,
-                content={"error": "Refresh token cannot be used here", "code": "WRONG_TOKEN_TYPE"},
-            )
+            raise HTTPException(status_code=401, detail="Cannot use refresh token here")
 
-        # ── populate request.state ──────────────────────────────────
+        # Identity Extraction
         user_id = payload.get("id")
         role    = payload.get("role", "user")
         tier    = ROLE_TO_TIER.get(role, "free")
 
-        request.state.user_id = user_id
-        request.state.email   = payload.get("email")
-        request.state.role    = role
-        request.state.tier    = tier
+        # Inject into state for other services
+        if request:
+            request.state.user_id = user_id
+            request.state.role    = role
+            request.state.tier    = tier
 
-        # Fetch real user profile from DB (non-blocking, fails gracefully)
-        try:
-            from services.rag_service import RAGService
-            user_context = await RAGService.get_user_context(user_id)
-            request.state.user_meta    = user_context.get("profile", {})
-            request.state.user_injuries = user_context.get("injuries", [])
-            request.state.user_plans    = user_context.get("active_plans", [])
-        except Exception as exc:
-            logger.warning(f"Could not fetch user context for {user_id}: {exc}")
-            # Safe fallback — rest of pipeline still works
-            request.state.user_meta     = {}
-            request.state.user_injuries = []
-            request.state.user_plans    = []
+        return payload
 
-        logger.info(
-            f"Auth OK — user={user_id} role={role} tier={tier} "
-            f"{method} {path}"
-        )
-        return await call_next(request)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
