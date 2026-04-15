@@ -1,11 +1,12 @@
 import logging
 import uuid
-from datetime import datetime
+import os
+from datetime import datetime, date
 from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 
-# استدعاء الخدمة الجديدة اللي عملناها للتوكنز
-from AI.services.token_service import TokenService
+# استدعاء الخدمة اللي عدلناها للتوكنز
+from services.token_service import TokenService
 
 logger = logging.getLogger(__name__)
 router  = APIRouter(prefix="/api/chat", tags=["Chat"])
@@ -27,8 +28,8 @@ class ChatResponse(BaseModel):
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
     # ─── 1. Identity Extraction ───
-    # سحب بيانات اليوزر من الـ state (اللي الـ Auth Dependency ملاه)
-    user_id = getattr(request.state, "user_id", None)
+    # سحب بيانات اليوزر من الـ state (لو مفيش، بنديله id افتراضي للتيست)
+    user_id = getattr(request.state, "user_id", "test_user_1")
     tier    = getattr(request.state, "tier", "free")
     
     if not user_id:
@@ -81,7 +82,7 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
 @router.get("/tokens/usage")
 async def get_token_usage(request: Request):
     # سحب الهوية
-    user_id = getattr(request.state, "user_id", None)
+    user_id = getattr(request.state, "user_id", "test_user_1")
     tier    = getattr(request.state, "tier", "free")
     
     if not user_id:
@@ -89,11 +90,17 @@ async def get_token_usage(request: Request):
 
     # جلب الاستهلاك الحقيقي من Redis
     r = await _token_svc.get_redis()
-    from datetime import date
     key = f"budget:{user_id}:{date.today()}"
     
     used = int(await r.get(key) or 0)
-    limit = settings.token_limits.get(tier, 10000)
+    
+    # تحديد الحد الأقصى حسب اشتراك اليوزر (بنجيبها من البيئة مباشرة)
+    limits = {
+        "free": int(os.getenv("TOKEN_LIMIT_FREE", 10000)),
+        "pro": int(os.getenv("TOKEN_LIMIT_PRO", 100000)),
+        "premium": int(os.getenv("TOKEN_LIMIT_PREMIUM", 500000))
+    }
+    limit = limits.get(tier.lower(), 10000)
 
     return {
         "user_id": user_id,

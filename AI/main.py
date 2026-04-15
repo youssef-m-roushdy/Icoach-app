@@ -5,7 +5,7 @@ Sprint 2: Clean Architecture & RAG Preparation (Auth Verified)
 import logging
 import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Depends  # ضفنا Depends هنا
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from config import get_settings
 from routers import food_router, chat_router
 from services import get_model
-# استيراد الـ Dependency الجديد من الملف اللي لسه معدلينه
+# استيراد الـ Dependency 
 from middlewares.auth_middleware import get_current_user 
 
 # --- Settings ---
@@ -71,9 +71,8 @@ app = FastAPI(
     version=settings.API_VERSION,
     description=settings.API_DESCRIPTION,
     lifespan=lifespan,
-    docs_url="/docs",
-    # السطر السحري: تفعيل الـ Auth على كل الـ Routes بشكل تلقائي
-    dependencies=[Depends(get_current_user)] 
+    docs_url="/docs"
+    # ❌ شيلنا الـ dependencies من هنا عشان نفتح الـ Health Check
 )
 
 # 1. CORS Middleware (Essential)
@@ -103,9 +102,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ============================================
 # ROUTES & HEALTH CHECK
 # ============================================
-# ملحوظة: الـ Global Dependency هتحمي حتى الـ Health Check. 
-# لو عايز تفتح الـ Health check للجمهور، ممكن ننقله لراوتر منفصل بدون حماية.
 
+# ✅ الـ Health Check والـ Root بقوا مفتوحين بدون Auth
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "healthy", "version": settings.API_VERSION}
@@ -114,9 +112,9 @@ async def health_check():
 async def root():
     return {"message": "Welcome to ICoach AI API"}
 
-# Include Routers
-app.include_router(food_router)
-app.include_router(chat_router)
+# ✅ ضفنا الـ Auth كحماية على مستوى الراوترز الخاصة فقط
+app.include_router(food_router, dependencies=[Depends(get_current_user)])
+app.include_router(chat_router, dependencies=[Depends(get_current_user)])
 
 # ============================================
 # EXECUTION
