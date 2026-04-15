@@ -4,9 +4,7 @@ from .schemas import (
     FoodResponse,
     PredictionResponse,
     ErrorResponse,
-    HealthResponse
-)
-from .rag_models import (
+    HealthResponse,
     ChatRequest,
     ChatResponse,
     TokenUsageResponse,

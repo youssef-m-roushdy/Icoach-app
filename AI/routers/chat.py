@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 
 # استدعاء الخدمة الجديدة اللي عملناها للتوكنز
-from services.token_service import TokenService
+from AI.services.token_service import TokenService
 
 logger = logging.getLogger(__name__)
 router  = APIRouter(prefix="/api/chat", tags=["Chat"])

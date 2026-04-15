@@ -1,13 +1,12 @@
 """
 Middlewares package — Clean Architecture for ICoach AI
 """
-# شيلنا الـ ScopeGuard لأنه اتمسح
-# وشيلنا الـ AuthMiddleware Class واستبدلناه بالـ Function
-
 from .auth_middleware import get_current_user
-# سيبنا ده لحد ما نعدله هو كمان
+from .token_budget_middleware import TokenBudgetMiddleware
+from .scope_guard_middleware import ScopeGuardMiddleware
 
 __all__ = [
     "get_current_user",
-    "TokenBudgetMiddleware"
+    "TokenBudgetMiddleware",
+    "ScopeGuardMiddleware"
 ]

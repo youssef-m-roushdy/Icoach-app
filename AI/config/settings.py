@@ -1,5 +1,5 @@
 """
-Configuration settings for the Food Recognition API with RAG Chat
+Configuration settings for the Food Recognition API with Tool-Calling Chat
 """
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # API Configuration
     API_TITLE: str = "Food Recognition API"
     API_VERSION: str = "1.0.0"
-    API_DESCRIPTION: str = "AI-powered food recognition API with RAG chat assistant"
+    API_DESCRIPTION: str = "AI-powered food recognition API with Tool-Calling chat assistant"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     DEBUG: bool = False
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = ""
     
-    # Model Configuration
+    # Model Configuration (Food Recognition)
     IMG_SIZE: int = 224
     NUM_CLASSES: int = 100
     MODEL_PATH: str = "./Modules/best_model_food100.keras"
@@ -53,21 +53,16 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379"
     
-    # Web Search
-    SERPER_API_KEY: str = ""
+    # Vector Search Settings (Formerly RAG)
+    VECTOR_SEARCH_THRESHOLD: float = 0.72
+    VECTOR_SEARCH_MAX_TOKENS: int = 600
+    VECTOR_SEARCH_TOP_K: int = 3
     
-    # RAG Settings
-    RAG_SIMILARITY_THRESHOLD: float = 0.72
-    RAG_MAX_TOKENS: int = 600
-    RAG_TEMPERATURE: float = 0.3
-    RAG_TOP_K_RESULTS: int = 3
+    # AI / LLM Configuration
+    LLM_TEMPERATURE: float = 0.3
     
-    # Memory Settings (Hybrid Short-Term + Long-Term)
-    MEMORY_SHORT_TERM_MESSAGES: int = 8
-    MEMORY_LONG_TERM_TOP_K: int = 3
-    MEMORY_SIMILARITY_THRESHOLD: float = 0.65
-    MEMORY_COLLECTION_NAME: str = "chat_memory"
-    MEMORY_MAX_CONTEXT_TOKENS: int = 1500
+    # Memory Settings (PostgreSQL based - Simplified for Sprint 4 context)
+    MAX_HISTORY_MESSAGES: int = 15
     
     # Token Limits
     TOKEN_LIMIT_FREE: int = 10000
@@ -81,9 +76,9 @@ class Settings(BaseSettings):
     # Groq API Configuration 
     GROQ_API_KEY: str = ""
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
-    GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_MODEL: str = "llama3-70b-8192"  # تم تعديله ليتوافق مع Llama 3 كما هو مذكور في خطتك
     USE_GROQ: bool = True 
-       
+        
     # Logging
     LOG_LEVEL: str = "INFO"
     
@@ -132,11 +127,6 @@ class Settings(BaseSettings):
             except Exception:
                 return None
         return None
-    
-    @property
-    def is_web_search_configured(self) -> bool:
-        """Check if web search is available"""
-        return bool(self.SERPER_API_KEY)
     
     class Config:
         env_file = ".env"
