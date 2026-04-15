@@ -4,7 +4,7 @@ Database service for food data operations
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
-from models.database import Food
+from AI.models.database import Food
 import logging
 
 logger = logging.getLogger(__name__)

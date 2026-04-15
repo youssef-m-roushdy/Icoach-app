@@ -4,7 +4,6 @@ Groq API Service - Groq Cloud API Integration
 from openai import AsyncOpenAI
 import logging
 from typing import List, Dict, Any
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,28 +18,25 @@ class GroqService:
     
     async def chat_completion(
         self, 
-        messages: List[Dict[str, str]], 
+        messages: List[Dict[str, Any]], 
         max_tokens: int = 600, 
-        temperature: float = 0.3
+        temperature: float = 0.3,
+        **kwargs # 👈 السر هنا: ده اللي هيسمح لنا نبعت الـ tools والـ stream بعدين
     ):
-        """Chat completion using Groq API"""
+        """Chat completion using Groq API with support for Tools and Streaming"""
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=temperature
+                temperature=temperature,
+                **kwargs
             )
             return response
         except Exception as e:
             logger.error(f"Groq API error: {e}")
             raise
     
-    async def embeddings(self, text: str):
-        """Groq doesn't support embeddings yet"""
-        logger.warning("Groq embeddings not supported, using mock")
-        return [0.0] * 768
-
     @staticmethod
     def count_tokens(text: str) -> int:
         """Estimate token count using tiktoken (GPT-4o-mini tokenizer as proxy)."""
@@ -55,11 +51,10 @@ class GroqService:
 
 _groq_service = None
 
-
 def get_groq_service():
     global _groq_service
     if _groq_service is None:
-        from config import get_settings
+        from AI.config import get_settings
         settings = get_settings()
         _groq_service = GroqService(
             api_key=settings.GROQ_API_KEY,

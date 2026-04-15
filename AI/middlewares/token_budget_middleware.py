@@ -1,9 +1,9 @@
 """
 Token Budget Middleware
 Fixes:
-  - caches raw request body in request.state.cached_body (ALL later middlewares depend on this)
-  - uses a single persistent Redis connection (connection pool, not reconnect per request)
-  - actual token deduction happens HERE after call_next so we use real usage, not estimate
+  - caches raw request body in request.state.cached_body (ALL later services depend on this)
+  - uses a single persistent Redis connection (connection pool)
+  - deducts ESTIMATED tokens safely without relying on legacy formatters
   - expire key is refreshed on every write
 """
 
@@ -25,7 +25,7 @@ from config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# One encoder instance reused for every request
+# One encoder instance reused for every request (cl100k_base is fast and good enough for estimation)
 _enc = tiktoken.encoding_for_model("gpt-4o-mini")
 
 # Module-level Redis pool — created once, shared across all requests
@@ -46,7 +46,7 @@ async def _get_redis() -> redis.Redis:
 
 class TokenBudgetMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # ── cache body for ALL downstream middlewares ───────────────
+        # ── cache body for ALL downstream services ───────────────
         # This MUST be the first middleware that touches the body.
         raw_body = await request.body()
         request.state.cached_body = raw_body
@@ -76,7 +76,7 @@ class TokenBudgetMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Redis read failed, skipping budget check: {exc}")
             used = 0
 
-        # Conservative estimate: input tokens + 800 buffer for context + output
+        # Conservative estimate: input tokens + 800 buffer for context + expected output
         estimated = len(_enc.encode(message)) + 800
 
         if used + estimated > limit:
@@ -97,22 +97,22 @@ class TokenBudgetMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        # Store budget info for downstream middlewares
-        request.state.budget_key      = key
-        request.state.token_estimate  = estimated
+        # Store budget info in state
+        request.state.budget_key         = key
+        request.state.token_estimate     = estimated
         request.state.tokens_used_before = used
 
         # ── run the rest of the pipeline ────────────────────────────
         response = await call_next(request)
 
-        # ── deduct ACTUAL tokens (set by ResponseFormatterMiddleware) ─
-        actual = getattr(request.state, "actual_tokens_used", estimated)
+        # ── deduct ESTIMATED tokens ─────────────────────────────────
+        # Deducting estimated tokens since legacy formatter is removed.
         try:
-            await r.incrby(key, actual)
+            await r.incrby(key, estimated)
             await r.expire(key, 86_400)   # reset at midnight
             logger.info(
                 f"Budget — user={user_id} tier={tier} "
-                f"actual={actual} total_today={used + actual}/{limit}"
+                f"deducted={estimated} total_today={used + estimated}/{limit}"
             )
         except Exception as exc:
             logger.error(f"Redis write failed — tokens not deducted: {exc}")

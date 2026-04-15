@@ -1,20 +1,12 @@
 """
-Middlewares package — RAG pipeline with hybrid memory for ICoach AI
+Middlewares package — Clean Architecture for ICoach AI
 """
-from .auth_middleware import AuthMiddleware
+from .auth_middleware import get_current_user
 from .token_budget_middleware import TokenBudgetMiddleware
-from .intent_classifier_middleware import IntentClassifierMiddleware
 from .scope_guard_middleware import ScopeGuardMiddleware
-from .memory_middleware import MemoryMiddleware
-from .rag_retriever_middleware import RAGRetrieverMiddleware
-from .response_formatter_middleware import ResponseFormatterMiddleware
 
 __all__ = [
-    "AuthMiddleware",
+    "get_current_user",
     "TokenBudgetMiddleware",
-    "IntentClassifierMiddleware",
-    "ScopeGuardMiddleware",
-    "MemoryMiddleware",
-    "RAGRetrieverMiddleware",
-    "ResponseFormatterMiddleware",
+    "ScopeGuardMiddleware"
 ]
