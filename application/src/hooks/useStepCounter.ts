@@ -2,14 +2,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Pedometer } from 'expo-sensors';
 import { AppState } from 'react-native';
 import { dailyActiveService } from '../services/dailyActiveService';
-import { getToken } from '../auth';
+import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DEFAULT_GOAL = 10000;
-const SYNC_THROTTLE_MS = 5000;   // 5 seconds between syncs
-const SYNC_STEP_INTERVAL = 50;   // sync every 50 steps
+const SYNC_THROTTLE_MS = 5000;          // 5 seconds between syncs
+const SYNC_STEP_INTERVAL = 50;          // sync every 50 steps
 const CACHE_KEY = '@step_counter_cache';
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+const NETWORK_POLL_INTERVAL_MS = 3000;  // poll every 3 seconds
+const NETWORK_CHECK_TIMEOUT_MS = 5000;  // 5 second timeout for network checks
 
 export interface StepData {
   steps: number;
@@ -31,11 +33,39 @@ interface CachedStepData {
   timestamp: number;
 }
 
+// ✅ Enhanced pure JS connectivity check with timeout and abort controller
+const checkIsOnline = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), NETWORK_CHECK_TIMEOUT_MS);
+    
+    const response = await fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      cache: 'no-cache',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    return response.status === 204;
+  } catch (error) {
+    // Timeout or network error means offline
+    return false;
+  }
+};
+
 export function useStepCounter(): StepData & {
   updateGoal: (newGoal: number) => Promise<void>;
   refreshSteps: () => Promise<void>;
   syncSteps: (steps: number) => Promise<void>;
 } {
+  const { token, refreshAccessToken } = useAuth();
+
+  // Keep a stable reference to token to avoid re-fetches when token refreshes automatically
+  const tokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
   const [steps, setSteps] = useState(0);
   const [goal, setGoal] = useState(DEFAULT_GOAL);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -50,10 +80,19 @@ export function useStepCounter(): StepData & {
   const lastSyncedStepsRef = useRef<number>(0);
   const lastSyncTimestampRef = useRef<number>(0);
   const pendingSyncsRef = useRef<Array<{ steps: number; timestamp: Date }>>([]);
-  const isOnlineRef = useRef<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const isOnlineRef = useRef<boolean>(true);
   const isSyncingRef = useRef(false);
+  const networkPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+
+  // Helper function to get valid token (with refresh if needed)
+  const getValidToken = useCallback(async (): Promise<string | null> => {
+    if (tokenRef.current) {
+      return tokenRef.current;
+    }
+    const newToken = await refreshAccessToken();
+    return newToken;
+  }, [refreshAccessToken]);
 
   // Load cached data on mount
   const loadCachedData = useCallback(async (): Promise<CachedStepData | null> => {
@@ -90,9 +129,11 @@ export function useStepCounter(): StepData & {
     console.log(`📦 Queued sync for later (${pendingSyncsRef.current.length} pending)`);
   }, []);
 
-  // Core sync function — stable reference (no state in deps)
+  // Core sync function with retry logic
   const syncStepsWithBackend = useCallback(
-    async (currentSteps: number, force: boolean = false): Promise<void> => {
+    async (currentSteps: number, force: boolean = false, retryCount: number = 0): Promise<void> => {
+      const MAX_RETRIES = 3;
+      
       if (!isOnlineRef.current) {
         console.log('📱 Offline mode – queueing sync for later');
         queueSync(currentSteps);
@@ -115,15 +156,15 @@ export function useStepCounter(): StepData & {
       setIsSyncing(true);
 
       try {
-        const token = await getToken();
-        if (!token) {
+        const validToken = await getValidToken();
+        if (!validToken) {
           console.error('No auth token available');
           return;
         }
 
-        const today = new Date().toISOString().split('T')[0] ?? '';
+        const today = new Date().toISOString().split('T')[0];
 
-        const response = await dailyActiveService.syncSteps(token, {
+        const response = await dailyActiveService.syncSteps(validToken, {
           steps: currentSteps,
           date: today,
         });
@@ -137,37 +178,120 @@ export function useStepCounter(): StepData & {
 
           lastSyncedStepsRef.current = currentSteps;
           setLastSyncTime(new Date());
-
           await saveCachedData({ steps: currentSteps, goal });
 
           if (response.data.goalAchieved) {
             console.log('🎉 Goal achieved! Points earned:', response.data.pointsAdded);
-            // Add toast / notification here if desired
           }
         }
       } catch (err) {
         console.error('Sync failed:', err);
-        queueSync(currentSteps);
+        
+        // Retry logic for network errors
+        if (retryCount < MAX_RETRIES) {
+          console.log(`🔄 Retrying sync (${retryCount + 1}/${MAX_RETRIES})...`);
+          setTimeout(() => {
+            syncStepsWithBackend(currentSteps, force, retryCount + 1);
+          }, 1000 * (retryCount + 1)); // Exponential backoff
+        } else {
+          queueSync(currentSteps);
+        }
       } finally {
         isSyncingRef.current = false;
         setIsSyncing(false);
       }
     },
-    [queueSync, goal, saveCachedData]
+    [queueSync, goal, saveCachedData, getValidToken]
   );
 
-  // Drain the offline queue once back online
+  // Drain the offline queue once back online with batch processing
   const processSyncQueue = useCallback(async (): Promise<void> => {
+    // Don't process if offline
     if (!isOnlineRef.current) return;
-
-    while (pendingSyncsRef.current.length > 0) {
-      const pending = pendingSyncsRef.current[0];
-      await syncStepsWithBackend(pending.steps);
-      pendingSyncsRef.current.shift();
+    
+    // Prevent processing if already syncing
+    if (isSyncingRef.current) {
+      console.log('⏭️ Already syncing, skipping queue processing');
+      return;
     }
+
+    const queueLength = pendingSyncsRef.current.length;
+    if (queueLength === 0) return;
+
+    console.log(`📦 Processing ${queueLength} queued syncs...`);
+    
+    // Process in batches to avoid overwhelming the server
+    const BATCH_SIZE = 5;
+    const batches = Math.ceil(queueLength / BATCH_SIZE);
+    
+    for (let i = 0; i < batches; i++) {
+      const batch = pendingSyncsRef.current.slice(0, BATCH_SIZE);
+      await Promise.all(batch.map(pending => syncStepsWithBackend(pending.steps)));
+      pendingSyncsRef.current = pendingSyncsRef.current.slice(BATCH_SIZE);
+      
+      // Small delay between batches
+      if (i < batches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    
+    console.log('✅ Queued syncs processed');
   }, [syncStepsWithBackend]);
 
-  // Update daily step goal
+  // ✅ Enhanced network polling with abort controller and retry logic
+  useEffect(() => {
+    let isChecking = false;
+    let abortController: AbortController | null = null;
+    
+    const checkNetwork = async () => {
+      // Skip if already checking
+      if (isChecking) return;
+      
+      try {
+        isChecking = true;
+        
+        // Create new abort controller for this check
+        abortController = new AbortController();
+        
+        const isConnected = await checkIsOnline();
+        
+        if (!isMountedRef.current) return;
+        
+        if (isConnected && !isOnlineRef.current) {
+          console.log('🌐 App is online – processing sync queue');
+          isOnlineRef.current = true;
+          await processSyncQueue();
+        } else if (!isConnected && isOnlineRef.current) {
+          console.log('📴 App is offline');
+          isOnlineRef.current = false;
+        }
+      } catch (err) {
+        if (!isMountedRef.current) return;
+        console.error('Network check failed:', err);
+      } finally {
+        isChecking = false;
+        abortController = null;
+      }
+    };
+
+    // Immediate check on mount
+    checkNetwork();
+
+    // Poll every 3 seconds
+    networkPollRef.current = setInterval(checkNetwork, NETWORK_POLL_INTERVAL_MS);
+
+    return () => {
+      if (networkPollRef.current) {
+        clearInterval(networkPollRef.current);
+        networkPollRef.current = null;
+      }
+      if (abortController) {
+        abortController.abort();
+      }
+    };
+  }, [processSyncQueue]);
+
+  // Update daily step goal with validation
   const updateGoal = useCallback(
     async (newGoal: number): Promise<void> => {
       if (newGoal < 1000 || newGoal > 50000) {
@@ -184,29 +308,27 @@ export function useStepCounter(): StepData & {
       setIsSyncing(true);
 
       try {
-        const token = await getToken();
-        if (!token) {
+        const validToken = await getValidToken();
+        if (!validToken) {
           console.error('No auth token available');
           return;
         }
 
-        const response = await dailyActiveService.updateGoal(token, {
+        const response = await dailyActiveService.updateGoal(validToken, {
           goal: newGoal,
         });
 
         if (response.success && response.data) {
           console.log('🎯 Goal updated successfully:', newGoal);
-          
+
           setGoal(newGoal);
           setLastSyncTime(new Date());
-
           await saveCachedData({ steps, goal: newGoal });
 
-          // Refresh steps to get updated completion status
           const start = new Date();
           start.setHours(0, 0, 0, 0);
           const result = await Pedometer.getStepCountAsync(start, new Date());
-          
+
           setSteps(result.steps);
           pastStepsRef.current = result.steps;
 
@@ -221,11 +343,11 @@ export function useStepCounter(): StepData & {
         setIsSyncing(false);
       }
     },
-    [steps, saveCachedData]
+    [steps, saveCachedData, getValidToken]
   );
 
-  // Manual refresh steps
-  const refreshSteps = useCallback(async (): Promise<void> => {
+  // Manual refresh steps with force sync option
+  const refreshSteps = useCallback(async (forceSync: boolean = false): Promise<void> => {
     try {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
@@ -237,8 +359,9 @@ export function useStepCounter(): StepData & {
 
       await saveCachedData({ steps: result.steps, goal });
 
-      if (Math.abs(result.steps - lastSyncedStepsRef.current) >= SYNC_STEP_INTERVAL) {
-        await syncStepsWithBackend(result.steps);
+      const stepDifference = Math.abs(result.steps - lastSyncedStepsRef.current);
+      if (forceSync || stepDifference >= SYNC_STEP_INTERVAL) {
+        await syncStepsWithBackend(result.steps, forceSync);
       }
     } catch (err) {
       console.error('Failed to refresh steps:', err);
@@ -256,58 +379,40 @@ export function useStepCounter(): StepData & {
   // Fetch goal from server on mount
   const fetchGoal = useCallback(async (): Promise<void> => {
     try {
-      const token = await getToken();
-      if (!token) return;
+      const validToken = await getValidToken();
+      if (!validToken) return;
 
-      const goalData = await dailyActiveService.getGoal(token);
+      const goalData = await dailyActiveService.getGoal(validToken);
       if (goalData.goal) {
         setGoal(goalData.goal);
       }
     } catch (err) {
       console.error('Failed to fetch goal:', err);
     }
-  }, []);
-
-  // Online / offline listeners (web only)
-  useEffect(() => {
-    const handleOnline = () => {
-      console.log('🌐 App is online – processing sync queue');
-      isOnlineRef.current = true;
-      processSyncQueue();
-    };
-    const handleOffline = () => {
-      console.log('📴 App is offline');
-      isOnlineRef.current = false;
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-    }
-
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      }
-    };
-  }, [processSyncQueue]);
+  }, [getValidToken]);
 
   // Main initialisation + pedometer subscription
   useEffect(() => {
-    let mounted = true;
     let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+    let initTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const init = async () => {
       setIsLoading(true);
 
       try {
-        // Fetch goal from server first
+        // Set a timeout for initialization
+        initTimeout = setTimeout(() => {
+          if (isMountedRef.current && isLoading) {
+            console.warn('Initialization timeout - forcing complete');
+            setIsLoading(false);
+            setError('Initialization took too long. Please restart the app.');
+          }
+        }, 10000);
+
         await fetchGoal();
 
-        // Try to load cached steps
         const cached = await loadCachedData();
-        if (cached && mounted) {
+        if (cached && isMountedRef.current) {
           setSteps(cached.data.steps);
           pastStepsRef.current = cached.data.steps;
         }
@@ -328,25 +433,21 @@ export function useStepCounter(): StepData & {
           return;
         }
 
-        // Get total steps since midnight as the authoritative source
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
         const result = await Pedometer.getStepCountAsync(startOfDay, new Date());
 
         pastStepsRef.current = result.steps;
 
-        if (mounted) {
+        if (isMountedRef.current) {
           setSteps(result.steps);
-          // Force an initial sync so the backend is immediately up to date
           await syncStepsWithBackend(result.steps, true);
         }
 
-        // Real-time step updates
         subscriptionRef.current = Pedometer.watchStepCount((res) => {
-          if (!mounted) return;
+          if (!isMountedRef.current) return;
 
           if (baseStepsRef.current === null) {
-            // First reading after the subscription opened
             baseStepsRef.current = res.steps;
           } else {
             const newStepsSinceOpen = res.steps - baseStepsRef.current;
@@ -354,16 +455,16 @@ export function useStepCounter(): StepData & {
 
             setSteps(totalSteps);
 
-            // Sync on every SYNC_STEP_INTERVAL steps, or when crossing the goal
             const shouldSync =
               totalSteps % SYNC_STEP_INTERVAL === 0 ||
               (totalSteps >= goal && lastSyncedStepsRef.current < goal);
 
             if (shouldSync) {
-              // Debounce so rapid sensor ticks don't fire multiple syncs
               if (syncTimeout) clearTimeout(syncTimeout);
               syncTimeout = setTimeout(() => {
-                syncStepsWithBackend(totalSteps);
+                if (isMountedRef.current) {
+                  syncStepsWithBackend(totalSteps);
+                }
               }, 1000);
             }
           }
@@ -372,18 +473,19 @@ export function useStepCounter(): StepData & {
         setIsLoading(false);
       } catch (e) {
         console.error('Initialization error:', e);
-        if (mounted) {
+        if (isMountedRef.current) {
           setError('Failed to initialize step counter. Please restart the app.');
           setIsLoading(false);
         }
+      } finally {
+        if (initTimeout) clearTimeout(initTimeout);
       }
     };
 
     init();
 
-    // Refresh steps when the app returns to the foreground
     const appStateSub = AppState.addEventListener('change', async (state) => {
-      if (state === 'active') {
+      if (state === 'active' && isMountedRef.current) {
         console.log('🔄 App became active – refreshing step count');
         await refreshSteps();
         await processSyncQueue();
@@ -391,14 +493,15 @@ export function useStepCounter(): StepData & {
     });
 
     return () => {
-      mounted = false;
+      isMountedRef.current = false;
       if (syncTimeout) clearTimeout(syncTimeout);
+      if (initTimeout) clearTimeout(initTimeout);
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
       }
       appStateSub.remove();
     };
-  }, [syncStepsWithBackend, processSyncQueue, refreshSteps, loadCachedData, fetchGoal]);
+  }, [syncStepsWithBackend, processSyncQueue, refreshSteps, loadCachedData, fetchGoal, goal, isLoading]);
 
   return {
     steps,
@@ -411,7 +514,7 @@ export function useStepCounter(): StepData & {
     isSyncing,
     lastSyncTime,
     updateGoal,
-    refreshSteps,
+    refreshSteps: () => refreshSteps(false),
     syncSteps,
   };
 }

@@ -484,53 +484,45 @@ export const workoutService = {
 // ===============================
 export const foodService = {
   // Predict food from image - NOW THROUGH GATEWAY
-  async predictFood(imageUri: string): Promise<FoodPredictionResponse> {
-    try {
-      const formData = new FormData();
-
-      const file = {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: 'food.jpg',
-      };
-
-      // @ts-ignore - React Native handles file objects differently
-      formData.append('file', file);
-
-      // UPDATED: Use API_BASE_URL with /v1/food-recognition/predict
-      const response = await fetch(`${API_BASE_URL}/v1/food-recognition/predict`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await safeParseJson(response);
-
-      if (!response.ok) {
-        throw new ApiError(
-          data?.detail ||
-            data?.message ||
-            `Food prediction request failed with status ${response.status}`,
-          response.status,
-          data
-        );
-      }
-
-      return (data || {
-        success: false,
-        message: 'Invalid response from AI service',
-      }) as FoodPredictionResponse;
-    } catch (error: any) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
+  async predictFood(imageUri: string, token: string | null): Promise<FoodPredictionResponse> {
+    // Validate token before making the request
+    if (!token) {
       throw new ApiError(
-        error?.message || 'Failed to identify food. Please try again.'
+        'Authentication required. Please sign in to use food recognition.',
+        401
       );
     }
+
+    return apiCallWithRefresh(
+      async (accessToken) => {
+        const formData = new FormData();
+
+        const file = {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'food.jpg',
+        };
+
+        // @ts-ignore - React Native handles file objects differently
+        formData.append('file', file);
+
+        // Use the request helper with proper authorization
+        return request<FoodPredictionResponse>(
+          '/v1/food-recognition/predict',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              // Don't set Content-Type for FormData - fetch will set it automatically with boundary
+            },
+            body: formData,
+          }
+        );
+      },
+      token
+    );
   },
 };
-
 // ===============================
 // Saved Workouts Service
 // ===============================

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.RateLimiting;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
@@ -12,6 +11,9 @@ builder.Configuration
 // ── Logging ──────────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
+
+// Enable Ocelot warning logging only (reduce noise)
+builder.Logging.AddFilter("Ocelot", LogLevel.Warning);
 
 // ── CORS (read from config, no duplication) ───────────────────────────────────
 var corsOrigins = builder.Configuration
@@ -33,53 +35,6 @@ builder.Services.AddCors(options =>
                   "Retry-After"));
 });
 
-// ── Sliding-window rate limiter (ASP.NET Core built-in) ──────────────────────
-builder.Services.AddRateLimiter(opts =>
-{
-    opts.OnRejected = async (ctx, ct) =>
-    {
-        ctx.HttpContext.Response.StatusCode = 429;
-        ctx.HttpContext.Response.Headers.RetryAfter = "60";
-        await ctx.HttpContext.Response.WriteAsJsonAsync(new
-        {
-            error = "Too many requests",
-            retryAfter = 60
-        }, ct);
-    };
-
-    opts.AddSlidingWindowLimiter("ai-chat", o =>
-    {
-        o.Window = TimeSpan.FromSeconds(60);
-        o.SegmentsPerWindow = 6;
-        o.PermitLimit = 20;
-        o.QueueLimit = 0;
-    });
-
-    opts.AddSlidingWindowLimiter("food-recognition", o =>
-    {
-        o.Window = TimeSpan.FromSeconds(60);
-        o.SegmentsPerWindow = 6;
-        o.PermitLimit = 10;
-        o.QueueLimit = 0;
-    });
-
-    opts.AddSlidingWindowLimiter("chat-history", o =>
-    {
-        o.Window = TimeSpan.FromSeconds(60);
-        o.SegmentsPerWindow = 6;
-        o.PermitLimit = 30;
-        o.QueueLimit = 0;
-    });
-
-    opts.AddSlidingWindowLimiter("auth", o =>
-    {
-        o.Window = TimeSpan.FromMinutes(15);
-        o.SegmentsPerWindow = 15;
-        o.PermitLimit = 20;
-        o.QueueLimit = 0;
-    });
-});
-
 // ── Caching + Ocelot ─────────────────────────────────────────────────────────
 builder.Services.AddMemoryCache();
 
@@ -95,6 +50,7 @@ builder.Services.AddOcelot(builder.Configuration);
 builder.WebHost.ConfigureKestrel(o =>
 {
     o.ListenAnyIP(8080);
+    o.Limits.MaxRequestBodySize = 52_428_800; // 50MB (for file uploads)
 });
 
 // ── Build ─────────────────────────────────────────────────────────────────────
@@ -133,10 +89,11 @@ app.Use(async (ctx, next) =>
     ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
     ctx.Response.Headers["X-Frame-Options"] = "DENY";
     ctx.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    ctx.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
     ctx.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    // ctx.Response.Headers["Content-Security-Policy"] =
-    //     "default-src 'self'; connect-src 'self' ws: wss:";
+    ctx.Response.Headers["Content-Security-Policy"] =
+        "default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'";
     await next();
 });
 
@@ -173,10 +130,6 @@ app.Use(async (ctx, next) =>
     }
 });
 
-// 6. Rate limiter
-app.UseRateLimiter();
-
-// ── Root Landing Page ────────────────────────────────────────────────────────
 // ── Root Landing Page ────────────────────────────────────────────────────────
 app.MapGet("/", (HttpContext ctx) =>
 {
@@ -426,17 +379,17 @@ app.MapGet("/ready", async () =>
     using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
     var checks = new Dictionary<string, object>();
 
-    try 
-    { 
-        var r = await http.GetAsync("http://localhost:5000/health"); 
-        checks["nodejs"] = r.IsSuccessStatusCode ? "healthy" : "unhealthy"; 
+    try
+    {
+        var r = await http.GetAsync("http://host.docker.internal:5000/health");
+        checks["nodejs"] = r.IsSuccessStatusCode ? "healthy" : "unhealthy";
     }
     catch { checks["nodejs"] = "unreachable"; }
 
-    try 
-    { 
-        var r = await http.GetAsync("http://localhost:8000/health"); 
-        checks["fastapi"] = r.IsSuccessStatusCode ? "healthy" : "unhealthy"; 
+    try
+    {
+        var r = await http.GetAsync("http://host.docker.internal:8000/health");
+        checks["fastapi"] = r.IsSuccessStatusCode ? "healthy" : "unhealthy";
     }
     catch { checks["fastapi"] = "unreachable"; }
 
@@ -454,14 +407,23 @@ app.MapGet("/rate-limit-status", (HttpContext ctx) =>
     return Results.Ok(new
     {
         clientIp,
+        globalPolicy = new { limit = 100, window = "15m", type = "sliding", appliesTo = "All routes unless overridden" },
         policies = new[]
         {
-            new { route = "/api/v1/auth/**",              limit = 20,  window = "15m", type = "sliding" },
-            new { route = "/api/v1/users/**",             limit = 50,  window = "15m", type = "sliding" },
-            new { route = "/api/v1/workout-sessions/**",  limit = 100, window = "15m", type = "sliding" },
-            new { route = "/api/v1/chat-history/**",      limit = 30,  window = "1m",  type = "sliding" },
-            new { route = "/api/v1/ai/chat",              limit = 20,  window = "1m",  type = "sliding" },
-            new { route = "/api/v1/food-recognition/**",  limit = 10,  window = "1m",  type = "sliding" },
+            new { route = "/api/v1/auth/**",                  limit = 20,  window = "15m", type = "sliding" },
+            new { route = "/api/v1/users/**",                 limit = 50,  window = "15m", type = "sliding" },
+            new { route = "/api/v1/workout-sessions/**",      limit = 100, window = "15m", type = "sliding" },
+            new { route = "/api/v1/chat-history/**",          limit = 30,  window = "1m",  type = "sliding" },
+            new { route = "/api/v1/ai/chat",                  limit = 20,  window = "1m",  type = "sliding" },
+            new { route = "/api/v1/ai/chat/tokens/usage",     limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/food-recognition/predict", limit = 10,  window = "1m",  type = "sliding" },
+            new { route = "/api/v1/food-recognition/predict-top", limit = 10, window = "1m", type = "sliding" },
+            new { route = "/api/v1/progress/**",              limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/workouts/**",              limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/foods/**",                 limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/saved-workouts/**",        limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/daily-active/**",          limit = 100, window = "15m", type = "sliding (global)" },
+            new { route = "/api/v1/water-intake/**",          limit = 100, window = "15m", type = "sliding (global)" },
         }
     });
 });
@@ -469,50 +431,55 @@ app.MapGet("/rate-limit-status", (HttpContext ctx) =>
 app.MapGet("/debug/routes", () => Results.Ok(new
 {
     gateway = "http://localhost:8080",
-    endpoints = new[]
+    systemEndpoints = new[]
     {
-        new { path = "/", method = "GET", description = "Landing page with documentation links" },
-        new { path = "/health", method = "GET", description = "Gateway health check" },
-        new { path = "/ready", method = "GET", description = "Readiness check with downstream services" },
+        new { path = "/", method = "GET", description = "Landing page" },
+        new { path = "/health", method = "GET", description = "Health check" },
+        new { path = "/ready", method = "GET", description = "Readiness check" },
         new { path = "/rate-limit-status", method = "GET", description = "Rate limit status" },
-        new { path = "/debug/routes", method = "GET", description = "Debug available routes" },
-        new { path = "/nodejs-docs", method = "GET", description = "Redirect to Node.js Swagger UI" },
-        new { path = "/fastapi-docs", method = "GET", description = "Redirect to FastAPI Swagger UI" },
-        new { path = "/fastapi-openapi.json", method = "GET", description = "FastAPI OpenAPI specification" },
-        new { path = "/api/v1/auth/**", method = "ALL", description = "Authentication routes" },
-        new { path = "/api/v1/users/**", method = "ALL", description = "User management" },
-        new { path = "/api/v1/workout-sessions/**", method = "ALL", description = "Workout sessions" },
-        new { path = "/api/v1/progress/**", method = "GET", description = "Progress dashboard" },
-        new { path = "/api/v1/foods/**", method = "ALL", description = "Foods management" },
+        new { path = "/debug/routes", method = "GET", description = "Debug routes" },
+        new { path = "/nodejs-docs", method = "GET", description = "Redirect to Node.js docs" },
+        new { path = "/fastapi-docs", method = "GET", description = "Redirect to FastAPI docs" },
+        new { path = "/fastapi-openapi.json", method = "GET", description = "FastAPI OpenAPI spec" },
+    },
+    apiEndpoints = new[]
+    {
+        new { path = "/api/v1/auth/**", method = "ALL", description = "Authentication (OAuth, login, register)" },
+        new { path = "/api/v1/users/**", method = "ALL", description = "User management & profile" },
+        new { path = "/api/v1/users/profile", method = "GET,PUT", description = "User profile" },
+        new { path = "/api/v1/users/profile/avatar", method = "POST,PUT,DELETE", description = "Avatar management" },
+        new { path = "/api/v1/progress/**", method = "ALL", description = "User progress dashboard" },
+        new { path = "/api/v1/progress/dashboard", method = "GET", description = "Progress dashboard" },
+        new { path = "/api/v1/progress/history", method = "GET", description = "Progress history" },
+        new { path = "/api/v1/workout-sessions/**", method = "ALL", description = "Workout session tracking" },
+        new { path = "/api/v1/workout-sessions/stats", method = "GET", description = "Session statistics" },
+        new { path = "/api/v1/workout-sessions/{id}/sets/**", method = "ALL", description = "Set management" },
+        new { path = "/api/v1/workouts/**", method = "ALL", description = "Workout management" },
+        new { path = "/api/v1/workouts/filters", method = "GET", description = "Workout filter options" },
+        new { path = "/api/v1/foods/**", method = "ALL", description = "Food database" },
+        new { path = "/api/v1/foods/search", method = "GET", description = "Search foods" },
+        new { path = "/api/v1/foods/high-protein", method = "GET", description = "High protein foods" },
+        new { path = "/api/v1/foods/low-calorie", method = "GET", description = "Low calorie foods" },
         new { path = "/api/v1/saved-workouts/**", method = "ALL", description = "Saved workouts" },
         new { path = "/api/v1/daily-active/**", method = "ALL", description = "Daily activity tracking" },
         new { path = "/api/v1/water-intake/**", method = "ALL", description = "Water intake tracking" },
         new { path = "/api/v1/chat-history/**", method = "ALL", description = "Chat history" },
-        new { path = "/api/v1/ai/chat", method = "POST", description = "AI Chat endpoint" },
-        new { path = "/api/v1/ai/chat/tokens/usage", method = "GET", description = "AI token usage" },
-        new { path = "/api/v1/food-recognition/predict", method = "POST", description = "Food recognition" },
-        new { path = "/api/v1/food-recognition/predict-top", method = "POST", description = "Top food predictions" },
-    },
-    external = new
-    {
-        nodejs = "http://localhost:5000",
-        nodejs_docs = "http://localhost:5000/api-docs",
-        fastapi = "http://localhost:8000",
-        fastapi_docs = "http://localhost:8000/docs"
+        new { path = "/api/v1/ai/chat", method = "POST", description = "AI chat (FastAPI)" },
+        new { path = "/api/v1/ai/chat/tokens/usage", method = "GET", description = "Token usage stats (FastAPI)" },
+        new { path = "/api/v1/food-recognition/predict", method = "POST", description = "Food recognition (FastAPI)" },
+        new { path = "/api/v1/food-recognition/predict-top", method = "POST", description = "Top predictions (FastAPI)" },
     }
 }));
 
-// ─── Documentation Redirects ──────────────────────────────────────────────────
-app.MapGet("/nodejs-docs", () => Results.Redirect("http://localhost:5000/api-docs", permanent: false));
-
-app.MapGet("/fastapi-docs", () => Results.Redirect("http://localhost:8000/docs", permanent: false));
+app.MapGet("/nodejs-docs", () => Results.Redirect("http://host.docker.internal:5000/api-docs", permanent: false));
+app.MapGet("/fastapi-docs", () => Results.Redirect("http://host.docker.internal:8000/docs", permanent: false));
 
 app.MapGet("/fastapi-openapi.json", async () =>
 {
     using var client = new HttpClient();
     try
     {
-        var json = await client.GetStringAsync("http://localhost:8000/openapi.json");
+        var json = await client.GetStringAsync("http://host.docker.internal:8000/openapi.json");
         return Results.Text(json, "application/json");
     }
     catch
@@ -521,19 +488,40 @@ app.MapGet("/fastapi-openapi.json", async () =>
     }
 });
 
-// ─── Ocelot (ONLY for API routes) ─────────────────────────────────────────────
-app.UseWhen(
-    ctx => !(ctx.Request.Path == "/" ||
-             ctx.Request.Path == "/health" || 
-             ctx.Request.Path == "/ready" || 
-             ctx.Request.Path == "/rate-limit-status" ||
-             ctx.Request.Path == "/debug/routes" ||
-             ctx.Request.Path == "/nodejs-docs" ||
-             ctx.Request.Path == "/fastapi-docs" ||
-             ctx.Request.Path == "/fastapi-openapi.json"),
-    appBuilder =>
-    {
-        appBuilder.UseOcelot();
-    });
+// WebSocket support for Socket.IO
+app.UseWebSockets();
+
+// ── Branch: API routes ONLY (Ocelot) ──────────────────────────────────────────
+// All non-system routes go through Ocelot
+var systemPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "/", "/health", "/ready", "/rate-limit-status", "/debug/routes",
+    "/nodejs-docs", "/fastapi-docs", "/fastapi-openapi.json", "/favicon.ico"
+};
+
+app.MapWhen(ctx => !systemPaths.Contains(ctx.Request.Path), app =>
+{
+    app.UseOcelot().Wait();
+});
+
+// System routes are handled by MapGet endpoints (defined earlier in the file)
+// Ocelot never sees these requests due to MapWhen branching above
+
+var port = 8080;
+var url = $"http://localhost:{port}";
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+   
+    // Console output - fixed formatting (removed erroneous ,-{width} alignment)
+    Console.WriteLine("");
+    Console.WriteLine("╔══════════════════════════════════════════════════════════╗");
+    Console.WriteLine($"║  Gateway is running at: {url}".PadRight(57) + "║");
+    Console.WriteLine("╠══════════════════════════════════════════════════════════╣");
+    Console.WriteLine($"║  Landing Page:      {url}".PadRight(57) + "║");
+    Console.WriteLine($"║  Health Check:      {url}/health".PadRight(57) + "║");
+    Console.WriteLine("╚══════════════════════════════════════════════════════════╝");
+    Console.WriteLine("");
+});
 
 app.Run();

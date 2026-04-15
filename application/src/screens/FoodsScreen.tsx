@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { foodService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { FoodPredictionResponse } from '../services/api';
 import {
   showSuccessToast,
@@ -47,6 +48,7 @@ function getNavBarInfo(): { height: number; isGestureMode: boolean } {
 }
 
 export default function FoodsScreen() {
+  const { token } = useAuth();
   const { theme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
@@ -119,7 +121,7 @@ export default function FoodsScreen() {
   const predictFood = async (imageUri: string) => {
     setLoading(true);
     try {
-      const data = await foodService.predictFood(imageUri);
+      const data = await foodService.predictFood(imageUri, token);
 
       if (!data || !data.food_data) {
         showInfoToast({
