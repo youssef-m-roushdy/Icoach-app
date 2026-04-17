@@ -790,3 +790,89 @@ export const getWorkoutSessionStats = async (
     next(error);
   }
 };
+
+/**
+ * PATCH - Update only notes and duration for a workout session
+ * This is a lightweight update that doesn't affect sets or totals
+ */
+export const patchWorkoutSessionDetails = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { notes, duration } = req.body;
+
+    // Validate that at least one field is provided
+    if (notes === undefined && duration === undefined) {
+      throw new AppError('At least one field (notes or duration) is required', 400);
+    }
+
+    // Validate duration if provided
+    if (duration !== undefined) {
+      const durationNum = parseInt(duration, 10);
+      if (isNaN(durationNum) || durationNum < 0) {
+        throw new AppError('Duration must be a positive number (in seconds)', 400);
+      }
+    }
+
+    const workoutSession = await WorkoutSession.findOne({
+      where: { id, userId: user.id },
+    });
+
+    if (!workoutSession) {
+      throw new NotFoundError('Workout session not found');
+    }
+
+    // Build update object with only provided fields
+    const updateData: Partial<{
+      notes: string | null;
+      duration: number;
+    }> = {};
+
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+
+    if (duration !== undefined) {
+      updateData.duration = parseInt(duration, 10);
+    }
+
+    // Perform the lightweight update
+    await workoutSession.update(updateData);
+
+    // Fetch the updated session with relations for the response
+    const updatedSession = await WorkoutSession.findByPk(id, {
+      include: [
+        {
+          model: Workout,
+          as: 'workout',
+          attributes: ['id', 'name', 'body_part', 'target_area', 'gif_link', 'equipment', 'level'],
+        },
+        {
+          model: WorkoutSessionSet,
+          as: 'sets',
+          attributes: ['id', 'setNumber', 'reps', 'weight', 'isCompleted', 'completedAt', 'restTimeSeconds'],
+          order: [['setNumber', 'ASC']],
+        },
+      ],
+    });
+
+    // Note: We don't need to update user metrics since duration doesn't affect strength/volume metrics
+    // Only notes and duration changed, not actual workout performance data
+
+    res.status(200).json({
+      success: true,
+      message: 'Workout session details updated successfully',
+      data: updatedSession,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

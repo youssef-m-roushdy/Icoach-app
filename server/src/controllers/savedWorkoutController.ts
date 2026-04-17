@@ -10,11 +10,8 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-export class SavedWorkoutController {
-  /**
-   * Save a workout for the authenticated user
-   */
-  static async saveWorkout(req: Request, res: Response, next: NextFunction): Promise<void> {
+
+  export const saveWorkout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
       if (!user) {
@@ -70,7 +67,7 @@ export class SavedWorkoutController {
   /**
    * Get all saved workouts for the authenticated user
    */
-  static async getSavedWorkouts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  export const getSavedWorkouts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
       if (!user) {
@@ -120,7 +117,7 @@ export class SavedWorkoutController {
   /**
    * Get a single saved workout by ID
    */
-  static async getSavedWorkoutById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  export const getSavedWorkoutById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
       if (!user) {
@@ -159,7 +156,7 @@ export class SavedWorkoutController {
   /**
    * Delete a saved workout (unsave)
    */
-  static async deleteSavedWorkout(req: Request, res: Response, next: NextFunction): Promise<void> {
+  export const deleteSavedWorkout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
       if (!user) {
@@ -193,7 +190,7 @@ export class SavedWorkoutController {
   /**
    * Check if a workout is saved by the user
    */
-  static async checkIfSaved(req: Request, res: Response, next: NextFunction): Promise<void> {
+  export const checkIfSaved = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as AuthenticatedRequest).user;
       if (!user) {
@@ -220,4 +217,3 @@ export class SavedWorkoutController {
       next(error);
     }
   }
-}

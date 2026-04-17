@@ -34,6 +34,7 @@ export {
   validateWorkoutSessionQuery,
   validateWorkoutSessionId,
   validateWorkoutSessionStats,
+  validatePatchWorkoutSessionDetails,
 } from './workoutSessionValidation.js';
 
 // User Metrics validations
@@ -52,11 +53,13 @@ export {
   validatePersonalBestId,
 } from './personalBestValidation.js';
 
+// Progress validations
 export {
   validateProgressHistoryQuery,
   validateProgressDashboardQuery,
 } from './progressValidation.js';
 
+// Daily Activity validations
 export {
   validateSyncDailyActivity,
   validateUpdateDailyGoal,
@@ -64,6 +67,7 @@ export {
   validateWeeklySummary,
 } from './dailyActivityValidation.js';
 
+// Water Intake validations
 export {
   validateSyncWaterIntake,
   validateAddWaterIntake,
@@ -76,6 +80,7 @@ export {
   validateWaterStatsQuery
 } from './waterIntakeValidation.js';
 
+// Workout Session Set validations
 export {
   validateAddSetToWorkoutSession,
   validateUpdateWorkoutSessionSet,
@@ -88,6 +93,7 @@ export {
   validateBulkAddSetsToWorkoutSession,
 } from './workoutSessionSetValidation.js';
 
+// Chat History validations
 export {
   validateCreateMessage,
   validateChatHistoryQuery,
@@ -102,3 +108,13 @@ export {
   validateSearchMessages,
   validateExportChat,
 } from './chatHistoryValidations.js';
+
+// Saved Workout validations
+export {
+  validateCreateSavedWorkout,
+  validateGetSavedWorkouts,
+  validateGetSavedWorkoutById,
+  validateDeleteSavedWorkout,
+  validateCheckIfSaved,
+  validateBulkSavedWorkouts,
+} from './savedWorkoutValidation.js';

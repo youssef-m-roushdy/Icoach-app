@@ -387,3 +387,39 @@ export const validateWorkoutSessionDateRange = [
   
   handleValidationErrors,
 ];
+
+
+/**
+ * Validation for PATCH /workout-sessions/:id/details
+ * Only validates notes and duration fields
+ */
+export const validatePatchWorkoutSessionDetails = [
+  param('id')
+    .isInt({ min: 1 })
+    .withMessage('Session ID must be a positive integer')
+    .toInt(),
+  
+  body()
+    .custom((value, { req }) => {
+      if (req.body.notes === undefined && req.body.duration === undefined) {
+        throw new Error('At least one field (notes or duration) is required');
+      }
+      return true;
+    }),
+  
+  body('notes')
+    .optional()
+    .isString()
+    .withMessage('Notes must be a string')
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
+  
+  body('duration')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Duration must be a positive integer (in seconds)')
+    .toInt(),
+  
+  handleValidationErrors
+];

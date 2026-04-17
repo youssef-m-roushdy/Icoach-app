@@ -33,6 +33,7 @@ import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import WorkoutHistoryScreen from '../screens/WorkoutHistoryScreen';
 import GymProgressScreen from '../screens/GymProgressScreen';
 import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
+import EditWorkoutSessionScreen from '../screens/EditWorkoutSessionScreen';
 
 import { SystemNavigationBarProtector } from '../components/SystemNavigationBarProtector';
 
@@ -81,7 +82,9 @@ export type RootStackParamList = {
     workoutName: string; 
     workoutImage?: string;
   };
-  
+
+  EditWorkoutSession: { sessionId: number };
+
   // Messages
   Messages: undefined;
   
@@ -826,6 +829,13 @@ export const AppNavigator: React.FC = () => {
                   ),
                 })}
               />
+              <Stack.Screen
+  name="EditWorkoutSession"
+  component={EditWorkoutSessionScreen}
+  options={({ navigation }) => ({
+    headerShown: false,  // Screen has its own header
+  })}
+/>
               <Stack.Screen
                 name="EditProfile"
                 component={EditProfileScreen}

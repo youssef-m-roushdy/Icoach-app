@@ -25,7 +25,7 @@ import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
 import {
   workoutSessionService,
   type WorkoutSession,
-  type CreateWorkoutSessionData,
+  type WorkoutSessionSet,
 } from "../services/workoutSessionService";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSystemNavigation } from "../context/SystemNavigationContext";
@@ -52,8 +52,22 @@ interface WorkoutSessionWithDetails extends WorkoutSession {
     name: string;
     body_part: string;
     target_area: string;
+    equipment: string;  // ✅ ADD
+    level: string;      // ✅ ADD
     gif_link: string;
   };
+  sets?: {
+     id: number;
+  sessionId: number;
+  reps: number;
+  weight: number;
+  isCompleted: boolean;
+  completed_at: string | null;
+  restTimeSeconds: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  }[];
 }
 
 interface PaginationInfo {
@@ -61,16 +75,6 @@ interface PaginationInfo {
   page: number;
   limit: number;
   totalPages: number;
-}
-
-interface EditSessionData {
-  id: number;
-  duration: string;
-  sets: string;
-  reps: string;
-  weight: string;
-  notes: string;
-  completedAt: Date;
 }
 
 export default function WorkoutHistoryScreen({ navigation }: any) {
@@ -84,13 +88,11 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   // Bottom sheet refs
   const filterSheetRef = useRef<BottomSheetModal>(null);
   const filterScrollViewRef = useRef<any>(null);
-  const editSheetRef = useRef<BottomSheetModal>(null);
   const deleteSheetRef = useRef<BottomSheetModal>(null);
   const flatListRef = useRef<FlatList>(null);
 
   // Snap points
   const filterSnapPoints = useMemo(() => ["85%"], []);
-  const editSnapPoints = useMemo(() => ["90%"], []);
   const deleteSnapPoints = useMemo(() => ["40%"], []);
 
   // State
@@ -112,6 +114,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [minDuration, setMinDuration] = useState<string>("");
   const [minVolume, setMinVolume] = useState<string>("");
+  const [minSets, setMinSets] = useState<string>("");
   const [showDatePicker, setShowDatePicker] = useState<"start" | "end" | null>(
     null,
   );
@@ -122,12 +125,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const [workoutNameFilter, setWorkoutNameFilter] = useState<string>("");
 
   // Edit modal state
-  const [editingSession, setEditingSession] = useState<EditSessionData | null>(
-    null,
-  );
-  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
-  const [showEditTimePicker, setShowEditTimePicker] = useState(false);
-  const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete confirmation
   const [deletingSession, setDeletingSession] =
@@ -135,7 +132,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
   // Track modal open states for back button handling
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // ── Bottom sheet open/close handlers ──────────────────────────────────────
@@ -154,14 +150,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     [],
   );
 
-  const openEditSheet = useCallback(() => {
-    setIsEditModalOpen(true);
-    editSheetRef.current?.present();
-  }, []);
-  const closeEditSheet = useCallback(() => {
-    setIsEditModalOpen(false);
-    editSheetRef.current?.dismiss();
-  }, []);
 
   const openDeleteSheet = useCallback(
     () => {
@@ -216,6 +204,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     endDate,
     minDuration,
     minVolume,
+    minSets
   ]);
 
   // Scroll to top when page changes
@@ -249,10 +238,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         closeFilterSheet();
         return true; // Prevent default back behavior
       }
-      if (isEditModalOpen) {
-        closeEditSheet();
-        return true; // Prevent default back behavior
-      }
       if (isDeleteModalOpen) {
         closeDeleteSheet();
         return true; // Prevent default back behavior
@@ -263,7 +248,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
 
     return () => backHandler.remove();
-  }, [pagination, isFilterModalOpen, isEditModalOpen, isDeleteModalOpen, closeFilterSheet, closeEditSheet, closeDeleteSheet, goToPage]);
+  }, [pagination, isFilterModalOpen, isDeleteModalOpen, closeFilterSheet, closeDeleteSheet, goToPage]);
 
   const loadSessions = async () => {
     try {
@@ -280,6 +265,10 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       if (endDate) params.endDate = endDate.toISOString().split("T")[0];
       if (minDuration) params.minDuration = parseInt(minDuration);
       if (minVolume) params.minVolume = parseFloat(minVolume);
+      if (bodyPartFilter) params.bodyPart = bodyPartFilter;
+      if (targetAreaFilter) params.targetArea = targetAreaFilter;
+      if (workoutNameFilter) params.workoutName = workoutNameFilter;
+      if (minSets) params.minSets = parseInt(minSets);
 
       const response = await workoutSessionService.getWorkoutSessions(
         token,
@@ -335,6 +324,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     setEndDate(null);
     setMinDuration("");
     setMinVolume("");
+    setMinSets("");
     setPagination((prev) => ({ ...prev, page: 1 }));
     closeFilterSheet();
     showInfoToast({
@@ -398,113 +388,9 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const handleEditPress = (session: WorkoutSessionWithDetails) => {
-    setEditingSession({
-      id: session.id,
-      duration: session.duration.toString(),
-      sets: session.sets.toString(),
-      reps: session.reps.toString(),
-      weight: session.weight.toString(),
-      notes: session.notes || "",
-      completedAt: new Date(session.completedAt),
-    });
-    openEditSheet();
-  };
-
-  const handleEditDateChange = (event: any, date?: Date) => {
-    setShowEditDatePicker(false);
-    if (date && editingSession) {
-      const newDate = new Date(editingSession.completedAt);
-      newDate.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-      setEditingSession({ ...editingSession, completedAt: newDate });
-    }
-  };
-
-  const handleEditTimeChange = (event: any, time?: Date) => {
-    setShowEditTimePicker(false);
-    if (time && editingSession) {
-      const newDate = new Date(editingSession.completedAt);
-      newDate.setHours(time.getHours(), time.getMinutes());
-      setEditingSession({ ...editingSession, completedAt: newDate });
-    }
-  };
-
-  const saveEdit = async () => {
-    if (!editingSession || !token) return;
-
-    if (!editingSession.duration || parseInt(editingSession.duration) <= 0) {
-      showErrorToast({
-        title: "Validation Error",
-        message: "Duration must be a positive number",
-      });
-      return;
-    }
-    if (!editingSession.sets || parseInt(editingSession.sets) <= 0) {
-      showErrorToast({
-        title: "Validation Error",
-        message: "Sets must be a positive number",
-      });
-      return;
-    }
-    if (!editingSession.reps || parseInt(editingSession.reps) <= 0) {
-      showErrorToast({
-        title: "Validation Error",
-        message: "Reps must be a positive number",
-      });
-      return;
-    }
-    if (!editingSession.weight || parseFloat(editingSession.weight) < 0) {
-      showErrorToast({
-        title: "Validation Error",
-        message: "Weight cannot be negative",
-      });
-      return;
-    }
-
-    setSavingEdit(true);
-    try {
-      const volume =
-        parseInt(editingSession.sets) *
-        parseInt(editingSession.reps) *
-        parseFloat(editingSession.weight);
-
-      const updateData: Partial<CreateWorkoutSessionData> = {
-        duration: parseInt(editingSession.duration),
-        sets: parseInt(editingSession.sets),
-        reps: parseInt(editingSession.reps),
-        weight: parseFloat(editingSession.weight),
-        volume,
-        notes: editingSession.notes || undefined,
-        completedAt: editingSession.completedAt.toISOString(),
-      };
-
-      const response = await workoutSessionService.updateWorkoutSession(
-        editingSession.id,
-        updateData,
-        token,
-      );
-
-      if (response.success) {
-        showSuccessToast({
-          title: "Success",
-          message: "Workout session updated successfully",
-        });
-        closeEditSheet();
-        loadSessions();
-      } else {
-        showErrorToast({
-          title: "Error",
-          message: response.message || "Failed to update session",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to update session:", error);
-      showErrorToast({
-        title: "Error",
-        message: getErrorMessage(error) || "Failed to update session",
-      });
-    } finally {
-      setSavingEdit(false);
-    }
+  navigation.navigate("EditWorkoutSession", { 
+    sessionId: session.id 
+  });
   };
 
   // ── Delete handlers ────────────────────────────────────────────────────────
@@ -550,252 +436,221 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     }
   };
 
-  const filterSessionsByText = (sessions: WorkoutSessionWithDetails[]) => {
-    return sessions.filter((session) => {
-      const workout = session.workout;
-      if (!workout) return true;
-
-      const matchesBodyPart =
-        !bodyPartFilter ||
-        workout.body_part?.toLowerCase().includes(bodyPartFilter.toLowerCase());
-      const matchesTargetArea =
-        !targetAreaFilter ||
-        workout.target_area
-          ?.toLowerCase()
-          .includes(targetAreaFilter.toLowerCase());
-      const matchesName =
-        !workoutNameFilter ||
-        workout.name?.toLowerCase().includes(workoutNameFilter.toLowerCase());
-
-      return matchesBodyPart && matchesTargetArea && matchesName;
-    });
-  };
-
-  // Calculate total volume for a session
-  const calculateVolume = (sets: number, reps: number, weight: number) => {
-    return sets * reps * weight;
-  };
-
   // ── Session card ───────────────────────────────────────────────────────────
-  const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
-    const date = new Date(item.completedAt);
-    const formattedDate = date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const formattedTime = date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+// ── Session card ───────────────────────────────────────────────────────────
+const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
+  const date = new Date(item.completedAt);
+  const formattedDate = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const formattedTime = date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-    const volume = calculateVolume(item.sets, item.reps, item.weight);
+  // Use the aggregated fields from the API
+  const totalSets = item.totalSets || item.sets?.length || 0;
+  const totalReps = item.totalReps || 0;
+  const maxWeight = item.maxWeight || 0;
+  const totalVolume = item.totalVolume || 0;
 
-    return (
-      <View
-        style={[
-          styles.sessionCard,
-          {
-            backgroundColor: colors.authCardBg || colors.card,
-            borderColor:
-              colors.authCardBorder ||
-              colors.cardBorder ||
-              colors.border + "40",
-            borderWidth: 1,
-            shadowColor: isDarkMode ? "#000" : "#000",
-            shadowOpacity: isDarkMode ? 0.3 : 0.1,
-            shadowRadius: isDarkMode ? 10 : 8,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: isDarkMode ? 8 : 4,
-          },
-        ]}
-      >
-        {/* Gradient Header */}
-        <LinearGradient
-          colors={[colors.primary + "15", colors.primary + "05"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cardGradient}
-        />
+  return (
+    <View
+      style={[
+        styles.sessionCard,
+        {
+          backgroundColor: colors.authCardBg || colors.card,
+          borderColor:
+            colors.authCardBorder ||
+            colors.cardBorder ||
+            colors.border + "40",
+          borderWidth: 1,
+          shadowColor: isDarkMode ? "#000" : "#000",
+          shadowOpacity: isDarkMode ? 0.3 : 0.1,
+          shadowRadius: isDarkMode ? 10 : 8,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: isDarkMode ? 8 : 4,
+        },
+      ]}
+    >
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={[colors.primary + "15", colors.primary + "05"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardGradient}
+      />
 
-        {item.workout?.gif_link && (
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: item.workout.gif_link }}
-              style={styles.sessionImage}
-            />
-            <LinearGradient
-              colors={["transparent", colors.background + "CC"]}
-              style={styles.imageOverlay}
-            />
-          </View>
-        )}
+      {item.workout?.gif_link && (
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: item.workout.gif_link }}
+            style={styles.sessionImage}
+          />
+          <LinearGradient
+            colors={["transparent", colors.background + "CC"]}
+            style={styles.imageOverlay}
+          />
+        </View>
+      )}
 
-        <View style={styles.sessionContent}>
-          <View style={styles.sessionHeader}>
-            <View style={styles.sessionTitleContainer}>
-              <Text
-                style={[styles.workoutName, { color: colors.text }]}
-                numberOfLines={1}
-              >
-                {item.workout?.name || `Workout #${item.workoutId}`}
-              </Text>
-              <View style={styles.workoutTags}>
-                {item.workout?.body_part && (
-                  <View
-                    style={[
-                      styles.tag,
-                      { backgroundColor: colors.primary + "15" },
-                    ]}
-                  >
-                    <Ionicons name="body" size={10} color={colors.primary} />
-                    <Text style={[styles.tagText, { color: colors.primary }]}>
-                      {item.workout.body_part}
-                    </Text>
-                  </View>
-                )}
-                {item.workout?.target_area && (
-                  <View
-                    style={[
-                      styles.tag,
-                      { backgroundColor: colors.primary + "15" },
-                    ]}
-                  >
-                    <Ionicons name="locate" size={10} color={colors.primary} />
-                    <Text style={[styles.tagText, { color: colors.primary }]}>
-                      {item.workout.target_area}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.sessionMeta}>
-                <View style={styles.metaItem}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={12}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.metaText, { color: colors.subtleText }]}>
-                    {formattedDate}
+      <View style={styles.sessionContent}>
+        <View style={styles.sessionHeader}>
+          <View style={styles.sessionTitleContainer}>
+            <Text
+              style={[styles.workoutName, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {item.workout?.name || `Workout #${item.workoutId}`}
+            </Text>
+            <View style={styles.workoutTags}>
+              {item.workout?.body_part && (
+                <View
+                  style={[
+                    styles.tag,
+                    { backgroundColor: colors.primary + "15" },
+                  ]}
+                >
+                  <Ionicons name="body" size={10} color={colors.primary} />
+                  <Text style={[styles.tagText, { color: colors.primary }]}>
+                    {item.workout.body_part}
                   </Text>
                 </View>
-                <View style={styles.metaItem}>
-                  <Ionicons
-                    name="time-outline"
-                    size={12}
-                    color={colors.primary}
-                  />
-                  <Text style={[styles.metaText, { color: colors.subtleText }]}>
-                    {formattedTime}
+              )}
+              {item.workout?.target_area && (
+                <View
+                  style={[
+                    styles.tag,
+                    { backgroundColor: colors.primary + "15" },
+                  ]}
+                >
+                  <Ionicons name="locate" size={10} color={colors.primary} />
+                  <Text style={[styles.tagText, { color: colors.primary }]}>
+                    {item.workout.target_area}
                   </Text>
                 </View>
-              </View>
+              )}
             </View>
-
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: colors.primary + "15" },
-                ]}
-                onPress={() => handleEditPress(item)}
-              >
+            <View style={styles.sessionMeta}>
+              <View style={styles.metaItem}>
                 <Ionicons
-                  name="create-outline"
-                  size={18}
+                  name="calendar-outline"
+                  size={12}
                   color={colors.primary}
                 />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: colors.authInputBg || colors.surface },
-                ]}
-                onPress={() => handleDeletePress(item)}
-              >
-                <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              </TouchableOpacity>
+                <Text style={[styles.metaText, { color: colors.subtleText }]}>
+                  {formattedDate}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name="time-outline"
+                  size={12}
+                  color={colors.primary}
+                />
+                <Text style={[styles.metaText, { color: colors.subtleText }]}>
+                  {formattedTime}
+                </Text>
+              </View>
             </View>
           </View>
 
-          <View style={styles.sessionDetails}>
-            <View style={styles.detailItem}>
-              <View
-                style={[
-                  styles.detailIconBg,
-                  { backgroundColor: colors.primary + "10" },
-                ]}
-              >
-                <Ionicons name="repeat" size={14} color={colors.primary} />
-              </View>
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                {item.sets} × {item.reps}
-              </Text>
-            </View>
-            <View style={styles.detailItem}>
-              <View
-                style={[
-                  styles.detailIconBg,
-                  { backgroundColor: colors.primary + "10" },
-                ]}
-              >
-                <Ionicons name="barbell" size={14} color={colors.primary} />
-              </View>
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                {item.weight} kg
-              </Text>
-            </View>
-            <View style={styles.detailItem}>
-              <View
-                style={[
-                  styles.detailIconBg,
-                  { backgroundColor: colors.primary + "10" },
-                ]}
-              >
-                <Ionicons name="fitness" size={14} color={colors.primary} />
-              </View>
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                {volume} kg
-              </Text>
-            </View>
-            <View style={styles.detailItem}>
-              <View
-                style={[
-                  styles.detailIconBg,
-                  { backgroundColor: colors.primary + "10" },
-                ]}
-              >
-                <Ionicons name="timer" size={14} color={colors.primary} />
-              </View>
-              <Text style={[styles.detailText, { color: colors.text }]}>
-                {item.duration} min
-              </Text>
-            </View>
-          </View>
-
-          {item.notes && (
-            <View
-              style={[styles.notesContainer, { borderTopColor: colors.border }]}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: colors.primary + "15" },
+              ]}
+              onPress={() => handleEditPress(item)}
             >
               <Ionicons
-                name="document-text-outline"
-                size={14}
+                name="create-outline"
+                size={18}
                 color={colors.primary}
               />
-              <Text
-                style={[styles.notesText, { color: colors.subtleText }]}
-                numberOfLines={2}
-              >
-                {item.notes}
-              </Text>
-            </View>
-          )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                { backgroundColor: colors.authInputBg || colors.surface },
+              ]}
+              onPress={() => handleDeletePress(item)}
+            >
+              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    );
-  };
 
-  const filteredSessions = filterSessionsByText(sessions);
+        <View style={styles.sessionDetails}>
+          <View style={styles.detailItem}>
+            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+              <Ionicons name="repeat" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {totalSets} {totalSets === 1 ? 'set' : 'sets'}
+            </Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+              <Ionicons name="barbell" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {maxWeight} kg
+            </Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+              <Ionicons name="fitness" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {totalVolume} kg
+            </Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+              <Ionicons name="stats-chart" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {totalReps} reps
+            </Text>
+          </View>
+          
+          <View style={styles.detailItem}>
+            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+              <Ionicons name="timer" size={14} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {item.duration} min
+            </Text>
+          </View>
+        </View>
+
+        {item.notes && (
+          <View
+            style={[styles.notesContainer, { borderTopColor: colors.border }]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color={colors.primary}
+            />
+            <Text
+              style={[styles.notesText, { color: colors.subtleText }]}
+              numberOfLines={2}
+            >
+              {item.notes}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
 
   if (loading && !refreshing && sessions.length === 0) {
     return (
@@ -884,7 +739,9 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         startDate ||
         endDate ||
         minDuration ||
-        minVolume) && (
+        minVolume ||
+        minSets
+      ) && (
         <View
           style={[styles.activeFilters, { borderBottomColor: colors.border }]}
         >
@@ -1037,6 +894,27 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   </TouchableOpacity>
                 </View>
               )}
+              {minSets && (
+  <View
+    style={[
+      styles.activeFilterChip,
+      { backgroundColor: colors.primary + "15" },
+    ]}
+  >
+    <Text
+      style={[styles.activeFilterText, { color: colors.primary }]}
+    >
+      ≥{minSets} sets
+    </Text>
+    <TouchableOpacity onPress={() => setMinSets("")}>
+      <Ionicons
+        name="close-circle"
+        size={14}
+        color={colors.primary}
+      />
+    </TouchableOpacity>
+  </View>
+)}
             </View>
           </ScrollView>
         </View>
@@ -1044,7 +922,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
       <FlatList
         ref={flatListRef}
-        data={filteredSessions}
+        data={sessions}
         renderItem={renderSessionItem}
         keyExtractor={(item) => item.id.toString()}
         extraData={pagination.page}
@@ -1085,7 +963,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               startDate ||
               endDate ||
               minDuration ||
-              minVolume
+              minVolume ||
+              minSets
                 ? "Try clearing your filters"
                 : "Start your first workout to see it here!"}
             </Text>
@@ -1466,6 +1345,38 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 )}
               </View>
             </View>
+            <View style={styles.filterSection}>
+  <Text style={[styles.filterLabel, { color: colors.text }]}>
+    Minimum Sets
+  </Text>
+  <View
+    style={[
+      styles.filterInputContainer,
+      {
+        borderColor: colors.authInputBorder || colors.border,
+        backgroundColor: colors.authInputBg || colors.surface,
+      },
+    ]}
+  >
+    <Ionicons name="repeat" size={18} color={colors.primary} />
+    <TextInput
+      style={[styles.filterInput, { color: colors.text }]}
+      keyboardType="numeric"
+      value={minSets}
+      onChangeText={setMinSets}
+      placeholder="e.g., 3"
+      placeholderTextColor={colors.placeholder}
+    />
+    <Text style={[styles.inputSuffix, { color: colors.subtleText }]}>
+      sets
+    </Text>
+    {minSets !== "" && (
+      <TouchableOpacity onPress={() => setMinSets("")}>
+        <Ionicons name="close-circle" size={18} color={colors.primary} />
+      </TouchableOpacity>
+    )}
+  </View>
+  </View>
           </BottomSheetScrollView>
 
           <View
@@ -1528,286 +1439,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       </BottomSheetModal>
 
       {/* Edit Bottom Sheet */}
-      <BottomSheetModal
-        ref={editSheetRef}
-        index={0}
-        snapPoints={editSnapPoints}
-        onChange={(index) => setIsEditModalOpen(index >= 0)}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={sheetBackground}
-        handleIndicatorStyle={handleIndicatorStyle}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-      >
-        <BottomSheetView style={styles.sheetContent}>
-          <View
-            style={[styles.sheetHeader, { borderBottomColor: colors.border }]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Edit Session
-            </Text>
-            <TouchableOpacity
-              onPress={closeEditSheet}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <BottomSheetScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.sheetScrollContent,
-              { paddingBottom: 100 },
-            ]}
-          >
-            {editingSession && (
-              <>
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Duration (minutes)
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      {
-                        borderColor: colors.authInputBorder || colors.border,
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        color: colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editingSession.duration}
-                    onChangeText={(text) =>
-                      setEditingSession({ ...editingSession, duration: text })
-                    }
-                    placeholder="Enter duration"
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Sets
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      {
-                        borderColor: colors.authInputBorder || colors.border,
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        color: colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editingSession.sets}
-                    onChangeText={(text) =>
-                      setEditingSession({ ...editingSession, sets: text })
-                    }
-                    placeholder="Enter number of sets"
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Reps per Set
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      {
-                        borderColor: colors.authInputBorder || colors.border,
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        color: colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editingSession.reps}
-                    onChangeText={(text) =>
-                      setEditingSession({ ...editingSession, reps: text })
-                    }
-                    placeholder="Enter reps"
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Weight (kg)
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editInput,
-                      {
-                        borderColor: colors.authInputBorder || colors.border,
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        color: colors.text,
-                      },
-                    ]}
-                    keyboardType="numeric"
-                    value={editingSession.weight}
-                    onChangeText={(text) =>
-                      setEditingSession({ ...editingSession, weight: text })
-                    }
-                    placeholder="Enter weight"
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Date & Time
-                  </Text>
-                  <View style={styles.editDateTimeRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.editDateTimeButton,
-                        {
-                          borderColor: colors.authInputBorder || colors.border,
-                          backgroundColor: colors.authInputBg || colors.surface,
-                        },
-                      ]}
-                      onPress={() => setShowEditDatePicker(true)}
-                    >
-                      <Ionicons
-                        name="calendar-outline"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text
-                        style={[
-                          styles.editDateTimeText,
-                          { color: colors.text },
-                        ]}
-                      >
-                        {editingSession.completedAt.toLocaleDateString()}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.editDateTimeButton,
-                        {
-                          borderColor: colors.authInputBorder || colors.border,
-                          backgroundColor: colors.authInputBg || colors.surface,
-                        },
-                      ]}
-                      onPress={() => setShowEditTimePicker(true)}
-                    >
-                      <Ionicons
-                        name="time-outline"
-                        size={16}
-                        color={colors.primary}
-                      />
-                      <Text
-                        style={[
-                          styles.editDateTimeText,
-                          { color: colors.text },
-                        ]}
-                      >
-                        {editingSession.completedAt.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.editField}>
-                  <Text style={[styles.editLabel, { color: colors.text }]}>
-                    Notes
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.editNotesInput,
-                      {
-                        borderColor: colors.authInputBorder || colors.border,
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        color: colors.text,
-                      },
-                    ]}
-                    multiline
-                    numberOfLines={3}
-                    value={editingSession.notes}
-                    onChangeText={(text) =>
-                      setEditingSession({ ...editingSession, notes: text })
-                    }
-                    placeholder="Add notes about your workout..."
-                    placeholderTextColor={colors.placeholder}
-                    textAlignVertical="top"
-                  />
-                </View>
-              </>
-            )}
-          </BottomSheetScrollView>
-
-          <View
-            style={[
-              styles.sheetFooter,
-              {
-                borderTopColor: colors.border,
-                paddingBottom: Math.max(16, systemBottomInset + 16),
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={[
-                styles.modalButton,
-                styles.cancelButton,
-                {
-                  backgroundColor: colors.authInputBg || colors.surface,
-                  borderColor: colors.authInputBorder || colors.border,
-                  borderWidth: 1,
-                },
-              ]}
-              onPress={closeEditSheet}
-            >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.modalButton,
-                styles.saveButton,
-                { overflow: "hidden", borderWidth: 0 },
-              ]}
-              onPress={saveEdit}
-              disabled={savingEdit}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={[
-                  colors.primary,
-                  (colors as any).secondary || colors.primary,
-                ]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              {savingEdit ? (
-                <ActivityIndicator
-                  color="#FFFFFF"
-                  size="small"
-                  style={{ position: "relative" }}
-                />
-              ) : (
-                <Text
-                  style={[
-                    styles.saveButtonText,
-                    { color: "#FFFFFF", position: "relative" },
-                  ]}
-                >
-                  Save Changes
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </BottomSheetView>
-      </BottomSheetModal>
 
       {/* Delete Bottom Sheet */}
       <BottomSheetModal
@@ -1919,22 +1550,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
           }}
         />
       )}
-      {showEditDatePicker && (
-        <DateTimePicker
-          value={editingSession?.completedAt || new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleEditDateChange}
-        />
-      )}
-      {showEditTimePicker && (
-        <DateTimePicker
-          value={editingSession?.completedAt || new Date()}
-          mode="time"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleEditTimeChange}
-        />
-      )}
+      
     </View>
   );
 }

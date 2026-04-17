@@ -8,6 +8,8 @@ import {
 
 const router = Router();
 
+router.use(authenticate)
+
 /**
  * @swagger
  * tags:
@@ -200,7 +202,7 @@ const router = Router();
  *       404:
  *         description: User not found
  */
-router.get('/dashboard', authenticate, validateProgressDashboardQuery, getProgressDashboard);
+router.get('/dashboard', validateProgressDashboardQuery, getProgressDashboard);
 
 /**
  * @swagger
@@ -308,6 +310,6 @@ router.get('/dashboard', authenticate, validateProgressDashboardQuery, getProgre
  *       401:
  *         description: Unauthorized - Authentication required
  */
-router.get('/history', authenticate, validateProgressHistoryQuery, getMetricsHistory);
+router.get('/history', validateProgressHistoryQuery, getMetricsHistory);
 
 export default router;

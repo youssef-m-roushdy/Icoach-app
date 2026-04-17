@@ -9,6 +9,7 @@ import {
   addSetToWorkoutSession,
   updateWorkoutSessionSet,
   deleteWorkoutSessionSet,
+  patchWorkoutSessionDetails
 } from '../../controllers/workoutSessionController.js';
 import { authenticate } from '../../middleware/auth.js';
 import {
@@ -17,6 +18,7 @@ import {
   validateWorkoutSessionQuery,
   validateWorkoutSessionId,
   validateWorkoutSessionStats,
+  validatePatchWorkoutSessionDetails
 } from '../../middleware/validations/index.js';
 
 const router = Router();
@@ -549,6 +551,61 @@ router.post('/:id/sets',
  *         description: Session or set not found
  */
 router.put('/:sessionId/sets/:setId', updateWorkoutSessionSet);
+
+/**
+ * @swagger
+ * /api/v1/workout-sessions/{id}/details:
+ *   patch:
+ *     tags:
+ *       - Workout Sessions
+ *     summary: Update only notes and duration (lightweight patch)
+ *     description: |
+ *       Partially update a workout session's metadata without affecting sets.
+ *       This is a lightweight endpoint for quick updates to notes and duration only.
+ *       For updating sets, use the dedicated set endpoints.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Workout session ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Session notes or observations
+ *                 example: "Felt strong today, increased energy levels"
+ *               duration:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Session duration in seconds
+ *                 example: 2700
+ *           minProperties: 1
+ *     responses:
+ *       200:
+ *         description: Workout session details updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Workout session not found
+ */
+router.patch(
+  '/:id/details',
+  validatePatchWorkoutSessionDetails,
+  patchWorkoutSessionDetails
+);
+
 
 /**
  * @swagger
