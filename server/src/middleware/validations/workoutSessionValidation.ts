@@ -39,9 +39,14 @@ export const validateCreateWorkoutSession = [
     .withMessage('Reps must be between 1 and 100'),
   
   body('sets.*.weight')
-    .optional()
-    .isFloat({ min: 0, max: 1000 })
-    .withMessage('Weight must be between 0 and 1000 kg'),
+  .optional({ nullable: true })
+  .custom((value) => {
+    if (value === null) return true;
+    const num = Number(value);
+    if (isNaN(num)) throw new Error('Weight must be a number or null');
+    if (num < 0 || num > 1000) throw new Error('Weight must be between 0 and 1000 kg');
+    return true;
+  }),
   
   body('sets.*.is_completed')
     .optional()
@@ -127,9 +132,14 @@ export const validateUpdateWorkoutSession = [
     .withMessage('Reps must be between 1 and 100'),
   
   body('sets.*.weight')
-    .optional()
-    .isFloat({ min: 0, max: 1000 })
-    .withMessage('Weight must be between 0 and 1000 kg'),
+  .optional({ nullable: true })
+  .custom((value) => {
+    if (value === null) return true;
+    const num = Number(value);
+    if (isNaN(num)) throw new Error('Weight must be a number or null');
+    if (num < 0 || num > 1000) throw new Error('Weight must be between 0 and 1000 kg');
+    return true;
+  }),
   
   body('sets.*.is_completed')
     .optional()
@@ -343,9 +353,14 @@ export const validateBulkCreateWorkoutSessions = [
     .withMessage('Reps must be between 1 and 100'),
   
   body('sessions.*.sets.*.weight')
-    .optional()
-    .isFloat({ min: 0, max: 1000 })
-    .withMessage('Weight must be between 0 and 1000 kg'),
+  .optional({ nullable: true })
+  .custom((value) => {
+    if (value === null) return true;
+    const num = Number(value);
+    if (isNaN(num)) throw new Error('Weight must be a number or null');
+    if (num < 0 || num > 1000) throw new Error('Weight must be between 0 and 1000 kg');
+    return true;
+  }),
   
   body('sessions.*.completedAt')
     .optional()

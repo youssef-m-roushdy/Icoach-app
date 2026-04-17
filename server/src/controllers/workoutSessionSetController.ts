@@ -64,9 +64,12 @@ export const getSessionSets = async (
     const totalSets = sets.length;
     const completedSets = sets.filter(s => s.isCompleted).length;
     const totalVolume = sets.reduce((sum, s) => sum + s.getVolume(), 0);
-    const maxWeight = sets.length > 0 
-      ? Math.max(...sets.map(s => Number(s.weight) || 0))
-      : 0;
+    const maxWeight = (() => {
+  const weights = sets
+    .filter(s => s.weight !== null)
+    .map(s => Number(s.weight));
+  return weights.length > 0 ? Math.max(...weights) : null;
+})();
     const avgReps = sets.length > 0
       ? sets.reduce((sum, s) => sum + s.reps, 0) / sets.length
       : 0;
@@ -211,7 +214,7 @@ export const addSetToWorkoutSession = async (
       sessionId: session.id,
       setNumber: nextSetNumber,
       reps,
-      weight: weight ?? 0,
+      weight: weight !== undefined ? weight : null,
       isCompleted: is_completed ?? true,
       completedAt: completed_at || (is_completed !== false ? new Date() : null),
       restTimeSeconds: rest_time_seconds,
@@ -294,7 +297,7 @@ export const bulkAddSetsToWorkoutSession = async (
         sessionId: session.id,
         setNumber: startSetNumber + index,
         reps: set.reps,
-        weight: set.weight ?? 0,
+        weight: set.weight !== undefined ? set.weight : null,
         isCompleted: set.is_completed ?? true,
         completedAt: set.completed_at || (set.is_completed !== false ? new Date() : null),
         restTimeSeconds: set.rest_time_seconds,
@@ -825,12 +828,14 @@ export const getSetStatistics = async (
     const totalVolume = sets.reduce((sum, s) => sum + s.getVolume(), 0);
     
     // Weight statistics
-    const weights = sets.filter(s => Number(s.weight) > 0).map(s => Number(s.weight));
-    const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
-    const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
-    const avgWeight = weights.length > 0 
-      ? weights.reduce((sum, w) => sum + w, 0) / weights.length 
-      : 0;
+    const weights = sets
+  .filter(s => s.weight !== null && Number(s.weight) > 0)
+  .map(s => Number(s.weight));
+const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
+const minWeight = weights.length > 0 ? Math.min(...weights) : null;
+const avgWeight = weights.length > 0 
+  ? weights.reduce((sum, w) => sum + w, 0) / weights.length 
+  : null;
 
     // Rep statistics
     const reps = sets.map(s => s.reps);
@@ -845,7 +850,7 @@ export const getSetStatistics = async (
       setNumber: s.setNumber,
       volume: s.getVolume(),
       reps: s.reps,
-      weight: Number(s.weight),
+      weight: s.weight,
     }));
 
     // Find best set (highest volume)
@@ -870,11 +875,11 @@ export const getSetStatistics = async (
           completionRate: totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0,
         },
         weightStats: {
-          max: maxWeight,
-          min: minWeight,
-          average: Math.round(avgWeight * 10) / 10,
-          bodyweightOnly: weights.length === 0,
-        },
+  max: maxWeight,
+  min: minWeight,
+  average: avgWeight !== null ? Math.round(avgWeight * 10) / 10 : null,
+  bodyweightOnly: weights.length === 0,
+},
         repStats: {
           max: maxReps,
           min: minReps,

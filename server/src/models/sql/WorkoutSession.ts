@@ -22,7 +22,7 @@ export interface WorkoutSessionAttributes {
   totalVolume: number; // sum of all set volumes
   totalSets: number; // count of sets
   totalReps: number; // sum of all reps
-  maxWeight: number; // max weight used in any set
+  maxWeight: number | null; // max weight used in any set, null for bodyweight-only
   completedAt: Date;
   notes?: string | null;
   createdAt: Date;
@@ -53,9 +53,9 @@ class WorkoutSession extends Model<
   declare totalVolume: CreationOptional<number>;
   declare totalSets: CreationOptional<number>;
   declare totalReps: CreationOptional<number>;
-  declare maxWeight: CreationOptional<number>;
+  declare maxWeight: CreationOptional<number | null>;
   declare completedAt: Date;
-  declare notes: string | null;
+  declare notes: CreationOptional<string | null>;
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
 
@@ -71,25 +71,51 @@ class WorkoutSession extends Model<
   async recalculateTotals(): Promise<void> {
     const sets = await this.getSets();
     
+    const completedSets = sets.filter(s => s.isCompleted);
+    
     this.totalSets = sets.length;
-    this.totalReps = sets.reduce((sum, set) => sum + set.reps, 0);
-    this.totalVolume = sets.reduce((sum, set) => sum + set.getVolume(), 0);
-    this.maxWeight = sets.length > 0 
-      ? Math.max(...sets.map(set => set.weight || 0)) 
-      : 0;
+    this.totalReps = completedSets.reduce((sum, set) => sum + set.reps, 0);
+    this.totalVolume = completedSets.reduce((sum, set) => sum + set.getVolume(), 0);
+    
+    // Calculate max weight from weighted sets only
+    const weightedSets = completedSets.filter(s => s.weight !== null && s.weight > 0);
+    const weights = weightedSets.map(s => Number(s.weight));
+    
+    this.maxWeight = weights.length > 0 ? Math.max(...weights) : null;
     
     await this.save();
   }
 
   // Get formatted summary
   getSummary(): string {
-    return `${this.totalSets} sets, ${this.totalReps} reps, ${this.totalVolume}kg volume`;
+    const weightDisplay = this.maxWeight !== null 
+      ? `Max weight: ${this.maxWeight}kg`
+      : 'Bodyweight only';
+    
+    return `${this.totalSets} sets, ${this.totalReps} reps, ${this.totalVolume}kg volume, ${weightDisplay}`;
   }
 
   // Check if bodyweight only workout
   async isBodyweightOnly(): Promise<boolean> {
     const sets = await this.getSets();
-    return sets.every(set => set.weight === 0);
+    const completedSets = sets.filter(s => s.isCompleted);
+    return completedSets.length > 0 && completedSets.every(set => set.weight === null || set.weight === 0);
+  }
+
+  // Check if any weighted sets
+  hasWeightedSets(): boolean {
+    return this.maxWeight !== null;
+  }
+
+  // Get formatted duration
+  getFormattedDuration(): string {
+    const hours = Math.floor(this.duration / 60);
+    const minutes = this.duration % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   }
 
   // Static methods
@@ -107,7 +133,7 @@ class WorkoutSession extends Model<
   static async getPersonalBest(
     userId: number,
     workoutId: number
-  ): Promise<{ maxWeight: number; maxVolume: number } | null> {
+  ): Promise<{ maxWeight: number | null; maxVolume: number } | null> {
     const sessions = await this.findAll({
       where: { userId, workoutId },
       order: [['completedAt', 'DESC']],
@@ -116,9 +142,38 @@ class WorkoutSession extends Model<
 
     if (sessions.length === 0) return null;
 
+    const weightedSessions = sessions.filter(s => s.maxWeight !== null);
+    const weights = weightedSessions.map(s => s.maxWeight as number);
+
     return {
-      maxWeight: Math.max(...sessions.map(s => s.maxWeight || 0)),
+      maxWeight: weights.length > 0 ? Math.max(...weights) : null,
       maxVolume: Math.max(...sessions.map(s => s.totalVolume || 0)),
+    };
+  }
+
+  static async getBodyweightStats(
+    userId: number,
+    workoutId?: number
+  ): Promise<{
+    totalBodyweightSessions: number;
+    totalWeightedSessions: number;
+    percentageBodyweight: number;
+  }> {
+    const where: any = { userId };
+    if (workoutId) {
+      where.workoutId = workoutId;
+    }
+
+    const sessions = await this.findAll({ where });
+    
+    const bodyweightSessions = sessions.filter(s => s.maxWeight === null).length;
+    const weightedSessions = sessions.filter(s => s.maxWeight !== null).length;
+    const total = sessions.length;
+
+    return {
+      totalBodyweightSessions: bodyweightSessions,
+      totalWeightedSessions: weightedSessions,
+      percentageBodyweight: total > 0 ? Math.round((bodyweightSessions / total) * 100) : 0,
     };
   }
 }
@@ -182,9 +237,15 @@ WorkoutSession.init(
     },
     maxWeight: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-      defaultValue: 0,
+      allowNull: true, // Nullable for bodyweight-only workouts
+      defaultValue: null, // Default to null instead of 0
       field: 'max_weight',
+      validate: {
+        min: {
+          args: [0],
+          msg: 'Max weight cannot be negative',
+        },
+      },
     },
     completedAt: {
       type: DataTypes.DATE,
@@ -233,7 +294,25 @@ WorkoutSession.init(
         fields: ['user_id', 'completed_at'],
         name: 'workout_sessions_user_completed_idx',
       },
+      {
+        fields: ['max_weight'],
+        name: 'workout_sessions_max_weight_idx',
+      },
     ],
+    hooks: {
+      beforeCreate: async (session: WorkoutSession) => {
+        // Convert 0 maxWeight to null for consistency
+        if (session.maxWeight === 0) {
+          session.maxWeight = null;
+        }
+      },
+      beforeUpdate: async (session: WorkoutSession) => {
+        // Convert 0 maxWeight to null for consistency
+        if (session.maxWeight === 0) {
+          session.maxWeight = null;
+        }
+      },
+    },
   }
 );
 

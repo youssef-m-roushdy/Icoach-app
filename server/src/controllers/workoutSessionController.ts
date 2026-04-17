@@ -171,7 +171,7 @@ export const getWorkoutSessionById = async (
     // Calculate additional stats
     const sets = workoutSession.sets || [];
     const completedSets = sets.filter(s => s.isCompleted).length;
-    const isBodyweightOnly = sets.every(s => Number(s.weight) === 0);
+    const isBodyweightOnly = sets.every(s => s.weight === null || Number(s.weight) === 0);
 
     res.status(200).json({
       success: true,
@@ -182,9 +182,12 @@ export const getWorkoutSessionById = async (
           completedSets,
           isBodyweightOnly,
           maxWeight: workoutSession.maxWeight,
-          averageWeight: sets.length > 0 
-            ? sets.reduce((sum, s) => sum + Number(s.weight), 0) / sets.length 
-            : 0,
+          averageWeight: (() => {
+            const weightedSets = sets.filter(s => s.weight !== null && Number(s.weight) > 0);
+            return weightedSets.length > 0
+              ? weightedSets.reduce((sum, s) => sum + Number(s.weight), 0) / weightedSets.length
+              : null;
+          })(),
         },
       },
     });
@@ -241,7 +244,7 @@ export const createWorkoutSession = async (
         sessionId: workoutSession.id,
         setNumber: index + 1,
         reps: set.reps,
-        weight: set.weight || 0,
+        weight: set.weight !== undefined ? set.weight : null,
         isCompleted: set.is_completed ?? true,
         completedAt: set.completed_at || (set.is_completed !== false ? new Date() : null),
         restTimeSeconds: set.rest_time_seconds,
@@ -343,7 +346,7 @@ export const updateWorkoutSession = async (
           sessionId: workoutSession.id,
           setNumber: index + 1,
           reps: set.reps,
-          weight: set.weight || 0,
+          weight: set.weight !== undefined ? set.weight : null,
           isCompleted: set.is_completed ?? true,
           completedAt: set.completed_at || (set.is_completed !== false ? new Date() : null),
           restTimeSeconds: set.rest_time_seconds,
@@ -419,7 +422,7 @@ export const addSetToWorkoutSession = async (
       sessionId: workoutSession.id,
       setNumber: nextSetNumber,
       reps,
-      weight: weight || 0,
+      weight: weight !== undefined ? weight : null,
       isCompleted: is_completed ?? true,
       completedAt: is_completed !== false ? new Date() : null,
       restTimeSeconds: rest_time_seconds,
@@ -709,9 +712,12 @@ export const getWorkoutSessionStats = async (
     const totalReps = sessions.reduce((sum, s) => sum + (s.totalReps || 0), 0);
     
     // Find max weight across all sessions
-    const maxWeight = sessions.length > 0 
-      ? Math.max(...sessions.map(s => Number(s.maxWeight) || 0))
-      : 0;
+    const maxWeight = (() => {
+      const weights = sessions
+        .filter(s => s.maxWeight !== null)
+        .map(s => Number(s.maxWeight));
+      return weights.length > 0 ? Math.max(...weights) : null;
+    })();
 
     // Group by date for chart data
     const chartData = sessions.reduce((acc: Record<string, any>, session) => {

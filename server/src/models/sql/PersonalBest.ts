@@ -13,7 +13,7 @@ export interface PersonalBestAttributes {
   userId: number;
   workoutId: number;
   exerciseName: string;
-  weight: number;
+  weight: number | null; // ✅ CHANGED: Allow null for bodyweight exercises
   reps: number;
   achievedAt: Date;
   createdAt: Date;
@@ -24,6 +24,7 @@ export interface PersonalBestCreationAttributes
   extends Optional<
     PersonalBestAttributes,
     | 'id'
+    | 'weight' // ✅ CHANGED: weight is now optional on creation
     | 'createdAt'
     | 'updatedAt'
   > {}
@@ -36,7 +37,7 @@ class PersonalBest extends Model<
   declare userId: number;
   declare workoutId: number;
   declare exerciseName: string;
-  declare weight: number;
+  declare weight: CreationOptional<number | null>; // ✅ CHANGED: Allow null
   declare reps: number;
   declare achievedAt: Date;
   declare readonly createdAt: CreationOptional<Date>;
@@ -44,7 +45,15 @@ class PersonalBest extends Model<
 
   // Format for display
   getDisplayValue(): string {
+    if (this.weight === null || this.weight === 0) {
+      return `Bodyweight${this.reps > 1 ? ` × ${this.reps}` : ''}`;
+    }
     return `${this.weight} kg${this.reps > 1 ? ` × ${this.reps}` : ''}`;
+  }
+
+  // Helper method to check if this is a bodyweight personal best
+  isBodyweight(): boolean {
+    return this.weight === null || this.weight === 0;
   }
 }
 
@@ -59,7 +68,7 @@ PersonalBest.init(
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'user_id', // ADD THIS
+      field: 'user_id',
       references: {
         model: 'users',
         key: 'id',
@@ -69,7 +78,7 @@ PersonalBest.init(
     workoutId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      field: 'workout_id', // ADD THIS
+      field: 'workout_id',
       references: {
         model: 'workouts',
         key: 'id',
@@ -79,14 +88,19 @@ PersonalBest.init(
     exerciseName: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      field: 'exercise_name', // ADD THIS
+      field: 'exercise_name',
     },
     weight: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      allowNull: true, // ✅ CHANGED: Allow null for bodyweight
+      defaultValue: null, // ✅ CHANGED: Default to null
       field: 'weight',
       validate: {
-        min: 0,
+        isWeightValid(value: number | null) {
+          if (value !== null && value < 0) {
+            throw new Error('Weight cannot be negative');
+          }
+        },
       },
     },
     reps: {
@@ -101,19 +115,19 @@ PersonalBest.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'achieved_at', // ADD THIS
+      field: 'achieved_at',
     },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'created_at', // ADD THIS
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
-      field: 'updated_at', // ADD THIS
+      field: 'updated_at',
     },
   },
   {
@@ -121,16 +135,34 @@ PersonalBest.init(
     tableName: 'personal_bests',
     modelName: 'PersonalBest',
     timestamps: true,
-    underscored: true, // ADD THIS
+    underscored: true,
     indexes: [
       {
         unique: true,
-        fields: ['user_id', 'workout_id'], // Change to snake_case
+        fields: ['user_id', 'workout_id'],
       },
       {
-        fields: ['user_id'], // Change to snake_case
+        fields: ['user_id'],
+      },
+      {
+        fields: ['weight'], // ✅ ADDED: Index for querying weighted PBs
+        name: 'personal_bests_weight_idx',
       },
     ],
+    hooks: {
+      beforeCreate: async (pb: PersonalBest) => {
+        // Convert 0 weight to null for consistency
+        if (pb.weight === 0) {
+          pb.weight = null;
+        }
+      },
+      beforeUpdate: async (pb: PersonalBest) => {
+        // Convert 0 weight to null for consistency
+        if (pb.weight === 0) {
+          pb.weight = null;
+        }
+      },
+    },
   }
 );
 

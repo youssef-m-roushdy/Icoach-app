@@ -158,9 +158,10 @@ router.get('/:setId', validateGetWorkoutSessionSet, getSetById);
  *                 maximum: 100
  *               weight:
  *                 type: number
+ *                 nullable: true
  *                 minimum: 0
  *                 maximum: 1000
- *                 default: 0
+ *                 description: Weight in kg. Set to null for bodyweight exercises
  *               is_completed:
  *                 type: boolean
  *                 default: true
@@ -221,8 +222,9 @@ router.post('/', validateAddSetToWorkoutSession, addSetToWorkoutSession);
  *                       maximum: 100
  *                     weight:
  *                       type: number
+ *                       nullable: true
  *                       minimum: 0
- *                       default: 0
+ *                       description: Weight in kg. Set to null for bodyweight exercises
  *                     is_completed:
  *                       type: boolean
  *                       default: true
@@ -273,7 +275,9 @@ router.post('/bulk', validateBulkAddSetsToWorkoutSession, bulkAddSetsToWorkoutSe
  *                 maximum: 100
  *               weight:
  *                 type: number
+ *                 nullable: true
  *                 minimum: 0
+ *                 description: Weight in kg. Set to null for bodyweight exercises
  *               is_completed:
  *                 type: boolean
  *               rest_time_seconds:
@@ -369,6 +373,9 @@ router.patch('/:setId/complete', validateMarkSetCompleted, markSetCompleted);
  *                       type: integer
  *                     weight:
  *                       type: number
+ *                       nullable: true
+ *                       minimum: 0
+ *                       description: Weight in kg. Set to null for bodyweight exercises
  *                     is_completed:
  *                       type: boolean
  *                     rest_time_seconds:

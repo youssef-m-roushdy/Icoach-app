@@ -54,6 +54,8 @@ router.use(authenticate);
  *           example: 15
  *         weight:
  *           type: number
+ *           nullable: true
+ *           description: Weight in kg. null for bodyweight exercises
  *           example: 20.5
  *         isCompleted:
  *           type: boolean
@@ -96,7 +98,8 @@ router.use(authenticate);
  *           example: 33
  *         maxWeight:
  *           type: number
- *           description: Maximum weight used in any set
+ *           nullable: true
+ *           description: Maximum weight used in any set. null for bodyweight-only workouts
  *           example: 30
  *         completedAt:
  *           type: string
@@ -326,9 +329,10 @@ router.get('/:id', validateWorkoutSessionId, getWorkoutSessionById);
  *                       example: 15
  *                     weight:
  *                       type: number
+ *                       nullable: true
  *                       minimum: 0
  *                       maximum: 1000
- *                       default: 0
+ *                       description: Weight in kg. Set to null for bodyweight exercises
  *                       example: 20
  *                     is_completed:
  *                       type: boolean
@@ -400,7 +404,9 @@ router.post('/', validateCreateWorkoutSession, createWorkoutSession);
  *                       minimum: 1
  *                     weight:
  *                       type: number
+ *                       nullable: true
  *                       minimum: 0
+ *                       description: Weight in kg. Set to null for bodyweight exercises
  *                     is_completed:
  *                       type: boolean
  *                     rest_time_seconds:
@@ -480,8 +486,9 @@ router.delete('/:id', validateWorkoutSessionId, deleteWorkoutSession);
  *                 maximum: 100
  *               weight:
  *                 type: number
+ *                 nullable: true
  *                 minimum: 0
- *                 default: 0
+ *                 description: Weight in kg. Set to null for bodyweight exercises
  *               is_completed:
  *                 type: boolean
  *                 default: true
@@ -537,7 +544,9 @@ router.post('/:id/sets',
  *                 minimum: 1
  *               weight:
  *                 type: number
+ *                 nullable: true
  *                 minimum: 0
+ *                 description: Weight in kg. Set to null for bodyweight exercises
  *               is_completed:
  *                 type: boolean
  *               rest_time_seconds:

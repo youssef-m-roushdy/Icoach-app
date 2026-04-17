@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { User, WorkoutSession, PersonalBest, UserMetrics, Workout } from '../models/sql/index.js'; // Add Workout import
+import { User, WorkoutSession, PersonalBest, UserMetrics, Workout } from '../models/sql/index.js';
 import { MetricsCalculationService } from '../services/metricsCalculationService.js';
 import { Op } from 'sequelize';
 import { AppError } from '../utils/errors.js';
@@ -45,11 +45,11 @@ export const getProgressDashboard = async (
     if (!latestMetrics) {
       const calculatedMetrics = await MetricsCalculationService.calculateAllMetrics(user.id);
       
-      // Create metrics record - Fix the date type
+      // Create metrics record
       const today = new Date().toISOString().split('T')[0];
       latestMetrics = await UserMetrics.create({
         userId: user.id,
-        date: today as any, // Temporary fix - we know this is a string but model expects Date
+        date: today as any,
         fitnessScore: calculatedMetrics.fitnessScore,
         strength: calculatedMetrics.strength,
         endurance: calculatedMetrics.endurance,
@@ -67,11 +67,11 @@ export const getProgressDashboard = async (
       });
     }
 
-    // Get personal bests with workout details - FIXED: using the correct association
+    // Get personal bests with workout details
     const personalBests = await PersonalBest.findAll({
       where: { userId: user.id },
       include: [{
-        model: Workout,  // Now this will work because association is defined
+        model: Workout,
         as: 'workout',
         attributes: ['name']
       }],
@@ -79,13 +79,22 @@ export const getProgressDashboard = async (
       limit: 5,
     });
 
-    // Format personal bests for the screen with null check
+    // Format personal bests for the screen with proper null handling
     const formattedPersonalBests = personalBests.map(pb => {
-      // Access workout through the association
-      const workoutName = (pb as any).workout?.name; // Use type assertion as temporary fix
+      const workoutName = (pb as any).workout?.name;
+      
+      // Handle bodyweight personal bests (weight === null or 0)
+      let value: string;
+      if (pb.weight === null || pb.weight === 0) {
+        value = `Bodyweight${pb.reps > 1 ? ` × ${pb.reps}` : ''}`;
+      } else {
+        value = `${pb.weight} kg${pb.reps > 1 ? ` × ${pb.reps}` : ''}`;
+      }
+      
       return {
         exercise: workoutName || pb.exerciseName,
-        value: `${pb.weight} kg${pb.reps > 1 ? ` × ${pb.reps}` : ''}`,
+        value,
+        isBodyweight: pb.weight === null || pb.weight === 0, // Helpful flag for frontend
       };
     });
 
@@ -134,7 +143,6 @@ export const getProgressDashboard = async (
     next(error);
   }
 };
-
 
 /**
  * Get historical metrics for charts

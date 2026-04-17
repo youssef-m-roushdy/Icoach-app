@@ -175,17 +175,29 @@ export class MetricsCalculationService {
   }
 
   // ---------------------------------------------------------------------------
-  // Strength score
+  // Strength score - UPDATED for nullable weights
   // ---------------------------------------------------------------------------
   private static async calculateStrengthScore(userId: number, bodyWeight: number): Promise<number> {
+    // Only get personal bests that have a weight (exclude bodyweight-only PBs)
     const pbs = await PersonalBest.findAll({
-      where: { userId }, order: [['weight', 'DESC']], limit: 5
+      where: { 
+        userId,
+        weight: { [Op.ne]: null } // Exclude null weights for strength calculation
+      },
+      order: [['weight', 'DESC']],
+      limit: 5
     });
+    
+    // If no weighted personal bests, strength score is 0
     if (!pbs || pbs.length === 0) return 0;
 
     let totalRatio = 0;
     for (const pb of pbs) {
-      totalRatio += Math.min((Number(pb.weight) / bodyWeight) * 2, 10);
+      const weight = Number(pb.weight);
+      // Double-check weight is valid (should be due to where clause, but safe)
+      if (weight > 0) {
+        totalRatio += Math.min((weight / bodyWeight) * 2, 10);
+      }
     }
     return Number((totalRatio / pbs.length).toFixed(1));
   }

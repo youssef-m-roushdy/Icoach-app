@@ -15,7 +15,7 @@ export interface WorkoutSessionSetAttributes {
   sessionId: number;
   setNumber: number; // 1, 2, 3, etc.
   reps: number;
-  weight: number; // 0 for bodyweight exercises
+  weight: number | null; // null for bodyweight exercises
   isCompleted: boolean;
   completedAt: Date | null;
   restTimeSeconds?: number | null; // rest time after this set
@@ -45,21 +45,25 @@ class WorkoutSessionSet extends Model<
   declare sessionId: number;
   declare setNumber: number;
   declare reps: number;
-  declare weight: CreationOptional<number>;
+  declare weight: CreationOptional<number | null>;
   declare isCompleted: CreationOptional<boolean>;
   declare completedAt: CreationOptional<Date | null>;
-  declare restTimeSeconds: number | null;
-  declare notes: string | null;
+  declare restTimeSeconds: CreationOptional<number | null>;
+  declare notes: CreationOptional<string | null>;
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
 
   // Instance methods
   getVolume(): number {
-    return this.reps * (this.weight || 0);
+    // For bodyweight exercises (weight = null), volume is 0
+    if (this.weight === null) {
+      return 0;
+    }
+    return this.reps * Number(this.weight);
   }
 
   getDisplayString(): string {
-    if (this.weight && this.weight > 0) {
+    if (this.weight !== null && this.weight > 0) {
       return `Set ${this.setNumber}: ${this.reps} reps @ ${this.weight}kg`;
     }
     return `Set ${this.setNumber}: ${this.reps} reps (bodyweight)`;
@@ -68,6 +72,14 @@ class WorkoutSessionSet extends Model<
   markCompleted(): void {
     this.isCompleted = true;
     this.completedAt = new Date();
+  }
+
+  isBodyweight(): boolean {
+    return this.weight === null;
+  }
+
+  hasWeight(): boolean {
+    return this.weight !== null && this.weight > 0;
   }
 
   // Static methods
@@ -79,15 +91,67 @@ class WorkoutSessionSet extends Model<
   }
 
   static async getNextSetNumber(sessionId: number): Promise<number> {
-    const count = await this.count({ where: { sessionId } });
-    return count + 1;
+    const lastSet = await this.findOne({
+      where: { sessionId },
+      order: [['setNumber', 'DESC']],
+    });
+    return lastSet ? lastSet.setNumber + 1 : 1;
   }
 
   static async getTotalVolume(sessionId: number): Promise<number> {
     const sets = await this.findAll({ where: { sessionId } });
     return sets.reduce((sum, set) => sum + set.getVolume(), 0);
   }
+
+  static async getMaxWeight(sessionId: number): Promise<number | null> {
+    const result = await this.findOne({
+      where: { 
+        sessionId,
+        weight: { [Op.ne]: null } // Exclude null weights
+      },
+      order: [['weight', 'DESC']],
+      attributes: ['weight'],
+    });
+    
+    return result?.weight ? Number(result.weight) : null;
+  }
+
+  static async getSessionStats(sessionId: number): Promise<{
+    totalSets: number;
+    completedSets: number;
+    totalReps: number;
+    totalVolume: number;
+    maxWeight: number | null;
+    bodyweightSets: number;
+    weightedSets: number;
+  }> {
+    const sets = await this.findAll({ where: { sessionId } });
+    
+    const totalSets = sets.length;
+    const completedSets = sets.filter(s => s.isCompleted).length;
+    const totalReps = sets.reduce((sum, s) => sum + s.reps, 0);
+    const totalVolume = sets.reduce((sum, s) => sum + s.getVolume(), 0);
+    
+    const weightedSets = sets.filter(s => s.weight !== null && s.weight > 0);
+    const bodyweightSets = sets.filter(s => s.weight === null);
+    
+    const weights = weightedSets.map(s => Number(s.weight));
+    const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
+
+    return {
+      totalSets,
+      completedSets,
+      totalReps,
+      totalVolume,
+      maxWeight,
+      bodyweightSets: bodyweightSets.length,
+      weightedSets: weightedSets.length,
+    };
+  }
 }
+
+// Import Op for the static method
+import { Op } from 'sequelize';
 
 WorkoutSessionSet.init(
   {
@@ -135,17 +199,19 @@ WorkoutSessionSet.init(
     },
     weight: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
-      defaultValue: 0,
+      allowNull: true,
+      defaultValue: null, // CHANGED: Now defaults to null for bodyweight
       field: 'weight',
       validate: {
-        min: {
-          args: [0],
-          msg: 'Weight cannot be negative',
-        },
-        max: {
-          args: [1000],
-          msg: 'Weight cannot exceed 1000kg',
+        isWeightValid(value: number | null) {
+          if (value !== null) {
+            if (value < 0) {
+              throw new Error('Weight cannot be negative');
+            }
+            if (value > 1000) {
+              throw new Error('Weight cannot exceed 1000kg');
+            }
+          }
         },
       },
     },
@@ -216,13 +282,28 @@ WorkoutSessionSet.init(
     ],
     hooks: {
       beforeCreate: async (set: WorkoutSessionSet) => {
+        // Convert 0 weight to null for consistency
+        if (set.weight === 0) {
+          set.weight = null;
+        }
+        
         if (set.isCompleted && !set.completedAt) {
           set.completedAt = new Date();
         }
       },
       beforeUpdate: async (set: WorkoutSessionSet) => {
+        // Convert 0 weight to null for consistency
+        if (set.weight === 0) {
+          set.weight = null;
+        }
+        
         if (set.changed('isCompleted') && set.isCompleted && !set.completedAt) {
           set.completedAt = new Date();
+        }
+        
+        // Clear completedAt if marking as incomplete
+        if (set.changed('isCompleted') && !set.isCompleted) {
+          set.completedAt = null;
         }
       },
       afterCreate: async (set: WorkoutSessionSet) => {

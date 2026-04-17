@@ -71,7 +71,12 @@ router.use(authenticate)
  *                 example: "Bench Press"
  *               value:
  *                 type: string
+ *                 description: Formatted value (e.g., "120 kg" or "Bodyweight × 15")
  *                 example: "120 kg"
+ *               isBodyweight:
+ *                 type: boolean
+ *                 description: Whether this is a bodyweight personal best
+ *                 example: false
  *     
  *     ProgressDashboard:
  *       type: object
@@ -143,7 +148,7 @@ router.use(authenticate)
  *       - Current fitness metrics
  *       - Points and badge level
  *       - Training statistics
- *       - Personal bests
+ *       - Personal bests (including bodyweight achievements)
  *       
  *       Optional: Include historical data by using query parameters.
  *     security:
