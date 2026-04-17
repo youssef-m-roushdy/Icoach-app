@@ -593,23 +593,28 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             </Text>
           </View>
           
-          <View style={styles.detailItem}>
-            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
-              <Ionicons name="barbell" size={14} color={colors.primary} />
+          {/* Weight - Only show if there's actual weight used */}
+          {maxWeight !== null && maxWeight > 0 && (
+            <View style={styles.detailItem}>
+              <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+                <Ionicons name="barbell" size={14} color={colors.primary} />
+              </View>
+              <Text style={[styles.detailText, { color: colors.text }]}>
+                {maxWeight} kg
+              </Text>
             </View>
-            <Text style={[styles.detailText, { color: colors.text }]}>
-              {maxWeight} kg
-            </Text>
-          </View>
-          
-          <View style={styles.detailItem}>
-            <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
-              <Ionicons name="fitness" size={14} color={colors.primary} />
-            </View>
-            <Text style={[styles.detailText, { color: colors.text }]}>
-              {totalVolume} kg
-            </Text>
-          </View>
+          )}
+                    
+                    {totalVolume > 0 && (
+              <View style={styles.detailItem}>
+                <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+                  <Ionicons name="fitness" size={14} color={colors.primary} />
+                </View>
+                <Text style={[styles.detailText, { color: colors.text }]}>
+                  {totalVolume} kg
+                </Text>
+              </View>
+            )}
           
           <View style={styles.detailItem}>
             <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>

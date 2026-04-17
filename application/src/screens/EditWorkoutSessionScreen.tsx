@@ -1,4 +1,4 @@
-// EditWorkoutSessionScreen.tsx - Fixed with proper keyboard padding pattern
+// EditWorkoutSessionScreen.tsx - Simple: Only Add Set reloads, Update/Delete are optimistic
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   View,
@@ -74,8 +74,6 @@ interface EditableSet {
   isCompleted: boolean;
   restTimeSeconds?: string;
   notes?: string;
-  isNew?: boolean;
-  isDeleted?: boolean;
 }
 
 export default function EditWorkoutSessionScreen({ navigation, route }: EditWorkoutSessionScreenProps) {
@@ -89,12 +87,14 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
   const setSheetRef = useRef<BottomSheetModal>(null);
+  const setSheetScrollRef = useRef<ScrollView>(null);
   const deleteSetSheetRef = useRef<BottomSheetModal>(null);
 
   // State
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Session details
   const [duration, setDuration] = useState("");
@@ -118,14 +118,10 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   const deleteSetSnapPoints = useMemo(() => ["30%"], []);
 
   // Load session data
-  useEffect(() => {
-    loadSession();
-  }, [sessionId]);
-
   const loadSession = async () => {
     try {
       if (!token) return;
-      setLoading(true);
+      setRefreshing(true);
 
       const response = await workoutSessionService.getWorkoutSessionById(sessionId, token);
 
@@ -137,7 +133,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         const editableSets: EditableSet[] = (response.data.sets || []).map((set: any) => ({
           id: set.id,
           reps: set.reps?.toString() || "0",
-          weight: set.weight?.toString() || "0",
+          weight: set.weight !== null && set.weight !== undefined ? set.weight.toString() : "",
           isCompleted: set.isCompleted || false,
           restTimeSeconds: set.restTimeSeconds?.toString(),
           notes: set.notes || undefined,
@@ -157,8 +153,13 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    loadSession();
+  }, []);
 
   // ── Session Details Handlers ──────────────────────────────────────────────
   const handleSaveSessionDetails = async () => {
@@ -168,6 +169,18 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         message: "Duration must be a positive number",
       });
       return;
+    }
+
+    // Optimistic update
+    const previousDuration = session?.duration;
+    const previousNotes = session?.notes;
+    
+    if (session) {
+      setSession({
+        ...session,
+        duration: parseInt(duration),
+        notes: notes || null,
+      });
     }
 
     setSaving(true);
@@ -184,9 +197,25 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
       if (response.success) {
         showSuccessToast({ title: "Success", message: "Session details updated" });
       } else {
+        // Rollback
+        if (session) {
+          setSession({
+            ...session,
+            duration: previousDuration || 0,
+            notes: previousNotes || null,
+          });
+        }
         showErrorToast({ title: "Error", message: response.message || "Failed to update session" });
       }
     } catch (error) {
+      // Rollback
+      if (session) {
+        setSession({
+          ...session,
+          duration: previousDuration || 0,
+          notes: previousNotes || null,
+        });
+      }
       console.error("Failed to update session:", error);
       showErrorToast({ title: "Error", message: getErrorMessage(error) || "Failed to update session" });
     } finally {
@@ -204,65 +233,102 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
     setSetFormRestTime("");
     setSetFormNotes("");
     setSheetRef.current?.present();
+    
+    setTimeout(() => {
+      setSheetScrollRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   const openEditSetSheet = (set: EditableSet, index: number) => {
     setEditingSet(set);
     setEditingSetIndex(index);
     setSetFormReps(set.reps);
-    setSetFormWeight(set.weight);
+    setSetFormWeight(set.weight || "");
     setSetFormCompleted(set.isCompleted);
     setSetFormRestTime(set.restTimeSeconds || "");
     setSetFormNotes(set.notes || "");
     setSheetRef.current?.present();
+    
+    setTimeout(() => {
+      setSheetScrollRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
   };
 
   const closeSetSheet = () => setSheetRef.current?.dismiss();
 
   const handleSaveSet = async () => {
+    // Validate reps
     if (!setFormReps || parseInt(setFormReps) <= 0) {
       showErrorToast({ title: "Validation Error", message: "Reps must be a positive number" });
       return;
     }
-    if (!setFormWeight || parseFloat(setFormWeight) < 0) {
-      showErrorToast({ title: "Validation Error", message: "Weight cannot be negative" });
-      return;
+    
+    // Weight is optional - only validate if provided
+    if (setFormWeight && setFormWeight.trim() !== "") {
+      const weightValue = parseFloat(setFormWeight);
+      if (isNaN(weightValue) || weightValue < 0) {
+        showErrorToast({ title: "Validation Error", message: "Weight cannot be negative" });
+        return;
+      }
     }
 
-    const setData = {
+    const setData: any = {
       reps: parseInt(setFormReps),
-      weight: parseFloat(setFormWeight),
       is_completed: setFormCompleted,
       rest_time_seconds: setFormRestTime ? parseInt(setFormRestTime) : undefined,
       notes: setFormNotes || undefined,
     };
 
+    if (setFormWeight && setFormWeight.trim() !== "") {
+      setData.weight = parseFloat(setFormWeight);
+    } else {
+      setData.weight = null;
+    }
+
     setSaving(true);
     try {
       if (editingSet && editingSet.id) {
-        const response = await workoutSessionSetService.updateSet(
-          sessionId, 
-          editingSet.id, 
-          setData, 
-          token!
+        // UPDATE - Optimistic
+        const previousSets = [...sets];
+        const updatedSets = sets.map((s, i) => 
+          i === editingSetIndex 
+            ? {
+                ...s,
+                reps: setFormReps,
+                weight: setFormWeight,
+                isCompleted: setFormCompleted,
+                restTimeSeconds: setFormRestTime,
+                notes: setFormNotes,
+              }
+            : s
         );
-        if (response.success) {
-          showSuccessToast({ title: "Success", message: "Set updated successfully" });
-          closeSetSheet();
-          loadSession();
-        } else {
-          showErrorToast({ title: "Error", message: response.message || "Failed to update set" });
+        setSets(updatedSets);
+        closeSetSheet();
+        showSuccessToast({ title: "Success", message: "Set updated" });
+
+        try {
+          const response = await workoutSessionSetService.updateSet(
+            sessionId, 
+            editingSet.id, 
+            setData, 
+            token!
+          );
+          if (!response.success) {
+            setSets(previousSets);
+            showErrorToast({ title: "Error", message: response.message || "Failed to update set" });
+          }
+        } catch (error) {
+          setSets(previousSets);
+          throw error;
         }
       } else {
-        const response = await workoutSessionSetService.addSet(
-          sessionId,
-          setData,
-          token!
-        );
+        // ADD - Reload after success
+        closeSetSheet();
+        
+        const response = await workoutSessionSetService.addSet(sessionId, setData, token!);
         if (response.success) {
           showSuccessToast({ title: "Success", message: "Set added successfully" });
-          closeSetSheet();
-          loadSession();
+          await loadSession(); // Only reload for add
         } else {
           showErrorToast({ title: "Error", message: response.message || "Failed to add set" });
         }
@@ -288,27 +354,55 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   const handleDeleteSet = async () => {
     if (deletingSetIndex === null) return;
     const setToDelete = sets[deletingSetIndex];
-
+    
     if (setToDelete.id) {
+      // Optimistic delete
+      const previousSets = [...sets];
+      const updatedSets = sets.filter((_, i) => i !== deletingSetIndex);
+      setSets(updatedSets);
+      closeDeleteSetSheet();
+      showSuccessToast({ title: "Success", message: "Set deleted" });
+
       try {
         const response = await workoutSessionSetService.deleteSet(
-          sessionId, setToDelete.id, token!
+          sessionId, 
+          setToDelete.id, 
+          token!
         );
-        if (response.success) {
-          showSuccessToast({ title: "Success", message: "Set deleted successfully" });
-          closeDeleteSetSheet();
-          loadSession();
-        } else {
+        if (!response.success) {
+          setSets(previousSets);
           showErrorToast({ title: "Error", message: response.message || "Failed to delete set" });
         }
       } catch (error) {
+        setSets(previousSets);
         console.error("Failed to delete set:", error);
         showErrorToast({ title: "Error", message: getErrorMessage(error) || "Failed to delete set" });
       }
     } else {
+      // Remove unsaved set
       setSets(sets.filter((_, i) => i !== deletingSetIndex));
       closeDeleteSetSheet();
     }
+  };
+
+  const handleToggleComplete = (index: number) => {
+    const set = sets[index];
+    if (!set.id) return;
+    
+    // Optimistic toggle
+    const previousSets = [...sets];
+    const updatedSets = sets.map((s, i) => 
+      i === index ? { ...s, isCompleted: !s.isCompleted } : s
+    );
+    setSets(updatedSets);
+
+    // Sync with server
+    const setData = { is_completed: !set.isCompleted };
+    workoutSessionSetService.updateSet(sessionId, set.id, setData, token!)
+      .catch(error => {
+        console.error("Failed to sync completion status:", error);
+        setSets(previousSets);
+      });
   };
 
   // ── Backdrop ───────────────────────────────────────────────────────────────
@@ -338,7 +432,8 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
 
   // ── Calculations ───────────────────────────────────────────────────────────
   const totalVolume = sets.reduce((sum, set) => {
-    return sum + (parseInt(set.reps) || 0) * (parseFloat(set.weight) || 0);
+    const weight = set.weight && set.weight.trim() !== "" ? parseFloat(set.weight) : 0;
+    return sum + (parseInt(set.reps) || 0) * weight;
   }, 0);
 
   const completedSets = sets.filter((s) => s.isCompleted).length;
@@ -375,7 +470,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Main ScrollView with proper keyboard padding */}
+      {/* Main ScrollView */}
       <ScrollView
         ref={scrollViewRef}
         automaticallyAdjustKeyboardInsets
@@ -526,7 +621,11 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           </View>
 
           {/* Sets List */}
-          {sets.length === 0 ? (
+          {refreshing && sets.length === 0 ? (
+            <View style={styles.emptySets}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : sets.length === 0 ? (
             <View style={styles.emptySets}>
               <Ionicons name="barbell-outline" size={48} color={colors.textSecondary} />
               <Text style={[styles.emptySetsText, { color: colors.textSecondary }]}>
@@ -566,20 +665,16 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                     )}
                   </View>
                   <View style={styles.setActions}>
-                    <View
-                      style={[
-                        styles.setAction,
-                        {
-                          backgroundColor: colors.primary + "15",
-                        },
-                      ]}
+                    <TouchableOpacity
+                      style={[styles.setAction, { backgroundColor: colors.primary + "15" }]}
+                      onPress={() => handleToggleComplete(index)}
                     >
                       <Ionicons
                         name={set.isCompleted ? "checkmark-circle" : "checkmark-circle-outline"}
                         size={18}
                         color={colors.primary}
                       />
-                    </View>
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.setAction, { backgroundColor: colors.primary + "15" }]}
                       onPress={() => openEditSetSheet(set, index)}
@@ -602,12 +697,14 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                       {set.reps} reps
                     </Text>
                   </View>
-                  <View style={styles.setDetail}>
-                    <Ionicons name="barbell" size={14} color={colors.primary} />
-                    <Text style={[styles.setDetailText, { color: colors.text }]}>
-                      {set.weight} kg
-                    </Text>
-                  </View>
+                  {set.weight && parseFloat(set.weight) > 0 && (
+                    <View style={styles.setDetail}>
+                      <Ionicons name="barbell" size={14} color={colors.primary} />
+                      <Text style={[styles.setDetailText, { color: colors.text }]}>
+                        {set.weight} kg
+                      </Text>
+                    </View>
+                  )}
                   {set.restTimeSeconds && (
                     <View style={styles.setDetail}>
                       <Ionicons name="timer" size={14} color={colors.primary} />
@@ -645,6 +742,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         android_keyboardInputMode="adjustResize"
       >
         <BottomSheetScrollView
+          ref={setSheetScrollRef}
           contentContainerStyle={[
             styles.sheetContent,
             {
@@ -671,13 +769,13 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>Weight (kg) *</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Weight (kg) - Optional</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, color: colors.text }]}
               keyboardType="numeric"
               value={setFormWeight}
               onChangeText={setSetFormWeight}
-              placeholder="e.g., 50"
+              placeholder="Leave empty for bodyweight"
               placeholderTextColor={colors.placeholder}
             />
           </View>
@@ -795,361 +893,67 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  decorativeCircle1: {
-    position: "absolute",
-    top: -100,
-    right: -100,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-  },
-  decorativeCircle2: {
-    position: "absolute",
-    bottom: -50,
-    left: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-  },
-  decorativeCircle3: {
-    position: "absolute",
-    top: "30%",
-    left: "-20%",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: "transparent",
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  section: {
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  workoutMeta: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  workoutMetaText: {
-    fontSize: 14,
-    opacity: 0.8,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    opacity: 0.9,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 14,
-    textAlignVertical: "top",
-  },
-  saveButton: {
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 6,
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  setsSummary: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 18,
-    marginBottom: 16,
-    borderRadius: 16,
-  },
-  summaryItem: {
-    alignItems: "center",
-    flex: 1,
-  },
-  summaryDivider: {
-    width: 1,
-    height: 32,
-    opacity: 0.4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    marginBottom: 6,
-    fontWeight: "500",
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  emptySets: {
-    alignItems: "center",
-    paddingVertical: 50,
-  },
-  emptySetsText: {
-    fontSize: 16,
-    marginTop: 12,
-    marginBottom: 20,
-    opacity: 0.7,
-  },
-  emptyAddButton: {
-    borderWidth: 1.5,
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  emptyAddButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  setCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  setHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  setNumber: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  setNumberText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  completedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
-    gap: 4,
-  },
-  completedBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  setActions: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  setAction: {
-    padding: 10,
-    borderRadius: 10,
-  },
-  setDetails: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 18,
-    marginBottom: 8,
-  },
-  setDetail: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  setDetailText: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  setNotes: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-  },
-  setNotesText: {
-    fontSize: 13,
-    flex: 1,
-    opacity: 0.8,
-    lineHeight: 18,
-  },
-  sheetContent: {
-    padding: 24,
-  },
-  sheetTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  switchGroup: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 8,
-    paddingVertical: 8,
-  },
-  sheetFooter: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 28,
-  },
-  sheetButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelButton: {
-    borderWidth: 1,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  saveSheetButton: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveSheetButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  deleteSheetContent: {
-    alignItems: "center",
-    padding: 28,
-  },
-  deleteIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#ef4444" + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  deleteTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  deleteMessage: {
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: 28,
-    opacity: 0.8,
-    lineHeight: 22,
-    paddingHorizontal: 10,
-  },
-  deleteButtons: {
-    flexDirection: "row",
-    gap: 14,
-    width: "100%",
-  },
-  deleteButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  cancelDeleteButton: {
-    borderWidth: 1,
-  },
-  cancelDeleteText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  confirmDeleteButton: {
-    shadowColor: "#ef4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  confirmDeleteText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  container: { flex: 1 },
+  decorativeCircle1: { position: "absolute", top: -100, right: -100, width: 250, height: 250, borderRadius: 125 },
+  decorativeCircle2: { position: "absolute", bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100 },
+  decorativeCircle3: { position: "absolute", top: "30%", left: "-20%", width: 150, height: 150, borderRadius: 75 },
+  centerContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, backgroundColor: "transparent" },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8 },
+  section: { borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 16 },
+  workoutMeta: { marginTop: 6, flexDirection: "row", alignItems: "center", gap: 6 },
+  workoutMetaText: { fontSize: 14, opacity: 0.8 },
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 8, opacity: 0.9 },
+  input: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15 },
+  textArea: { minHeight: 100, paddingTop: 14, textAlignVertical: "top" },
+  saveButton: { paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center", marginTop: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  saveButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  addButton: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 24, gap: 6 },
+  addButtonText: { fontSize: 14, fontWeight: "600" },
+  setsSummary: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 18, marginBottom: 16, borderRadius: 16 },
+  summaryItem: { alignItems: "center", flex: 1 },
+  summaryDivider: { width: 1, height: 32, opacity: 0.4 },
+  summaryLabel: { fontSize: 12, marginBottom: 6, fontWeight: "500" },
+  summaryValue: { fontSize: 20, fontWeight: "700" },
+  emptySets: { alignItems: "center", paddingVertical: 50 },
+  emptySetsText: { fontSize: 16, marginTop: 12, marginBottom: 20, opacity: 0.7 },
+  emptyAddButton: { borderWidth: 1.5, borderRadius: 24, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyAddButtonText: { fontSize: 15, fontWeight: "600" },
+  setCard: { borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  setHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  setNumber: { flexDirection: "row", alignItems: "center", gap: 10 },
+  setNumberText: { fontSize: 16, fontWeight: "600" },
+  completedBadge: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, gap: 4 },
+  completedBadgeText: { fontSize: 11, fontWeight: "600" },
+  setActions: { flexDirection: "row", gap: 6 },
+  setAction: { padding: 10, borderRadius: 10 },
+  setDetails: { flexDirection: "row", flexWrap: "wrap", gap: 18, marginBottom: 8 },
+  setDetail: { flexDirection: "row", alignItems: "center", gap: 8 },
+  setDetailText: { fontSize: 15, fontWeight: "500" },
+  setNotes: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
+  setNotesText: { fontSize: 13, flex: 1, opacity: 0.8, lineHeight: 18 },
+  sheetContent: { padding: 24 },
+  sheetTitle: { fontSize: 22, fontWeight: "700", marginBottom: 24, textAlign: "center" },
+  switchGroup: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 8, paddingVertical: 8 },
+  sheetFooter: { flexDirection: "row", gap: 12, marginTop: 28 },
+  sheetButton: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  cancelButton: { borderWidth: 1 },
+  cancelButtonText: { fontSize: 16, fontWeight: "600" },
+  saveSheetButton: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  saveSheetButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  deleteSheetContent: { alignItems: "center", padding: 28 },
+  deleteIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#ef4444" + "15", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  deleteTitle: { fontSize: 20, fontWeight: "700", marginBottom: 10 },
+  deleteMessage: { fontSize: 15, textAlign: "center", marginBottom: 28, opacity: 0.8, lineHeight: 22, paddingHorizontal: 10 },
+  deleteButtons: { flexDirection: "row", gap: 14, width: "100%" },
+  deleteButton: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: "center" },
+  cancelDeleteButton: { borderWidth: 1 },
+  cancelDeleteText: { fontSize: 16, fontWeight: "600" },
+  confirmDeleteButton: { shadowColor: "#ef4444", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+  confirmDeleteText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
 });
