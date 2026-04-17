@@ -215,20 +215,6 @@ export interface WaterIntakeGoalUpdateResponse {
 export const waterIntakeService = {
   /**
    * Sync water intake with the server
-   * 
-   * Sends the current water intake for the day to the server.
-   * The server will:
-   * - Update or create water intake record
-   * - Update streak if goal is achieved
-   * - Return updated stats
-   * 
-   * @param token - JWT access token
-   * @param intakeData - Water intake data to sync
-   * @param intakeData.amount - Amount of water consumed
-   * @param intakeData.unit - Unit of measurement ('L' or 'ML')
-   * @param intakeData.date - Date in YYYY-MM-DD format
-   * @param intakeData.goalInLiters - Optional custom daily goal in liters
-   * @returns Sync response with intake and streak info
    */
   async syncIntake(
     token: string,
@@ -236,14 +222,32 @@ export const waterIntakeService = {
   ): Promise<WaterIntakeSyncResponse> {
     return apiCallWithRefresh(
       async (accessToken) => {
-        console.log('💧 Syncing water intake:', intakeData.amount, intakeData.unit, 'for date:', intakeData.date);
+        // Convert ML to L if needed (server expects amount in liters for validation)
+        let amountInLiters = intakeData.amount;
+        if (intakeData.unit === 'ML') {
+          amountInLiters = intakeData.amount / 1000;
+        }
+        
+        // Ensure amount is within validation range (0 to 10)
+        const validatedAmount = Math.min(Math.max(amountInLiters, 0), 10);
+        
+        const payload = {
+          amount: validatedAmount,
+          unit: 'L' as const, // Always send as 'L' to avoid validation issues
+          date: intakeData.date,
+          ...(intakeData.goalInLiters !== undefined && { 
+            goalInLiters: Number(intakeData.goalInLiters) 
+          }),
+        };
+        
+        console.log('💧 Syncing water intake:', JSON.stringify(payload));
         
         return request<WaterIntakeSyncResponse>(
           '/v1/water-intake/sync',
           {
             method: 'POST',
             headers: createJsonHeaders(accessToken),
-            body: JSON.stringify(intakeData),
+            body: JSON.stringify(payload),
           }
         );
       },
@@ -253,15 +257,6 @@ export const waterIntakeService = {
 
   /**
    * Add water intake incrementally
-   * 
-   * Adds a specific amount of water to today's intake.
-   * Creates today's record if it doesn't exist.
-   * 
-   * @param token - JWT access token
-   * @param intakeData - Water amount to add
-   * @param intakeData.amount - Amount of water to add
-   * @param intakeData.unit - Unit of measurement ('L' or 'ML')
-   * @returns Add response with updated intake info
    */
   async addIntake(
     token: string,
@@ -269,14 +264,28 @@ export const waterIntakeService = {
   ): Promise<WaterIntakeAddResponse> {
     return apiCallWithRefresh(
       async (accessToken) => {
-        console.log('➕ Adding water intake:', intakeData.amount, intakeData.unit);
+        // Convert ML to L if needed (server expects amount in liters for validation)
+        let amountInLiters = intakeData.amount;
+        if (intakeData.unit === 'ML') {
+          amountInLiters = intakeData.amount / 1000;
+        }
+        
+        // Ensure amount is within validation range (0.001 to 10)
+        const validatedAmount = Math.min(Math.max(amountInLiters, 0.001), 10);
+        
+        const payload = {
+          amount: validatedAmount,
+          unit: 'L' as const, // Always send as 'L' to avoid validation issues
+        };
+        
+        console.log('➕ Adding water intake:', JSON.stringify(payload));
         
         return request<WaterIntakeAddResponse>(
           '/v1/water-intake/add',
           {
             method: 'POST',
             headers: createJsonHeaders(accessToken),
-            body: JSON.stringify(intakeData),
+            body: JSON.stringify(payload),
           }
         );
       },
@@ -286,17 +295,6 @@ export const waterIntakeService = {
 
   /**
    * Get water intake stats
-   * 
-   * Retrieves comprehensive statistics about water intake including:
-   * - Today's intake (with defaults if none)
-   * - Current and longest streaks
-   * - Total days completed
-   * - Weekly and monthly aggregated data
-   * 
-   * Useful for displaying in a dashboard or hydration screen.
-   * 
-   * @param token - JWT access token
-   * @returns Water intake statistics
    */
   async getStats(token: string): Promise<WaterIntakeStatsResponse> {
     return apiCallWithRefresh(
@@ -317,21 +315,6 @@ export const waterIntakeService = {
 
   /**
    * Get water intake history for a date range
-   * 
-   * Retrieves historical water intake data for charts and analysis.
-   * Useful for showing progress over time in a calendar or graph view.
-   * 
-   * Features:
-   * - Filter by date range
-   * - Returns daily intake amounts and completion status
-   * - Max 90 days of history per request
-   * 
-   * @param token - JWT access token
-   * @param params - Query parameters
-   * @param params.startDate - Start date for history (YYYY-MM-DD)
-   * @param params.endDate - End date for history (YYYY-MM-DD, defaults to today)
-   * @param params.limit - Maximum number of days to return (default: 30, max: 90)
-   * @returns Historical water intake data
    */
   async getHistory(
     token: string,
@@ -368,12 +351,6 @@ export const waterIntakeService = {
 
   /**
    * Get today's water intake
-   * 
-   * Convenience method to quickly get today's water intake record.
-   * Returns default values if no intake has been recorded for today yet.
-   * 
-   * @param token - JWT access token
-   * @returns Today's water intake data
    */
   async getToday(token: string): Promise<WaterIntakeTodayResponse['data']> {
     return apiCallWithRefresh(
@@ -388,7 +365,7 @@ export const waterIntakeService = {
           }
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );
@@ -396,13 +373,6 @@ export const waterIntakeService = {
 
   /**
    * Get weekly summary
-   * 
-   * Retrieves aggregated weekly summary including total intake,
-   * completed days, average intake, and best day.
-   * 
-   * @param token - JWT access token
-   * @param date - Optional date within the target week (YYYY-MM-DD, defaults to today)
-   * @returns Weekly summary data
    */
   async getWeeklySummary(
     token: string,
@@ -424,7 +394,7 @@ export const waterIntakeService = {
           queryParams
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );
@@ -432,14 +402,6 @@ export const waterIntakeService = {
 
   /**
    * Get monthly summary
-   * 
-   * Retrieves aggregated monthly summary including total intake,
-   * completed days, average daily intake, and days with intake.
-   * 
-   * @param token - JWT access token
-   * @param year - Year (defaults to current year)
-   * @param month - Month (1-12, defaults to current month)
-   * @returns Monthly summary data
    */
   async getMonthlySummary(
     token: string,
@@ -463,7 +425,7 @@ export const waterIntakeService = {
           queryParams
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );
@@ -471,11 +433,6 @@ export const waterIntakeService = {
 
   /**
    * Get total water intake
-   * 
-   * Retrieves the total water intake and average daily intake across all time.
-   * 
-   * @param token - JWT access token
-   * @returns Total intake statistics
    */
   async getTotalIntake(token: string): Promise<WaterIntakeTotalResponse['data']> {
     return apiCallWithRefresh(
@@ -490,7 +447,7 @@ export const waterIntakeService = {
           }
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );
@@ -498,12 +455,6 @@ export const waterIntakeService = {
 
   /**
    * Get streak information
-   * 
-   * Retrieves the user's current consecutive days streak of hitting their water intake goal,
-   * along with their longest streak.
-   * 
-   * @param token - JWT access token
-   * @returns Current and longest streak
    */
   async getStreak(token: string): Promise<WaterIntakeStreakResponse['data']> {
     return apiCallWithRefresh(
@@ -518,7 +469,7 @@ export const waterIntakeService = {
           }
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );
@@ -526,13 +477,6 @@ export const waterIntakeService = {
 
   /**
    * Update water intake goal
-   * 
-   * Updates the daily water intake goal for the current user.
-   * 
-   * @param token - JWT access token
-   * @param goalData - New goal data
-   * @param goalData.goalInLiters - New daily water goal in liters (0.5 - 10)
-   * @returns Updated goal information
    */
   async updateGoal(
     token: string,
@@ -540,14 +484,21 @@ export const waterIntakeService = {
   ): Promise<WaterIntakeGoalUpdateResponse> {
     return apiCallWithRefresh(
       async (accessToken) => {
-        console.log('💧🎯 Updating water intake goal to:', goalData.goalInLiters, 'L');
+        // Ensure goalInLiters is within validation range (0.5 to 10)
+        const validatedGoal = Math.min(Math.max(Number(goalData.goalInLiters), 0.5), 10);
+        
+        const payload = {
+          goalInLiters: validatedGoal,
+        };
+        
+        console.log('💧🎯 Updating water intake goal to:', payload.goalInLiters, 'L');
         
         return request<WaterIntakeGoalUpdateResponse>(
           '/v1/water-intake/goal',
           {
             method: 'PUT',
             headers: createJsonHeaders(accessToken),
-            body: JSON.stringify(goalData),
+            body: JSON.stringify(payload),
           }
         );
       },
@@ -557,32 +508,20 @@ export const waterIntakeService = {
 
   /**
    * Quick add presets for common water amounts
-   * 
-   * Returns an array of common water amounts for quick addition.
-   * Useful for UI buttons that allow one-tap water logging.
-   * 
-   * @returns Array of preset water amounts
    */
   getQuickAddPresets(): Array<{ amount: number; unit: 'L' | 'ML'; label: string }> {
     return [
-      { amount: 150, unit: 'ML', label: 'Small Glass' },
-      { amount: 250, unit: 'ML', label: 'Glass' },
-      { amount: 330, unit: 'ML', label: 'Can' },
-      { amount: 500, unit: 'ML', label: 'Bottle' },
-      { amount: 750, unit: 'ML', label: 'Large Bottle' },
+      { amount: 0.15, unit: 'L', label: 'Small Glass (150ml)' },
+      { amount: 0.25, unit: 'L', label: 'Glass (250ml)' },
+      { amount: 0.33, unit: 'L', label: 'Can (330ml)' },
+      { amount: 0.5, unit: 'L', label: 'Bottle (500ml)' },
+      { amount: 0.75, unit: 'L', label: 'Large Bottle (750ml)' },
       { amount: 1, unit: 'L', label: '1 Liter' },
     ];
   },
 
   /**
    * Convert between L and ML
-   * 
-   * Utility function to convert between liters and milliliters.
-   * 
-   * @param amount - Amount to convert
-   * @param from - Source unit
-   * @param to - Target unit
-   * @returns Converted amount
    */
   convertUnit(amount: number, from: 'L' | 'ML', to: 'L' | 'ML'): number {
     if (from === to) return amount;
@@ -596,12 +535,6 @@ export const waterIntakeService = {
 
   /**
    * Format water amount for display
-   * 
-   * Formats a water amount with appropriate unit.
-   * Automatically chooses between L and ML based on amount.
-   * 
-   * @param amountInLiters - Amount in liters
-   * @returns Formatted string (e.g., "1.5 L" or "500 ML")
    */
   formatAmount(amountInLiters: number): string {
     if (amountInLiters >= 1) {
@@ -614,11 +547,6 @@ export const waterIntakeService = {
 
   /**
    * Calculate cups from liters
-   * 
-   * Converts liters to cups (assuming 1 cup = 250ml).
-   * 
-   * @param amountInLiters - Amount in liters
-   * @returns Number of cups (rounded)
    */
   litersToCups(amountInLiters: number): number {
     return Math.round((amountInLiters * 1000) / 250);
@@ -626,11 +554,6 @@ export const waterIntakeService = {
 
   /**
    * Calculate liters from cups
-   * 
-   * Converts cups to liters (assuming 1 cup = 250ml).
-   * 
-   * @param cups - Number of cups
-   * @returns Amount in liters
    */
   cupsToLiters(cups: number): number {
     return (cups * 250) / 1000;

@@ -8,7 +8,7 @@ const DEFAULT_GOAL_LITERS = 2.0;
 const SYNC_THROTTLE_MS = 3000;          // 3 seconds between syncs
 const CACHE_KEY = '@water_intake_cache';
 const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
-const NETWORK_POLL_INTERVAL_MS = 3000;  // poll every 3 seconds
+const NETWORK_POLL_INTERVAL_MS = 30000; // ✅ CHANGED: poll every 30 seconds (not 3 seconds)
 const NETWORK_CHECK_TIMEOUT_MS = 5000;  // 5 second timeout for network checks
 const MAX_SYNC_RETRIES = 3;             // Maximum retries for failed syncs
 const BATCH_SIZE = 5;                   // Process queue in batches of 5
@@ -91,6 +91,7 @@ export function useWaterIntake(): WaterIntakeData & {
   const isSyncingRef = useRef(false);
   const networkPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const initialLoadCompletedRef = useRef<boolean>(false); // ✅ ADDED: Track if initial load is done
 
   // Helper function to get valid token (with refresh if needed)
   const getValidToken = useCallback(async (): Promise<string | null> => {
@@ -183,11 +184,7 @@ export function useWaterIntake(): WaterIntakeData & {
         });
 
         if (response.success && response.data) {
-          console.log('💧✅ Water intake synced successfully:', {
-            amount: response.data.amountAdded,
-            unit,
-            goalAchieved: response.data.goalAchieved,
-          });
+          console.log('💧✅ Water intake synced successfully');
 
           const newAmount = response.data.waterIntake.amountInLiters;
           const newGoal = response.data.waterIntake.goalInLiters;
@@ -206,22 +203,17 @@ export function useWaterIntake(): WaterIntakeData & {
             isCompleted: completed,
             streakDays: streak,
           });
-
-          if (response.data.goalAchieved) {
-            console.log('💧🎉 Hydration goal achieved! Streak:', streak);
-          }
         }
       } catch (err) {
         console.error('💧❌ Sync failed:', err);
         
-        // Retry logic for network errors
         if (retryCount < MAX_SYNC_RETRIES) {
           console.log(`💧🔄 Retrying sync (${retryCount + 1}/${MAX_SYNC_RETRIES})...`);
           setTimeout(() => {
             if (isMountedRef.current) {
               syncIntake(amount, unit, date, retryCount + 1);
             }
-          }, 1000 * (retryCount + 1)); // Exponential backoff
+          }, 1000 * (retryCount + 1));
         } else {
           queueSync(amount, unit);
         }
@@ -263,11 +255,7 @@ export function useWaterIntake(): WaterIntakeData & {
         });
 
         if (response.success && response.data) {
-          console.log('💧➕ Water added successfully:', {
-            added: response.data.addedAmount,
-            unit,
-            current: response.data.currentAmount,
-          });
+          console.log('💧➕ Water added successfully');
 
           const newAmount = response.data.waterIntake.amountInLiters;
           const newGoal = response.data.waterIntake.goalInLiters;
@@ -286,10 +274,6 @@ export function useWaterIntake(): WaterIntakeData & {
             isCompleted: completed,
             streakDays: streak,
           });
-
-          if (response.data.goalAchieved) {
-            console.log('💧🎉 Hydration goal achieved! Streak:', streak);
-          }
         }
       } catch (err) {
         console.error('💧❌ Add water failed:', err);
@@ -305,7 +289,6 @@ export function useWaterIntake(): WaterIntakeData & {
   // Update daily goal
   const updateGoal = useCallback(
     async (newGoalInLiters: number): Promise<void> => {
-      // Validate goal
       if (newGoalInLiters < 0.5 || newGoalInLiters > 10) {
         console.error('Goal must be between 0.5 and 10 liters');
         return;
@@ -363,7 +346,6 @@ export function useWaterIntake(): WaterIntakeData & {
     try {
       const validToken = await getValidToken();
       if (!validToken) {
-        console.error('No auth token available');
         return;
       }
 
@@ -387,14 +369,11 @@ export function useWaterIntake(): WaterIntakeData & {
     }
   }, [saveCachedData, getValidToken]);
 
-  // Drain the offline queue once back online with batch processing
+  // Drain the offline queue once back online
   const processSyncQueue = useCallback(async (): Promise<void> => {
-    // Don't process if offline
     if (!isOnlineRef.current) return;
     
-    // Prevent processing if already syncing
     if (isSyncingRef.current) {
-      console.log('💧⏭️ Already syncing, skipping queue processing');
       return;
     }
 
@@ -403,7 +382,6 @@ export function useWaterIntake(): WaterIntakeData & {
 
     console.log(`💧📦 Processing ${queueLength} queued water syncs...`);
     
-    // Process in batches to avoid overwhelming the server
     const batches = Math.ceil(queueLength / BATCH_SIZE);
     
     for (let i = 0; i < batches; i++) {
@@ -411,7 +389,6 @@ export function useWaterIntake(): WaterIntakeData & {
       await Promise.all(batch.map(pending => syncIntake(pending.amount, pending.unit)));
       pendingSyncsRef.current = pendingSyncsRef.current.slice(BATCH_SIZE);
       
-      // Small delay between batches
       if (i < batches - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -420,19 +397,16 @@ export function useWaterIntake(): WaterIntakeData & {
     console.log('💧✅ Queued water syncs processed');
   }, [syncIntake]);
 
-  // ✅ Pure JS network polling — no native modules required
+  // ✅ FIXED: Network polling - only runs once on mount
   useEffect(() => {
     let isChecking = false;
     let abortController: AbortController | null = null;
     
     const checkNetwork = async () => {
-      // Skip if already checking
       if (isChecking) return;
       
       try {
         isChecking = true;
-        
-        // Create new abort controller for this check
         abortController = new AbortController();
         
         const isConnected = await checkIsOnline();
@@ -448,21 +422,21 @@ export function useWaterIntake(): WaterIntakeData & {
           isOnlineRef.current = false;
         }
       } catch (err) {
-        if (!isMountedRef.current) return;
-        console.error('💧 Network check failed:', err);
+        if (isMountedRef.current) {
+          console.error('💧 Network check failed:', err);
+        }
       } finally {
         isChecking = false;
         abortController = null;
       }
     };
 
-    // Initial check on mount
+    // Initial check
     checkNetwork();
 
     // Poll network status periodically
     networkPollRef.current = setInterval(checkNetwork, NETWORK_POLL_INTERVAL_MS);
 
-    // Also check when app comes to foreground
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active' && isMountedRef.current) {
         checkNetwork();
@@ -479,26 +453,28 @@ export function useWaterIntake(): WaterIntakeData & {
       }
       appStateSub.remove();
     };
-  }, [processSyncQueue]);
+  }, [processSyncQueue]); // ✅ Only depends on processSyncQueue (which is stable)
 
-  // Initial load with timeout
+  // ✅ FIXED: Initial load - runs ONCE on mount (no dependencies that cause re-renders)
   useEffect(() => {
     let initTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const init = async () => {
+      // Skip if already completed
+      if (initialLoadCompletedRef.current) return;
+      
       setIsLoading(true);
 
       try {
-        // Set a timeout for initialization
         initTimeout = setTimeout(() => {
-          if (isMountedRef.current && isLoading) {
+          if (isMountedRef.current) {
             console.warn('💧 Initialization timeout - forcing complete');
             setIsLoading(false);
-            setError('Initialization took too long. Please restart the app.');
+            initialLoadCompletedRef.current = true;
           }
         }, 10000);
 
-        // Try to load cached data first
+        // Load cached data first
         const cached = await loadCachedData();
         if (cached && isMountedRef.current) {
           setAmountInLiters(cached.data.amountInLiters);
@@ -509,6 +485,8 @@ export function useWaterIntake(): WaterIntakeData & {
 
         // Fetch fresh data from server
         await refreshIntake();
+        
+        initialLoadCompletedRef.current = true;
       } catch (err) {
         console.error('💧 Initialization error:', err);
         if (isMountedRef.current) {
@@ -527,7 +505,7 @@ export function useWaterIntake(): WaterIntakeData & {
     return () => {
       if (initTimeout) clearTimeout(initTimeout);
     };
-  }, [loadCachedData, refreshIntake, isLoading]);
+  }, []); // ✅ EMPTY dependency array - runs only once!
 
   // Refresh when app returns to foreground
   useEffect(() => {
@@ -556,7 +534,7 @@ export function useWaterIntake(): WaterIntakeData & {
   const goalInML = goalInLiters * 1000;
   const remainingLiters = Math.max(goalInLiters - amountInLiters, 0);
   const remainingML = Math.max(goalInML - amountInML, 0);
-  const progress = Math.min(amountInLiters / goalInLiters, 1);
+  const progress = goalInLiters > 0 ? Math.min(amountInLiters / goalInLiters, 1) : 0;
   const cupsAmount = Math.round(amountInML / 250);
   const cupsGoal = Math.round(goalInML / 250);
 
