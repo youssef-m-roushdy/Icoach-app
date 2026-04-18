@@ -1,7 +1,7 @@
 # tools/tool_definitions.py 
  
 """ 
-ICoach AI - Tool Definitions (Sprint 2A) 
+ICoach AI - Tool Definitions
 This file contains the "contracts" (JSON Schemas) for the tools. 
 They are sent to the model so it knows its capabilities and how to call them. 
 """ 
@@ -99,5 +99,24 @@ ICoach_Tools = [
                 "required": ["query"] 
             } 
         } 
-    } 
+    },
+
+    # 5. Long-term Memory Saver Tool (Qdrant - User Preferences)
+    {
+        "type": "function",
+        "function": {
+            "name": "save_long_term_memory",
+            "description": "Use this tool to save IMPORTANT facts about the user's preferences, dislikes, allergies, or permanent conditions (e.g., 'user hates oats', 'user prefers evening workouts', 'allergic to peanuts'). DO NOT save conversational chit-chat.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "fact": {
+                        "type": "string",
+                        "description": "The clear, concise fact to remember about the user in English or Arabic."
+                    }
+                },
+                "required": ["fact"]
+            }
+        }
+    }
 ]

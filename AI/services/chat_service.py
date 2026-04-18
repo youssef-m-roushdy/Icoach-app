@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.profile_service import ProfileService
 from services.memory_service import MemoryService
 from services.llm_service import get_groq_service
+from services.qdrant_service import qdrant_svc  # 🌟 تم إضافة خدمة Qdrant هنا
 from tools.tool_definitions import ICoach_Tools
 from tools.tool_executor import execute_tool
 
@@ -21,8 +22,9 @@ CRITICAL RULES:
 2. YOU ARE A FITNESS COACH. NEVER answer politics, coding, math, or general trivia.
 3. NEVER GUESS: If the user asks for calories, protein, or specific exercises, you MUST use the provided tools. 
 4. MANDATORY TOOL USAGE: Use 'search_food_nutrition' for food and 'search_workouts' for exercises.
-5. If user reports pain, advise rest AND use 'update_medical_record' tool.
-6. Format your answers beautifully using Markdown.
+5. LONG-TERM MEMORY: Use 'save_long_term_memory' if the user mentions new permanent preferences, allergies, or dislikes.
+6. If user reports pain, advise rest AND use 'update_medical_record' tool.
+7. Format your answers beautifully using Markdown.
 
 Current User Data (Use it but don't list it all):
 - Goal: {goal}
@@ -32,23 +34,32 @@ Current User Data (Use it but don't list it all):
 
 async def handle_chat_message(db_session: AsyncSession, user_id: int, message: str, session_id: str = None):
     """
-    الـ Agent Loop الرئيسي - يدعم الـ Streaming والـ Tool Calling
+    الـ Agent Loop الرئيسي - يدعم الـ Streaming والـ Tool Calling والذاكرة طويلة المدى
     """
     # 1. إدارة الجلسة (Session) وتجاوز أخطاء Swagger
     if not session_id or session_id == "string" or session_id.strip() == "":
         session_id = str(uuid.uuid4())
         logger.info(f"🆕 Started new session: {session_id}")
 
-    # 2. جلب بيانات المستخدم وتاريخ المحادثة
+    # 2. جلب بيانات المستخدم وتاريخ المحادثة (الذاكرة قصيرة المدى)
     user_context = await ProfileService.get_user_context(user_id, db_session)
     p = user_context.get('profile', {}) if isinstance(user_context, dict) else {}
     history = await MemoryService.get_chat_history(user_id, session_id, db_session)
 
+    # 🌟 الجديد: جلب الذكريات من Qdrant (الذاكرة طويلة المدى) بناءً على سؤال اليوزر 🌟
+    past_memories = await qdrant_svc.search_similar_memories(user_id, message)
+    memory_string = "\n- ".join(past_memories) if past_memories else "None"
+
+    # تجهيز الـ System Prompt
     system_content = BASE_SYSTEM_PROMPT.format(
         goal=p.get('fitnessGoal', 'General Health'),
         weight=p.get('weight', 'Unknown'),
         medical_notes=json.dumps(p.get('medicalNotes', 'None'), ensure_ascii=False)
     )
+    
+    # إضافة الذاكرة طويلة المدى للبرومبت لو موجودة
+    if past_memories:
+        system_content += f"\n\n[LONG-TERM MEMORY ABOUT THIS USER]:\n- {memory_string}\n(Use these facts if relevant to your answer)."
 
     messages = [{"role": "system", "content": system_content}]
     
@@ -56,7 +67,7 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
     for msg in history[-10:]:
         messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # حفظ رسالة المستخدم (Pre-save)
+    # حفظ رسالة المستخدم في SQL (Pre-save)
     await MemoryService.save_message(user_id, session_id, "user", message, db_session)
     messages.append({"role": "user", "content": message})
 
@@ -108,7 +119,6 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
             
         else:
             # ⚡ الرد النهائي (Streaming)
-            # نطلب من الموديل الرد النهائي مع تفعيل الـ stream
             stream = await llm.chat_completion(
                 messages=messages,
                 max_tokens=1000,
@@ -123,6 +133,6 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
                     yield json.dumps({"reply": content, "session_id": session_id}) + "\n"
             break
 
-    # 4. حفظ رد المساعد الكامل (Post-save)
+    # 4. حفظ رد المساعد الكامل في SQL (Post-save)
     if final_full_reply:
         await MemoryService.save_message(user_id, session_id, "assistant", final_full_reply, db_session)

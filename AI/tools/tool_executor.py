@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import the tools we created 
 from . import search_food_nutrition 
 from . import search_workouts 
-from . import update_medical_record 
+from . import update_medical_record
+
+# Import Qdrant service for Long-Term Memory
+from services.qdrant_service import qdrant_svc
  
 logger = logging.getLogger(__name__) 
  
@@ -58,6 +61,26 @@ async def execute_tool(tool_call: dict, db_session: AsyncSession, user_id: str) 
              
         # Note here: we pass the user_id from the server, not from the model, to protect privacy 
         return await update_medical_record.execute(db_session, user_id, issue, body_part, status) 
+
+    # 4. Long-Term Memory Saver (Qdrant)
+    elif tool_name == "save_long_term_memory":
+        fact = arguments.get("fact")
+        if not fact:
+            return {"ok": False, "tool": tool_name, "message": "Fact must be provided."}
+            
+        success = await qdrant_svc.save_memory(user_id=int(user_id), text=fact)
+        if success:
+            return {
+                "ok": True, 
+                "tool": tool_name, 
+                "message": f"Successfully saved to long-term memory: {fact}"
+            }
+        else:
+            return {
+                "ok": False, 
+                "tool": tool_name, 
+                "message": "Failed to save memory to Qdrant."
+            }
  
     # If the model calls an unknown tool 
     else: 
