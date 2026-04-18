@@ -1,9 +1,10 @@
 import logging
-import uuid  # ✅ Add this import
+import uuid
 import os
 from datetime import datetime, date
 from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import text
 
 # Import core services
 from services.token_service import TokenService
@@ -20,7 +21,7 @@ _token_svc = TokenService()
 
 class ChatRequest(BaseModel):
     content: str
-    session_id: str | None = None  # Client can provide existing session UUID
+    # ✅ session_id removed - backend will generate it automatically
 
 class ChatResponse(BaseModel):
     reply: str
@@ -38,14 +39,6 @@ def ensure_int_id(value) -> int:
     except (TypeError, ValueError):
         logger.warning(f"Cannot convert {value} to int, using default 1")
         return 1
-
-def validate_uuid(uuid_string: str) -> bool:
-    """Validate if string is a proper UUID"""
-    try:
-        uuid.UUID(uuid_string)
-        return True
-    except (ValueError, AttributeError, TypeError):
-        return False
 
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
@@ -68,15 +61,10 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
             detail=f"You have reached your daily token limit ({used}/{limit}). Please try again tomorrow."
         )
 
-    # ─── 3. Session Management with UUID ───
-    if chat_request.session_id and validate_uuid(chat_request.session_id):
-        # Use existing valid session UUID from client
-        current_session_id = chat_request.session_id
-        logger.info(f"📝 Using existing session: {current_session_id}")
-    else:
-        # Generate new UUID for new session
-        current_session_id = str(uuid.uuid4())
-        logger.info(f"🆕 New session created: {current_session_id}")
+    # ─── 3. Session Management - Always Generate New UUID ───
+    # Each chat request gets a new session UUID automatically
+    current_session_id = str(uuid.uuid4())
+    logger.info(f"🆕 New session created: {current_session_id}")
 
     # ─── 4. Scope Guard ───
     user_message = chat_request.content.lower()
@@ -153,6 +141,7 @@ Answer concisely, in a practical and direct style in Arabic."""
 
 @router.get("/tokens/usage")
 async def get_token_usage(request: Request):
+    """Get current token usage for authenticated user"""
     raw_user_id = getattr(request.state, "user_id", 1)
     tier = getattr(request.state, "tier", "free")
     
@@ -183,7 +172,6 @@ async def get_token_usage(request: Request):
         "reset_time": "midnight UTC"
     }
 
-# Optional: Add endpoint to list user's sessions
 @router.get("/sessions")
 async def list_sessions(request: Request):
     """Get all chat sessions for the user"""

@@ -5,10 +5,12 @@ Sprint 2: Clean Architecture & RAG Preparation (Auth Verified)
 import logging
 import sys
 import os
+from datetime import datetime  # ✅ ADD THIS IMPORT
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text  # ✅ ADD THIS IMPORT
 
 # --- Local Imports ---
 from config import get_settings
@@ -73,11 +75,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Redis connection failed: {e}")
 
-    # Check Database connection
+    # Check Database connection - FIXED
     try:
-        from config.database import engine
-        async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
+        from config.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
         logger.info("✅ Database connected successfully")
     except Exception as e:
         logger.warning(f"⚠️ Database connection failed: {e}")
@@ -167,7 +169,7 @@ async def health_check():
     return {
         "status": "healthy",
         "version": settings.API_VERSION,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat()  # ✅ datetime is now imported
     }
 
 @app.get("/", tags=["System"])
@@ -189,7 +191,6 @@ app.include_router(chat_router, dependencies=[Depends(get_current_user)])
 # ============================================
 if __name__ == "__main__":
     import uvicorn
-    from datetime import datetime
     
     uvicorn.run(
         "main:app", 
