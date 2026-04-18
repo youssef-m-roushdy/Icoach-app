@@ -1,0 +1,128 @@
+# services/chat_service.py
+
+import logging
+import uuid
+import json
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# استيراد الخدمات المطلوبة
+from services.profile_service import ProfileService
+from services.memory_service import MemoryService
+from services.llm_service import get_groq_service
+from tools.tool_definitions import ICoach_Tools
+from tools.tool_executor import execute_tool
+
+logger = logging.getLogger(__name__)
+
+# 🧠 شخصية الذكاء الاصطناعي المطورة (Strict Tool Usage)
+BASE_SYSTEM_PROMPT = """You are 'ICoach', an expert, friendly, and motivating AI fitness and nutrition coach.
+CRITICAL RULES:
+1. Speak in a friendly Egyptian Arabic tone. Use emojis naturally.
+2. YOU ARE A FITNESS COACH. NEVER answer politics, coding, math, or general trivia.
+3. NEVER GUESS: If the user asks for calories, protein, or specific exercises, you MUST use the provided tools. 
+4. MANDATORY TOOL USAGE: Use 'search_food_nutrition' for food and 'search_workouts' for exercises.
+5. If user reports pain, advise rest AND use 'update_medical_record' tool.
+6. Format your answers beautifully using Markdown.
+
+Current User Data (Use it but don't list it all):
+- Goal: {goal}
+- Weight: {weight} kg
+- Medical Notes: {medical_notes}
+"""
+
+async def handle_chat_message(db_session: AsyncSession, user_id: int, message: str, session_id: str = None):
+    """
+    الـ Agent Loop الرئيسي - يدعم الـ Streaming والـ Tool Calling
+    """
+    # 1. إدارة الجلسة (Session) وتجاوز أخطاء Swagger
+    if not session_id or session_id == "string" or session_id.strip() == "":
+        session_id = str(uuid.uuid4())
+        logger.info(f"🆕 Started new session: {session_id}")
+
+    # 2. جلب بيانات المستخدم وتاريخ المحادثة
+    user_context = await ProfileService.get_user_context(user_id, db_session)
+    p = user_context.get('profile', {}) if isinstance(user_context, dict) else {}
+    history = await MemoryService.get_chat_history(user_id, session_id, db_session)
+
+    system_content = BASE_SYSTEM_PROMPT.format(
+        goal=p.get('fitnessGoal', 'General Health'),
+        weight=p.get('weight', 'Unknown'),
+        medical_notes=json.dumps(p.get('medicalNotes', 'None'), ensure_ascii=False)
+    )
+
+    messages = [{"role": "system", "content": system_content}]
+    
+    # إضافة آخر 10 رسائل من التاريخ للسياق
+    for msg in history[-10:]:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+
+    # حفظ رسالة المستخدم (Pre-save)
+    await MemoryService.save_message(user_id, session_id, "user", message, db_session)
+    messages.append({"role": "user", "content": message})
+
+    # 3. دوامة الـ Agent (Tool-Calling Loop)
+    llm = get_groq_service()
+    max_tool_calls = 3
+    current_tool_calls = 0
+    final_full_reply = ""
+
+    while True:
+        # لفة طلبات الأدوات (دائماً Non-Streaming عشان المعالجة)
+        response = await llm.chat_completion(
+            messages=messages, 
+            tools=ICoach_Tools,
+            max_tokens=1000
+        )
+        
+        response_message = response.choices[0].message
+
+        # حالة طلب أداة
+        if response_message.tool_calls:
+            if current_tool_calls >= max_tool_calls:
+                yield json.dumps({"reply": "آسف يا بطل، الطلب ده معقد شوية، ممكن تبسطه؟", "session_id": session_id}) + "\n"
+                return
+
+            messages.append(response_message)
+            
+            for tool_call in response_message.tool_calls:
+                tool_name = tool_call.function.name
+                
+                # 📡 إرسال حالة (Status Event) للفرونت إند
+                yield json.dumps({"status": f"🔄 جاري البحث في {tool_name}...", "session_id": session_id}) + "\n"
+                
+                tool_args = tool_call.function.arguments
+                tool_call_dict = {"name": tool_name, "arguments": tool_args}
+                
+                # تنفيذ الأداة
+                tool_result = await execute_tool(tool_call_dict, db_session, str(user_id))
+                
+                # إضافة نتيجة الأداة للسياق
+                messages.append({
+                    "role": "tool",
+                    "content": json.dumps(tool_result, ensure_ascii=False),
+                    "tool_call_id": tool_call.id
+                })
+            
+            current_tool_calls += 1
+            continue # لفة جديدة للموديل ليقرأ النتائج
+            
+        else:
+            # ⚡ الرد النهائي (Streaming)
+            # نطلب من الموديل الرد النهائي مع تفعيل الـ stream
+            stream = await llm.chat_completion(
+                messages=messages,
+                max_tokens=1000,
+                stream=True 
+            )
+            
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content or ""
+                if content:
+                    final_full_reply += content
+                    # إرسال جزء من النص
+                    yield json.dumps({"reply": content, "session_id": session_id}) + "\n"
+            break
+
+    # 4. حفظ رد المساعد الكامل (Post-save)
+    if final_full_reply:
+        await MemoryService.save_message(user_id, session_id, "assistant", final_full_reply, db_session)
