@@ -1,6 +1,5 @@
 import logging
-import uuid
-from typing import List, Dict
+from typing import List, Dict, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
@@ -10,10 +9,9 @@ class MemoryService:
     """خدمة إدارة سجل المحادثات (الذاكرة قصيرة المدى)"""
 
     @staticmethod
-    async def get_chat_history(user_id: int, session_id: str, session: AsyncSession, limit: int = 15) -> List[Dict[str, str]]:
-        """جلب آخر رسائل لنفس الجلسة"""
+    async def get_chat_history(user_id: Union[int, str], session_id: str, session: AsyncSession, limit: int = 10) -> List[Dict[str, str]]:
+        """جلب أحدث الرسائل لنفس الجلسة (النافذة المنزلقة)"""
         try:
-            # Using correct column names from the database schema
             result = await session.execute(
                 text("""
                     SELECT role, content 
@@ -22,18 +20,18 @@ class MemoryService:
                     ORDER BY created_at DESC 
                     LIMIT :limit
                 """),
-                {"user_id": user_id, "session_id": session_id, "limit": limit}
+                {"user_id": str(user_id), "session_id": session_id, "limit": limit}
             )
             rows = result.fetchall()
             
-            # Reverse order so oldest message is first, newest last
+            # بنعكس الترتيب عشان الموديل يقرأها بالترتيب الزمني الصح (من الأقدم للأحدث في حدود الـ 10 رسائل)
             return [{"role": row.role, "content": row.content} for row in reversed(rows)]
         except Exception as e:
             logger.error(f"Error fetching chat history: {e}")
             return []
 
     @staticmethod
-    async def save_message(user_id: int, session_id: str, role: str, content: str, session: AsyncSession) -> None:
+    async def save_message(user_id: Union[int, str], session_id: str, role: str, content: str, session: AsyncSession) -> None:
         """حفظ رسالة جديدة في الداتابيز"""
         try:
             allowed_roles = {'user', 'assistant', 'tool', 'system'}
@@ -48,7 +46,7 @@ class MemoryService:
                     VALUES (:user_id, :session_id, :role, :content, NOW())
                 """),
                 {
-                    "user_id": user_id,
+                    "user_id": str(user_id),
                     "session_id": session_id,
                     "role": role,
                     "content": content
@@ -63,29 +61,31 @@ class MemoryService:
             raise e
 
     @staticmethod
-    async def get_session_history(user_id: int, session_id: str, session: AsyncSession, limit: int = 15) -> List[Dict[str, str]]:
-        """Alternative method to get chat history with more details"""
+    async def get_session_history(user_id: Union[int, str], session_id: str, session: AsyncSession, limit: int = 10) -> List[Dict[str, str]]:
+        """طريقة بديلة لجلب السجل مع الطوابع الزمنية (مفيدة للواجهة الأمامية UI)"""
         try:
+            # تم التعديل هنا لترتيب DESC للحصول على أحدث الرسائل، ثم عكسها
             result = await session.execute(
                 text("""
                     SELECT role, content, created_at
                     FROM chat_history 
                     WHERE user_id = :user_id AND session_id = :session_id
-                    ORDER BY created_at ASC 
+                    ORDER BY created_at DESC 
                     LIMIT :limit
                 """),
-                {"user_id": user_id, "session_id": session_id, "limit": limit}
+                {"user_id": str(user_id), "session_id": session_id, "limit": limit}
             )
             rows = result.fetchall()
             
-            return [{"role": row.role, "content": row.content, "timestamp": row.created_at} for row in rows]
+            # Reverse order so oldest message is first, newest last
+            return [{"role": row.role, "content": row.content, "timestamp": row.created_at} for row in reversed(rows)]
         except Exception as e:
             logger.error(f"Error fetching session history: {e}")
             return []
 
     @staticmethod
-    async def clear_session_history(user_id: int, session_id: str, session: AsyncSession) -> bool:
-        """Clear all messages for a specific session"""
+    async def clear_session_history(user_id: Union[int, str], session_id: str, session: AsyncSession) -> bool:
+        """مسح كل الرسائل لجلسة معينة"""
         try:
             result = await session.execute(
                 text("""
@@ -93,7 +93,7 @@ class MemoryService:
                     WHERE user_id = :user_id AND session_id = :session_id
                     RETURNING id
                 """),
-                {"user_id": user_id, "session_id": session_id}
+                {"user_id": str(user_id), "session_id": session_id}
             )
             deleted_count = len(result.fetchall())
             await session.commit()
