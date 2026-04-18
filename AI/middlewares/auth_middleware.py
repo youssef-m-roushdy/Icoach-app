@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 security = HTTPBearer()
 
-# خريطة الأدوار والمستويات
+# Role to tier mapping
 ROLE_TO_TIER = {
     "premium": "premium",
     "pro":     "pro",
@@ -23,7 +23,7 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Security(securit
     """
     token = auth.credentials
 
-    # 🚨 DEV BACKDOOR: يسمح بالتست بدون توكن حقيقي في مرحلة التطوير فقط
+    # 🚨 DEV BACKDOOR: Allows testing without a real token during development only
     if token == "DEV_TEST_TOKEN_2026":
         payload = {
             "id": "test_user_123",
@@ -37,7 +37,7 @@ async def get_current_user(auth: HTTPAuthorizationCredentials = Security(securit
             request.state.tier = payload["tier"]
         return payload
 
-    # ─── التحقق الحقيقي من الـ JWT ───
+    # ─── Real JWT verification ───
     public_key = settings.public_key
     if not public_key:
         logger.error("JWT public key is missing from settings!")

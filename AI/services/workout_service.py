@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-# قاموس لتوحيد مسميات العضلات (Synonyms/Aliases)
+# Dictionary to standardize muscle names (Synonyms/Aliases)
 MUSCLE_ALIASES = {
     "chest": "chest",
     "pectorals": "chest",

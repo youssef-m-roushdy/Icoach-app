@@ -4,6 +4,7 @@ Groq API Service - Groq Cloud API Integration
 from openai import AsyncOpenAI
 import logging
 from typing import List, Dict, Any
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,7 +22,7 @@ class GroqService:
         messages: List[Dict[str, Any]], 
         max_tokens: int = 600, 
         temperature: float = 0.3,
-        **kwargs # 👈 السر هنا: ده اللي هيسمح لنا نبعت الـ tools والـ stream بعدين
+        **kwargs  # 👈 This is the secret: allows passing tools and stream parameters later
     ):
         """Chat completion using Groq API with support for Tools and Streaming"""
         try:
@@ -52,9 +53,10 @@ class GroqService:
 _groq_service = None
 
 def get_groq_service():
+    """Get or create singleton instance of GroqService"""
     global _groq_service
     if _groq_service is None:
-        from AI.config import get_settings
+        from config import get_settings
         settings = get_settings()
         _groq_service = GroqService(
             api_key=settings.GROQ_API_KEY,

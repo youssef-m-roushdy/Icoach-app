@@ -4,6 +4,7 @@ Sprint 2: Clean Architecture & RAG Preparation (Auth Verified)
 """
 import logging
 import sys
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,7 @@ from fastapi.responses import JSONResponse
 from config import get_settings
 from routers import food_router, chat_router
 from services import get_model
-# استيراد الـ Dependency 
+# Import the Auth Dependency 
 from middlewares.auth_middleware import get_current_user 
 
 # --- Settings ---
@@ -38,6 +39,11 @@ async def lifespan(app: FastAPI):
     print("🍔 ICoach AI: Food Recognition & RAG Chat")
     print("="*70)
     
+    # Get host and port from environment or defaults
+    host = os.getenv("HOST", "0.0.0.0")
+    port = os.getenv("PORT", "8000")
+    base_url = f"http://{host}:{port}"
+    
     try:
         logger.info("Initializing ML Model...")
         model = get_model(
@@ -57,11 +63,61 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("⚠️ Groq API key is missing or invalid")
 
+    # Check Redis connection
+    try:
+        from services.token_service import TokenService
+        token_svc = TokenService()
+        redis_client = await token_svc.get_redis()
+        await redis_client.ping()
+        logger.info("✅ Redis connected successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Redis connection failed: {e}")
+
+    # Check Database connection
+    try:
+        from config.database import engine
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("✅ Database connected successfully")
+    except Exception as e:
+        logger.warning(f"⚠️ Database connection failed: {e}")
+
     logger.info("🚀 API is ready to serve requests")
     
-    yield  # السيرفر شغال هنا
+    # ✅ Log Swagger Documentation URLs
+    print("\n" + "="*70)
+    print("📚 API DOCUMENTATION")
+    print("="*70)
+    print(f"🔥 Swagger UI: {base_url}/docs")
+    print(f"📖 ReDoc: {base_url}/redoc")
+    print(f"🏠 Home: {base_url}")
+    print(f"❤️ Health: {base_url}/health")
+    print("="*70 + "\n")
     
-    logger.info("Stopping API and cleaning up resources...")
+    yield  # Server is running here
+    
+    # --- Shutdown Logic ---
+    logger.info("🛑 Shutting down API...")
+    
+    # Close Redis connection
+    try:
+        from services.token_service import TokenService
+        token_svc = TokenService()
+        redis_client = await token_svc.get_redis()
+        await redis_client.close()
+        logger.info("✅ Redis connection closed")
+    except Exception as e:
+        logger.error(f"❌ Error closing Redis connection: {e}")
+    
+    # Close Database connection
+    try:
+        from config.database import engine
+        await engine.dispose()
+        logger.info("✅ Database connection closed")
+    except Exception as e:
+        logger.error(f"❌ Error closing database connection: {e}")
+    
+    logger.info("✨ Cleanup complete. Goodbye!")
 
 # ============================================
 # APP INITIALIZATION
@@ -71,8 +127,9 @@ app = FastAPI(
     version=settings.API_VERSION,
     description=settings.API_DESCRIPTION,
     lifespan=lifespan,
-    docs_url="/docs"
-    # ❌ شيلنا الـ dependencies من هنا عشان نفتح الـ Health Check
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 # 1. CORS Middleware (Essential)
@@ -103,16 +160,27 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ROUTES & HEALTH CHECK
 # ============================================
 
-# ✅ الـ Health Check والـ Root بقوا مفتوحين بدون Auth
+# ✅ Health Check and Root endpoints are open without Auth
 @app.get("/health", tags=["System"])
 async def health_check():
-    return {"status": "healthy", "version": settings.API_VERSION}
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "version": settings.API_VERSION,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 @app.get("/", tags=["System"])
 async def root():
-    return {"message": "Welcome to ICoach AI API"}
+    """Root endpoint with API information"""
+    return {
+        "message": "Welcome to ICoach AI Platform",
+        "version": settings.API_VERSION,
+        "docs": "/docs",
+        "health": "/health"
+    }
 
-# ✅ ضفنا الـ Auth كحماية على مستوى الراوترز الخاصة فقط
+# ✅ Added Auth protection only on specific routers
 app.include_router(food_router, dependencies=[Depends(get_current_user)])
 app.include_router(chat_router, dependencies=[Depends(get_current_user)])
 
@@ -121,9 +189,11 @@ app.include_router(chat_router, dependencies=[Depends(get_current_user)])
 # ============================================
 if __name__ == "__main__":
     import uvicorn
+    from datetime import datetime
+    
     uvicorn.run(
         "main:app", 
-        host="127.0.0.1", 
+        host="0.0.0.0", 
         port=8000, 
         reload=settings.DEBUG, 
         log_level="info"

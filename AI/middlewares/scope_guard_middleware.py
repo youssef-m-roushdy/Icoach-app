@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
-# كلمات مفتاحية صريحة تدل على أن السؤال خارج النطاق تماماً
+# Explicit keywords indicating the question is completely out of scope
 OBVIOUS_GARBAGE_PATTERNS = [
     "اكتبلي قصيدة", "اكتب قصيدة", "write a poem",
     "احسبلي", "calculate the math", "solve the equation",
@@ -16,19 +16,19 @@ OBVIOUS_GARBAGE_PATTERNS = [
 
 class ScopeGuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # تطبيق الفلتر على مسار الشات فقط
+        # Apply filter only to chat endpoint
         if not request.url.path.startswith("/api/chat"):
             return await call_next(request)
 
         try:
-            # قراءة الرسالة من الـ cached_body (الذي وضعه TokenBudgetMiddleware)
+            # Read message from cached_body (set by TokenBudgetMiddleware)
             raw_body = getattr(request.state, "cached_body", b"{}")
             data = json.loads(raw_body)
             message = data.get("message", "").lower().strip()
         except Exception:
             message = ""
 
-        # فلترة الأسئلة العبثية الصريحة
+        # Filter obvious off-topic questions
         if message:
             for pattern in OBVIOUS_GARBAGE_PATTERNS:
                 if pattern in message:
@@ -37,9 +37,9 @@ class ScopeGuardMiddleware(BaseHTTPMiddleware):
                         status_code=400,
                         content={
                             "error": "Out of scope",
-                            "message": "عذراً، أنا متخصص في اللياقة البدنية والتغذية فقط. إزاي أقدر أساعدك في تمرينك أو أكلك؟"
+                            "message": "Sorry, I specialize only in fitness and nutrition. How can I help with your workout or diet?"
                         }
                     )
 
-        # إذا لم يكن السؤال من ضمن القائمة السوداء، دعه يمر للذكاء الاصطناعي
+        # If not in blacklist, let it pass through to AI
         return await call_next(request)

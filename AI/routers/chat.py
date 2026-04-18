@@ -1,11 +1,11 @@
 import logging
-import uuid
+import uuid  # ✅ Add this import
 import os
 from datetime import datetime, date
 from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 
-# استدعاء الخدمات الأساسية
+# Import core services
 from services.token_service import TokenService
 from services.llm_service import get_groq_service
 from services.memory_service import MemoryService
@@ -15,12 +15,12 @@ from config.database import AsyncSessionLocal
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
-# إنشاء نسخة واحدة من خدمة التوكنز
+# Create a single instance of TokenService
 _token_svc = TokenService()
 
 class ChatRequest(BaseModel):
     content: str
-    session_id: str | None = None
+    session_id: str | None = None  # Client can provide existing session UUID
 
 class ChatResponse(BaseModel):
     reply: str
@@ -29,28 +29,54 @@ class ChatResponse(BaseModel):
     type: str = "answer"
     timestamp: datetime
 
+def ensure_int_id(value) -> int:
+    """Safely convert any value to integer"""
+    if value is None:
+        return 1
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        logger.warning(f"Cannot convert {value} to int, using default 1")
+        return 1
+
+def validate_uuid(uuid_string: str) -> bool:
+    """Validate if string is a proper UUID"""
+    try:
+        uuid.UUID(uuid_string)
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
 @router.post("", response_model=ChatResponse)
 async def chat_endpoint(request: Request, chat_request: ChatRequest):
     # ─── 1. Identity Extraction ───
-    user_id = getattr(request.state, "user_id", "test_user_1")
+    raw_user_id = getattr(request.state, "user_id", 1)
     tier = getattr(request.state, "tier", "free")
+    
+    # Convert user_id to integer
+    user_id = ensure_int_id(raw_user_id)
     
     if not user_id:
         raise HTTPException(status_code=401, detail="User identity not found")
 
     # ─── 2. Token Budget Check ───
-    is_ok, used, limit = await _token_svc.check_budget(user_id, tier, chat_request.content)
+    is_ok, used, limit = await _token_svc.check_budget(str(user_id), tier, chat_request.content)
     if not is_ok:
         logger.warning(f"⚠️ Token limit hit for user {user_id}: {used}/{limit}")
         raise HTTPException(
             status_code=429,
-            detail=f"لقد استهلكت حدك اليومي من التوكنز ({used}/{limit}). برجاء المحاولة غداً."
+            detail=f"You have reached your daily token limit ({used}/{limit}). Please try again tomorrow."
         )
 
-    # ─── 3. Session Management ───
-    # ─── 3. Session Management (Single Continuous Chat) ───
-    # هنجبر السيستم إن الشات يكون مربوط باليوزر دايماً، مفيش شات جديد
-    current_session_id = f"main_chat_{user_id}"
+    # ─── 3. Session Management with UUID ───
+    if chat_request.session_id and validate_uuid(chat_request.session_id):
+        # Use existing valid session UUID from client
+        current_session_id = chat_request.session_id
+        logger.info(f"📝 Using existing session: {current_session_id}")
+    else:
+        # Generate new UUID for new session
+        current_session_id = str(uuid.uuid4())
+        logger.info(f"🆕 New session created: {current_session_id}")
 
     # ─── 4. Scope Guard ───
     user_message = chat_request.content.lower()
@@ -59,7 +85,7 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
     if any(topic in user_message for topic in forbidden_topics):
         logger.warning(f"🚫 Out of scope message from user {user_id}")
         return ChatResponse(
-            reply="أنا مساعدك الرياضي والطبي فقط. لا يمكنني مناقشة هذه المواضيع.",
+            reply="I am your sports and medical assistant only. I cannot discuss these topics.",
             session_id=current_session_id,
             type="out_of_scope",
             timestamp=datetime.utcnow()
@@ -70,49 +96,49 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
         llm = get_groq_service()
         
         async with AsyncSessionLocal() as db_session:
-            # أ. جلب بيانات البروفايل لتقديم رد شخصي
+            # A. Fetch profile data to provide personalized response
             user_context = await ProfileService.get_user_context(user_id, db_session)
             p = user_context.get('profile', {}) if isinstance(user_context, dict) else {}
             
-            # ب. جلب تاريخ المحادثة للالتزام بالسياق
+            # B. Fetch chat history for context adherence
             history = await MemoryService.get_chat_history(user_id, current_session_id, db_session)
             
-            # ج. صياغة الـ System Prompt الديناميكي
-            system_content = f"""أنت مدرب شخصي وخبير تغذية محترف اسمك ICoach.
-هذه بيانات المستخدم الذي تتحدث معه حالياً (استخدمها في إجاباتك بدقة ولا تسأله عنها):
-- الوزن: {p.get('weight', 'غير مسجل')} كجم
-- الطول: {p.get('height', 'غير مسجل')} سم
-- الهدف الرياضي: {p.get('fitnessGoal', 'تحسين الصحة العامة')}
-- مستوى النشاط: {p.get('activityLevel', 'متوسط')}
-- ملاحظات طبية: {p.get('medicalNotes', 'لا يوجد')}
+            # C. Build dynamic System Prompt
+            system_content = f"""You are a professional personal trainer and nutrition expert named ICoach.
+Here is the current user's data you are speaking with (use it accurately in your responses and do not ask about it):
+- Weight: {p.get('weight', 'Not recorded')} kg
+- Height: {p.get('height', 'Not recorded')} cm
+- Fitness Goal: {p.get('fitnessGoal', 'General health improvement')}
+- Activity Level: {p.get('activityLevel', 'Moderate')}
+- Medical Notes: {p.get('medicalNotes', 'None')}
 
-أجب باختصار، وبأسلوب عملي ومباشر باللغة العربية."""
+Answer concisely, in a practical and direct style in Arabic."""
 
             messages = [{"role": "system", "content": system_content}]
             
-            # إضافة الذاكرة (التاريخ)
+            # Add memory (history)
             for msg in history:
-                messages.append({"role": msg.role, "content": msg.content})
+                messages.append({"role": msg["role"], "content": msg["content"]})
             
-            # إضافة رسالة المستخدم الجديدة
+            # Add new user message
             messages.append({"role": "user", "content": chat_request.content})
 
-            # د. حفظ رسالة المستخدم في قاعدة البيانات
+            # D. Save user message to database
             await MemoryService.save_message(user_id, current_session_id, "user", chat_request.content, db_session)
 
-            # هـ. طلب الرد من Groq
+            # E. Request response from Groq
             response = await llm.chat_completion(messages=messages, max_tokens=500)
             bot_reply = response.choices[0].message.content
             
-            # و. حفظ رد البوت في الذاكرة
+            # F. Save bot response to memory
             await MemoryService.save_message(user_id, current_session_id, "assistant", bot_reply, db_session)
             
-            # حساب التوكنز الفعلية
+            # Calculate actual tokens used
             actual_tokens = response.usage.total_tokens if hasattr(response, 'usage') else 200
 
     except Exception as e:
         logger.error(f"❌ AI Logic Error: {e}")
-        raise HTTPException(status_code=500, detail="حدث خطأ أثناء معالجة رد الذكاء الاصطناعي")
+        raise HTTPException(status_code=500, detail="An error occurred while processing the AI response")
 
     # ─── 6. Commit Usage ───
     await _token_svc.update_usage(str(user_id), actual_tokens)
@@ -127,8 +153,11 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
 
 @router.get("/tokens/usage")
 async def get_token_usage(request: Request):
-    user_id = getattr(request.state, "user_id", "test_user_1")
+    raw_user_id = getattr(request.state, "user_id", 1)
     tier = getattr(request.state, "tier", "free")
+    
+    # Convert user_id to integer
+    user_id = ensure_int_id(raw_user_id)
     
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -153,3 +182,42 @@ async def get_token_usage(request: Request):
         "remaining": max(0, limit - used),
         "reset_time": "midnight UTC"
     }
+
+# Optional: Add endpoint to list user's sessions
+@router.get("/sessions")
+async def list_sessions(request: Request):
+    """Get all chat sessions for the user"""
+    raw_user_id = getattr(request.state, "user_id", 1)
+    user_id = ensure_int_id(raw_user_id)
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    async with AsyncSessionLocal() as db_session:
+        result = await db_session.execute(
+            text("""
+                SELECT DISTINCT session_id, 
+                       MIN(created_at) as started_at,
+                       MAX(created_at) as last_active,
+                       COUNT(*) as message_count
+                FROM chat_history 
+                WHERE user_id = :user_id
+                GROUP BY session_id
+                ORDER BY last_active DESC
+            """),
+            {"user_id": user_id}
+        )
+        sessions = result.fetchall()
+        
+        return {
+            "user_id": user_id,
+            "sessions": [
+                {
+                    "session_id": s.session_id,
+                    "started_at": s.started_at,
+                    "last_active": s.last_active,
+                    "message_count": s.message_count
+                }
+                for s in sessions
+            ]
+        }
