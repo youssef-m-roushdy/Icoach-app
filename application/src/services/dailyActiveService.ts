@@ -354,7 +354,7 @@ export const dailyActiveService = {
           queryParams
         );
         
-        return response.data || null;
+        return response.data;
       },
       token
     );

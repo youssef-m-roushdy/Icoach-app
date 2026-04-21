@@ -94,13 +94,13 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider>
+        <ThemeProvider>      {/* ThemeProvider OUTSIDE */}
+          <AuthProvider>     {/* AuthProvider INSIDE - now has access to theme */}
             <BottomSheetModalProvider>
               <AppContent />
             </BottomSheetModalProvider>
-          </ThemeProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

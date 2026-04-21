@@ -7,11 +7,11 @@ import React, {
   useCallback,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { authService } from '../services';
 import { setGlobalRefreshTokenFunction } from '../services/api';
 import { socketService } from '../services/socketService';
 import type { User } from '../types';
+import SuccessModal from '../components/common/SuccessModal'; // Adjust path as needed
 
 interface AuthContextType {
   user: User | null;
@@ -39,6 +39,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Success Modal state
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successModalData, setSuccessModalData] = useState({
+    title: '',
+    message: '',
+    onPrimaryPress: () => {}
+  });
 
   // =========================================
   // Load stored auth on mount
@@ -235,12 +243,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('📧 [AUTH] AsyncStorage update failed:', err)
           );
 
-        Alert.alert(
-          '✅ Email Verified!',
-          data.message ||
-            'Your email has been verified successfully. You now have full access to all features.',
-          [{ text: 'Great!', style: 'default' }]
-        );
+        // Show success modal instead of Alert
+        setSuccessModalData({
+          title: '✅ Email Verified!',
+          message: data.message || 'Your email has been verified successfully. You now have full access to all features.',
+          onPrimaryPress: () => {
+            setSuccessModalVisible(false);
+            // Optional: Add any navigation or additional logic here
+          }
+        });
+        setSuccessModalVisible(true);
 
         console.log('========================================================\n');
       } else {
@@ -290,21 +302,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user?.id, user?.isEmailVerified, handleEmailVerified]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user && !!token,
-        isLoading,
-        login,
-        logout,
-        setAuthState,
-        updateUser,
-        token,
-        refreshAccessToken,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <>
+      <AuthContext.Provider
+        value={{
+          user,
+          isAuthenticated: !!user && !!token,
+          isLoading,
+          login,
+          logout,
+          setAuthState,
+          updateUser,
+          token,
+          refreshAccessToken,
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+      
+      {/* Success Modal */}
+      <SuccessModal
+        visible={successModalVisible}
+        title={successModalData.title}
+        message={successModalData.message}
+        primaryButtonText="Great!"
+        onPrimaryPress={successModalData.onPrimaryPress}
+        iconName="checkmark-circle"
+      />
+    </>
   );
 };
 

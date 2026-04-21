@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Platform, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
@@ -13,6 +13,7 @@ interface SuccessModalProps {
   secondaryButtonText?: string;
   onSecondaryPress?: () => void;
   iconName?: keyof typeof Ionicons.glyphMap;
+  onBackdropPress?: () => void; // Optional: close on backdrop tap
 }
 
 export default function SuccessModal({
@@ -23,9 +24,30 @@ export default function SuccessModal({
   onPrimaryPress,
   secondaryButtonText,
   onSecondaryPress,
-  iconName = "checkmark-circle"
+  iconName = "checkmark-circle",
+  onBackdropPress
 }: SuccessModalProps) {
   const { colors } = useTheme();
+
+  // Handle Android back button when modal is visible
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (visible) {
+        // If modal is visible, close it by calling the appropriate handler
+        if (onBackdropPress) {
+          onBackdropPress();
+        } else if (onSecondaryPress) {
+          onSecondaryPress();
+        } else {
+          onPrimaryPress();
+        }
+        return true; // Prevent default back button behavior
+      }
+      return false; // Let default behavior happen
+    });
+
+    return () => backHandler.remove();
+  }, [visible, onBackdropPress, onSecondaryPress, onPrimaryPress]);
 
   return (
     <Modal
@@ -33,12 +55,30 @@ export default function SuccessModal({
       transparent
       animationType="fade"
       hardwareAccelerated
+      onRequestClose={() => {
+        // This is called when Android back button is pressed
+        if (onBackdropPress) {
+          onBackdropPress();
+        } else if (onSecondaryPress) {
+          onSecondaryPress();
+        } else {
+          onPrimaryPress();
+        }
+      }}
     >
-      <View style={styles.overlay}>
-        <View style={[styles.card, { 
-          backgroundColor: (colors as any).authInputBg || colors.surface || colors.card,
-          borderColor: (colors as any).authInputBorder || colors.border,
-        }]}>
+      <TouchableOpacity 
+        style={styles.overlay} 
+        activeOpacity={1} 
+        onPress={onBackdropPress}
+      >
+        <TouchableOpacity 
+          style={[styles.card, { 
+            backgroundColor: (colors as any).authInputBg || colors.surface || colors.card,
+            borderColor: (colors as any).authInputBorder || colors.border,
+          }]} 
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
           <View style={[styles.iconContainer, { backgroundColor: colors.primary + '15' }]}>
             <Ionicons name={iconName} size={48} color={colors.primary} />
           </View>
@@ -75,8 +115,8 @@ export default function SuccessModal({
               </TouchableOpacity>
             )}
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }
