@@ -9,11 +9,11 @@ import {
 } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 
-// WaterIntake attributes interface
+// WaterIntake attributes interface - Updated to allow string for date
 interface WaterIntakeAttributes {
   id: number;
   userId: number;
-  date: Date;
+  date: string;
   amountInLiters: number;
   goalInLiters: number;
   isCompleted: boolean;
@@ -35,7 +35,37 @@ interface WaterIntakeCreationAttributes
     | 'streakDays'
     | 'createdAt'
     | 'updatedAt'
-  > {}
+  > { }
+
+// Helper function to format date for DATEONLY field
+function formatDateForDB(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper function to convert date to string safely
+function dateToString(date: string | Date): string {
+  if (typeof date === 'string') {
+    return date;
+  }
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return '';
+}
+
+// Helper function to convert to Date object
+function toDateObject(date: string | Date): Date {
+  if (date instanceof Date) {
+    return date;
+  }
+  return new Date(date);
+}
 
 // WaterIntake model class
 class WaterIntake extends Model<
@@ -45,7 +75,7 @@ class WaterIntake extends Model<
   // Attributes
   declare id: CreationOptional<number>;
   declare userId: number;
-  declare date: Date;
+  declare date: string;
   declare amountInLiters: CreationOptional<number>;
   declare goalInLiters: CreationOptional<number>;
   declare isCompleted: CreationOptional<boolean>;
@@ -55,7 +85,7 @@ class WaterIntake extends Model<
   declare readonly updatedAt: CreationOptional<Date>;
 
   // Instance methods
-  
+
   // Check if goal is achieved
   isGoalAchieved(): boolean {
     return this.amountInLiters >= this.goalInLiters;
@@ -88,7 +118,12 @@ class WaterIntake extends Model<
 
   // Get formatted date string
   getFormattedDate(): string {
-    return this.date.toISOString().split('T')[0] ?? '';
+    return this.date;
+  }
+
+  // Get date as Date object
+  getDateObject(): Date {
+    return new Date(this.date);
   }
 
   // Get status message
@@ -113,46 +148,49 @@ class WaterIntake extends Model<
   addWater(amount: number, unit: 'L' | 'ML' = 'L'): number {
     const amountInLiters = unit === 'L' ? amount : amount / 1000;
     this.amountInLiters = Math.min(this.amountInLiters + amountInLiters, 10); // Cap at 10L
-    
+
     // Check if goal is achieved
     if (!this.isCompleted && this.amountInLiters >= this.goalInLiters) {
       this.isCompleted = true;
       this.completedAt = new Date();
     }
-    
+
     return this.amountInLiters;
   }
 
   // Static methods
-  
+
   // Find activity by user and date
-  static async findByUserAndDate(userId: number, date: Date): Promise<WaterIntake | null> {
+  static async findByUserAndDate(userId: number, date: Date | string): Promise<WaterIntake | null> {
+    const dateStr = typeof date === 'string' ? date : formatDateForDB(date);
+    
     return this.findOne({
       where: {
         userId,
-        date: {
-          [Op.eq]: date
-        }
+        date: dateStr
       }
     });
   }
 
-  // Get or create today's activity
+  // Get or create today's activity - FIXED
   static async getOrCreateToday(userId: number): Promise<WaterIntake> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    const todayStr = formatDateForDB(today);
+    
     const [activity] = await this.findOrCreate({
       where: {
         userId,
-        date: today
+        date: todayStr
       },
       defaults: {
         userId,
-        date: today,
+        date: todayStr,
         amountInLiters: 0,
         goalInLiters: 2.0,
-        isCompleted: false
+        isCompleted: false,
+        streakDays: 0
       }
     });
     
@@ -162,14 +200,17 @@ class WaterIntake extends Model<
   // Get user's activities for a date range
   static async getUserActivities(
     userId: number,
-    startDate: Date,
-    endDate: Date
+    startDate: Date | string,
+    endDate: Date | string
   ): Promise<WaterIntake[]> {
+    const startStr = typeof startDate === 'string' ? startDate : formatDateForDB(startDate);
+    const endStr = typeof endDate === 'string' ? endDate : formatDateForDB(endDate);
+    
     return this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startDate, endDate]
+          [Op.between]: [startStr, endStr]
         }
       },
       order: [['date', 'ASC']]
@@ -190,12 +231,12 @@ class WaterIntake extends Model<
     let streak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = formatDateForDB(today);
 
     for (const activity of activities) {
-      const activityDate = new Date(activity.date);
-      activityDate.setHours(0, 0, 0, 0);
-      
-      const daysDiff = Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.floor(
+        (new Date(todayStr).getTime() - new Date(activity.date).getTime()) / (1000 * 60 * 60 * 24)
+      );
       
       if (daysDiff === streak) {
         streak++;
@@ -219,17 +260,18 @@ class WaterIntake extends Model<
 
     let longestStreak = 0;
     let currentStreak = 0;
-    let lastDate: Date | null = null;
+    let lastDateStr: string | null = null;
 
     for (const activity of activities) {
-      const activityDate = new Date(activity.date);
-      activityDate.setHours(0, 0, 0, 0);
-      
-      if (lastDate) {
+      const activityDateStr = activity.date;
+
+      if (lastDateStr) {
+        const lastDate = new Date(lastDateStr);
+        const currentDate = new Date(activityDateStr);
         const daysDiff = Math.floor(
-          (activityDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+          (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
         );
-        
+
         if (daysDiff === 1) {
           currentStreak++;
         } else {
@@ -238,9 +280,9 @@ class WaterIntake extends Model<
       } else {
         currentStreak = 1;
       }
-      
+
       longestStreak = Math.max(longestStreak, currentStreak);
-      lastDate = activityDate;
+      lastDateStr = activityDateStr;
     }
 
     return longestStreak;
@@ -255,11 +297,11 @@ class WaterIntake extends Model<
     const result = await this.sum('amountInLiters', {
       where: { userId }
     });
-    
+
     const totalDays = await this.count({
       where: { userId }
     });
-    
+
     const totalLiters = result || 0;
     const averageDailyLiters = totalDays > 0 ? totalLiters / totalDays : 0;
 
@@ -271,26 +313,30 @@ class WaterIntake extends Model<
   }
 
   // Get weekly summary for user
-  static async getWeeklySummary(userId: number, date: Date): Promise<{
+  static async getWeeklySummary(userId: number, date: Date | string): Promise<{
     totalLiters: number;
     totalML: number;
     completedDays: number;
     averageDailyLiters: number;
     bestDay: { date: string; amount: number } | null;
   }> {
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
+    const inputDate = toDateObject(date);
+    const startOfWeek = new Date(inputDate);
+    startOfWeek.setDate(inputDate.getDate() - inputDate.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    
+
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
+
+    const startStr = formatDateForDB(startOfWeek);
+    const endStr = formatDateForDB(endOfWeek);
 
     const activities = await this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startOfWeek, endOfWeek]
+          [Op.between]: [startStr, endStr]
         }
       }
     });
@@ -298,10 +344,10 @@ class WaterIntake extends Model<
     const totalLiters = activities.reduce((sum, act) => sum + act.amountInLiters, 0);
     const completedDays = activities.filter(act => act.isCompleted).length;
     const averageDailyLiters = activities.length > 0 ? totalLiters / activities.length : 0;
-    
+
     let bestDay = null;
     if (activities.length > 0) {
-      const best = activities.reduce((max, act) => 
+      const best = activities.reduce((max, act) =>
         act.amountInLiters > max.amountInLiters ? act : max
       );
       bestDay = {
@@ -330,11 +376,14 @@ class WaterIntake extends Model<
     const startOfMonth = new Date(year, month - 1, 1);
     const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
 
+    const startStr = formatDateForDB(startOfMonth);
+    const endStr = formatDateForDB(endOfMonth);
+
     const activities = await this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startOfMonth, endOfMonth]
+          [Op.between]: [startStr, endStr]
         }
       }
     });
@@ -356,19 +405,22 @@ class WaterIntake extends Model<
   // Get stats for a specific date range
   static async getStatsForDateRange(
     userId: number,
-    startDate: Date,
-    endDate: Date
+    startDate: Date | string,
+    endDate: Date | string
   ): Promise<{
     activities: WaterIntake[];
     totalLiters: number;
     completedDays: number;
     completionRate: number;
   }> {
+    const startStr = typeof startDate === 'string' ? startDate : formatDateForDB(startDate);
+    const endStr = typeof endDate === 'string' ? endDate : formatDateForDB(endDate);
+
     const activities = await this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startDate, endDate]
+          [Op.between]: [startStr, endStr]
         }
       },
       order: [['date', 'ASC']]
@@ -420,9 +472,13 @@ WaterIntake.init(
         notNull: {
           msg: 'Date is required',
         },
-        isValidDate(value: Date) {
-          if (isNaN(new Date(value).getTime())) {
+        isValidDate(value: string) {
+          if (!value || typeof value !== 'string') {
             throw new Error('Invalid date format');
+          }
+          const regex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!regex.test(value)) {
+            throw new Error('Date must be in YYYY-MM-DD format');
           }
         },
       },
@@ -507,7 +563,7 @@ WaterIntake.init(
     modelName: 'WaterIntake',
     timestamps: true,
     paranoid: false,
-    underscored: true, // Automatically convert camelCase to snake_case in queries
+    underscored: true,
     indexes: [
       {
         unique: true,

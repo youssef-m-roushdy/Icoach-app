@@ -34,6 +34,7 @@ import WorkoutHistoryScreen from '../screens/WorkoutHistoryScreen';
 import GymProgressScreen from '../screens/GymProgressScreen';
 import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
 import EditWorkoutSessionScreen from '../screens/EditWorkoutSessionScreen';
+import WaterIntakeDetailsScreen from '../screens/WaterIntakeDetailsScreen';
 
 import { SystemNavigationBarProtector } from '../components/SystemNavigationBarProtector';
 
@@ -64,22 +65,22 @@ export type RootStackParamList = {
   AuthCallback: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email?: string; resetToken?: string };
-  
+
   // Main tabs
   MainTabs: undefined;
-  
+
   // Profile and settings
   Profile: undefined;
   EditProfile: undefined;
   EditBodyInfo: undefined;
   ChangePassword: undefined;
-  
+
   // Workout screens
   SavedWorkouts: undefined;
   WorkoutHistory: undefined;
-  WorkoutSession: { 
-    workoutId: number; 
-    workoutName: string; 
+  WorkoutSession: {
+    workoutId: number;
+    workoutName: string;
     workoutImage?: string;
   };
 
@@ -87,20 +88,23 @@ export type RootStackParamList = {
 
   // Messages
   Messages: undefined;
-  
+
   // Onboarding
   Onboarding: undefined;
-  
+
+  // Water Details
+  WaterIntakeDetails: undefined;
+
   // Email verification
   EmailVerification: undefined;
-  
+
   // Other screens
   GymProgress: undefined;
   LiveWorkout: undefined;
   Foods: undefined;
   Workouts: undefined;
   Home: undefined;
-  
+
   // NEW SCREENS - Add these
   Chatbot: undefined;
   Notifications: undefined;
@@ -129,9 +133,9 @@ interface CustomHeaderProps {
   onBackPress?: () => void;
 }
 
-const CustomHeader: React.FC<CustomHeaderProps> = ({ 
+const CustomHeader: React.FC<CustomHeaderProps> = ({
   title,
-  onProfilePress, 
+  onProfilePress,
   onMenuPress,
   colors,
   userImage,
@@ -145,12 +149,12 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   return (
     <View style={[
       stylesGlobal.headerContainer,
-      { 
+      {
         backgroundColor: colors.background,
         paddingTop: insets.top,
       }
     ]}>
-      
+
       <View style={stylesGlobal.headerContent}>
         {/* Left Section - Menu Button or Back Button */}
         <View style={stylesGlobal.leftSection}>
@@ -205,8 +209,8 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
               profilePressed && { backgroundColor: colors.primary + '10' }
             ]}
           >
-            <Image 
-              source={userImage || { uri: 'https://ui-avatars.com/api/?name=User&background=FFD700&color=000&bold=true' }} 
+            <Image
+              source={userImage || { uri: 'https://ui-avatars.com/api/?name=User&background=FFD700&color=000&bold=true' }}
               style={stylesGlobal.profileImage}
             />
           </TouchableOpacity>
@@ -253,8 +257,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           const label = options.tabBarLabel !== undefined
             ? options.tabBarLabel
             : options.title !== undefined
-            ? options.title
-            : route.name;
+              ? options.title
+              : route.name;
 
           const isFocused = state.index === index;
 
@@ -353,27 +357,27 @@ function BottomTabNavigator() {
           component={HomeScreen}
           options={{ tabBarLabel: 'Home' }}
         />
-      <Tab.Screen
-        name="Workouts"
-        component={WorkoutsScreen}
-        options={{ tabBarLabel: 'Workouts' }}
-      />
-      <Tab.Screen
-        name="Progress"
-        component={GymProgressScreen}
-        options={{ tabBarLabel: 'Progress' }}
-      />
-      <Tab.Screen
-        name="Nutrition"
-        component={FoodsScreen}
-        options={{ tabBarLabel: 'Nutrition' }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarLabel: 'Profile' }}
-      />
-    </Tab.Navigator>
+        <Tab.Screen
+          name="Workouts"
+          component={WorkoutsScreen}
+          options={{ tabBarLabel: 'Workouts' }}
+        />
+        <Tab.Screen
+          name="Progress"
+          component={GymProgressScreen}
+          options={{ tabBarLabel: 'Progress' }}
+        />
+        <Tab.Screen
+          name="Nutrition"
+          component={FoodsScreen}
+          options={{ tabBarLabel: 'Nutrition' }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ tabBarLabel: 'Profile' }}
+        />
+      </Tab.Navigator>
     </View>
   );
 }
@@ -554,8 +558,8 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
         ]}
       >
         {/* Header with user info */}
-        <TouchableOpacity 
-          style={styles.drawerHeader} 
+        <TouchableOpacity
+          style={styles.drawerHeader}
           onPress={handleProfilePress}
           activeOpacity={0.7}
         >
@@ -587,7 +591,7 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
         </TouchableOpacity>
 
         {/* Scrollable menu items */}
-        <ScrollView 
+        <ScrollView
           style={styles.menuScroll}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.menuContent}
@@ -753,6 +757,23 @@ export const AppNavigator: React.FC = () => {
                 name="Profile"
                 component={ProfileScreen}
               />
+              {/* Water Intake Details Screen */}
+              <Stack.Screen
+                name="WaterIntakeDetails"
+                component={WaterIntakeDetailsScreen}
+                options={({ navigation }) => ({
+                  header: () => (
+                    <CustomHeader
+                      title="Water Intake"
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
+                      colors={colors}
+                      showBack={true}
+                      onBackPress={() => navigation.goBack()}
+                    />
+                  ),
+                })}
+              />
               <Stack.Screen
                 name="SavedWorkouts"
                 component={SavedWorkoutsScreen}
@@ -760,8 +781,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Saved Workouts"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -776,8 +797,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Workout History"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -804,8 +825,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="AI Coach"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -820,8 +841,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Messages"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -830,12 +851,12 @@ export const AppNavigator: React.FC = () => {
                 })}
               />
               <Stack.Screen
-  name="EditWorkoutSession"
-  component={EditWorkoutSessionScreen}
-  options={({ navigation }) => ({
-    headerShown: false,  // Screen has its own header
-  })}
-/>
+                name="EditWorkoutSession"
+                component={EditWorkoutSessionScreen}
+                options={({ navigation }) => ({
+                  headerShown: false,  // Screen has its own header
+                })}
+              />
               <Stack.Screen
                 name="EditProfile"
                 component={EditProfileScreen}
@@ -843,8 +864,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Edit Profile"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -859,8 +880,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Edit Body Info"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -875,8 +896,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Change Password"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -896,8 +917,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Verify Email"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -912,8 +933,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="AI Coach"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -921,7 +942,7 @@ export const AppNavigator: React.FC = () => {
                   ),
                 })}
               />
-              
+
               <Stack.Screen
                 name="Notifications"
                 component={NotificationsScreen}
@@ -929,8 +950,8 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Notifications"
-                      onProfilePress={() => {}}
-                      onMenuPress={() => {}}
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
                       colors={colors}
                       showBack={true}
                       onBackPress={() => navigation.goBack()}
@@ -1020,7 +1041,7 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     alignSelf: 'center',
   },
-  
+
   // Drawer styles
   overlay: {
     position: 'absolute',

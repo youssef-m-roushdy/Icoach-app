@@ -11,6 +11,19 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+// Helper function to format date for DATEONLY field
+function formatDateForDB(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper to get today's date string
+function getTodayStr(): string {
+  return formatDateForDB(new Date());
+}
+
 /**
  * Sync or create water intake for the current user
  * Accepts amount in L or ML, converts to L for storage
@@ -46,8 +59,11 @@ export const syncWaterIntake = async (
       throw new AppError('Amount cannot be negative', 400);
     }
 
+    // Ensure date is in YYYY-MM-DD format
+    const dateStr = typeof date === 'string' ? date : formatDateForDB(new Date(date));
+
     let waterIntake = await WaterIntake.findOne({
-      where: { userId: user.id, date },
+      where: { userId: user.id, date: dateStr },
     });
 
     const goal = goalInLiters || 2.0;
@@ -61,9 +77,9 @@ export const syncWaterIntake = async (
     // Calculate streak
     let streakDays = waterIntake?.streakDays ?? 0;
     if (isCompleted && (!waterIntake || !waterIntake.isCompleted)) {
-      const yesterday = new Date(date);
+      const yesterday = new Date(dateStr);
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0] ?? '';
+      const yesterdayStr = formatDateForDB(yesterday);
 
       const yesterdayActivity = await WaterIntake.findOne({
         where: { userId: user.id, date: yesterdayStr, isCompleted: true },
@@ -83,7 +99,7 @@ export const syncWaterIntake = async (
     } else {
       waterIntake = await WaterIntake.create({
         userId: user.id,
-        date,
+        date: dateStr,
         amountInLiters,
         goalInLiters: goal,
         isCompleted,
@@ -154,11 +170,10 @@ export const addWaterIntake = async (
       throw new AppError('Amount must be greater than 0', 400);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = getTodayStr();
 
     let waterIntake = await WaterIntake.findOne({
-      where: { userId: user.id, date: today },
+      where: { userId: user.id, date: todayStr },
     });
 
     const newAmount = (waterIntake?.amountInLiters || 0) + amountInLiters;
@@ -173,11 +188,12 @@ export const addWaterIntake = async (
     // Calculate streak for new completion
     let streakDays = waterIntake?.streakDays ?? 0;
     if (isCompleted && (!waterIntake || !waterIntake.isCompleted)) {
-      const yesterday = new Date(today);
+      const yesterday = new Date(todayStr);
       yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDateForDB(yesterday);
 
       const yesterdayActivity = await WaterIntake.findOne({
-        where: { userId: user.id, date: yesterday, isCompleted: true },
+        where: { userId: user.id, date: yesterdayStr, isCompleted: true },
       });
 
       streakDays = yesterdayActivity ? (waterIntake?.streakDays ?? 0) + 1 : 1;
@@ -193,7 +209,7 @@ export const addWaterIntake = async (
     } else {
       waterIntake = await WaterIntake.create({
         userId: user.id,
-        date: today, // ✅ Use Date object
+        date: todayStr,
         amountInLiters: newAmount,
         goalInLiters: goal,
         isCompleted,
@@ -241,9 +257,7 @@ export const getWaterIntakeStats = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const todayStr = getTodayStr();
 
     const todayActivity = await WaterIntake.findOne({
       where: { userId: user.id, date: todayStr },
@@ -262,14 +276,16 @@ export const getWaterIntakeStats = async (
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
+    const sevenDaysAgoStr = formatDateForDB(sevenDaysAgo);
+    const todayEndStr = formatDateForDB(new Date());
 
-    const weekActivities = await WaterIntake.getUserActivities(user.id, sevenDaysAgo, new Date());
+    const weekActivities = await WaterIntake.getUserActivities(user.id, sevenDaysAgoStr, todayEndStr);
     const weekMap = new Map(weekActivities.map((a: WaterIntake) => [a.getFormattedDate(), a]));
 
     const weeklyData = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toISOString().split('T')[0] ?? '';
+      const dateStr = formatDateForDB(d);
       const activity: WaterIntake | undefined = weekMap.get(dateStr);
       return {
         date: dateStr,
@@ -284,14 +300,15 @@ export const getWaterIntakeStats = async (
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const thirtyDaysAgoStr = formatDateForDB(thirtyDaysAgo);
 
-    const monthActivities = await WaterIntake.getUserActivities(user.id, thirtyDaysAgo, new Date());
+    const monthActivities = await WaterIntake.getUserActivities(user.id, thirtyDaysAgoStr, todayEndStr);
     const monthMap = new Map(monthActivities.map((a: WaterIntake) => [a.getFormattedDate(), a]));
 
     const monthlyData = Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
-      const dateStr = d.toISOString().split('T')[0] ?? '';
+      const dateStr = formatDateForDB(d);
       const activity: WaterIntake | undefined = monthMap.get(dateStr);
       return {
         date: dateStr,
@@ -402,9 +419,7 @@ export const getTodayWaterIntake = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const todayStr = getTodayStr();
 
     const activity = await WaterIntake.findOne({
       where: { userId: user.id, date: todayStr },
@@ -495,12 +510,10 @@ export const updateWaterGoal = async (
       throw new AppError('Goal must be between 0.5 and 10 liters', 400);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const todayStr = getTodayStr();
 
     let waterIntake = await WaterIntake.findOne({
-      where: { userId: user.id, date: today },
+      where: { userId: user.id, date: todayStr },
     });
 
     if (waterIntake) {
@@ -517,7 +530,7 @@ export const updateWaterGoal = async (
     } else {
       waterIntake = await WaterIntake.create({
         userId: user.id,
-        date: today, // ✅ Use Date object, not string
+        date: todayStr,
         amountInLiters: 0,
         goalInLiters,
         isCompleted: false,

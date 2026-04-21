@@ -22,6 +22,7 @@ import { useWaterIntake } from '../hooks/useWaterIntake';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import SmartWaterInput from '../components/SmartWaterInput';
 
 const BLUE = '#007BFF';
 // PRIMARY color replaced dynamically with colors.primary
@@ -66,10 +67,8 @@ export default function HomeScreen() {
     }
   };
 
-  const handleNavigateToHistory = () => {
-    // Navigate to water intake history screen
-    // navigation.navigate('WaterHistory' as never);
-    console.log('Navigate to water history');
+  const handleNavigateToWaterHistory = () => {
+    navigation.navigate('WaterIntakeDetails' as never);
   };
 
   const handleNavigateToStepHistory = () => {
@@ -315,156 +314,123 @@ export default function HomeScreen() {
         </View>
 
         {/* Daily Water Intake - Professional with Real Data */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Hydration</Text>
-            <TouchableOpacity onPress={handleNavigateToHistory}>
-              <Text style={[styles.sectionLink, { color: colors.primary }]}>History →</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Daily Water Intake - Professional with Smart Input */}
+<View style={styles.section}>
+  <View style={styles.sectionHeader}>
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>Hydration</Text>
+    <TouchableOpacity onPress={handleNavigateToWaterHistory}>
+      <Text style={[styles.sectionLink, { color: colors.primary }]}>Details →</Text>
+    </TouchableOpacity>
+  </View>
 
-          <View style={[styles.waterCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder, shadowColor: colors.shadow }]}>
-            <View style={styles.waterHeader}>
-              <View style={styles.cardTitleRow}>
-                <MaterialCommunityIcons name="water" size={20} color={colors.primary} />
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Water Intake</Text>
-                {waterData.isSyncing && (
-                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
-                )}
-              </View>
-              <TouchableOpacity 
-                style={[styles.waterGoalChip, { backgroundColor: `${colors.primary}10` }]}
-                onPress={handleEditWaterGoal}
-              >
-                <Text style={[styles.waterGoalText, { color: colors.primary }]}>
-                  Goal: {waterData.cupsGoal} cups ✎
-                </Text>
-              </TouchableOpacity>
-            </View>
+  <View style={[styles.waterCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder, shadowColor: colors.shadow }]}>
+    <View style={styles.waterHeader}>
+      <View style={styles.cardTitleRow}>
+        <MaterialCommunityIcons name="water" size={20} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Water Intake</Text>
+        {waterData.isSyncing && (
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+        )}
+      </View>
+      <TouchableOpacity 
+        style={[styles.waterGoalChip, { backgroundColor: `${colors.primary}10` }]}
+        onPress={handleEditWaterGoal}
+      >
+        <Text style={[styles.waterGoalText, { color: colors.primary }]}>
+          Goal: {waterData.cupsGoal} cups ✎
+        </Text>
+      </TouchableOpacity>
+    </View>
 
-            <View style={styles.waterMain}>
-              <View style={styles.waterCircleContainer}>
-                <View style={[
-                  styles.waterCircle, 
-                  { 
-                    borderColor: waterData.isCompleted ? SUCCESS : colors.primary, 
-                    backgroundColor: colors.iconBg 
-                  }
-                ]}>
-                  <Text style={[styles.waterCount, { color: waterData.isCompleted ? SUCCESS : colors.primary }]}>
-                    {waterData.cupsAmount}
-                  </Text>
-                  <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>cups</Text>
-                </View>
-                {waterData.streakDays > 0 && (
-                  <View style={[styles.streakBadge, { backgroundColor: `${WARNING}20` }]}>
-                    <MaterialCommunityIcons name="fire" size={12} color={WARNING} />
-                    <Text style={[styles.streakText, { color: WARNING }]}>{waterData.streakDays} day streak</Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.waterDetails}>
-                <View style={styles.waterProgressSection}>
-                  <View style={[styles.waterProgressBarBg, { backgroundColor: colors.progressBg }]}>
-                    <View style={[
-                      styles.waterProgressBarFill, 
-                      { 
-                        backgroundColor: waterData.isCompleted ? SUCCESS : colors.primary, 
-                        width: `${waterData.progress * 100}%` 
-                      }
-                    ]} />
-                  </View>
-                  <Text style={[styles.waterProgressText, { color: colors.textSecondary }]}>
-                    {waterData.cupsAmount} of {waterData.cupsGoal} cups completed
-                  </Text>
-                </View>
-
-                <View style={styles.waterQuickActions}>
-                  {waterData.quickAddPresets.slice(0, 3).map((preset, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[styles.quickAddChip, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30` }]}
-                      onPress={() => handleQuickAdd(index)}
-                      disabled={waterData.isSyncing}
-                    >
-                      <Text style={[styles.quickAddText, { color: colors.primary }]}>+{preset.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity 
-                  style={{ 
-                    borderRadius: 20, 
-                    overflow: 'hidden', 
-                    shadowColor: '#000', 
-                    shadowOffset: { width: 0, height: 4 }, 
-                    shadowOpacity: 0.2, 
-                    shadowRadius: 8, 
-                    elevation: 5,
-                    marginTop: 8,
-                    opacity: waterData.isSyncing ? 0.6 : 1,
-                  }} 
-                  activeOpacity={0.8}
-                  onPress={showWaterPresetOptions}
-                  disabled={waterData.isSyncing}
-                >
-                  <LinearGradient
-                    colors={[colors.primary, colors.secondary || colors.primary]}
-                    style={styles.addWaterBtn}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Ionicons name="add-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.addWaterBtnText}>
-                      {waterData.isSyncing ? 'Adding...' : 'Add Water'}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.waterStatsRow}>
-              <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>
-                  {Math.round(waterData.goalInML)}
-                </Text>
-                <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Target</Text>
-                <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
-              </View>
-              <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>
-                  {Math.round(waterData.amountInML)}
-                </Text>
-                <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Consumed</Text>
-                <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
-              </View>
-              <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
-                <Text style={[styles.waterStatValue, { color: colors.text }]}>
-                  {Math.round(waterData.remainingML)}
-                </Text>
-                <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Remaining</Text>
-                <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
-              </View>
-            </View>
-
-            {waterData.error && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                <Text style={styles.errorText}>{waterData.error}</Text>
-              </View>
-            )}
-
-            {waterData.isCompleted && (
-              <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
-                <Ionicons name="trophy" size={16} color={SUCCESS} />
-                <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
-                  🎉 Daily hydration goal achieved! Great job!
-                </Text>
-              </View>
-            )}
-          </View>
+    <View style={styles.waterMain}>
+      <View style={styles.waterCircleContainer}>
+        <View style={[
+          styles.waterCircle, 
+          { 
+            borderColor: waterData.isCompleted ? SUCCESS : colors.primary, 
+            backgroundColor: colors.iconBg 
+          }
+        ]}>
+          <Text style={[styles.waterCount, { color: waterData.isCompleted ? SUCCESS : colors.primary }]}>
+            {waterData.cupsAmount}
+          </Text>
+          <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>cups</Text>
         </View>
+        {waterData.streakDays > 0 && (
+          <View style={[styles.streakBadge, { backgroundColor: `${WARNING}20` }]}>
+            <MaterialCommunityIcons name="fire" size={12} color={WARNING} />
+            <Text style={[styles.streakText, { color: WARNING }]}>{waterData.streakDays} day streak</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.waterDetails}>
+        <View style={styles.waterProgressSection}>
+          <View style={[styles.waterProgressBarBg, { backgroundColor: colors.progressBg }]}>
+            <View style={[
+              styles.waterProgressBarFill, 
+              { 
+                backgroundColor: waterData.isCompleted ? SUCCESS : colors.primary, 
+                width: `${waterData.progress * 100}%` 
+              }
+            ]} />
+          </View>
+          <Text style={[styles.waterProgressText, { color: colors.textSecondary }]}>
+            {waterData.cupsAmount} of {waterData.cupsGoal} cups completed
+          </Text>
+        </View>
+
+        {/* Smart Water Input Component - No quick chips outside */}
+        <SmartWaterInput
+          onAddWater={(amount, unit) => waterData.addWater(amount, unit)}
+          isSyncing={waterData.isSyncing}
+          buttonStyle="gradient"
+          buttonText="Add Water"
+        />
+      </View>
+    </View>
+
+    <View style={styles.waterStatsRow}>
+      <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+        <Text style={[styles.waterStatValue, { color: colors.text }]}>
+          {Math.round(waterData.goalInML)}
+        </Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Target</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+      </View>
+      <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+        <Text style={[styles.waterStatValue, { color: colors.text }]}>
+          {Math.round(waterData.amountInML)}
+        </Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Consumed</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+      </View>
+      <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
+        <Text style={[styles.waterStatValue, { color: colors.text }]}>
+          {Math.round(waterData.remainingML)}
+        </Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Remaining</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+      </View>
+    </View>
+
+    {waterData.error && (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={14} color="#EF4444" />
+        <Text style={styles.errorText}>{waterData.error}</Text>
+      </View>
+    )}
+
+    {waterData.isCompleted && (
+      <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
+        <Ionicons name="trophy" size={16} color={SUCCESS} />
+        <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
+          🎉 Daily hydration goal achieved! Great job!
+        </Text>
+      </View>
+    )}
+  </View>
+</View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
