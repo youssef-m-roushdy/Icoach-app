@@ -42,12 +42,16 @@ async def chat_endpoint(request: Request, chat_request: ChatRequest):
                 ):
                     yield chunk
             
+            # 🌟 التعديل 1: إرسال حدث النهاية للفرونت إند 🌟
+            yield json.dumps({"type": "done"}) + "\n"
+            
             # ملاحظة: تحديث التوكنز في الـ Streaming يحتاج تقدير بعد انتهاء الرد
-            await _token_svc.update_usage(str(user_id), 200) # قيمة تقديرية أو احسبها من الـ full_reply
+            await _token_svc.update_usage(str(user_id), 200) # قيمة تقديرية
             
         except Exception as e:
             logger.error(f"❌ Streaming Error: {e}")
-            yield json.dumps({"error": "حدث خطأ أثناء توليد الرد."})
+            # 🌟 التعديل 2: توحيد شكل الإيرور عشان الفرونت إند يعرف يقرأه 🌟
+            yield json.dumps({"type": "error", "message": "حدث خطأ أثناء توليد الرد."}) + "\n"
 
     # 3. إرجاع الرد كـ Stream
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")

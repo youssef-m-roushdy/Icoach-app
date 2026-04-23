@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.profile_service import ProfileService
 from services.memory_service import MemoryService
 from services.llm_service import get_groq_service
-from services.qdrant_service import qdrant_svc  # 🌟 تم إضافة خدمة Qdrant هنا
+from services.qdrant_service import qdrant_svc
 from tools.tool_definitions import ICoach_Tools
 from tools.tool_executor import execute_tool
 
@@ -26,9 +26,11 @@ CRITICAL RULES:
 6. If user reports pain, advise rest AND use 'update_medical_record' tool.
 7. Format your answers beautifully using Markdown.
 
-Current User Data (Use it but don't list it all):
+Current User Data (Use it but don't list it all unless asked):
+- Name: {name}
 - Goal: {goal}
 - Weight: {weight} kg
+- Height: {height} cm
 - Medical Notes: {medical_notes}
 """
 
@@ -41,25 +43,43 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
         session_id = str(uuid.uuid4())
         logger.info(f"🆕 Started new session: {session_id}")
 
-    # 2. جلب بيانات المستخدم وتاريخ المحادثة (الذاكرة قصيرة المدى)
+    # 2. 🛠️ ضمان قراءة بيانات اليوزر بشكل صحيح سواء كانت متداخلة أو مباشرة
     user_context = await ProfileService.get_user_context(user_id, db_session)
-    p = user_context.get('profile', {}) if isinstance(user_context, dict) else {}
+    p = user_context.get('profile', user_context) if isinstance(user_context, dict) else {}
+    
+    # 🕵️‍♂️ [DEBUG LOGS] - طباعة الداتا الخاصة بالبروفايل
+    logger.info("="*50)
+    logger.info(f"🕵️‍♂️ DEBUG [User Context from DB]: {user_context}")
+    logger.info(f"🕵️‍♂️ DEBUG [Extracted Profile 'p']: {p}")
+    logger.info("="*50)
+
     history = await MemoryService.get_chat_history(user_id, session_id, db_session)
 
-    # 🌟 الجديد: جلب الذكريات من Qdrant (الذاكرة طويلة المدى) بناءً على سؤال اليوزر 🌟
-    past_memories = await qdrant_svc.search_similar_memories(user_id, message)
+    # 🌟 جلب الذكريات من Qdrant (زودنا limit=5 عشان يلقط الكلمات المهمة)
+    past_memories = await qdrant_svc.search_similar_memories(user_id, message, limit=5)
     memory_string = "\n- ".join(past_memories) if past_memories else "None"
 
-    # تجهيز الـ System Prompt
+    # 🕵️‍♂️ [DEBUG LOGS] - طباعة ذكريات Qdrant
+    logger.info(f"🕵️‍♂️ DEBUG [Qdrant Memories Found]: {past_memories}")
+
+    # 🛠️ التعديل النهائي: قراءة المفاتيح الصحيحة بناءً على الـ Debug Logs
+    # لاحظ إن medical_notes بنقراها من user_context مباشرة الأول عشان هي بره الـ profile
     system_content = BASE_SYSTEM_PROMPT.format(
-        goal=p.get('fitnessGoal', 'General Health'),
-        weight=p.get('weight', 'Unknown'),
-        medical_notes=json.dumps(p.get('medicalNotes', 'None'), ensure_ascii=False)
+        name=p.get('name', p.get('firstName', 'يا بطل')),
+        goal=p.get('fitness_goal', p.get('fitnessGoal', 'General Health')),
+        weight=p.get('weight_kg', p.get('weight', 'غير محدد')),
+        height=p.get('height_cm', p.get('height', 'غير محدد')),
+        medical_notes=json.dumps(user_context.get('medical_notes', p.get('medicalNotes', 'None')), ensure_ascii=False)
     )
     
     # إضافة الذاكرة طويلة المدى للبرومبت لو موجودة
     if past_memories:
         system_content += f"\n\n[LONG-TERM MEMORY ABOUT THIS USER]:\n- {memory_string}\n(Use these facts if relevant to your answer)."
+
+    # 🕵️‍♂️ [DEBUG LOGS] - طباعة الـ Prompt النهائي اللي رايح لـ LLM
+    logger.info("="*50)
+    logger.info(f"🕵️‍♂️ DEBUG [Final System Prompt]:\n{system_content}")
+    logger.info("="*50)
 
     messages = [{"role": "system", "content": system_content}]
     
@@ -67,11 +87,18 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
     for msg in history[-10:]:
         messages.append({"role": msg["role"], "content": msg["content"]})
 
-    # حفظ رسالة المستخدم في SQL (Pre-save)
+    # حفظ رسالة المستخدم في SQL (الذاكرة القصيرة)
     await MemoryService.save_message(user_id, session_id, "user", message, db_session)
     messages.append({"role": "user", "content": message})
 
-    # 3. دوامة الـ Agent (Tool-Calling Loop)
+    # 3. 🔥 حفظ الرسالة في Qdrant (الذاكرة الطويلة) مع التأكد من نجاحها
+    try:
+        await qdrant_svc.save_memory(user_id, message)
+        logger.info(f"✅ Qdrant: تم حفظ رسالة اليوزر في الذاكرة الطويلة.")
+    except Exception as e:
+        logger.error(f"❌ Qdrant: فشل حفظ الرسالة في الذاكرة الطويلة: {e}")
+
+    # 4. دوامة الـ Agent (Tool-Calling Loop)
     llm = get_groq_service()
     max_tool_calls = 3
     current_tool_calls = 0
@@ -133,6 +160,6 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
                     yield json.dumps({"reply": content, "session_id": session_id}) + "\n"
             break
 
-    # 4. حفظ رد المساعد الكامل في SQL (Post-save)
+    # 5. حفظ رد المساعد الكامل في SQL (Post-save)
     if final_full_reply:
         await MemoryService.save_message(user_id, session_id, "assistant", final_full_reply, db_session)
