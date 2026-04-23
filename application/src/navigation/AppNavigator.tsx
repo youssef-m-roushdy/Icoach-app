@@ -35,6 +35,7 @@ import GymProgressScreen from '../screens/GymProgressScreen';
 import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
 import EditWorkoutSessionScreen from '../screens/EditWorkoutSessionScreen';
 import WaterIntakeDetailsScreen from '../screens/WaterIntakeDetailsScreen';
+import DailyActivityDetailsScreen from '../screens/DailyActivityDetailsScreen';
 
 import { SystemNavigationBarProtector } from '../components/SystemNavigationBarProtector';
 
@@ -94,6 +95,9 @@ export type RootStackParamList = {
 
   // Water Details
   WaterIntakeDetails: undefined;
+
+  // Daily Activity Details
+  DailyActivityDetails: undefined;
 
   // Email verification
   EmailVerification: undefined;
@@ -765,6 +769,23 @@ export const AppNavigator: React.FC = () => {
                   header: () => (
                     <CustomHeader
                       title="Water Intake"
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
+                      colors={colors}
+                      showBack={true}
+                      onBackPress={() => navigation.goBack()}
+                    />
+                  ),
+                })}
+              />
+              {/* Daily Activity Details Screen */}
+              <Stack.Screen
+                name="DailyActivityDetails"
+                component={DailyActivityDetailsScreen}
+                options={({ navigation }) => ({
+                  header: () => (
+                    <CustomHeader
+                      title="Step Activity"
                       onProfilePress={() => { }}
                       onMenuPress={() => { }}
                       colors={colors}

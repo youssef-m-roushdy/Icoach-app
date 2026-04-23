@@ -9,11 +9,41 @@ import {
 } from 'sequelize';
 import { sequelize } from '../../config/database.js';
 
-// DailyActivity attributes interface
+// Helper function to format date for DATEONLY field
+function formatDateForDB(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper function to convert date to string safely
+function dateToString(date: string | Date): string {
+  if (typeof date === 'string') {
+    return date;
+  }
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return '';
+}
+
+// Helper function to convert to Date object
+function toDateObject(date: string | Date): Date {
+  if (date instanceof Date) {
+    return date;
+  }
+  return new Date(date);
+}
+
+// DailyActivity attributes interface - Updated to allow string for date
 interface DailyActivityAttributes {
   id: number;
   userId: number;
-  date: Date;
+  date: string | Date;
   stepCount: number;
   goal: number;
   isCompleted: boolean;
@@ -47,7 +77,7 @@ class DailyActivity extends Model<
   // Attributes
   declare id: CreationOptional<number>;
   declare userId: number;
-  declare date: Date;
+  declare date: string | Date;
   declare stepCount: CreationOptional<number>;
   declare goal: CreationOptional<number>;
   declare isCompleted: CreationOptional<boolean>;
@@ -74,17 +104,22 @@ class DailyActivity extends Model<
     return Math.max(this.goal - this.stepCount, 0);
   }
 
-  // Get formatted date string
+  // Get formatted date string - FIXED
   getFormattedDate(): string {
-    return this.date.toISOString().split('T')[0] ?? '';
+    return dateToString(this.date);
+  }
+
+  // Get date as Date object
+  getDateObject(): Date {
+    return toDateObject(this.date);
   }
 
   // Get status message
   getStatusMessage(): string {
     if (this.isCompleted) {
-      return `✅ Goal achieved! ${this.stepCount}/${this.goal} steps`;
+      return `✅ Goal achieved! ${this.stepCount.toLocaleString()}/${this.goal.toLocaleString()} steps`;
     }
-    return `📅 Progress: ${this.stepCount}/${this.goal} steps (${this.getProgressPercentage()}%)`;
+    return `📅 Progress: ${this.stepCount.toLocaleString()}/${this.goal.toLocaleString()} steps (${this.getProgressPercentage()}%)`;
   }
 
   // Get points earned for this activity
@@ -98,36 +133,39 @@ class DailyActivity extends Model<
 
   // Static methods
   
-  // Find activity by user and date
-  static async findByUserAndDate(userId: number, date: Date): Promise<DailyActivity | null> {
+  // Find activity by user and date - FIXED
+  static async findByUserAndDate(userId: number, date: Date | string): Promise<DailyActivity | null> {
+    const dateStr = typeof date === 'string' ? date : formatDateForDB(date);
+    
     return this.findOne({
       where: {
         userId,
-        date: {
-          [Op.eq]: date
-        }
+        date: dateStr
       }
     });
   }
 
-  // Get user's activities for a date range
+  // Get user's activities for a date range - FIXED
   static async getUserActivities(
     userId: number,
-    startDate: Date,
-    endDate: Date
+    startDate: Date | string,
+    endDate: Date | string
   ): Promise<DailyActivity[]> {
+    const startStr = typeof startDate === 'string' ? startDate : formatDateForDB(startDate);
+    const endStr = typeof endDate === 'string' ? endDate : formatDateForDB(endDate);
+    
     return this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startDate, endDate]
+          [Op.between]: [startStr, endStr]
         }
       },
       order: [['date', 'ASC']]
     });
   }
 
-  // Get user's current streak
+  // Get user's current streak - FIXED
   static async getUserStreak(userId: number): Promise<number> {
     const activities = await this.findAll({
       where: {
@@ -138,14 +176,13 @@ class DailyActivity extends Model<
     });
 
     let streak = 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = formatDateForDB(new Date());
 
     for (const activity of activities) {
-      const activityDate = new Date(activity.date);
-      activityDate.setHours(0, 0, 0, 0);
-      
-      const daysDiff = Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
+      const activityDateStr = dateToString(activity.date);
+      const daysDiff = Math.floor(
+        (new Date(todayStr).getTime() - new Date(activityDateStr).getTime()) / (1000 * 60 * 60 * 24)
+      );
       
       if (daysDiff === streak) {
         streak++;
@@ -157,22 +194,64 @@ class DailyActivity extends Model<
     return streak;
   }
 
+  // Get user's longest streak - FIXED
+  static async getUserLongestStreak(userId: number): Promise<number> {
+    const activities = await this.findAll({
+      where: {
+        userId,
+        isCompleted: true
+      },
+      order: [['date', 'ASC']]
+    });
+
+    let longestStreak = 0;
+    let currentStreak = 0;
+    let lastDateStr: string | null = null;
+
+    for (const activity of activities) {
+      const activityDateStr = dateToString(activity.date);
+
+      if (lastDateStr) {
+        const lastDate = new Date(lastDateStr);
+        const currentDate = new Date(activityDateStr);
+        const daysDiff = Math.floor(
+          (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysDiff === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      } else {
+        currentStreak = 1;
+      }
+
+      longestStreak = Math.max(longestStreak, currentStreak);
+      lastDateStr = activityDateStr;
+    }
+
+    return longestStreak;
+  }
+
+  // Update goal - FIXED
   static async updateGoal(
     userId: number, 
     newGoal: number, 
-    date?: Date
+    date?: Date | string
   ): Promise<DailyActivity> {
-    const targetDate = date || new Date();
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDateStr = date 
+      ? (typeof date === 'string' ? date : formatDateForDB(date))
+      : formatDateForDB(new Date());
     
     const [activity] = await this.findOrCreate({
       where: {
         userId,
-        date: targetDate
+        date: targetDateStr
       },
       defaults: {
         userId,
-        date: targetDate,
+        date: targetDateStr,
         stepCount: 0,
         goal: newGoal,
         isCompleted: false,
@@ -195,15 +274,14 @@ class DailyActivity extends Model<
     return activity;
   }
 
-  // Get user's goal setting
+  // Get user's goal setting - FIXED
   static async getUserGoal(userId: number): Promise<number> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStr = formatDateForDB(new Date());
     
     const activity = await this.findOne({
       where: {
         userId,
-        date: today
+        date: todayStr
       }
     });
 
@@ -218,25 +296,29 @@ class DailyActivity extends Model<
     return result || 0;
   }
 
-  // Get weekly summary for user
-  static async getWeeklySummary(userId: number, date: Date): Promise<{
+  // Get weekly summary for user - FIXED
+  static async getWeeklySummary(userId: number, date: Date | string): Promise<{
     totalSteps: number;
     completedDays: number;
     averageSteps: number;
   }> {
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - date.getDay());
+    const inputDate = toDateObject(date);
+    const startOfWeek = new Date(inputDate);
+    startOfWeek.setDate(inputDate.getDate() - inputDate.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
     
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
+    const startStr = formatDateForDB(startOfWeek);
+    const endStr = formatDateForDB(endOfWeek);
+
     const activities = await this.findAll({
       where: {
         userId,
         date: {
-          [Op.between]: [startOfWeek, endOfWeek]
+          [Op.between]: [startStr, endStr]
         }
       }
     });
@@ -247,9 +329,24 @@ class DailyActivity extends Model<
 
     return { totalSteps, completedDays, averageSteps };
   }
+
+  // Get total steps for user - FIXED
+  static async getUserTotalSteps(userId: number): Promise<number> {
+    const result = await this.sum('stepCount', {
+      where: { userId }
+    });
+    return result || 0;
+  }
+
+  // Get total days completed - FIXED
+  static async getUserTotalDaysCompleted(userId: number): Promise<number> {
+    return this.count({
+      where: { userId, isCompleted: true }
+    });
+  }
 }
 
-// Initialize the model
+// Initialize the model - Updated date field
 DailyActivity.init(
   {
     id: {
@@ -282,9 +379,13 @@ DailyActivity.init(
         notNull: {
           msg: 'Date is required',
         },
-        isValidDate(value: Date) {
-          if (isNaN(new Date(value).getTime())) {
+        isValidDate(value: string) {
+          if (!value || typeof value !== 'string') {
             throw new Error('Invalid date format');
+          }
+          const regex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!regex.test(value)) {
+            throw new Error('Date must be in YYYY-MM-DD format');
           }
         },
       },
@@ -381,7 +482,7 @@ DailyActivity.init(
     modelName: 'DailyActivity',
     timestamps: true,
     paranoid: false,
-    underscored: true, // Automatically convert camelCase to snake_case in queries
+    underscored: true,
     indexes: [
       {
         unique: true,

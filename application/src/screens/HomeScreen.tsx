@@ -72,10 +72,8 @@ export default function HomeScreen() {
   };
 
   const handleNavigateToStepHistory = () => {
-    // Navigate to step history screen
-    // navigation.navigate('StepHistory' as never);
-    console.log('Navigate to step history');
-  };
+  navigation.navigate('DailyActivityDetails' as never);
+};
 
   // Step Goal Handlers
   const handleEditStepGoal = () => {

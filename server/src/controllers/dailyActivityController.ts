@@ -11,6 +11,19 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+// Helper function to format date for DATEONLY field
+function formatDateForDB(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper function to get today's date string
+function getTodayStr(): string {
+  return formatDateForDB(new Date());
+}
+
 /**
  * Sync or create daily activity for the current user
  */
@@ -31,8 +44,11 @@ export const syncDailyActivity = async (
       throw new AppError('Steps and date are required', 400);
     }
 
+    // Ensure date is in YYYY-MM-DD format
+    const dateStr = typeof date === 'string' ? date : formatDateForDB(new Date(date));
+
     let dailyActivity = await DailyActivity.findOne({
-      where: { userId: user.id, date },
+      where: { userId: user.id, date: dateStr },
     });
 
     const goal = 10000;
@@ -49,9 +65,9 @@ export const syncDailyActivity = async (
     // Calculate streak
     let streakDays = dailyActivity?.streakDays ?? 0;
     if (isCompleted && (!dailyActivity || !dailyActivity.isCompleted)) {
-      const yesterday = new Date(date);
+      const yesterday = new Date(dateStr);
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0] ?? '';
+      const yesterdayStr = formatDateForDB(yesterday);
 
       const yesterdayActivity = await DailyActivity.findOne({
         where: { userId: user.id, date: yesterdayStr, isCompleted: true },
@@ -71,7 +87,7 @@ export const syncDailyActivity = async (
     } else {
       dailyActivity = await DailyActivity.create({
         userId: user.id,
-        date,
+        date: dateStr,
         stepCount: steps,
         goal,
         isCompleted,
@@ -113,9 +129,7 @@ export const getDailyActivityStats = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const todayStr = getTodayStr();
 
     const todayActivity = await DailyActivity.findOne({
       where: { userId: user.id, date: todayStr },
@@ -131,20 +145,22 @@ export const getDailyActivityStats = async (
 
     let longestStreak = 0;
     let tempStreak = 0;
-    let lastDate: Date | null = null;
+    let lastDateStr: string | null = null;
 
     for (const activity of allActivities) {
-      const activityDate = new Date(activity.date);
-      if (lastDate) {
+      const activityDateStr = activity.getFormattedDate();
+      if (lastDateStr) {
+        const lastDate = new Date(lastDateStr);
+        const currentDate = new Date(activityDateStr);
         const daysDiff = Math.floor(
-          (activityDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+          (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
         );
         tempStreak = daysDiff === 1 ? tempStreak + 1 : 1;
         longestStreak = Math.max(longestStreak, tempStreak);
       } else {
         tempStreak = 1;
       }
-      lastDate = activityDate;
+      lastDateStr = activityDateStr;
     }
     longestStreak = Math.max(longestStreak, tempStreak);
 
@@ -162,14 +178,16 @@ export const getDailyActivityStats = async (
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     sevenDaysAgo.setHours(0, 0, 0, 0);
+    const sevenDaysAgoStr = formatDateForDB(sevenDaysAgo);
+    const todayEndStr = getTodayStr();
 
-    const weekActivities = await DailyActivity.getUserActivities(user.id, sevenDaysAgo, new Date());
+    const weekActivities = await DailyActivity.getUserActivities(user.id, sevenDaysAgoStr, todayEndStr);
     const weekMap = new Map(weekActivities.map((a) => [a.getFormattedDate(), a]));
 
     const weeklyData = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toISOString().split('T')[0] ?? '';
+      const dateStr = formatDateForDB(d);
       const activity = weekMap.get(dateStr);
       return {
         date: dateStr,
@@ -182,14 +200,15 @@ export const getDailyActivityStats = async (
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const thirtyDaysAgoStr = formatDateForDB(thirtyDaysAgo);
 
-    const monthActivities = await DailyActivity.getUserActivities(user.id, thirtyDaysAgo, new Date());
+    const monthActivities = await DailyActivity.getUserActivities(user.id, thirtyDaysAgoStr, todayEndStr);
     const monthMap = new Map(monthActivities.map((a) => [a.getFormattedDate(), a]));
 
     const monthlyData = Array.from({ length: 30 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (29 - i));
-      const dateStr = d.toISOString().split('T')[0] ?? '';
+      const dateStr = formatDateForDB(d);
       const activity = monthMap.get(dateStr);
       return {
         date: dateStr,
@@ -201,7 +220,11 @@ export const getDailyActivityStats = async (
     res.status(200).json({
       success: true,
       data: {
-        today: todayActivity ?? null,
+        today: todayActivity ? {
+          ...todayActivity.toJSON(),
+          progress: todayActivity.getProgressPercentage(),
+          remaining: todayActivity.getRemainingSteps(),
+        } : null,
         currentStreak,
         longestStreak,
         totalDaysCompleted,
@@ -245,13 +268,20 @@ export const getDailyActivityHistory = async (
       limit: limitNum,
     });
 
+    // Add computed properties to each activity
+    const activitiesWithProgress = activities.map(activity => ({
+      ...activity.toJSON(),
+      progress: activity.getProgressPercentage(),
+      remaining: activity.getRemainingSteps(),
+    }));
+
     const totalDays = activities.length;
     const startDateStr = (startDate as string) || activities[activities.length - 1]?.getFormattedDate() || '';
-    const endDateStr   = (endDate   as string) || activities[0]?.getFormattedDate() || '';
+    const endDateStr = (endDate as string) || activities[0]?.getFormattedDate() || '';
 
     res.status(200).json({
       success: true,
-      data: activities,
+      data: activitiesWithProgress,
       meta: { totalDays, startDate: startDateStr, endDate: endDateStr },
     });
   } catch (error) {
@@ -273,17 +303,21 @@ export const getTodayActivity = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0] ?? '';
+    const todayStr = getTodayStr();
 
     const activity = await DailyActivity.findOne({
       where: { userId: user.id, date: todayStr },
     });
 
+    const responseData = activity ? {
+      ...activity.toJSON(),
+      progress: activity.getProgressPercentage(),
+      remaining: activity.getRemainingSteps(),
+    } : null;
+
     res.status(200).json({
       success: true,
-      data: activity ?? null,
+      data: responseData,
     });
   } catch (error) {
     next(error);
@@ -359,6 +393,9 @@ export const getUserStreak = async (
   }
 };
 
+/**
+ * Update daily step goal
+ */
 export const updateDailyGoal = async (
   req: Request,
   res: Response,
