@@ -84,14 +84,14 @@ export class SquatLogic {
    */
   private readonly ANGLE_STAND_THRESHOLD = 160;
 
-  // ✅ التعديل الأول:
-  // زودنا العمق المطلوب شوية بسيطة
-  // كان 92 وبقى 88 => لازم ينزل أعمق سنة صغيرة قبل العد
+  // ✅ First adjustment:
+  // Slightly increased required depth
+  // Was 92, now 88 => must go a bit deeper before the rep counts
   private readonly ANGLE_COUNT_DEPTH = 88;
 
-  // ✅ التعديل الثاني:
-  // خلّينا "انزل أكتر" تظهر بدري شوية
-  // كان 150 وبقى 158 => التوجيه يبدأ من بدري حتى مع نزول بسيط
+  // ✅ Second adjustment:
+  // Made "go lower" feedback appear slightly earlier
+  // Was 150, now 158 => guidance starts earlier even with a slight descent
   private readonly ANGLE_GUIDANCE_ZONE_MAX = 158;
 
   // -------------------------------------------------

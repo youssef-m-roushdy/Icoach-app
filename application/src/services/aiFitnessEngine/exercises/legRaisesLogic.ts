@@ -439,9 +439,9 @@ export class LegRaisesLogic implements ExerciseLogic {
           this.feedbackCode = 'CMD_RAISE_LEGS';
 
           // ✅ FIX:
-          // لو المستخدم رجع لتحت clean وهو أصلاً مش في stage === 'up'
-          // يبقى دي Reset نظيفة ونمسح أي invalidation قديم
-          // عشان أول عدة بعد الغلط تتحسب طبيعي.
+          // If the user returned to the bottom cleanly but was not in stage === 'up',
+          // this is a clean reset — clear any old invalidation
+          // so the first rep after the error counts normally.
           this.repInvalidated = false;
           this.currentInvalidCode = null;
         }

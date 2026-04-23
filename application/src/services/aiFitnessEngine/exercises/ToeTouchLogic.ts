@@ -24,7 +24,7 @@ const THRESHOLDS = {
   MIN_LEG_LIFT: -0.15,
   COOLDOWN_FRAMES: 5,
 
-  // لو الكتف اتحرك للأمام بأكتر من 4% من عرض الإطار أمام الورك → غش
+  // If the shoulder moved forward by more than 4% of frame width ahead of the hip → cheating
   SHOULDER_FORWARD_LIMIT: 0.04,
 } as const;
 
@@ -100,14 +100,14 @@ export class ToeTouchLogic implements ExerciseLogic {
     const backAngleRight = calculateAngle(rSh, rHip, rKnee);
     const avgBackAngle   = (backAngleLeft + backAngleRight) / 2;
 
-    // ✅ فحص إضافي: هل الكتف اتحرك للأمام أمام الورك؟
+    // ✅ Additional check: did the shoulder move forward ahead of the hip?
     const avgShoulderX = (lSh.x + rSh.x) / 2;
     const avgHipX      = (lHip.x + rHip.x) / 2;
     const shoulderForward = avgHipX - avgShoulderX > THRESHOLDS.SHOULDER_FORWARD_LIMIT;
 
     const backWarning = avgBackAngle < THRESHOLDS.BACK_ANGLE_WARNING;
 
-    // زاوية كبيرة (انحناء واضح) أو كتف متحرك للأمام = غش
+    // Large angle (clear bending) or shoulder moved forward = cheating
     const backCheat = avgBackAngle < THRESHOLDS.BACK_CHEAT_ANGLE || shoulderForward;
 
     const kneeAngleLeft  = calculateAngle(lHip, lKnee, lFoot);

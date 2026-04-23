@@ -376,10 +376,10 @@ export type FeedbackSignal =
   | 'KICK_AND_TOUCH'
   | 'GOOD_REP'
   | 'KICK_HIGHER'
-  | 'USE_OPPOSITE_HAND'    // جديد
-  | 'STRAIGHTEN_LEG'       // جديد
-  | 'STRAIGHTEN_BACK'      // جديد
-  | 'HOLD_IT'              // جديد
+  | 'USE_OPPOSITE_HAND'    // new
+  | 'STRAIGHTEN_LEG'       // new
+  | 'STRAIGHTEN_BACK'      // new
+  | 'HOLD_IT'              // new
   | 'ERR_CAMERA_VIEW'
   | `COUNT_${number}`;
 

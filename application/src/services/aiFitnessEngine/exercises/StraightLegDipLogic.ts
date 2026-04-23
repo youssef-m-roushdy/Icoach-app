@@ -69,7 +69,7 @@ export class StraightLegDipLogic implements ExerciseLogic {
     landmarks: Landmark[],
     _context?: ExerciseAnalysisContext
   ): StraightLegDipResult {
-    // ✅ 1. تحديد الجانب بشكل ذكي (visibility + x position)
+    // ✅ 1. Smart side detection (visibility + x position)
     const lSh = landmarks[LANDMARK_INDICES.LEFT_SHOULDER];
     const rSh = landmarks[LANDMARK_INDICES.RIGHT_SHOULDER];
     const leftVis = lSh?.visibility ?? 0;
@@ -77,16 +77,16 @@ export class StraightLegDipLogic implements ExerciseLogic {
 
     let isLeft: boolean;
     if (Math.abs(leftVis - rightVis) > 0.2) {
-      // لو في فرق واضح في الـ visibility، اعتمد عليه
+      // If there's a clear difference in visibility, rely on it
       isLeft = leftVis > rightVis;
     } else {
-      // لو الـ visibility متقاربين، شوف مين على الطرف الخارجي
+      // If visibility values are close, use the one closer to the frame edge
       const lDist = Math.abs((lSh?.x ?? 0.5) - 0.5);
       const rDist = Math.abs((rSh?.x ?? 0.5) - 0.5);
       isLeft = lDist > rDist;
     }
 
-    // ✅ 2. حساب الزوايا من الجانبين واختيار الجانب الصح
+    // ✅ 2. Compute angles from both sides and pick the correct side
     const leftElbowAngle = this.calculateAngle(
       landmarks[LANDMARK_INDICES.LEFT_SHOULDER],
       landmarks[LANDMARK_INDICES.LEFT_ELBOW],
@@ -111,7 +111,7 @@ export class StraightLegDipLogic implements ExerciseLogic {
     const rawElbowAngle = isLeft ? leftElbowAngle : rightElbowAngle;
     const rawKneeAngle = isLeft ? leftKneeAngle : rightKneeAngle;
 
-    // ✅ 3. التحقق من الـ visibility للجانب المختار
+    // ✅ 3. Verify visibility of the chosen side's landmarks
     const indices = isLeft
       ? {
           sh: LANDMARK_INDICES.LEFT_SHOULDER,
@@ -149,11 +149,11 @@ export class StraightLegDipLogic implements ExerciseLogic {
       };
     }
 
-    // 4. التنعيم
+    // 4. Smoothing
     this.smElbowAngle = this.ema(this.smElbowAngle, rawElbowAngle);
     this.smKneeAngle = this.ema(this.smKneeAngle, rawKneeAngle);
 
-    // 5. هل الركبة مفرودة؟
+    // 5. Is the knee straight?
     const isLegsStraight =
       this.smKneeAngle > THRESHOLDS.KNEE_MIN_STRAIGHT_ANGLE;
 
@@ -186,7 +186,7 @@ export class StraightLegDipLogic implements ExerciseLogic {
       };
     }
 
-    // 🟢 Phase 2: Active Exercise - مراقبة الركبة (Anti-Cheat)
+    // 🟢 Phase 2: Active Exercise - Knee monitoring (Anti-Cheat)
     if (!isLegsStraight) {
       this.repInvalidated = true;
       this.is_correct = false;

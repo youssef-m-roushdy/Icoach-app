@@ -16,14 +16,14 @@ const TH = {
   VIS: 0.55,
 
   // Separation angle thresholds
-  DOWN_MAX: 12,           // تحت ده → الرجلين فوق بعض
-  UP_ENTER_MIN: 50,       // بداية الـ UP
-  UP_COUNT_MIN: 65,       // القمة المطلوبة عشان العدة تتحسب
-  UP_PARTIAL_MIN: 55,     // لو تحت ده → "ارفع أعلى"
+  DOWN_MAX: 12,           // Below this → legs are on top of each other
+  UP_ENTER_MIN: 50,       // Start of the UP phase
+  UP_COUNT_MIN: 65,       // Minimum peak angle required for a rep to count
+  UP_PARTIAL_MIN: 55,     // Below this → "lift higher"
 
   // Knee straightness with hysteresis
-  KNEE_STRAIGHT_ON: 162,  // فوق ده → مفرود
-  KNEE_BENT_OFF: 150,     // تحت ده → متني
+  KNEE_STRAIGHT_ON: 162,  // Above this → straight
+  KNEE_BENT_OFF: 150,     // Below this → bent
 
   // Stability frames
   SETUP_STABLE: 8,
@@ -53,7 +53,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
   private lastSepAngle = 0;
   private peakSepAngle = 0;
 
-  // لو الركبة اتنت في أي لحظة أثناء الrep → العدة دي مش هتتحسب
+  // If the knee was bent at any moment during the rep → this rep won't count
   private wasEverBentDuringRep = false;
   private kneeState: KneeState = 'straight';
 
@@ -137,13 +137,13 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
       y: (lh.y + rh.y) / 2,
     } as Landmark;
 
-    // تحديد الجانب النشط (الرجل اللي فوق = y أصغر)
+    // Determine the active side (the leg on top = smaller y)
     const currentActive = la.y < ra.y ? 'LEFT' : 'RIGHT';
     if (this.activeSide === 'NONE' || this.state === 'setup') {
       this.activeSide = currentActive;
     }
 
-    // زاوية الفصل بين الرجلين
+    // Separation angle between the legs
     const vLx = la.x - midHip.x;
     const vLy = la.y - midHip.y;
     const vRx = ra.x - midHip.x;
@@ -152,20 +152,20 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
     const rawSepAngle = this.angleBetweenVectors(vLx, vLy, vRx, vRy);
     this.smoothedSepAngle = this.ema(this.smoothedSepAngle, rawSepAngle);
 
-    // فلتر الضوضاء الصغيرة
+    // Filter out small noise
     const delta = Math.abs(this.smoothedSepAngle - this.lastSepAngle);
     if (delta < TH.MIN_DELTA) {
       this.smoothedSepAngle = this.lastSepAngle;
     }
     this.lastSepAngle = this.smoothedSepAngle;
 
-    // زاوية الركبة للرجل النشط
+    // Knee angle for the active leg
     const activeKneeAngle =
       this.activeSide === 'LEFT'
         ? this.calculateAngle(lh, lk, la)
         : this.calculateAngle(rh, rk, ra);
 
-    // تحديث حالة الركبة (hysteresis)
+    // Update knee state (hysteresis)
     if (this.kneeState === 'straight') {
       if (activeKneeAngle <= TH.KNEE_BENT_OFF) {
         this.kneeState = 'bent';
@@ -178,13 +178,13 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
 
     const kneeOkNow = this.kneeState === 'straight';
 
-    // لو رجعنا تحت ومفرودين → نرست كل شيء قبل عدة جديدة
+    // If we returned to down position and knee is straight → reset everything before a new rep
     if (this.state === 'down' && this.smoothedSepAngle <= TH.DOWN_MAX + 1 && kneeOkNow) {
       this.wasEverBentDuringRep = false;
       this.peakSepAngle = 0;
     }
 
-    // لو في أي مرحلة الركبة اتنت → العدة دي تُلغى
+    // If at any stage the knee bends → this rep is invalidated
     if ((this.state === 'down' || this.state === 'up') && !kneeOkNow) {
       this.wasEverBentDuringRep = true;
     }
@@ -219,15 +219,15 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
       };
     }
 
-    // الافتراضي: صح إلا لو الركبة متنية دلوقتي
+    // Default: correct unless the knee is currently bent
     this.is_correct = kneeOkNow;
 
     if (!kneeOkNow) {
       this.feedback_code = 'ERR_STRAIGHTEN_LEG';
-      this.stableFrames = 0; // نمنع الانتقال أثناء الثني
+      this.stableFrames = 0; // Prevent state transition while knee is bent
     }
 
-    // ───────────── منطق العد ─────────────
+    // ───────────── Counting logic ─────────────
     if (this.state === 'down') {
       if (kneeOkNow && this.smoothedSepAngle >= TH.UP_ENTER_MIN) {
         this.stableFrames++;
@@ -255,7 +255,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
     }
 
     else if (this.state === 'up') {
-      // تسجيل أعلى زاوية وصلنالها
+      // Track the highest angle reached
       this.peakSepAngle = Math.max(this.peakSepAngle, this.smoothedSepAngle);
 
       if (kneeOkNow && this.smoothedSepAngle <= TH.DOWN_MAX) {
@@ -276,7 +276,7 @@ export class SideLyingLegRaiseLogic implements ExerciseLogic {
             }
           }
 
-          // Reset للعدة الجاية
+          // Reset for the next rep
           this.state = 'down';
           this.stableFrames = 0;
           this.wasEverBentDuringRep = false;

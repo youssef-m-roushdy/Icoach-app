@@ -1,10 +1,10 @@
 /**
  * Lateral Raises Logic - Smart Coach (Strict ROM Window + No overlap cues + Anti-cheat)
- * - يقول "ارفع أكتر" لو الرفع أقل من مستوى الكتف
- * - يقول "افرد دراعك" لو الكوع متني
- * - لو رفع أعلى من مستوى الكتف: العدة تتلغى ولا تُحسب
- * - يمنع العد العشوائي (stability + cooldown + invalidation flags)
- * - يقلّل تداخل الصوت (feedback throttling)
+ * - Says "raise more" if the lift is below shoulder level
+ * - Says "straighten your arm" if the elbow is bent
+ * - If raised above shoulder level: the rep is invalidated and not counted
+ * - Prevents random counting (stability + cooldown + invalidation flags)
+ * - Reduces audio overlap (feedback throttling)
  */
 
 import { Landmark, LateralRaisesResult, ExerciseLogic, FeedbackSignal } from '../types';
@@ -44,7 +44,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
   // --- Feedback throttling (reduce audio overlap) ---
   private lastFeedbackEmitTime = 0;
   private lastFeedbackEmitted: FeedbackSignal = 'CMD_RAISE_ARMS';
-  private readonly FEEDBACK_COOLDOWN_MS = 900; // يمنع تغيير التعليمات بسرعة
+  private readonly FEEDBACK_COOLDOWN_MS = 900; // Prevents rapid feedback changes
 
   // Smoothing
   private emaLift = new EMA(0.28);
@@ -54,22 +54,22 @@ export class LateralRaisesLogic implements ExerciseLogic {
   // ⚙️ Constants (Balanced: a bit strict but not annoying)
   // =========================================================
 
-  // 1) Elbow: لازم قريب من straight
-  private readonly ELBOW_MIN_ANGLE = 145; // كان 140، خليناه أدق شوية ضد الغش
-  private readonly ELBOW_FAIL_ANGLE = 138; // hysteresis: لو كان صح وبدأ يضعف
+  // 1) Elbow: must be close to straight
+  private readonly ELBOW_MIN_ANGLE = 145; // Was 140, made stricter for anti-cheat
+  private readonly ELBOW_FAIL_ANGLE = 138; // Hysteresis: if it was correct and starts weakening
 
   // 2) Sync
-  private readonly SYNC_TOLERANCE = 28; // شوية أوسع من 25 لتسهيل بسيط
+  private readonly SYNC_TOLERANCE = 28; // Slightly wider than 25 for easier use
 
-  // 3) Shoulder-level ROM window (لا أقل ولا أكثر)
-  // لازم توصل للمنطقة دي عشان تتسجل "UP" صحيحة
-  private readonly SHOULDER_WIN_MIN = 78;  // أقل من كده => "ارفع أكتر"
-  private readonly SHOULDER_WIN_MAX = 98;  // أعلى من كده => "عالي قوي" وتبطل العدة
+  // 3) Shoulder-level ROM window (not too low, not too high)
+  // Must reach this zone for a valid "UP" registration
+  private readonly SHOULDER_WIN_MIN = 78;  // Below this => "raise more"
+  private readonly SHOULDER_WIN_MAX = 98;  // Above this => "too high" and invalidates the rep
 
-  // 4) Reset (الرجوع لتحت) عشان نعد
+  // 4) Reset (return to bottom) to count
   private readonly RESET_TARGET = 30;
 
-  // 5) "Low but moving": لو بين ده وبين win min => نقول ارفع أكتر
+  // 5) "Low but moving": if between this and win min => say raise more
   private readonly LOW_RAISE_HINT = 55;
 
   // 6) Timing locks
@@ -105,8 +105,8 @@ export class LateralRaisesLogic implements ExerciseLogic {
 
   /**
    * Throttled feedback setter to reduce audio overlap
-   * - العدّ (COUNT_) لازم يطلع فوراً
-   * - الأخطاء الحرجة ممكن تطلع فوراً (force)
+   * - COUNT_ feedback must be emitted immediately
+   * - Critical errors can also be emitted immediately (force)
    */
   private setFeedback(code: FeedbackSignal, nowMs: number, force = false) {
     const isCount = code.startsWith('COUNT_');
@@ -124,19 +124,19 @@ export class LateralRaisesLogic implements ExerciseLogic {
       return;
     }
 
-    // لو نفس الرسالة سيبها
+    // If same message, keep it
     if (code === this.lastFeedbackEmitted) {
       this.feedbackCode = code;
       return;
     }
 
-    // throttle: ما تغيّرش الرسالة بسرعة
+    // Throttle: don't change the message too quickly
     if (nowMs - this.lastFeedbackEmitTime >= this.FEEDBACK_COOLDOWN_MS) {
       this.feedbackCode = code;
       this.lastFeedbackEmitted = code;
       this.lastFeedbackEmitTime = nowMs;
     } else {
-      // احتفظ بالقديمة لتجنب تداخل الصوت
+      // Keep the old message to avoid audio overlap
       this.feedbackCode = this.lastFeedbackEmitted || this.feedbackCode;
     }
   }
@@ -187,11 +187,11 @@ export class LateralRaisesLogic implements ExerciseLogic {
 
     // 1) Elbows bent
     const elbowsOk = (this.stage === 'up')
-      ? (minStraight >= this.ELBOW_FAIL_ANGLE) // hysteresis: في up نسمح أقل سنة بدون flip مزعج
+      ? (minStraight >= this.ELBOW_FAIL_ANGLE) // Hysteresis: in up phase allow slightly lower without annoying flip
       : (minStraight >= this.ELBOW_MIN_ANGLE);
 
     if (!elbowsOk) {
-      // لو داخل عدة، ابطلها
+      // If in a rep, invalidate it
       if (this.stage === 'up') {
         this.repInvalidated = true;
         this.repInvalidReason = 'REP_INVALID_BENT_ELBOW';
@@ -224,7 +224,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
     }
 
     // ---- B) Range guidance: "raise higher" if still low ----
-    // لو بيحاول يرفع (أعلى من LOW_RAISE_HINT) لكنه لم يصل لمستوى الكتف
+    // If trying to raise (above LOW_RAISE_HINT) but hasn't reached shoulder level
     if (this.stage === 'down' && avgLift >= this.LOW_RAISE_HINT && avgLift < this.SHOULDER_WIN_MIN) {
       this.peakStableStart = 0;
       this.setFeedback('CMD_RAISE_HIGHER', nowMs);
@@ -270,7 +270,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
         if (this.repInvalidated) {
           // ❌ do not count
           const reason = this.repInvalidReason || 'HOLD_POSITION';
-          // رجّع كود واحد ثابت أو حسب السبب
+          // Return a consistent code or based on the reason
           this.setFeedback(reason, nowMs, true);
 
           // reset rep invalidation at bottom
@@ -295,7 +295,7 @@ export class LateralRaisesLogic implements ExerciseLogic {
 
     // ---- E) Transition cues (middle zone) ----
     if (this.stage === 'up') {
-      this.setFeedback('REP_SUCCESS', nowMs); // "انزل بهدوء"
+      this.setFeedback('REP_SUCCESS', nowMs); // "lower slowly"
     } else {
       this.setFeedback('CMD_RAISE_ARMS', nowMs);
     }

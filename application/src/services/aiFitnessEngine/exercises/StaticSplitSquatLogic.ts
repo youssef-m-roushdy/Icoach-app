@@ -51,11 +51,11 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
 
   /**
    * ✅ NEW:
-   * لازم يكون فيه فرق "قدّام/ورا" واضح بين الرجلين
+   * There must be a clear front/back difference between the legs
    * relative to hip width
    *
-   * تقريبًا بيمثل إن رجل تكون سابقة التانية بوضوح،
-   * مش مجرد فتحة جانبية زي السكوات.
+   * Roughly means one leg must be clearly ahead of the other,
+   * not just a lateral opening like a squat.
    */
   private readonly FRONT_BACK_RATIO_LOCK = 0.28;
   private readonly FRONT_BACK_RATIO_RESET = 0.20;
@@ -134,12 +134,12 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     // ✅ NEW: front/back requirement
     const frontBackRatio = dz / hipWidth;
 
-    // رجل قدام ورجل ورا فعلًا؟
+    // Is there a real front leg and back leg?
     const hasRealSplitStance =
       splitRatio >= this.SPLIT_RATIO_LOCK &&
       frontBackRatio >= this.FRONT_BACK_RATIO_LOCK;
 
-    // فقدان وضع split الحقيقي
+    // Lost the real split stance position
     const lostRealSplitStance =
       splitRatio < this.SPLIT_RATIO_RESET ||
       frontBackRatio < this.FRONT_BACK_RATIO_RESET;
@@ -186,7 +186,7 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
       } else {
         this.setupStableFrames = 0;
 
-        // ✅ لو فيه فتح جانبي لكن مفيش رجل قدام/ورا → قول له رجع رجل لورا
+        // ✅ If there's a lateral opening but no front/back leg → tell user to step back
         if (splitRatio >= this.SPLIT_RATIO_RESET && frontBackRatio < this.FRONT_BACK_RATIO_LOCK) {
           return this.emit('ERR_STEP_FURTHER_BACK', false, true);
         }
@@ -250,7 +250,7 @@ export class StaticSplitSquatLogic implements ExerciseLogic {
     }
 
     if (this.stage === 'down') {
-      // ✅ قبل ما نعد لازم نتأكد إن وضع split الحقيقي لسه موجود
+      // ✅ Before counting, ensure the real split stance position is still maintained
       if (!hasRealSplitStance) {
         this.isStanceLocked = false;
         this.stage = 'setup';
