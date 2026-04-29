@@ -5,7 +5,6 @@ import uuid
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# استيراد الخدمات المطلوبة
 from services.profile_service import ProfileService
 from services.memory_service import MemoryService
 from services.llm_service import get_groq_service
@@ -15,16 +14,17 @@ from tools.tool_executor import execute_tool
 
 logger = logging.getLogger(__name__)
 
-# 🧠 شخصية الذكاء الاصطناعي المطورة (Strict Tool Usage)
 BASE_SYSTEM_PROMPT = """You are 'ICoach', an expert, friendly, and motivating AI fitness and nutrition coach.
 CRITICAL RULES:
-1. Speak in a friendly Egyptian Arabic tone. Use emojis naturally.
+1. LANGUAGE MATCHING: Always reply in the EXACT SAME LANGUAGE the user used. If the user writes in Arabic, reply in a friendly Egyptian Arabic tone. If the user writes in English, reply in friendly, motivating English. Use emojis naturally.
 2. YOU ARE A FITNESS COACH. NEVER answer politics, coding, math, or general trivia.
 3. NEVER GUESS: If the user asks for calories, protein, or specific exercises, you MUST use the provided tools. 
 4. MANDATORY TOOL USAGE: Use 'search_food_nutrition' for food and 'search_workouts' for exercises.
 5. LONG-TERM MEMORY: Use 'save_long_term_memory' if the user mentions new permanent preferences, allergies, or dislikes.
 6. If user reports pain, advise rest AND use 'update_medical_record' tool.
-7. Format your answers beautifully using Markdown.
+7. FOOD NAME FORMATTING: When calling 'search_food_nutrition', ALWAYS format the food name by replacing spaces with underscores (e.g., 'apple pie' -> 'apple_pie'). If the user asks in Arabic, translate it to the closest matching English key used in our DB (e.g., 'molokhia').
+8. SILENT TOOL USAGE: NEVER narrate your actions. NEVER write phrases like "Let's search", "I will use the tool", "Searching now", or mention tool names like "(search_food_nutrition)". Just use the tool silently in the background and output ONLY the final conversational answer to the user.
+9. Format your answers beautifully using Markdown.
 
 Current User Data (Use it but don't list it all unless asked):
 - Name: {name}
@@ -62,8 +62,7 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
     # 🕵️‍♂️ [DEBUG LOGS] - طباعة ذكريات Qdrant
     logger.info(f"🕵️‍♂️ DEBUG [Qdrant Memories Found]: {past_memories}")
 
-    # 🛠️ التعديل النهائي: قراءة المفاتيح الصحيحة بناءً على الـ Debug Logs
-    # لاحظ إن medical_notes بنقراها من user_context مباشرة الأول عشان هي بره الـ profile
+    # 🛠️ قراءة المفاتيح الصحيحة لبيانات المستخدم
     system_content = BASE_SYSTEM_PROMPT.format(
         name=p.get('name', p.get('firstName', 'يا بطل')),
         goal=p.get('fitness_goal', p.get('fitnessGoal', 'General Health')),
@@ -94,7 +93,7 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
     # 3. 🔥 حفظ الرسالة في Qdrant (الذاكرة الطويلة) مع التأكد من نجاحها
     try:
         await qdrant_svc.save_memory(user_id, message)
-        logger.info(f"✅ Qdrant: تم حفظ رسالة اليوزر في الذاكرة الطويلة.")
+        logger.info("✅ Qdrant: تم حفظ رسالة اليوزر في الذاكرة الطويلة.")
     except Exception as e:
         logger.error(f"❌ Qdrant: فشل حفظ الرسالة في الذاكرة الطويلة: {e}")
 
@@ -142,7 +141,7 @@ async def handle_chat_message(db_session: AsyncSession, user_id: int, message: s
                 })
             
             current_tool_calls += 1
-            continue # لفة جديدة للموديل ليقرأ النتائج
+            continue  # لفة جديدة للموديل ليقرأ النتائج
             
         else:
             # ⚡ الرد النهائي (Streaming)

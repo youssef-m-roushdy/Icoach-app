@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "application",
-    "slug": "application",
+    "name": "Icoach",
+    "slug": "icoach",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundelIdentifier": "com.icoach.application",
+      "bundleIdentifier": "com.icoach.app",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -26,13 +26,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.icoach.application",
+      "package": "com.icoach.app",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "READ_CONTACTS",
         "CAMERA",
-        ["ACTIVITY_RECOGNITION"]
+        "ACTIVITY_RECOGNITION"
       ]
     },
     "web": {

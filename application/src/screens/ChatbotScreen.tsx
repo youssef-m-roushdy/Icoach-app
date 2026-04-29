@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   FlatList,
   ScrollView,
@@ -14,6 +15,8 @@ import {
   ActivityIndicator,
   BackHandler,
   Animated,
+  Clipboard,
+  Vibration,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -50,10 +53,12 @@ type Props = {
 
 const SUGGESTIONS = ['💪 Workout Plan', '🥗 Nutrition Tips', '🎯 Set Goals', '📊 Check Progress'];
 const STREAMING_MSG_ID = 'ai-streaming';
+const NEAR_BOTTOM_THRESHOLD = 100; // px — consider "at bottom" within this range
+const MAX_INPUT_LENGTH = 500;
+const CHAR_WARN_THRESHOLD = 400; // show counter at this point
 
-// Typewriter speed: characters rendered per tick
+// Typewriter speed
 const TYPEWRITER_CHARS_PER_TICK = 3;
-// Milliseconds between each typewriter tick
 const TYPEWRITER_INTERVAL_MS = 16;
 
 // ============================================================================
@@ -62,38 +67,38 @@ const TYPEWRITER_INTERVAL_MS = 16;
 
 const stripMarkdown = (text: string): string =>
   text
-    // ── Fenced code blocks & inline code ──
-    .replace(/```[\s\S]*?```/g, '')                // Fenced code blocks
-    .replace(/`([^`]+)`/g, '$1')                   // Inline code: `text`
-    // ── Bold + italic combos ──
-    .replace(/\*\*\*(.+?)\*\*\*/gs, '$1')         // ***text***
-    .replace(/___(.+?)___/gs, '$1')                // ___text___
-    // ── Bold ──
-    .replace(/\*\*(.+?)\*\*/gs, '$1')             // **text**
-    .replace(/__(.+?)__/gs, '$1')                  // __text__
-    // ── Italic ──
-    .replace(/\*(.+?)\*/gs, '$1')                  // *text*
-    .replace(/_([^_\n]+)_/g, '$1')                 // _text_
-    // ── Strikethrough ──
-    .replace(/~~(.+?)~~/gs, '$1')                  // ~~text~~
-    // ── Headings (also handles *# or **# combos) ──
-    .replace(/^[\s*_]*#{1,6}\s+/gm, '')            // # Heading (with leading * or _)
-    // ── Links ──
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')       // [text](url)
-    // ── List items ──
-    .replace(/^[-*+]\s+/gm, '• ')                  // Unordered list → bullet char
-    .replace(/^\d+\.\s+/gm, '')                    // Ordered list numbers
-    // ── Blockquotes & rules ──
-    .replace(/^>\s+/gm, '')                        // Blockquotes
-    .replace(/^---+$/gm, '')                       // Horizontal rules
-    // ── Stray markdown characters left after all replacements ──
-    .replace(/\*{1,3}/g, '')                       // Lone asterisks (*, **, ***)
-    // ── Whitespace cleanup ──
-    .replace(/\n{3,}/g, '\n\n')                    // Collapse excessive blank lines
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*\*(.+?)\*\*\*/gs, '$1')
+    .replace(/___(.+?)___/gs, '$1')
+    .replace(/\*\*(.+?)\*\*/gs, '$1')
+    .replace(/__(.+?)__/gs, '$1')
+    .replace(/\*(.+?)\*/gs, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    .replace(/~~(.+?)~~/gs, '$1')
+    .replace(/^[\s*_]*#{1,6}\s+/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+]\s+/gm, '• ')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/^>\s+/gm, '')
+    .replace(/^---+$/gm, '')
+    .replace(/\*{1,3}/g, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
 // ============================================================================
-// Component: Animated three-dot typing indicator (WhatsApp style)
+// Utility: Relative timestamp
+// ============================================================================
+
+const formatRelativeTime = (date: Date): string => {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// ============================================================================
+// Component: Animated three-dot typing indicator
 // ============================================================================
 
 const TypingDots = React.memo(({ color }: { color: string }) => {
@@ -102,7 +107,6 @@ const TypingDots = React.memo(({ color }: { color: string }) => {
   const dot3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Each dot bounces upward then returns, staggered by 140ms
     const animateDot = (dot: Animated.Value, delay: number) =>
       Animated.loop(
         Animated.sequence([
@@ -117,15 +121,8 @@ const TypingDots = React.memo(({ color }: { color: string }) => {
     const a2 = animateDot(dot2, 140);
     const a3 = animateDot(dot3, 280);
 
-    a1.start();
-    a2.start();
-    a3.start();
-
-    return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
-    };
+    a1.start(); a2.start(); a3.start();
+    return () => { a1.stop(); a2.stop(); a3.stop(); };
   }, [dot1, dot2, dot3]);
 
   return (
@@ -133,15 +130,123 @@ const TypingDots = React.memo(({ color }: { color: string }) => {
       {[dot1, dot2, dot3].map((dot, i) => (
         <Animated.View
           key={i}
-          style={[
-            styles.typingDot,
-            { backgroundColor: color, transform: [{ translateY: dot }] },
-          ]}
+          style={[styles.typingDot, { backgroundColor: color, transform: [{ translateY: dot }] }]}
         />
       ))}
     </View>
   );
 });
+
+// ============================================================================
+// Component: Animated blinking cursor
+// ============================================================================
+
+const BlinkingCursor = React.memo(({ color }: { color: string }) => {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.Text style={{ color, opacity, fontSize: 15, lineHeight: 22 }}> ▌</Animated.Text>
+  );
+});
+
+// ============================================================================
+// Component: Copy toast notification
+// ============================================================================
+
+const CopyToast = React.memo(({ visible, color }: { visible: boolean; color: string }) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(10)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 10, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible, opacity, translateY]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.copyToast,
+        { backgroundColor: color, opacity, transform: [{ translateY }] },
+      ]}
+    >
+      <Ionicons name="checkmark" size={12} color="#fff" />
+      <Text style={styles.copyToastText}>Copied!</Text>
+    </Animated.View>
+  );
+});
+
+// ============================================================================
+// Component: Welcome / Empty state
+// ============================================================================
+
+const WelcomeState = React.memo(
+  ({
+    colors,
+    onSuggestion,
+  }: {
+    colors: any;
+    onSuggestion: (text: string) => void;
+  }) => (
+    <View style={styles.welcomeContainer}>
+      {/* Pulse rings */}
+      <View style={styles.welcomeAvatarWrapper}>
+        <View style={[styles.pulseRing, styles.pulseRingOuter, { borderColor: `${colors.primary}18` }]} />
+        <View style={[styles.pulseRing, styles.pulseRingInner, { borderColor: `${colors.primary}30` }]} />
+        <View style={[styles.welcomeAvatar, { backgroundColor: `${colors.primary}18` }]}>
+          <MaterialCommunityIcons name="robot-happy" size={36} color={colors.primary} />
+        </View>
+      </View>
+
+      <Text style={[styles.welcomeTitle, { color: colors.text }]}>AI Coach</Text>
+      <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
+        Your personal fitness assistant.{'\n'}Ask me anything to get started.
+      </Text>
+
+      <View style={styles.welcomeChipsGrid}>
+        {SUGGESTIONS.map((s, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[
+              styles.welcomeChip,
+              {
+                backgroundColor: `${colors.primary}10`,
+                borderColor: `${colors.primary}30`,
+              },
+            ]}
+            onPress={() => onSuggestion(s.split(' ').slice(1).join(' '))}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.welcomeChipEmoji]}>{s.split(' ')[0]}</Text>
+            <Text style={[styles.welcomeChipText, { color: colors.primary }]}>
+              {s.split(' ').slice(1).join(' ')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  )
+);
 
 // ============================================================================
 // Main Screen Component
@@ -153,21 +258,15 @@ export default function ChatbotScreen({ navigation }: Props) {
   const keyboardHeight = useKeyboardHeight();
   const { token } = useAuth();
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome-1',
-      text: "Hello! I'm your AI Coach. How can I help you with your fitness journey today?",
-      sender: 'ai',
-      timestamp: new Date(),
-      status: 'done',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Modal states — following the Profile screen pattern
+  // Modal states
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
   const [showClearChatSuccess, setShowClearChatSuccess] = useState(false);
   const [showClearChatError, setShowClearChatError] = useState(false);
@@ -179,24 +278,50 @@ export default function ChatbotScreen({ navigation }: Props) {
   const sessionIdRef = useRef<string | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const historyLoadedRef = useRef(false);
+  const isLoadingHistoryRef = useRef(false); // fix race condition
 
-  // Typewriter refs — hold pending text and the running interval
+  // Typewriter refs
   const pendingTextRef = useRef('');
-  const rawAccumulatedRef = useRef('');  // Raw text accumulated so far (before markdown stripping)
+  const rawAccumulatedRef = useRef('');
   const typewriterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDoneStreamingRef = useRef(false);
   const hasReceivedChunksRef = useRef(false);
+
+  // Scroll to bottom FAB animation
+  const fabOpacity = useRef(new Animated.Value(0)).current;
+
+  // -------------------------------------------------------------------------
+  // Show/hide scroll-to-bottom FAB
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    Animated.timing(fabOpacity, {
+      toValue: isNearBottom ? 0 : 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [isNearBottom, fabOpacity]);
 
   // -------------------------------------------------------------------------
   // Helpers: scroll
   // -------------------------------------------------------------------------
 
-  const scrollToBottom = useCallback(() => {
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  const scrollToBottom = useCallback((animated = true) => {
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated }), 100);
   }, []);
 
+  const handleScroll = useCallback(
+    ({ nativeEvent }: { nativeEvent: any }) => {
+      const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+      const distFromBottom =
+        contentSize.height - layoutMeasurement.height - contentOffset.y;
+      setIsNearBottom(distFromBottom <= NEAR_BOTTOM_THRESHOLD);
+    },
+    []
+  );
+
   // -------------------------------------------------------------------------
-  // Helpers: finalise streaming bubble (give it a permanent id and status)
+  // Helpers: finalise streaming bubble
   // -------------------------------------------------------------------------
 
   const finaliseStreamingBubble = useCallback((status: MessageStatus) => {
@@ -211,8 +336,6 @@ export default function ChatbotScreen({ navigation }: Props) {
 
   // -------------------------------------------------------------------------
   // Typewriter engine
-  // Drains pendingTextRef character-by-character into the streaming bubble.
-  // When the stream is finished AND the queue is empty, it finalises the bubble.
   // -------------------------------------------------------------------------
 
   const stopTypewriter = useCallback(() => {
@@ -223,14 +346,11 @@ export default function ChatbotScreen({ navigation }: Props) {
   }, []);
 
   const startTypewriter = useCallback(() => {
-    // Avoid spawning a second interval if one is already running
     if (typewriterTimerRef.current) return;
 
     typewriterTimerRef.current = setInterval(() => {
-      // Nothing left in the queue
       if (pendingTextRef.current.length === 0) {
         if (isDoneStreamingRef.current) {
-          // Stream finished and queue drained — wrap up
           stopTypewriter();
           finaliseStreamingBubble('done');
           setIsStreaming(false);
@@ -241,19 +361,15 @@ export default function ChatbotScreen({ navigation }: Props) {
         return;
       }
 
-      // Pop a small batch of characters for a smooth, natural feel
       const chars = pendingTextRef.current.substring(0, TYPEWRITER_CHARS_PER_TICK);
       pendingTextRef.current = pendingTextRef.current.substring(TYPEWRITER_CHARS_PER_TICK);
 
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === STREAMING_MSG_ID);
-        // Accumulate the raw text and strip the FULL string every tick.
-        // This ensures markdown tokens that span chunks are caught.
         rawAccumulatedRef.current += chars;
         const stripped = stripMarkdown(rawAccumulatedRef.current);
 
         if (idx === -1) {
-          // Bubble doesn't exist yet — create it
           return [
             ...prev,
             {
@@ -266,12 +382,7 @@ export default function ChatbotScreen({ navigation }: Props) {
           ];
         }
         const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          text: stripped,
-          statusText: undefined,
-          status: 'streaming',
-        };
+        updated[idx] = { ...updated[idx], text: stripped, statusText: undefined, status: 'streaming' };
         return updated;
       });
     }, TYPEWRITER_INTERVAL_MS);
@@ -281,7 +392,6 @@ export default function ChatbotScreen({ navigation }: Props) {
   // Helpers: streaming bubble management
   // -------------------------------------------------------------------------
 
-  /** Creates the streaming bubble if it doesn't already exist */
   const ensureStreamingBubble = useCallback((initialStatusText?: string) => {
     setMessages((prev) => {
       if (prev.find((m) => m.id === STREAMING_MSG_ID)) return prev;
@@ -299,33 +409,47 @@ export default function ChatbotScreen({ navigation }: Props) {
     });
   }, []);
 
-  /** Updates the status text shown inside the thinking bubble */
   const updateBubbleStatusText = useCallback((text: string) => {
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === STREAMING_MSG_ID
-          ? { ...m, statusText: text, status: 'streaming' }
-          : m
+        m.id === STREAMING_MSG_ID ? { ...m, statusText: text, status: 'streaming' } : m
       )
     );
   }, []);
 
-  /** Appends a plain error bubble to the list */
-  const addErrorMessage = useCallback((errorText: string) => {
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `error-${Date.now()}`,
-        text: `❌ ${errorText}`,
-        sender: 'ai',
-        timestamp: new Date(),
-        status: 'error',
-      },
-    ]);
-  }, []);
+  const addErrorMessage = useCallback(
+    (errorText: string, retryContent?: string) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          text: errorText,
+          sender: 'ai',
+          timestamp: new Date(),
+          status: 'error',
+        },
+      ]);
+    },
+    []
+  );
 
   // -------------------------------------------------------------------------
-  // Android hardware back button — close any open modal first
+  // Long-press: copy message
+  // -------------------------------------------------------------------------
+
+  const handleLongPress = useCallback(
+    (item: Message) => {
+      if (item.status === 'streaming' || !item.text) return;
+      Clipboard.setString(item.text);
+      Vibration.vibrate(40);
+      setCopiedId(item.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    },
+    []
+  );
+
+  // -------------------------------------------------------------------------
+  // Android back button
   // -------------------------------------------------------------------------
 
   useEffect(() => {
@@ -342,11 +466,10 @@ export default function ChatbotScreen({ navigation }: Props) {
         setShowClearChatError(false);
         setShowSessionExpiredModal(false);
         setShowRateLimitModal(false);
-        return true; // Consume the back press
+        return true;
       }
       return false;
     };
-
     const sub = BackHandler.addEventListener('hardwareBackPress', backAction);
     return () => sub.remove();
   }, [
@@ -357,56 +480,48 @@ export default function ChatbotScreen({ navigation }: Props) {
     showRateLimitModal,
   ]);
 
-  // Clean up the typewriter interval on unmount
   useEffect(() => () => stopTypewriter(), [stopTypewriter]);
 
   // -------------------------------------------------------------------------
-  // Load chat history on mount
-  // Messages are sorted ascending by createdAt so the oldest appears at the
-  // top and the newest at the bottom — matching normal chat conventions.
+  // Load chat history
   // -------------------------------------------------------------------------
 
   const loadChatHistory = useCallback(async () => {
-    if (!token || isLoadingHistory || historyLoadedRef.current) return;
+    if (!token || isLoadingHistoryRef.current || historyLoadedRef.current) return;
 
+    isLoadingHistoryRef.current = true;
     setIsLoadingHistory(true);
     try {
       const response = await chatService.getHistory(token, { limit: 50 });
 
       if (response.success && response.data?.messages && response.data.messages.length > 0) {
-        // Sort ascending by id AND createdAt: oldest message first, newest
-        // last (bottom of list). Using id as primary sort key ensures
-        // correct ordering even when timestamps share the same second.
         const sorted = [...response.data.messages].sort((a, b) => {
-          const timeDiff =
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          const timeDiff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           return timeDiff !== 0 ? timeDiff : a.id - b.id;
         });
 
         const historyMessages: Message[] = sorted.map((msg) => ({
           id: `msg-${msg.id}`,
-          // Strip markdown from AI messages loaded from history so they
-          // display the same way as freshly-streamed messages.
           text: msg.role === 'user' ? msg.content : stripMarkdown(msg.content),
           sender: msg.role === 'user' ? 'user' : 'ai',
           timestamp: new Date(msg.createdAt),
           status: 'done' as MessageStatus,
         }));
 
-        // Restore session id from the most recent message
         const lastMsg = sorted[sorted.length - 1];
         if (lastMsg) sessionIdRef.current = lastMsg.session_id;
 
         setMessages(historyMessages);
         historyLoadedRef.current = true;
-        setTimeout(() => scrollToBottom(), 500);
+        setTimeout(() => scrollToBottom(false), 500);
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
     } finally {
       setIsLoadingHistory(false);
+      isLoadingHistoryRef.current = false;
     }
-  }, [token, isLoadingHistory, scrollToBottom]);
+  }, [token, scrollToBottom]);
 
   useEffect(() => {
     loadChatHistory();
@@ -419,22 +534,12 @@ export default function ChatbotScreen({ navigation }: Props) {
 
   const proceedClearChat = async () => {
     setShowClearChatConfirm(false);
-
-    // Stop any in-progress typewriter before resetting state
     stopTypewriter();
     pendingTextRef.current = '';
     rawAccumulatedRef.current = '';
     isDoneStreamingRef.current = false;
 
-    setMessages([
-      {
-        id: 'welcome-1',
-        text: "Hello! I'm your AI Coach. How can I help you?",
-        sender: 'ai',
-        timestamp: new Date(),
-        status: 'done',
-      },
-    ]);
+    setMessages([]);
     sessionIdRef.current = null;
     historyLoadedRef.current = false;
 
@@ -454,211 +559,266 @@ export default function ChatbotScreen({ navigation }: Props) {
   // Send message
   // -------------------------------------------------------------------------
 
-  const sendMessage = useCallback(async () => {
-    const content = inputText.trim();
-    if (!content || isStreaming) return;
+  const sendMessage = useCallback(
+    async (overrideText?: string) => {
+      const content = (overrideText ?? inputText).trim();
+      if (!content || isStreaming) return;
 
-    // Append user bubble immediately
-    const userMsg: Message = {
-      id: `user-${Date.now()}`,
-      text: content,
-      sender: 'user',
-      timestamp: new Date(),
-      status: 'done',
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInputText('');
-    setIsStreaming(true);
-    setStatusText('');
-    scrollToBottom();
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        text: content,
+        sender: 'user',
+        timestamp: new Date(),
+        status: 'done',
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setInputText('');
+      setIsStreaming(true);
+      setStatusText('');
+      scrollToBottom();
 
-    // Reset typewriter state for this new turn
-    stopTypewriter();
-    pendingTextRef.current = '';
-    rawAccumulatedRef.current = '';
-    isDoneStreamingRef.current = false;
-    hasReceivedChunksRef.current = false;
+      stopTypewriter();
+      pendingTextRef.current = '';
+      rawAccumulatedRef.current = '';
+      isDoneStreamingRef.current = false;
+      hasReceivedChunksRef.current = false;
 
-    try {
-      if (!token) throw new Error('Not authenticated');
+      try {
+        if (!token) throw new Error('Not authenticated');
 
-      await chatService.sendMessage(
-        content,
-        token,
-        (event: ChatStreamEvent) => {
-          switch (event.type) {
+        await chatService.sendMessage(
+          content,
+          token,
+          (event: ChatStreamEvent) => {
+            switch (event.type) {
+              case 'status':
+                setStatusText(event.message);
+                ensureStreamingBubble(event.message);
+                updateBubbleStatusText(event.message);
+                scrollToBottom();
+                break;
 
-            // Backend is processing — show animated dots + status label
-            case 'status':
-              setStatusText(event.message);
-              ensureStreamingBubble(event.message);
-              updateBubbleStatusText(event.message);
-              scrollToBottom();
-              break;
-
-            // A text chunk arrived — queue raw text for the typewriter.
-            // Markdown is stripped when the accumulated text is rendered
-            // so that tokens spanning multiple chunks are handled correctly.
-            case 'chunk': {
-              hasReceivedChunksRef.current = true;
-              setStatusText('');
-              pendingTextRef.current += event.text;
-              ensureStreamingBubble();
-              startTypewriter();
-              break;
-            }
-
-            // Stream finished — signal the typewriter to finalise when queue drains
-            case 'done':
-              if (event.session_id) sessionIdRef.current = event.session_id;
-              if (!hasReceivedChunksRef.current) {
-                // No text chunks were received; show a default reply
-                pendingTextRef.current = "I'm here to help! What would you like to know?";
+              case 'chunk': {
+                hasReceivedChunksRef.current = true;
+                setStatusText('');
+                pendingTextRef.current += event.text;
                 ensureStreamingBubble();
                 startTypewriter();
+                break;
               }
-              isDoneStreamingRef.current = true;
-              break;
 
-            // Server or network error during stream
-            case 'error':
-              stopTypewriter();
-              setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
-              addErrorMessage(event.message);
-              setIsStreaming(false);
-              setStatusText('');
-              break;
-          }
-        },
-        sessionIdRef.current || undefined
-      );
-    } catch (err: any) {
-      stopTypewriter();
-      setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
+              case 'done':
+                if (event.session_id) sessionIdRef.current = event.session_id;
+                if (!hasReceivedChunksRef.current) {
+                  pendingTextRef.current = "I'm here to help! What would you like to know?";
+                  ensureStreamingBubble();
+                  startTypewriter();
+                }
+                isDoneStreamingRef.current = true;
+                break;
 
-      if (err?.status === 401) {
-        setShowSessionExpiredModal(true);
-      } else if (err?.status === 429) {
-        setShowRateLimitModal(true);
-      } else {
-        addErrorMessage('Failed to send message. Please try again.');
+              case 'error':
+                stopTypewriter();
+                setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
+                addErrorMessage(event.message);
+                setIsStreaming(false);
+                setStatusText('');
+                break;
+            }
+          },
+          sessionIdRef.current || undefined
+        );
+      } catch (err: any) {
+        stopTypewriter();
+        setMessages((prev) => prev.filter((m) => m.id !== STREAMING_MSG_ID));
+
+        if (err?.status === 401) {
+          setShowSessionExpiredModal(true);
+        } else if (err?.status === 429) {
+          setShowRateLimitModal(true);
+        } else {
+          addErrorMessage('Failed to send message. Please try again.');
+        }
+        setIsStreaming(false);
+        setStatusText('');
       }
-      setIsStreaming(false);
-      setStatusText('');
-    }
-  }, [
-    inputText,
-    isStreaming,
-    token,
-    ensureStreamingBubble,
-    updateBubbleStatusText,
-    startTypewriter,
-    stopTypewriter,
-    scrollToBottom,
-    addErrorMessage,
-  ]);
+    },
+    [
+      inputText,
+      isStreaming,
+      token,
+      ensureStreamingBubble,
+      updateBubbleStatusText,
+      startTypewriter,
+      stopTypewriter,
+      scrollToBottom,
+      addErrorMessage,
+    ]
+  );
+
+  // Quick suggestion tap → send immediately
+  const handleSuggestionTap = useCallback(
+    (suggestion: string) => {
+      const text = suggestion.split(' ').slice(1).join(' ');
+      setInputText(text);
+      // Small delay so the input text is set before sending
+      setTimeout(() => sendMessage(text), 50);
+    },
+    [sendMessage]
+  );
+
+  // -------------------------------------------------------------------------
+  // Determine if two consecutive messages should be grouped
+  // (same sender, < 2 min apart) — hides avatar + reduces margin for grouped
+  // -------------------------------------------------------------------------
+
+  const isGrouped = useCallback(
+    (index: number, item: Message): boolean => {
+      if (index === 0) return false;
+      const prev = messages[index - 1];
+      if (!prev || prev.sender !== item.sender) return false;
+      const diff = item.timestamp.getTime() - prev.timestamp.getTime();
+      return diff < 120_000; // 2 minutes
+    },
+    [messages]
+  );
 
   // -------------------------------------------------------------------------
   // Render a single message bubble
   // -------------------------------------------------------------------------
 
   const renderMessage = useCallback(
-    ({ item }: { item: Message }) => {
+    ({ item, index }: { item: Message; index: number }) => {
       const isAI = item.sender === 'ai';
       const isError = item.status === 'error';
+      const grouped = isGrouped(index, item);
 
-      // Show animated dots when the bubble exists but has no visible text yet
-      const isThinking =
-        item.status === 'streaming' && item.text === '' && !isError;
+      const isThinking = item.status === 'streaming' && item.text === '' && !isError;
+      const isCopied = copiedId === item.id;
 
       return (
         <View
           style={[
             styles.messageContainer,
             isAI ? styles.aiMessageContainer : styles.userMessageContainer,
+            grouped && styles.messageContainerGrouped,
           ]}
         >
+          {/* AI avatar — hidden when grouped */}
           {isAI && (
-            <View
-              style={[
-                styles.aiAvatar,
-                { backgroundColor: isError ? '#FF555520' : `${colors.primary}15` },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="robot"
-                size={20}
-                color={isError ? '#FF5555' : colors.primary}
-              />
+            <View style={[styles.aiAvatarSlot]}>
+              {!grouped && (
+                <View
+                  style={[
+                    styles.aiAvatar,
+                    { backgroundColor: isError ? '#FF555520' : `${colors.primary}18` },
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="robot"
+                    size={18}
+                    color={isError ? '#FF5555' : colors.primary}
+                  />
+                </View>
+              )}
             </View>
           )}
 
-          <View
-            style={[
-              styles.messageBubble,
-              isAI
-                ? [
-                    styles.aiBubble,
-                    {
-                      backgroundColor: colors.authInputBg || colors.surface,
-                      borderColor: isError
-                        ? '#FF555540'
-                        : colors.authInputBorder || colors.cardBorder,
-                    },
-                  ]
-                : [styles.userBubble, { backgroundColor: colors.primary }],
-            ]}
+          <TouchableWithoutFeedback
+            onLongPress={() => handleLongPress(item)}
+            delayLongPress={400}
           >
-            {isThinking ? (
-              // Three animated dots — visible while waiting for the first chunk
-              <TypingDots color={colors.primary} />
-            ) : (
-              <>
-                <Text
-                  style={[
-                    styles.messageText,
-                    isAI
-                      ? { color: isError ? '#FF5555' : colors.text }
-                      : { color: '#FFFFFF' },
-                  ]}
-                >
-                  {item.text}
-                  {/* Blinking cursor shown while text is still streaming in */}
-                  {item.status === 'streaming' && item.text !== '' && (
-                    <Text style={{ color: colors.primary }}> ▌</Text>
-                  )}
-                </Text>
-                <Text
-                  style={[
-                    styles.timestamp,
-                    isAI ? { color: colors.textSecondary } : { color: '#FFFFFF90' },
-                  ]}
-                >
-                  {item.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
-              </>
-            )}
-          </View>
+            <View
+              style={[
+                styles.messageBubble,
+                isAI
+                  ? [
+                      styles.aiBubble,
+                      {
+                        backgroundColor: colors.authInputBg || colors.surface,
+                        borderColor: isError
+                          ? '#FF555540'
+                          : colors.authInputBorder || colors.cardBorder,
+                        // Subtle shadow for AI bubbles
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 1,
+                      },
+                    ]
+                  : [
+                      styles.userBubble,
+                      {
+                        backgroundColor: colors.primary,
+                        shadowColor: colors.primary,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 6,
+                        elevation: 3,
+                      },
+                    ],
+              ]}
+            >
+              {isThinking ? (
+                <TypingDots color={colors.primary} />
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.messageText,
+                      isAI
+                        ? { color: isError ? '#FF5555' : colors.text }
+                        : { color: '#FFFFFF' },
+                    ]}
+                  >
+                    {item.text}
+                    {item.status === 'streaming' && item.text !== '' && (
+                      <BlinkingCursor color={isAI ? colors.primary : '#FFFFFF90'} />
+                    )}
+                  </Text>
+
+                  {/* Timestamp row */}
+                  <View style={styles.timestampRow}>
+                    {isCopied && (
+                      <Text style={[styles.copiedHint, { color: isAI ? colors.primary : '#FFFFFF90' }]}>
+                        ✓ Copied
+                      </Text>
+                    )}
+                    <Text
+                      style={[
+                        styles.timestamp,
+                        isAI ? { color: colors.textSecondary } : { color: '#FFFFFF80' },
+                      ]}
+                    >
+                      {formatRelativeTime(item.timestamp)}
+                    </Text>
+                    {/* Delivery tick for user messages */}
+                    {!isAI && item.status === 'done' && (
+                      <Ionicons name="checkmark-done" size={12} color="#FFFFFF80" style={{ marginLeft: 2 }} />
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
         </View>
       );
     },
-    [colors]
+    [colors, copiedId, handleLongPress, isGrouped]
   );
+
+  const showWelcome = !isLoadingHistory && messages.length === 0;
+  const showSuggestions = !isStreaming && !isLoadingHistory && messages.length > 0;
+  const charsLeft = MAX_INPUT_LENGTH - inputText.length;
+  const showCharCount = inputText.length >= CHAR_WARN_THRESHOLD;
 
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background, paddingTop: insets.top },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <LinearGradient
         colors={colors.authBgGradient}
         start={{ x: 0, y: 0 }}
@@ -667,37 +827,40 @@ export default function ChatbotScreen({ navigation }: Props) {
       />
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <View style={[styles.header, { backgroundColor: colors.surface + '95' }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+      <View style={[styles.header, { backgroundColor: colors.surface + 'F0', borderBottomColor: colors.authInputBorder || colors.cardBorder }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={styles.headerTitleContainer}>
-          <View style={[styles.headerAvatar, { backgroundColor: `${colors.primary}15` }]}>
-            <MaterialCommunityIcons name="robot" size={24} color={colors.primary} />
+        <View style={styles.headerCenter}>
+          <View style={[styles.headerAvatar, { backgroundColor: `${colors.primary}18` }]}>
+            <MaterialCommunityIcons name="robot-happy" size={22} color={colors.primary} />
           </View>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>AI Coach</Text>
-            <Text
-              style={[styles.headerSubtitle, { color: colors.textSecondary }]}
-              numberOfLines={1}
-            >
-              {isLoadingHistory
-                ? 'Loading history...'
-                : statusText
-                ? statusText
-                : isStreaming
-                ? 'Typing...'
-                : 'Online • Always here to help'}
-            </Text>
+            <View style={styles.headerStatusRow}>
+              {/* Green presence dot */}
+              {!isStreaming && !isLoadingHistory && (
+                <View style={[styles.onlineDot, { backgroundColor: '#22C55E' }]} />
+              )}
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                {isLoadingHistory
+                  ? 'Loading history…'
+                  : statusText
+                  ? statusText
+                  : isStreaming
+                  ? 'Typing…'
+                  : 'Online • Always here'}
+              </Text>
+            </View>
           </View>
         </View>
 
         <TouchableOpacity
           onPress={() => setShowClearChatConfirm(true)}
-          style={styles.headerIcon}
+          style={styles.headerBtn}
         >
-          <Feather name="trash-2" size={20} color={colors.text} />
+          <Feather name="trash-2" size={19} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -711,10 +874,20 @@ export default function ChatbotScreen({ navigation }: Props) {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Loading your conversations...
+              Loading conversations…
             </Text>
           </View>
+        ) : showWelcome ? (
+          // ── Welcome / empty state ──────────────────────────────────────
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <WelcomeState colors={colors} onSuggestion={handleSuggestionTap} />
+          </ScrollView>
         ) : (
+          // ── Message list ───────────────────────────────────────────────
           <FlatList
             ref={flatListRef}
             style={{ flex: 1 }}
@@ -722,21 +895,34 @@ export default function ChatbotScreen({ navigation }: Props) {
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.messagesList}
-            onContentSizeChange={scrollToBottom}
-            onLayout={scrollToBottom}
+            onScroll={handleScroll}
+            scrollEventThrottle={32}
+            onContentSizeChange={() => isNearBottom && scrollToBottom()}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={Platform.OS === 'android'}
+            initialNumToRender={20}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            keyboardShouldPersistTaps="handled"
           />
         )}
 
-        {/* Quick suggestion chips — hidden while streaming or loading */}
-        {!isStreaming && !isLoadingHistory && messages.length > 1 && (
-          <View
-            style={[
-              styles.suggestionsContainer,
-              { backgroundColor: colors.surface + '95' },
-            ]}
+        {/* Scroll-to-bottom FAB */}
+        {!showWelcome && (
+          <Animated.View
+            pointerEvents={isNearBottom ? 'none' : 'auto'}
+            style={[styles.fabScrollBottom, { backgroundColor: colors.primary, opacity: fabOpacity }]}
           >
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity onPress={() => scrollToBottom()} style={styles.fabScrollBottomInner}>
+              <Ionicons name="chevron-down" size={20} color="#fff" />
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
+        {/* Suggestion chips — shown after history loads & not streaming */}
+        {showSuggestions && (
+          <View style={[styles.suggestionsContainer, { backgroundColor: colors.surface + 'F0', borderTopColor: colors.authInputBorder || colors.cardBorder }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {SUGGESTIONS.map((suggestion, index) => (
                 <TouchableOpacity
                   key={index}
@@ -744,15 +930,15 @@ export default function ChatbotScreen({ navigation }: Props) {
                     styles.suggestionChip,
                     {
                       backgroundColor: `${colors.primary}10`,
-                      borderColor: colors.authInputBorder || colors.cardBorder,
+                      borderColor: `${colors.primary}30`,
                     },
                   ]}
-                  onPress={() =>
-                    setInputText(suggestion.split(' ').slice(1).join(' '))
-                  }
+                  onPress={() => handleSuggestionTap(suggestion)}
+                  activeOpacity={0.7}
                 >
+                  <Text style={styles.suggestionEmoji}>{suggestion.split(' ')[0]}</Text>
                   <Text style={[styles.suggestionText, { color: colors.primary }]}>
-                    {suggestion}
+                    {suggestion.split(' ').slice(1).join(' ')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -765,7 +951,7 @@ export default function ChatbotScreen({ navigation }: Props) {
           style={[
             styles.inputContainer,
             {
-              backgroundColor: colors.authInputBg || colors.surface,
+              backgroundColor: colors.surface + 'F8',
               borderTopColor: colors.authInputBorder || colors.cardBorder,
               paddingBottom:
                 Math.max(insets.bottom + 10, 20) +
@@ -773,30 +959,44 @@ export default function ChatbotScreen({ navigation }: Props) {
             },
           ]}
         >
-          {/* Placeholder for attach button — kept as empty touchable */}
-          <TouchableOpacity style={styles.attachButton} disabled={isStreaming} />
-
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.background,
-                color: colors.text,
-                borderColor: colors.authInputBorder || colors.cardBorder,
-              },
-            ]}
-            placeholder={
-              isStreaming
-                ? 'AI is replying...'
-                : 'Ask me anything about fitness...'
-            }
-            placeholderTextColor={colors.textSecondary}
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            editable={!isStreaming}
-          />
+          <View style={{ flex: 1 }}>
+            {/* Character count warning */}
+            {showCharCount && (
+              <Text
+                style={[
+                  styles.charCount,
+                  { color: charsLeft <= 50 ? '#EF4444' : colors.textSecondary },
+                ]}
+              >
+                {charsLeft}
+              </Text>
+            )}
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.background,
+                  color: colors.text,
+                  borderColor: isStreaming
+                    ? colors.authInputBorder || colors.cardBorder
+                    : inputText.length > 0
+                    ? colors.primary + '80'
+                    : colors.authInputBorder || colors.cardBorder,
+                },
+              ]}
+              placeholder={
+                isStreaming ? 'AI is replying…' : 'Ask me anything about fitness…'
+              }
+              placeholderTextColor={colors.textSecondary}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={MAX_INPUT_LENGTH}
+              editable={!isStreaming}
+              returnKeyType="default"
+              blurOnSubmit={false}
+            />
+          </View>
 
           <TouchableOpacity
             style={[
@@ -805,16 +1005,17 @@ export default function ChatbotScreen({ navigation }: Props) {
                 backgroundColor:
                   inputText.trim() && !isStreaming
                     ? colors.primary
-                    : colors.textSecondary + '50',
+                    : colors.textSecondary + '40',
               },
             ]}
-            onPress={sendMessage}
+            onPress={() => sendMessage()}
             disabled={!inputText.trim() || isStreaming}
+            activeOpacity={0.8}
           >
             {isStreaming ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Ionicons name="send" size={20} color="#FFFFFF" />
+              <Ionicons name="send" size={18} color="#FFFFFF" />
             )}
           </TouchableOpacity>
         </View>
@@ -822,11 +1023,10 @@ export default function ChatbotScreen({ navigation }: Props) {
 
       {/* ── Modals ──────────────────────────────────────────────────────── */}
 
-      {/* Confirm clear */}
       <SuccessModal
         visible={showClearChatConfirm}
         title="Clear Chat"
-        message="Are you sure you want to clear all messages? This action cannot be undone."
+        message="Are you sure you want to clear all messages? This cannot be undone."
         primaryButtonText="Clear"
         onPrimaryPress={proceedClearChat}
         secondaryButtonText="Cancel"
@@ -834,17 +1034,15 @@ export default function ChatbotScreen({ navigation }: Props) {
         iconName="trash-bin"
       />
 
-      {/* Clear success */}
       <SuccessModal
         visible={showClearChatSuccess}
         title="Chat Cleared"
-        message="Your conversation history has been successfully cleared."
+        message="Your conversation history has been cleared."
         primaryButtonText="OK"
         onPrimaryPress={() => setShowClearChatSuccess(false)}
         iconName="checkmark-circle"
       />
 
-      {/* Clear error */}
       <SuccessModal
         visible={showClearChatError}
         title="Error"
@@ -854,7 +1052,6 @@ export default function ChatbotScreen({ navigation }: Props) {
         iconName="alert-circle"
       />
 
-      {/* Session expired */}
       <SuccessModal
         visible={showSessionExpiredModal}
         title="Session Expired"
@@ -867,7 +1064,6 @@ export default function ChatbotScreen({ navigation }: Props) {
         iconName="alert-circle"
       />
 
-      {/* Rate limit */}
       <SuccessModal
         visible={showRateLimitModal}
         title="Rate Limit Exceeded"
@@ -886,117 +1082,248 @@ export default function ChatbotScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // ── Header ──────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 4,
   },
-  backButton: { padding: 8 },
-  headerTitleContainer: {
+  headerBtn: { padding: 8, borderRadius: 20 },
+  headerCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flex: 1,
-    marginHorizontal: 8,
+    gap: 10,
+    marginHorizontal: 4,
   },
   headerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
-  headerSubtitle: { fontSize: 12, maxWidth: 200 },
-  headerIcon: { padding: 8 },
-  messagesList: { paddingHorizontal: 16, paddingVertical: 20 },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-end',
-  },
-  aiMessageContainer: { justifyContent: 'flex-start' },
-  userMessageContainer: { justifyContent: 'flex-end' },
-  aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  aiBubble: { borderWidth: 1, borderTopLeftRadius: 4 },
-  userBubble: { borderTopRightRadius: 4 },
-  messageText: { fontSize: 15, lineHeight: 22 },
-  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
-
-  // Animated typing dots
-  typingDotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    gap: 5,
-  },
-  typingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    gap: 8,
-  },
-  attachButton: { padding: 4 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    maxHeight: 100,
-    fontSize: 15,
-  },
-  sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 0.1 },
+  headerStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+  onlineDot: { width: 6, height: 6, borderRadius: 3 },
+  headerSubtitle: { fontSize: 11.5, flex: 1 },
+
+  // ── Messages ─────────────────────────────────────────────────────────────
+  messagesList: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 8 },
+
+  messageContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-end',
+  },
+  messageContainerGrouped: { marginBottom: 4 },
+  aiMessageContainer: { justifyContent: 'flex-start' },
+  userMessageContainer: { justifyContent: 'flex-end' },
+
+  aiAvatarSlot: {
+    width: 32,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  aiAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  messageBubble: {
+    maxWidth: '76%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+  },
+  aiBubble: { borderWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 4 },
+  userBubble: { borderTopRightRadius: 4 },
+  messageText: { fontSize: 15, lineHeight: 22 },
+
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 5,
+    gap: 3,
+  },
+  timestamp: { fontSize: 10.5 },
+  copiedHint: { fontSize: 10, fontWeight: '600', marginRight: 4 },
+
+  // ── Typing dots ──────────────────────────────────────────────────────────
+  typingDotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    gap: 5,
+  },
+  typingDot: { width: 8, height: 8, borderRadius: 4 },
+
+  // ── Scroll to bottom FAB ─────────────────────────────────────────────────
+  fabScrollBottom: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+    zIndex: 10,
+  },
+  fabScrollBottomInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+
+  // ── Suggestion chips ─────────────────────────────────────────────────────
   suggestionsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
+    gap: 5,
   },
+  suggestionEmoji: { fontSize: 14 },
   suggestionText: { fontSize: 13, fontWeight: '500' },
+
+  // ── Input bar ────────────────────────────────────────────────────────────
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  charCount: {
+    fontSize: 11,
+    textAlign: 'right',
+    marginBottom: 4,
+    marginRight: 4,
+    fontWeight: '500',
+  },
+  input: {
+    borderWidth: 1.5,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    maxHeight: 110,
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  sendButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
+
+  // ── Copy toast ────────────────────────────────────────────────────────────
+  copyToast: {
+    position: 'absolute',
+    bottom: 70,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    zIndex: 20,
+  },
+  copyToastText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  // ── Loading ───────────────────────────────────────────────────────────────
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   loadingText: { fontSize: 14 },
+
+  // ── Welcome / empty state ─────────────────────────────────────────────────
+  welcomeContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 40,
+  },
+  welcomeAvatarWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  pulseRing: {
+    position: 'absolute',
+    borderRadius: 100,
+    borderWidth: 1.5,
+  },
+  pulseRingOuter: { width: 90, height: 90 },
+  pulseRingInner: { width: 70, height: 70 },
+  welcomeAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
+  welcomeSubtitle: {
+    fontSize: 14.5,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  welcomeChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+  },
+  welcomeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 6,
+    minWidth: '44%',
+    justifyContent: 'center',
+  },
+  welcomeChipEmoji: { fontSize: 16 },
+  welcomeChipText: { fontSize: 13.5, fontWeight: '600' },
 });
