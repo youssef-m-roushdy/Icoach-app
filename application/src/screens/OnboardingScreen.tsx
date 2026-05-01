@@ -256,7 +256,7 @@ const HeightRuler = memo(
     useEffect(() => {
       setTimeout(() => {
         ref.current?.scrollTo({
-          y: (max - value) * TH - RH / 2,
+          y: (max - value) * TH,
           animated: false,
         });
       }, 50);
@@ -264,7 +264,7 @@ const HeightRuler = memo(
 
     const snap = useCallback(
       (e: any) => {
-        const v = max - Math.round((e.nativeEvent.contentOffset.y + RH / 2) / TH);
+        const v = max - Math.round(e.nativeEvent.contentOffset.y / TH);
         const c = Math.max(min, Math.min(max, v));
         if (c !== lastValueRef.current) {
           lastValueRef.current = c;
@@ -360,13 +360,13 @@ const WeightGauge = memo(
     const TW = 8;
     const MIN = 30;
     const MAX = 200;
-    const CENTER_OFFSET = W / 2 - 60;
+    const CENTER_OFFSET = W / 2 - 28;
     const lastValueRef = React.useRef(value);
 
     useEffect(() => {
       setTimeout(() => {
         ref.current?.scrollTo({
-          x: (value - MIN) * TW - CENTER_OFFSET,
+          x: (value - MIN) * 2 * TW,
           animated: false,
         });
       }, 50);
@@ -374,8 +374,7 @@ const WeightGauge = memo(
 
     const snap = useCallback(
       (e: any) => {
-        const v =
-          Math.round((e.nativeEvent.contentOffset.x + CENTER_OFFSET) / TW) + MIN;
+        const v = Math.round(e.nativeEvent.contentOffset.x / TW) * 0.5 + MIN;
         const c = Math.max(MIN, Math.min(MAX, v));
         if (c !== lastValueRef.current) {
           lastValueRef.current = c;
