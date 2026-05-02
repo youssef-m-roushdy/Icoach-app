@@ -155,7 +155,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (Platform.OS === 'android') {
       try {
         // Transparency natively ensured by edge-to-edge flags.
-        NavigationBar.setPositionAsync('absolute');
         NavigationBar.setButtonStyleAsync(theme === 'dark' ? 'light' : 'dark');
       } catch (e) {
         console.warn('NavigationBar configuration failed:', e);

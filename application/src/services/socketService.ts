@@ -89,7 +89,7 @@ class SocketService {
       console.log('✅ [GATEWAY SOCKET] Gateway URL:', GATEWAY_URL);
       console.log('✅ [GATEWAY SOCKET] Transport:', this.socket?.io.engine.transport.name);
       this.reconnectAttempts = 0;
-      
+
       // Register user with server
       if (this.userId) {
         console.log('📤 [GATEWAY SOCKET] Emitting register event with userId:', this.userId);
@@ -97,7 +97,7 @@ class SocketService {
       } else {
         console.log('⚠️ [GATEWAY SOCKET] No userId to register!');
       }
-      
+
       this.eventHandlers.onConnected?.();
       console.log('═══════════════════════════════════════════\n');
     });
@@ -121,7 +121,7 @@ class SocketService {
       console.log('📧 [GATEWAY SOCKET] Message:', data.message);
       console.log('📧 [GATEWAY SOCKET] User:', data.user?.email);
       console.log('📧 [GATEWAY SOCKET] Handler exists:', !!this.eventHandlers.onEmailVerified);
-      
+
       if (this.eventHandlers.onEmailVerified) {
         console.log('📧 [GATEWAY SOCKET] Calling onEmailVerified handler...');
         this.eventHandlers.onEmailVerified(data);
@@ -168,7 +168,7 @@ class SocketService {
     this.socket.on('connect_error', (error: Error) => {
       console.error('❌ [GATEWAY SOCKET] Connection error:', error.message);
       this.reconnectAttempts++;
-      
+
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.log('⚠️ [GATEWAY SOCKET] Max reconnection attempts reached');
         this.eventHandlers.onError?.(error);
@@ -184,7 +184,7 @@ class SocketService {
     // Debug packet events (only in development)
     if (__DEV__) {
       this.socket.io.on('packet', (packet) => {
-        if (packet.type === 'ping' || packet.type === 'pong') return;
+        if (packet.type === 2 || packet.type === 3) return; // 2 = PING, 3 = PONG
         console.log('📦 [GATEWAY SOCKET] Packet:', packet.type);
       });
     }
@@ -281,7 +281,7 @@ export const testGatewaySocket = () => {
   console.log('🧪 [TEST] Testing Gateway Socket Connection...');
   console.log('🧪 [TEST] Gateway URL:', GATEWAY_URL);
   console.log('🧪 [TEST] Socket.IO Path: /socket.io');
-  
+
   socketService.connect('test-user-' + Date.now(), {
     onConnected: () => {
       console.log('✅ [TEST] Connection successful!');
@@ -295,7 +295,7 @@ export const testGatewaySocket = () => {
       console.log('🔌 [TEST] Disconnected:', reason);
     }
   });
-  
+
   setTimeout(() => {
     if (!socketService.isConnected()) {
       console.error('❌ [TEST] Connection timeout - check gateway logs');
