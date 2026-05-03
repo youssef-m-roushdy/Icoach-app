@@ -2,7 +2,7 @@
 
 # 🏋️ ICoach
 
-> **ICoach** is a comprehensive AI-powered fitness and nutrition platform designed to help users achieve their health goals through intelligent workout tracking, food recognition, and personalized guidance.
+> **ICoach** is a comprehensive AI-powered fitness and nutrition platform designed to help users achieve their health goals through intelligent workout tracking, food recognition, AI coaching, and personalized guidance.
 
 
 ### Your AI-Powered Personal Fitness & Nutrition Assistant
@@ -11,11 +11,12 @@
 [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=c-sharp&logoColor=white)](https://dotnet.microsoft.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-**A comprehensive fitness and nutrition platform combining mobile app, backend services, and AI-powered food recognition**
+**A full-stack fitness and nutrition microservices platform with mobile app, API gateway, backend services, and AI-powered food recognition & coaching**
 
 [Features](#-key-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Tech Stack](#-technology-stack)
 
@@ -25,17 +26,22 @@
 
 ## 📖 Overview
 
-**ICoach** is a full-stack health and fitness application that empowers users to track their workouts, monitor nutrition, and achieve their fitness goals with the help of AI. The platform combines a mobile application built with React Native, a robust Node.js backend with multi-database support, and an AI service for intelligent food recognition.
+**ICoach** is a full-stack health and fitness application that empowers users to track their workouts, monitor nutrition, and achieve their fitness goals with the help of AI. The platform follows a **microservices architecture** with a unified API Gateway, a mobile application built with React Native, a robust Node.js backend with real-time WebSocket support, and an AI service featuring RAG-powered coaching and intelligent food recognition.
 
 ### 🎯 What Makes ICoach Special?
 
-- **🤖 AI-Powered Food Recognition** - Snap a photo of your meal and instantly get nutritional information
+- **🤖 AI-Powered Coaching** - RAG-based chatbot powered by Groq LLM with personalized fitness & nutrition advice
+- **📸 AI Food Recognition** - Snap a photo of your meal and instantly get nutritional information
 - **💪 Comprehensive Workout Library** - Access hundreds of exercises with detailed instructions and GIFs
-- **🏃 Live Workout Tracking** - Real-time pose detection and exercise counting with on-device ML
+- **🏋️ Workout Session Tracking** - Log sets, reps, and weights with real-time progress tracking
+- **🏃 Live Workout Mode** - Real-time pose detection and exercise counting with on-device ML
 - **🗣️ Voice Feedback** - Audio guidance and form corrections during workouts
-- **📊 Smart Nutrition Tracking** - Monitor macros, calories, and nutritional goals effortlessly
+- **📊 Smart Nutrition & Activity Tracking** - Monitor macros, calories, water intake, steps, and daily activity
+- **📈 Gym Progress Dashboard** - Track personal bests, metrics history, and workout statistics
+- **🔌 Real-Time Communication** - Socket.IO powered live updates and notifications
+- **🚀 API Gateway** - Ocelot-based gateway with rate limiting, caching, and security headers
 - **🌍 Multi-language Support** - Available in English, Arabic, French, German, Spanish, Italian, and Icelandic
-- **🔐 Secure Authentication** - OAuth integration with Google, Facebook, and GitHub
+- **🔐 Secure Authentication** - OAuth integration with Google, JWT access & refresh tokens
 - **📱 Cross-Platform** - iOS, Android, and Web support through React Native
 
 ---
@@ -43,47 +49,82 @@
 ## ✨ Key Features
 
 ### 📱 Mobile Application
-- **Modern UI/UX** - Clean, intuitive interface with smooth animations
-- **Authentication Flow** - Sign up, sign in, Google OAuth, password reset
+- **Modern UI/UX** - Clean, intuitive interface with dark/light theme support and smooth animations
+- **Authentication Flow** - Sign up, sign in, Google OAuth, password reset, email verification
 - **Automatic Token Refresh** - Seamless re-authentication when tokens expire
 - **Profile Management** - Track body metrics (height, weight, BMI), goals, and progress
 - **Body Info Editor** - Update fitness goals, activity level, body measurements
 - **Workout Library** - Browse 270+ exercises with GIF demonstrations
 - **Save Workouts** - Bookmark favorite exercises for quick access
+- **Workout Sessions** - Create, track, and edit gym workout sessions with sets and reps
+- **Workout History** - View detailed workout history with stats and trends
 - **Live Workout Mode** - Real-time pose detection and exercise tracking
 - **AI Fitness Engine** - On-device ML for exercise form analysis
 - **Voice Feedback** - Audio guidance during workouts
+- **AI Chatbot** - RAG-powered fitness coaching with personalized advice
 - **Food Recognition** - AI-powered meal analysis with camera/gallery picker
 - **Nutrition Tracking** - Daily calorie intake, macro tracking
+- **Daily Activity Tracking** - Step counter with customizable goals
+- **Water Intake Tracking** - Smart water intake logging with daily goals
+- **Gym Progress** - Personal bests, metrics tracking, and progress dashboard
+- **Notifications** - In-app notification system
 - **Multi-language** - i18n support with 7 languages
 - **Offline Support** - AsyncStorage for data persistence
 - **Deep Linking** - OAuth callback handling
+- **Edge-to-Edge UI** - Android system navigation bar management
+
+### 🚀 API Gateway
+- **Ocelot Routing** - Unified entry point for all microservices on port 8080
+- **Rate Limiting** - Per-route sliding window rate limits with Redis backend
+- **Redis Caching** - Distributed caching with StackExchange Redis
+- **Security Headers** - HSTS, CSP, X-Frame-Options, XSS protection, and more
+- **CORS Management** - Centralized cross-origin resource sharing policy
+- **Health Checks** - `/health` and `/ready` endpoints with downstream service monitoring
+- **Request Correlation** - X-Request-Id propagation across services
+- **Request Logging** - Structured JSON logging with elapsed time tracking
+- **WebSocket Passthrough** - Socket.IO support through the gateway
+- **API Documentation Proxy** - Redirect to Swagger/FastAPI docs from gateway
+- **Docker Support** - Containerized deployment with health checks
+- **Landing Page** - Interactive gateway status UI
 
 ### 🖥️ Backend Server
 - **RESTful API** - Comprehensive endpoints for all features (v1 versioned)
-- **Dual Database** - PostgreSQL for relational data, MongoDB for flexible schemas
+- **PostgreSQL Database** - Relational data with Sequelize ORM
 - **JWT Authentication** - Access tokens (15min) + Refresh tokens (7 days)
 - **Token Refresh Endpoint** - Automatic token renewal support
 - **OAuth 2.0** - Google Sign-In with mobile ID token verification
-- **User Management** - Registration, login, profile CRUD, body metrics
+- **User Management** - Registration, login, profile CRUD, body metrics, medical notes
 - **Workout API** - Full CRUD with filtering by body part, equipment, level
+- **Workout Sessions** - Session management with sets, reps, weights, and statistics
 - **Saved Workouts** - User favorites and bookmarks management
-- **Food API** - Nutrition data with search and filtering
+- **Food API** - Nutrition data with search, filtering, high-protein, and low-calorie queries
+- **Progress API** - Dashboard and history endpoints for user progress tracking
+- **Daily Activity API** - Step tracking and daily activity logging
+- **Water Intake API** - Water intake tracking with daily goals
+- **Chat History API** - AI chat conversation persistence and retrieval
+- **Socket.IO** - Real-time WebSocket communication for live updates
 - **Image Management** - Cloudinary integration for avatars and media
 - **Email Service** - Nodemailer for verification and notifications
+- **Metrics Calculation** - BMI, caloric needs, and fitness metrics service
 - **API Documentation** - Interactive Swagger/OpenAPI docs
-- **Database Migrations** - Sequelize migrations and seeders
+- **Database Migrations** - Sequelize migrations and seeders (27 migrations)
 - **Docker Support** - Containerized deployment with docker-compose
 - **Error Handling** - Centralized error handling with custom error classes
 
 ### 🤖 AI Service
+- **RAG-Based Chatbot** - AI coaching powered by Groq LLM with retrieval-augmented generation
+- **Tool Calling** - AI agent with tools for searching workouts, food nutrition, and updating medical records
+- **Memory Service** - Conversation memory with context window management
+- **Vector Search** - Qdrant vector database for semantic retrieval
 - **Food Recognition** - EfficientNetB0 model trained on 100+ food classes
 - **Nutrition Analysis** - Automatic nutritional breakdown from images
-- **FastAPI Backend** - High-performance Python API
+- **FastAPI Backend** - High-performance Python API with async support
 - **Arabic Cuisine Support** - Specialized recognition for Middle Eastern dishes
-- **Confidence Scoring** - Reliable predictions with accuracy metrics
+- **Token Budget Management** - LLM token usage tracking and rate limiting
+- **Auth Middleware** - JWT token verification via Redis
+- **Scope Guard** - Route-level permission and scope checking
+- **Redis Integration** - Token caching and session management
 - **Docker Deployment** - Containerized ML model serving
-- **Streamlit Demo** - Interactive web demo for food recognition
 
 ### 🏃 On-Device AI (Mobile)
 - **Pose Detection** - Real-time body pose tracking
@@ -99,253 +140,351 @@
 ```
 Icoach-app/
 │
-├── 📱 application/                    # React Native Mobile App (Expo)
+├── 🚀 ApiGateway/                      # .NET 8 API Gateway (Ocelot)
+│   ├── Program.cs                       # Gateway entry point & middleware
+│   ├── ocelot.json                      # Route configuration (local)
+│   ├── ocelot.Docker.json               # Route configuration (Docker)
+│   ├── appsettings.json                 # CORS & logging configuration
+│   ├── Dockerfile                       # Container configuration
+│   ├── docker-compose.yml               # Gateway container setup
+│   └── GATEWAY_TESTING_CHECKLIST.md     # Testing documentation
+│
+├── 📱 application/                      # React Native Mobile App (Expo)
+│   ├── App.tsx                          # Application entry point
 │   ├── src/
-│   │   ├── components/               # Reusable UI components
-│   │   │   ├── common/               # Shared components
-│   │   │   │   ├── CustomButton.tsx     # Styled button with variants
-│   │   │   │   ├── CustomInput.tsx      # Styled text input
-│   │   │   │   ├── GoogleButton.tsx     # Google OAuth button
-│   │   │   │   └── LanguageSelector.tsx # Language switcher
-│   │   │   ├── auth/                 # Auth-specific components
-│   │   │   │   └── AuthHeader.tsx       # Authentication header
-│   │   │   └── MediaPickerSheet.tsx  # Camera/Gallery picker
-│   │   ├── screens/                  # App screens (19 screens)
-│   │   │   ├── WelcomeScreen.tsx        # Landing page
-│   │   │   ├── SignInScreen.tsx         # Sign in
-│   │   │   ├── SignupScreen.tsx         # Registration
-│   │   │   ├── HomeScreen.tsx           # Main dashboard
-│   │   │   ├── ProfileScreen.tsx        # User profile
-│   │   │   ├── EditProfileScreen.tsx    # Edit profile
-│   │   │   ├── EditBodyInfoScreen.tsx   # Body metrics editor
-│   │   │   ├── WorkoutsScreen.tsx       # Exercise library
-│   │   │   ├── SavedWorkoutsScreen.tsx  # Bookmarked workouts
-│   │   │   ├── LiveWorkoutScreen.tsx    # Real-time workout tracking
-│   │   │   ├── FoodsScreen.tsx          # Food & nutrition
-│   │   │   ├── MessagesScreen.tsx       # Notifications
-│   │   │   ├── OnboardingScreen.tsx     # First-time setup
-│   │   │   ├── AuthCallbackScreen.tsx   # OAuth callback
+│   │   ├── components/                  # Reusable UI components
+│   │   │   ├── common/                  # Shared components
+│   │   │   │   ├── CustomButton.tsx       # Styled button with variants
+│   │   │   │   ├── CustomInput.tsx        # Styled text input
+│   │   │   │   ├── GoogleButton.tsx       # Google OAuth button
+│   │   │   │   ├── LanguageSelector.tsx   # Language switcher
+│   │   │   │   └── SuccessModal.tsx       # Success modal dialog
+│   │   │   ├── auth/                    # Auth-specific components
+│   │   │   │   └── AuthHeader.tsx         # Authentication header
+│   │   │   ├── MediaPickerSheet.tsx     # Camera/Gallery picker
+│   │   │   ├── EditStepGoalModal.tsx    # Step goal editor modal
+│   │   │   ├── EditWaterGoalModal.tsx   # Water goal editor modal
+│   │   │   ├── SmartWaterInput.tsx      # Smart water intake input
+│   │   │   └── SystemNavigationBarProtector.tsx  # Android nav bar
+│   │   ├── screens/                     # App screens (26 screens)
+│   │   │   ├── WelcomeScreen.tsx          # Landing page
+│   │   │   ├── SignInScreen.tsx           # Sign in
+│   │   │   ├── SignupScreen.tsx           # Registration
+│   │   │   ├── OnboardingScreen.tsx       # First-time setup
+│   │   │   ├── HomeScreen.tsx             # Main dashboard
+│   │   │   ├── ProfileScreen.tsx          # User profile
+│   │   │   ├── EditProfileScreen.tsx      # Edit profile
+│   │   │   ├── EditBodyInfoScreen.tsx     # Body metrics editor
+│   │   │   ├── WorkoutsScreen.tsx         # Exercise library
+│   │   │   ├── SavedWorkoutsScreen.tsx    # Bookmarked workouts
+│   │   │   ├── WorkoutSessionScreen.tsx   # Workout session tracking
+│   │   │   ├── EditWorkoutSessionScreen.tsx  # Edit workout sessions
+│   │   │   ├── WorkoutHistoryScreen.tsx   # Workout history & stats
+│   │   │   ├── LiveWorkoutScreen.tsx      # Real-time workout tracking
+│   │   │   ├── GymProgressScreen.tsx      # Gym progress dashboard
+│   │   │   ├── FoodsScreen.tsx            # Food & nutrition
+│   │   │   ├── ChatbotScreen.tsx          # AI coaching chatbot
+│   │   │   ├── DailyActivityDetailsScreen.tsx  # Daily activity details
+│   │   │   ├── WaterIntakeDetailsScreen.tsx    # Water intake tracking
+│   │   │   ├── NotificationsScreen.tsx    # Notifications
+│   │   │   ├── MessagesScreen.tsx         # Messages
+│   │   │   ├── AuthCallbackScreen.tsx     # OAuth callback
 │   │   │   ├── EmailVerificationScreen.tsx
 │   │   │   ├── ForgotPasswordScreen.tsx
 │   │   │   ├── ResetPasswordScreen.tsx
 │   │   │   └── ChangePasswordScreen.tsx
-│   │   ├── navigation/               # React Navigation setup
+│   │   ├── navigation/                  # React Navigation setup
 │   │   │   └── AppNavigator.tsx
-│   │   ├── services/                 # API & AI integration
-│   │   │   ├── api.ts                   # Backend API client
-│   │   │   ├── poseDetection/           # Real-time pose detection
-│   │   │   └── aiFitnessEngine/         # AI workout analysis
-│   │   │       ├── exercises/           # Exercise definitions
-│   │   │       ├── feedbackMapping.ts   # Feedback rules
-│   │   │       ├── voiceFeedback.ts     # Audio feedback
-│   │   │       └── utils.ts             # Helper functions
-│   │   ├── context/                  # Global state management
-│   │   │   ├── AuthContext.tsx          # Auth & token management
-│   │   │   └── ThemeContext.tsx         # Theme management
-│   │   ├── hooks/                    # Custom React hooks
-│   │   │   └── useForm.ts               # Form state management
-│   │   ├── utils/                    # Helper functions & validators
-│   │   ├── constants/                # Theme, colors, sizes
+│   │   ├── services/                    # API & AI integration
+│   │   │   ├── api.ts                     # Backend API client
+│   │   │   ├── chatService.ts             # AI chatbot service
+│   │   │   ├── socketService.ts           # Socket.IO client
+│   │   │   ├── progressService.ts         # Progress tracking
+│   │   │   ├── dailyActiveService.ts      # Daily activity service
+│   │   │   ├── waterIntakeService.ts      # Water intake service
+│   │   │   ├── workoutSessionService.ts   # Workout session service
+│   │   │   ├── workoutSessionSetService.ts # Session sets service
+│   │   │   ├── poseDetection/             # Real-time pose detection
+│   │   │   └── aiFitnessEngine/           # AI workout analysis
+│   │   │       ├── exercises/             # Exercise definitions
+│   │   │       ├── feedbackMapping.ts     # Feedback rules
+│   │   │       ├── voiceFeedback.ts       # Audio feedback
+│   │   │       └── utils.ts              # Helper functions
+│   │   ├── context/                     # Global state management
+│   │   │   ├── AuthContext.tsx            # Auth & token management
+│   │   │   ├── ThemeContext.tsx           # Theme management (dark/light)
+│   │   │   └── SystemNavigationContext.tsx # System nav bar state
+│   │   ├── hooks/                       # Custom React hooks
+│   │   │   ├── useForm.ts                 # Form state management
+│   │   │   ├── useKeyboardHeight.ts       # Keyboard height tracking
+│   │   │   ├── useStepCounter.ts          # Step counter hook
+│   │   │   └── useWaterIntake.ts          # Water intake hook
+│   │   ├── utils/                       # Helper functions & validators
+│   │   ├── constants/                   # Theme, colors, sizes
 │   │   │   ├── colors.ts
-│   │   │   └── sizes.ts
-│   │   ├── types/                    # TypeScript definitions
-│   │   └── styles/                   # Global styles
-│   ├── ML_Models/                    # On-device ML models
-│   │   ├── jumping_jacks.onnx           # Exercise detection model
-│   │   └── jj_encoder_info.json         # Model metadata
-│   ├── i18n/                         # Internationalization
-│   │   ├── i18n.ts                      # i18n configuration
-│   │   └── locales/                     # Language files (7 languages)
+│   │   │   ├── sizes.ts
+│   │   │   └── toastConfig.tsx            # Toast notification config
+│   │   ├── types/                       # TypeScript definitions
+│   │   └── styles/                      # Global styles
+│   ├── ML_Models/                       # On-device ML models
+│   │   ├── jumping_jacks.onnx             # Exercise detection model
+│   │   └── jj_encoder_info.json           # Model metadata
+│   ├── i18n/                            # Internationalization
+│   │   ├── i18n.ts                        # i18n configuration
+│   │   └── locales/                       # Language files (7 languages)
 │   │       ├── en.json, ar.json, fr.json
 │   │       ├── de.json, es.json, it.json, is.json
-│   └── assets/                       # Fonts, images
+│   └── assets/                          # Fonts, images
 │
-├── 🖥️ server/                        # Node.js + Express + TypeScript Backend
+├── 🖥️ server/                           # Node.js + Express + TypeScript Backend
 │   ├── src/
-│   │   ├── app.ts                    # Main application setup
-│   │   ├── controllers/              # Request handlers
+│   │   ├── app.ts                       # Main application setup + Socket.IO
+│   │   ├── controllers/                 # Request handlers
 │   │   │   ├── authController.ts
 │   │   │   ├── userController.ts
 │   │   │   ├── workoutController.ts
 │   │   │   ├── foodController.ts
 │   │   │   ├── savedWorkoutController.ts
+│   │   │   ├── workoutSessionController.ts
+│   │   │   ├── workoutSessionSetController.ts
+│   │   │   ├── progressController.ts
+│   │   │   ├── dailyActivityController.ts
+│   │   │   ├── waterIntakeController.ts
+│   │   │   ├── chatHistoryController.ts
 │   │   │   └── viewController.ts
-│   │   ├── routes/                   # API endpoints
-│   │   │   ├── v1/                      # API v1 (versioned)
+│   │   ├── routes/                      # API endpoints
+│   │   │   ├── v1/                        # API v1 (versioned)
 │   │   │   │   ├── authRoutes.ts
 │   │   │   │   ├── userRoutes.ts
 │   │   │   │   ├── workoutRoutes.ts
 │   │   │   │   ├── foodRoutes.ts
-│   │   │   │   └── savedWorkoutRoutes.ts
-│   │   │   └── web/                     # Web routes
-│   │   ├── models/                   # Database models
-│   │   ├── services/                 # Business logic
-│   │   ├── middleware/               # Auth, validation, error handling
-│   │   ├── config/                   # Database & JWT configuration
-│   │   ├── migrations/               # Database migrations
-│   │   ├── seeders/                  # Database seeders
-│   │   ├── types/                    # TypeScript definitions
-│   │   ├── utils/                    # Helper utilities
-│   │   └── views/                    # Server-side views
-│   ├── data/                         # Seed data
-│   │   ├── workouts_data.csv            # 270+ exercises
-│   │   └── food_nutrition_data.json     # Food nutrition data
-│   ├── config/                       # Configuration files
-│   ├── uploads/                      # Local file uploads
-│   └── logs/                         # Application logs
-│
-├── 🤖 AI/                            # Python AI Service (FastAPI)
-│   ├── main.py                       # FastAPI application entry
-│   ├── AI_API_Features/              # API features module
-│   │   ├── routers/                     # FastAPI routes
-│   │   │   └── food.py                  # Food prediction endpoints
+│   │   │   │   ├── savedWorkoutRoutes.ts
+│   │   │   │   ├── workoutSessionRoutes.ts
+│   │   │   │   ├── workoutSessionSetRoutes.ts
+│   │   │   │   ├── progressRoutes.ts
+│   │   │   │   ├── dailyActivityRoutes.ts
+│   │   │   │   ├── waterIntakeRoutes.ts
+│   │   │   │   └── chatHistoryRoutes.ts
+│   │   │   └── web/                       # Web routes
+│   │   ├── models/                      # Database models (Sequelize)
+│   │   │   └── sql/
+│   │   │       ├── User.ts                # Users & auth (with OAuth)
+│   │   │       ├── Workout.ts             # Exercise library
+│   │   │       ├── SavedWorkout.ts        # User favorites
+│   │   │       ├── WorkoutSession.ts      # Workout sessions
+│   │   │       ├── WorkoutSessionSet.ts   # Session sets (reps/weight)
+│   │   │       ├── Food.ts               # Food nutrition data
+│   │   │       ├── DailyActivity.ts       # Daily activity tracking
+│   │   │       ├── WaterIntake.ts         # Water intake tracking
+│   │   │       ├── ChatHistory.ts         # AI chat history
+│   │   │       ├── UserMetrics.ts         # Body metrics history
+│   │   │       ├── PersonalBest.ts        # Personal best records
+│   │   │       ├── FitnessPlan.ts         # Fitness plans
+│   │   │       ├── Injury.ts              # Injury catalog
+│   │   │       ├── UserInjury.ts          # User injuries
+│   │   │       └── WorkoutInjury.ts       # Workout-related injuries
 │   │   ├── services/                    # Business logic
-│   │   │   ├── ml_service.py            # ML model inference
-│   │   │   └── db_service.py            # Database operations
-│   │   ├── models/                      # Data models
-│   │   │   ├── database.py              # ORM models
-│   │   │   └── schemas.py               # Pydantic schemas
-│   │   ├── config/                      # Configuration
-│   │   │   ├── database.py              # DB connection
-│   │   │   └── settings.py              # App settings
-│   │   └── utils/                       # Helper utilities
-│   │       └── helpers.py
-│   ├── food_predict_feature/         # Food recognition module
-│   │   ├── app.py                       # Streamlit demo app
-│   │   ├── best_model_food100.keras     # Trained EfficientNetB0 model
-│   │   ├── class_names.json             # 100+ food categories
-│   │   └── food detection model.ipynb   # Training notebook
-│   ├── requirements-api.txt          # API dependencies
-│   ├── Dockerfile                    # Container configuration
-│   └── docker-compose.yml            # Multi-container setup
+│   │   │   ├── userService.ts             # User operations
+│   │   │   ├── emailService.ts            # Email notifications
+│   │   │   ├── imageService.ts            # Cloudinary integration
+│   │   │   ├── socketService.ts           # Socket.IO service
+│   │   │   └── metricsCalculationService.ts  # BMI, caloric needs
+│   │   ├── middleware/                  # Auth, validation, error handling
+│   │   ├── config/                      # Database & JWT configuration
+│   │   ├── migrations/                  # Database migrations (27 files)
+│   │   ├── seeders/                     # Database seeders
+│   │   ├── types/                       # TypeScript definitions
+│   │   ├── utils/                       # Helper utilities
+│   │   └── views/                       # Server-side EJS views
+│   ├── data/                            # Seed data
+│   │   ├── workouts_data.csv              # 270+ exercises
+│   │   └── food_nutrition_data.json       # Food nutrition data
+│   ├── config/                          # Configuration files
+│   ├── uploads/                         # Local file uploads
+│   └── logs/                            # Application logs
 │
-└── 🌐 frontend/                      # Web Frontend (Planned)
+├── 🤖 AI/                               # Python AI Service (FastAPI)
+│   ├── main.py                          # FastAPI application entry
+│   ├── routers/                         # API route handlers
+│   │   ├── food.py                        # Food recognition endpoints
+│   │   └── chat.py                        # AI chat endpoints
+│   ├── services/                        # Business logic & AI services
+│   │   ├── ml_service.py                  # ML model inference
+│   │   ├── db_service.py                  # Database operations
+│   │   ├── chat_service.py                # RAG chat orchestration
+│   │   ├── llm_service.py                 # Groq LLM integration
+│   │   ├── memory_service.py              # Conversation memory
+│   │   ├── profile_service.py             # User profile service
+│   │   ├── qdrant_service.py              # Qdrant vector DB
+│   │   ├── vector_service.py              # Vector embeddings
+│   │   ├── token_service.py               # Redis token management
+│   │   └── workout_service.py             # Workout data service
+│   ├── tools/                           # AI agent tools
+│   │   ├── tool_definitions.py            # Tool schemas
+│   │   ├── tool_executor.py               # Tool execution engine
+│   │   ├── search_food_nutrition.py       # Food search tool
+│   │   ├── search_workouts.py             # Workout search tool
+│   │   └── update_medical_record.py       # Medical record tool
+│   ├── middlewares/                     # Request middleware
+│   │   ├── auth_middleware.py             # JWT authentication
+│   │   ├── scope_guard_middleware.py      # Permission scoping
+│   │   └── token_budget_middleware.py     # Token usage limits
+│   ├── models/                          # Data models
+│   │   ├── database.py                    # ORM models
+│   │   └── schemas.py                     # Pydantic schemas
+│   ├── config/                          # Configuration
+│   │   ├── database.py                    # Async DB connection
+│   │   └── settings.py                    # App settings
+│   ├── Modules/                         # ML model files
+│   │   ├── best_model_food100.keras       # Trained EfficientNetB0
+│   │   ├── class_names.json               # 100+ food categories
+│   │   └── food detection model.ipynb     # Training notebook
+│   ├── utils/                           # Helper utilities
+│   ├── scripts/                         # Utility scripts
+│   ├── requirements-api.txt             # API dependencies
+│   ├── Dockerfile                       # Container configuration
+│   └── docker-compose.yml               # Multi-container setup
+│
+└── 🌐 frontend/                         # Web Frontend (Planned)
     └── README.md
 ```
 
-### 🔄 Data Flow
+### 🔄 Microservices Data Flow
 
 ```mermaid
 graph TB
     %% User Layer
     User([👤 User])
     
-    %% Mobile App Modules
+    %% Mobile App
     subgraph "📱 Mobile App (React Native)"
         UI[User Interface]
         AuthModule[Authentication<br/>- Login/Signup<br/>- OAuth<br/>- Token Refresh]
-        WorkoutModule[Workout Tracking<br/>- Exercise Library<br/>- Progress Tracking]
+        WorkoutModule[Workout Tracking<br/>- Exercise Library<br/>- Sessions & Sets<br/>- History]
         NutritionModule[Nutrition<br/>- Food Logging<br/>- Camera/Gallery]
         ProfileModule[Profile Management<br/>- Body Metrics<br/>- Goals]
+        ActivityModule[Activity Tracking<br/>- Steps<br/>- Water Intake]
+        ChatModule[AI Chatbot<br/>- RAG Coaching]
+        SocketClient[Socket.IO Client<br/>- Real-time Updates]
         Storage[Local Storage<br/>- AsyncStorage<br/>- Offline Data]
     end
     
+    %% API Gateway
+    subgraph "🚀 API Gateway (Ocelot/.NET)"
+        Gateway[Gateway :8080<br/>Rate Limiting<br/>Security Headers<br/>CORS<br/>Request Correlation]
+        RedisCache[(Redis Cache<br/>Rate Limit Store)]
+    end
+    
     %% Backend Services
-    subgraph "🖥️ Backend (Node.js/Express)"
-        API[API Gateway<br/>RESTful Endpoints]
+    subgraph "🖥️ Backend (Node.js/Express :5000)"
+        API[API Router<br/>RESTful Endpoints]
+        SocketServer[Socket.IO Server]
         
-        subgraph "🔐 Authentication Service"
+        subgraph "🔐 Auth Service"
             AuthDB[(PostgreSQL<br/>Users & Tokens)]
             JWT[JWT Manager]
-            OAuth[OAuth Handler<br/>Google/Facebook/GitHub]
+            OAuth[OAuth Handler<br/>Google]
         end
         
         subgraph "💪 Workout Service"
-            WorkoutDB[(PostgreSQL<br/>Exercises & Workouts)]
-            WorkoutLogic[Workout Logic]
+            WorkoutDB[(PostgreSQL<br/>Exercises & Sessions)]
+            WorkoutLogic[Workout Logic<br/>Sessions & Sets]
         end
         
         subgraph "🥗 Nutrition Service"
-            NutritionDB[(MongoDB<br/>Food & Nutrition)]
+            NutritionDB[(PostgreSQL<br/>Food & Nutrition)]
             NutritionLogic[Nutrition Logic]
         end
         
-        subgraph "📊 User Service"
+        subgraph "📊 User & Activity Service"
             UserDB[(PostgreSQL<br/>Profiles & Metrics)]
-            UserLogic[User Logic]
+            UserLogic[User Logic<br/>Progress & Activity]
+        end
+        
+        subgraph "💬 Chat Service"
+            ChatDB[(PostgreSQL<br/>Chat History)]
         end
         
         ImageService[Image Service<br/>Cloudinary]
         EmailService[Email Service<br/>Nodemailer]
+        MetricsService[Metrics Service<br/>BMI & Calories]
     end
     
     %% AI Service
-    subgraph "🤖 AI Service (Python/FastAPI)"
+    subgraph "🤖 AI Service (Python/FastAPI :8000)"
         AI_API[AI API]
-        FoodRecognition[Food Recognition Model<br/>EfficientNetB0]
-        NutritionAnalysis[Nutrition Analysis]
+        FoodRecognition[Food Recognition<br/>EfficientNetB0]
+        RAGChat[RAG Chat Engine<br/>Groq LLM]
+        ToolExecutor[Tool Executor<br/>Search & Update]
+        VectorDB[(Qdrant<br/>Vector Store)]
+        AIRedis[(Redis<br/>Token Cache)]
     end
     
     %% External Services
     Cloudinary[Cloudinary<br/>Image Storage]
-    OAuthProviders[OAuth Providers<br/>Google/Facebook/GitHub]
+    OAuthProviders[Google OAuth]
+    GroqAPI[Groq API<br/>LLM Provider]
     
-    %% Data Flow Connections
-    
-    %% User to Mobile App
+    %% Connections
     User --> UI
-    
-    %% Mobile App Internal Flow
     UI --> AuthModule
     UI --> WorkoutModule
     UI --> NutritionModule
     UI --> ProfileModule
-    AuthModule --> Storage
-    WorkoutModule --> Storage
-    NutritionModule --> Storage
-    ProfileModule --> Storage
+    UI --> ActivityModule
+    UI --> ChatModule
+    SocketClient --> SocketServer
     
-    %% Mobile App to Backend
-    AuthModule --> API
-    WorkoutModule --> API
-    NutritionModule --> API
-    ProfileModule --> API
+    AuthModule --> Gateway
+    WorkoutModule --> Gateway
+    NutritionModule --> Gateway
+    ProfileModule --> Gateway
+    ActivityModule --> Gateway
+    ChatModule --> Gateway
     
-    %% Backend Internal Flow
-    API --> AuthService
-    API --> WorkoutService
-    API --> NutritionService
-    API --> UserService
+    Gateway --> RedisCache
+    Gateway --> API
+    Gateway --> AI_API
+    
+    API --> JWT
+    API --> WorkoutLogic
+    API --> NutritionLogic
+    API --> UserLogic
+    API --> ChatDB
     API --> ImageService
     API --> EmailService
+    API --> MetricsService
     
-    AuthService --> JWT
-    AuthService --> OAuth
     JWT --> AuthDB
     OAuth --> OAuthProviders
-    
-    WorkoutService --> WorkoutLogic
     WorkoutLogic --> WorkoutDB
-    
-    NutritionService --> NutritionLogic
     NutritionLogic --> NutritionDB
-    
-    UserService --> UserLogic
     UserLogic --> UserDB
-    
     ImageService --> Cloudinary
     
-    %% Backend to AI Service
-    NutritionService --> AI_API
-    
-    %% AI Service Internal
     AI_API --> FoodRecognition
-    FoodRecognition --> NutritionAnalysis
+    AI_API --> RAGChat
+    RAGChat --> ToolExecutor
+    RAGChat --> GroqAPI
+    RAGChat --> VectorDB
+    AI_API --> AIRedis
     
     %% Styling
     classDef mobile fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef gateway fill:#fff8e1,stroke:#f57f17,stroke-width:2px
     classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef ai fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     classDef external fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef user fill:#fce4ec,stroke:#c2185b,stroke-width:2px
     classDef db fill:#e0f2f1,stroke:#00695c,stroke-width:2px
     
-    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,Storage mobile
-    class API,AuthService,WorkoutService,NutritionService,UserService,ImageService,EmailService,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic backend
-    class AI_API,FoodRecognition,NutritionAnalysis ai
-    class Cloudinary,OAuthProviders external
+    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,SocketClient,Storage mobile
+    class Gateway gateway
+    class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService backend
+    class AI_API,FoodRecognition,RAGChat,ToolExecutor ai
+    class Cloudinary,OAuthProviders,GroqAPI external
     class User user
-    class AuthDB,WorkoutDB,NutritionDB,UserDB db
+    class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,RedisCache,VectorDB,AIRedis db
 ```
 
 ### 🔄 Authentication Flow (Simplified)
@@ -356,14 +495,18 @@ sequenceDiagram
     participant App as Mobile App
     participant Auth as Auth Context
     participant Storage as AsyncStorage
-    participant API as Backend API
+    participant GW as API Gateway :8080
+    participant API as Backend API :5000
     participant Google as Google OAuth
     
     %% Normal Login Flow
     User->>App: Enter credentials
-    App->>API: POST /api/v1/users/login
+    App->>GW: POST /api/v1/users/login
+    GW->>GW: Rate limit check
+    GW->>API: Forward request
     API->>API: Validate credentials
-    API-->>App: {accessToken, refreshToken, user}
+    API-->>GW: {accessToken, refreshToken, user}
+    GW-->>App: Response
     App->>Auth: login(user, accessToken, refreshToken)
     Auth->>Storage: Store tokens & user
     App-->>User: Navigate to Home
@@ -372,25 +515,33 @@ sequenceDiagram
     User->>App: Tap "Sign in with Google"
     App->>Google: Request sign-in
     Google-->>App: {idToken, user info}
-    App->>API: POST /api/v1/auth/google/mobile
+    App->>GW: POST /api/v1/auth/google/mobile
+    GW->>API: Forward request
     API->>Google: Verify idToken
     Google-->>API: Token valid
-    API-->>App: {accessToken, refreshToken, user}
+    API-->>GW: {accessToken, refreshToken, user}
+    GW-->>App: Response
     App->>Auth: setAuthState(token, user, refreshToken)
     Auth->>Storage: Store tokens & user
     App-->>User: Navigate to Home
     
     %% Token Refresh Flow
     User->>App: Make API request
-    App->>API: Request with expired token
-    API-->>App: 401 Token expired
+    App->>GW: Request with expired token
+    GW->>API: Forward request
+    API-->>GW: 401 Token expired
+    GW-->>App: 401 Token expired
     App->>Auth: refreshAccessToken()
     Auth->>Storage: Get refresh token
-    Auth->>API: POST /api/v1/users/refresh-token
-    API-->>Auth: {new accessToken, refreshToken}
+    Auth->>GW: POST /api/v1/users/refresh-token
+    GW->>API: Forward request
+    API-->>GW: {new accessToken, refreshToken}
+    GW-->>Auth: Response
     Auth->>Storage: Update tokens
-    App->>API: Retry original request
-    API-->>App: Success response
+    App->>GW: Retry original request
+    GW->>API: Forward request
+    API-->>GW: Success response
+    GW-->>App: Success response
 ```
 
 ---
@@ -404,8 +555,9 @@ Before you begin, ensure you have the following installed:
 - **Node.js** (v16 or higher)
 - **npm** or **yarn**
 - **Python** (v3.8 or higher)
+- **.NET 8 SDK** (for API Gateway)
 - **PostgreSQL** (v13 or higher)
-- **MongoDB** (v5 or higher)
+- **Redis** (v6 or higher)
 - **Docker** & **Docker Compose** (optional, for containerized deployment)
 - **Expo CLI** (for mobile development)
 
@@ -440,9 +592,9 @@ npx sequelize-cli db:seed:all
 npm run dev
 ```
 
-Server will be running at `http://localhost:3000`
+Server will be running at `http://localhost:5000`
 
-**API Documentation:** `http://localhost:3000/api-docs`
+**API Documentation:** `http://localhost:5000/api-docs`
 
 #### 3️⃣ Setup AI Service
 
@@ -458,7 +610,7 @@ pip install -r requirements-api.txt
 
 # Create environment file
 cp .env.example .env
-# Edit .env with your database credentials
+# Edit .env with your database credentials, Groq API key, and Redis URL
 
 # Start FastAPI server
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
@@ -468,7 +620,23 @@ AI Service will be running at `http://localhost:8000`
 
 **API Documentation:** `http://localhost:8000/docs`
 
-#### 4️⃣ Setup Mobile Application
+#### 4️⃣ Setup API Gateway
+
+```bash
+cd ../ApiGateway
+
+# Restore .NET dependencies
+dotnet restore
+
+# Run the gateway
+dotnet run
+```
+
+Gateway will be running at `http://localhost:8080`
+
+**Landing Page:** `http://localhost:8080`
+
+#### 5️⃣ Setup Mobile Application
 
 ```bash
 cd ../application
@@ -478,7 +646,7 @@ npm install
 
 # Create environment file
 cp .env.example .env
-# Edit .env with your API endpoints
+# Edit .env with your API endpoints (point to gateway on port 8080)
 
 # Start Expo development server
 npm start
@@ -487,6 +655,13 @@ npm start
 Scan the QR code with **Expo Go** app (iOS/Android) or press `w` for web.
 
 ### 🐳 Option 2: Docker Setup
+
+#### API Gateway
+
+```bash
+cd ApiGateway
+docker-compose up --build
+```
 
 #### Backend + Database
 
@@ -508,6 +683,9 @@ docker-compose up --build
 
 Detailed documentation for each component:
 
+### 🚀 API Gateway
+- [Testing Checklist](./ApiGateway/GATEWAY_TESTING_CHECKLIST.md)
+
 ### 📱 Mobile Application
 - [Quick Start Guide](./application/QUICKSTART.md)
 - [Architecture & Structure](./application/STRUCTURE.md)
@@ -528,6 +706,15 @@ Detailed documentation for each component:
 
 ## 🛠️ Technology Stack
 
+### API Gateway
+| Technology | Purpose |
+|------------|---------|
+| **C# / .NET 8** | Gateway runtime |
+| **Ocelot** | API routing & load balancing |
+| **Redis (StackExchange)** | Distributed caching & rate limiting |
+| **Kestrel** | High-performance web server |
+| **Docker** | Containerized deployment |
+
 ### Mobile Application
 | Technology | Purpose |
 |------------|---------|
@@ -535,12 +722,14 @@ Detailed documentation for each component:
 | **TypeScript** | Type-safe development |
 | **Expo** | Development toolchain |
 | **React Navigation** | Navigation & routing |
+| **Socket.IO Client** | Real-time communication |
 | **i18next** | Internationalization |
 | **AsyncStorage** | Local data persistence |
 | **React Context API** | State management |
 | **ONNX Runtime** | On-device ML inference |
 | **Expo Camera** | Camera & pose detection |
 | **Expo Speech** | Voice feedback |
+| **Expo Sensors** | Step counter (pedometer) |
 
 ### Backend Server
 | Technology | Purpose |
@@ -549,29 +738,48 @@ Detailed documentation for each component:
 | **Express** | Web framework |
 | **TypeScript** | Type safety |
 | **PostgreSQL** | Primary database |
-| **MongoDB** | Document storage |
 | **Sequelize** | PostgreSQL ORM |
-| **Mongoose** | MongoDB ODM |
+| **Socket.IO** | Real-time WebSocket server |
 | **Passport.js** | Authentication |
 | **JWT** | Token-based auth |
 | **Cloudinary** | Image hosting |
 | **Nodemailer** | Email service |
+| **EJS** | Server-side view templates |
 | **Swagger** | API documentation |
+| **Helmet** | Security headers |
+| **Morgan** | HTTP request logging |
 
 ### AI Service
 | Technology | Purpose |
 |------------|---------|
 | **Python** | Programming language |
-| **FastAPI** | Modern web framework |
-| **TensorFlow/Keras** | Deep learning |
+| **FastAPI** | Modern async web framework |
+| **Groq** | LLM provider (RAG chat) |
+| **TensorFlow/Keras** | Deep learning (food recognition) |
 | **EfficientNetB0** | CNN architecture |
-| **PostgreSQL** | Nutrition database |
-| **Uvicorn** | ASGI server |
+| **Qdrant** | Vector database for RAG |
+| **Redis (aioredis)** | Token caching & sessions |
+| **SQLAlchemy (Async)** | Async database ORM |
+| **PostgreSQL** | Nutrition & user database |
 | **Pydantic** | Data validation |
+| **Uvicorn** | ASGI server |
 
 ---
 
 ## 🔌 API Endpoints Overview
+
+> All API routes are accessible through the **API Gateway** at `http://localhost:8080`
+
+### Gateway System Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Gateway landing page |
+| GET | `/health` | Gateway health check |
+| GET | `/ready` | Readiness check (downstream services) |
+| GET | `/rate-limit-status` | Current rate limiting policies |
+| GET | `/debug/routes` | All registered routes |
+| GET | `/nodejs-docs` | Redirect to Node.js Swagger docs |
+| GET | `/fastapi-docs` | Redirect to FastAPI Swagger docs |
 
 ### Authentication (`/api/v1/auth`)
 | Method | Endpoint | Description |
@@ -589,6 +797,7 @@ Detailed documentation for each component:
 | POST | `/refresh-token` | Refresh access token |
 | GET | `/profile` | Get current user profile |
 | PUT | `/profile` | Update user profile |
+| POST/PUT/DELETE | `/profile/avatar` | Avatar management |
 | PUT | `/body-info` | Update body metrics |
 | POST | `/forgot-password` | Request password reset |
 | POST | `/reset-password` | Reset password with token |
@@ -603,6 +812,24 @@ Detailed documentation for each component:
 | PUT | `/:id` | Update workout (admin) |
 | DELETE | `/:id` | Delete workout (admin) |
 
+### Workout Sessions (`/api/v1/workout-sessions`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get user's workout sessions |
+| GET | `/stats` | Get session statistics |
+| GET | `/:id` | Get session by ID |
+| POST | `/` | Create new workout session |
+| PUT | `/:id` | Update workout session |
+| DELETE | `/:id` | Delete workout session |
+
+### Workout Session Sets (`/api/v1/workout-sessions/:sessionId/sets`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get all sets for a session |
+| POST | `/` | Add set to session |
+| PUT | `/:setId` | Update a set |
+| DELETE | `/:setId` | Delete a set |
+
 ### Saved Workouts (`/api/v1/saved-workouts`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -610,19 +837,49 @@ Detailed documentation for each component:
 | POST | `/` | Save a workout |
 | DELETE | `/:workoutId` | Remove saved workout |
 
+### Progress (`/api/v1/progress`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/dashboard` | Get progress dashboard data |
+| GET | `/history` | Get progress history |
+
+### Daily Activity (`/api/v1/daily-active`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get daily activity data |
+| POST | `/` | Log daily activity |
+| PUT | `/:id` | Update activity entry |
+
+### Water Intake (`/api/v1/water-intake`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get water intake data |
+| POST | `/` | Log water intake |
+| PUT | `/:id` | Update water intake entry |
+
+### Chat History (`/api/v1/chat-history`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get chat history |
+| POST | `/` | Save chat message |
+| DELETE | `/:id` | Delete chat entry |
+
 ### Foods (`/api/v1/foods`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Get all foods |
 | GET | `/:id` | Get food by ID |
 | GET | `/search` | Search foods |
+| GET | `/high-protein` | Get high protein foods |
+| GET | `/low-calorie` | Get low calorie foods |
 
-### AI Service (`http://localhost:8000`)
+### AI Service (via Gateway)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/food/predict` | Predict food from image |
-| GET | `/api/v1/food/classes` | Get all food classes |
-| GET | `/health` | Health check |
+| POST | `/api/v1/ai/chat` | AI coaching chat (RAG) |
+| GET | `/api/v1/ai/chat/tokens/usage` | Token usage statistics |
+| POST | `/api/v1/food-recognition/predict` | Predict food from image |
+| POST | `/api/v1/food-recognition/predict-top` | Top predictions from image |
 
 ### On-Device ML Models (Mobile)
 | Model | File | Description |
@@ -636,23 +893,32 @@ Detailed documentation for each component:
 ### PostgreSQL Tables
 
 #### Users & Authentication
-- `users` - User accounts and profiles (with OAuth support)
+- `users` - User accounts, profiles, and medical notes (with OAuth support)
 - `refresh_tokens` - JWT refresh token storage for token rotation
 
 #### Fitness Data
 - `workouts` - Exercise library (270+ exercises with GIFs)
 - `saved_workouts` - User's saved/favorite workouts
-- `user_workouts` - User workout history and logs
+- `workout_sessions` - Workout session tracking (duration, notes, stats)
+- `workout_session_sets` - Individual sets within sessions (reps, weight, rest time)
+- `personal_bests` - User personal best records
 
-#### Nutrition Data
+#### Health & Activity
+- `daily_activities` - Daily step count and activity tracking
+- `water_intakes` - Water intake logging with daily goals
+- `user_metrics` - Body metrics history (weight, body fat, etc.)
+
+#### Nutrition
 - `foods` - Food nutrition database (100+ items with Arabic cuisine)
-- `user_meals` - Meal tracking
-- `daily_nutrition` - Daily calorie/macro logs
 
-### MongoDB Collections
-- `activity_logs` - User activity tracking
-- `notifications` - Push notifications
-- `analytics` - Usage analytics
+#### AI & Chat
+- `chat_histories` - AI chatbot conversation history
+
+#### Medical & Safety
+- `injuries` - Injury catalog
+- `user_injuries` - User injury records
+- `workout_injuries` - Workout-related injury associations
+- `fitness_plans` - User fitness plans
 
 ---
 
@@ -666,14 +932,17 @@ Detailed documentation for each component:
 
 ### OAuth 2.0 Integration
 - **Google Sign-In** - Native Android/iOS integration with ID token verification
-- **Facebook Login** - Social authentication support
-- **GitHub OAuth** - Developer-friendly authentication option
 
-### Security Measures
+### API Gateway Security
+- **Rate Limiting** - Per-route sliding window limits (e.g., 20 req/15min for auth, 10 req/min for AI)
+- **Security Headers** - HSTS, CSP, X-Frame-Options, X-Content-Type-Options, XSS protection
+- **CORS** - Centralized cross-origin policy management
+- **Request Correlation** - X-Request-Id tracking across all services
+
+### Application Security
 - **Password Hashing** - bcrypt encryption with salt rounds
 - **HTTPS Only** - Encrypted data transmission
-- **CORS Protection** - Configured allowed origins
-- **Rate Limiting** - DDoS and brute-force protection
+- **Helmet** - Express security headers middleware
 - **Input Validation** - SQL injection & XSS prevention
 - **Session Management** - Secure cookie handling with SameSite policy
 
@@ -687,8 +956,8 @@ Supported languages:
 - 🇫🇷 French (Français)
 - 🇩🇪 German (Deutsch)
 - 🇪🇸 Spanish (Español)
-- 🇮� Italian (Italiano)
-- 🇮�🇸 Icelandic (Íslenska)
+- 🇮🇹 Italian (Italiano)
+- 🇮🇸 Icelandic (Íslenska)
 
 ---
 
@@ -737,6 +1006,14 @@ npx sequelize-cli db:seed:all
 
 ### Building for Production
 
+#### API Gateway
+```bash
+cd ApiGateway
+dotnet publish -c Release -o ./publish
+# Or use Docker
+docker-compose up --build -d
+```
+
 #### Mobile App
 ```bash
 cd application
@@ -775,30 +1052,41 @@ docker run -p 8000:8000 icoach-ai:latest
 - [x] Body metrics tracking (height, weight, BMI)
 - [x] Workout library with 270+ exercises
 - [x] Save/bookmark favorite workouts
+- [x] Workout session tracking (sets, reps, weights)
+- [x] Workout history and statistics
+- [x] Gym progress dashboard with personal bests
 - [x] AI-powered food recognition
+- [x] AI coaching chatbot (RAG with Groq LLM)
+- [x] Daily activity & step tracking
+- [x] Water intake tracking
+- [x] Chat history persistence
 - [x] Multi-language support (7 languages)
 - [x] Email verification system
 - [x] Live workout mode with pose detection
 - [x] On-device ML for exercise tracking
 - [x] Voice feedback during workouts
+- [x] API Gateway with rate limiting
+- [x] Real-time WebSocket communication (Socket.IO)
+- [x] Dark/Light theme support
+- [x] Edge-to-edge UI (Android)
+- [x] Medical notes & injury tracking
 
 ### In Progress 🔄
 - [ ] More exercise models (currently: jumping jacks)
-- [ ] Social features (friends, challenges)
 - [ ] Progress photos and comparisons
-- [ ] Custom meal plans
 - [ ] Advanced analytics dashboard
+- [ ] Web frontend application
 
 ### Planned 📝
 - [ ] Wearable device integration
 - [ ] AI-powered workout recommendations
 - [ ] Video exercise demonstrations
 - [ ] Nutrition planning assistant
-- [ ] Community forums
+- [ ] Community forums & social features
 - [ ] Premium subscription tiers
 - [ ] Coach/Trainer accounts
 - [ ] Barcode scanner for foods
-- [ ] Web frontend application
+- [ ] Custom meal plans
 
 ---
 
@@ -841,8 +1129,10 @@ See the [LICENSE](LICENSE) file for full details.
 ## 🙏 Acknowledgments
 
 - **TensorFlow Team** - For the amazing ML framework
+- **Groq** - For high-performance LLM inference
 - **Expo Team** - For simplifying React Native development
-- **OpenAI** - For AI assistance in development
+- **Ocelot** - For .NET API Gateway capabilities
+- **Qdrant** - For vector search infrastructure
 - **Cloudinary** - For image hosting services
 - **Community Contributors** - For valuable feedback and contributions
 
