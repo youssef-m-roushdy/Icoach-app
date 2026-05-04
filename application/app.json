@@ -32,7 +32,8 @@
       "permissions": [
         "READ_CONTACTS",
         "CAMERA",
-        "ACTIVITY_RECOGNITION"
+        "ACTIVITY_RECOGNITION",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -46,8 +47,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "d80331b3-e39f-4657-a6eb-2ba4835f1154"
+        "projectId": "e9d44f80-67fa-4e70-ac84-207599f51436"
       }
-    }
+    },
+    "owner": "amrproject00"
   }
 }
