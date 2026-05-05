@@ -30,6 +30,7 @@
 
 ### 🎯 What Makes ICoach Special?
 
+- **💬 Real-Time Messaging** - User-to-user direct messaging with online presence, read receipts, and live updates
 - **🤖 AI-Powered Coaching** - RAG-based chatbot powered by Groq LLM with personalized fitness & nutrition advice
 - **📸 AI Food Recognition** - Snap a photo of your meal and instantly get nutritional information
 - **💪 Comprehensive Workout Library** - Access hundreds of exercises with detailed instructions and GIFs
@@ -38,7 +39,7 @@
 - **🗣️ Voice Feedback** - Audio guidance and form corrections during workouts
 - **📊 Smart Nutrition & Activity Tracking** - Monitor macros, calories, water intake, steps, and daily activity
 - **📈 Gym Progress Dashboard** - Track personal bests, metrics history, and workout statistics
-- **🔌 Real-Time Communication** - Socket.IO powered live updates and notifications
+- **🔌 Real-Time Communication** - Socket.IO powered live updates, messaging, and notifications
 - **🚀 API Gateway** - Ocelot-based gateway with rate limiting, caching, and security headers
 - **🌍 Multi-language Support** - Available in English, Arabic, French, German, Spanish, Italian, and Icelandic
 - **🔐 Secure Authentication** - OAuth integration with Google, JWT access & refresh tokens
@@ -67,6 +68,9 @@
 - **Daily Activity Tracking** - Step counter with customizable goals
 - **Water Intake Tracking** - Smart water intake logging with daily goals
 - **Gym Progress** - Personal bests, metrics tracking, and progress dashboard
+- **User-to-User Messaging** - Real-time direct chat with online/offline presence indicators
+- **User Search** - Search for other users to start conversations
+- **Read Receipts** - Track message read status in conversations
 - **Notifications** - In-app notification system
 - **Multi-language** - i18n support with 7 languages
 - **Offline Support** - AsyncStorage for data persistence
@@ -96,18 +100,23 @@
 - **User Management** - Registration, login, profile CRUD, body metrics, medical notes
 - **Workout API** - Full CRUD with filtering by body part, equipment, level
 - **Workout Sessions** - Session management with sets, reps, weights, and statistics
+- **User Search API** - Search users by name/username for messaging
 - **Saved Workouts** - User favorites and bookmarks management
 - **Food API** - Nutrition data with search, filtering, high-protein, and low-calorie queries
 - **Progress API** - Dashboard and history endpoints for user progress tracking
 - **Daily Activity API** - Step tracking and daily activity logging
 - **Water Intake API** - Water intake tracking with daily goals
 - **Chat History API** - AI chat conversation persistence and retrieval
-- **Socket.IO** - Real-time WebSocket communication for live updates
+- **Conversations API** - Full CRUD for user-to-user direct messaging conversations
+- **Messaging API** - Send, receive, and paginate messages within conversations
+- **Presence API** - Online/offline user presence tracking with last-seen timestamps
+- **Read Receipts API** - Mark conversations as read with timestamp tracking
+- **Socket.IO** - Real-time WebSocket communication for messaging, presence, and live updates
 - **Image Management** - Cloudinary integration for avatars and media
 - **Email Service** - Nodemailer for verification and notifications
 - **Metrics Calculation** - BMI, caloric needs, and fitness metrics service
 - **API Documentation** - Interactive Swagger/OpenAPI docs
-- **Database Migrations** - Sequelize migrations and seeders (27 migrations)
+- **Database Migrations** - Sequelize migrations and seeders (28 migrations)
 - **Docker Support** - Containerized deployment with docker-compose
 - **Error Handling** - Centralized error handling with custom error classes
 
@@ -166,7 +175,7 @@ Icoach-app/
 │   │   │   ├── EditWaterGoalModal.tsx   # Water goal editor modal
 │   │   │   ├── SmartWaterInput.tsx      # Smart water intake input
 │   │   │   └── SystemNavigationBarProtector.tsx  # Android nav bar
-│   │   ├── screens/                     # App screens (26 screens)
+│   │   ├── screens/                     # App screens (27 screens)
 │   │   │   ├── WelcomeScreen.tsx          # Landing page
 │   │   │   ├── SignInScreen.tsx           # Sign in
 │   │   │   ├── SignupScreen.tsx           # Registration
@@ -184,10 +193,11 @@ Icoach-app/
 │   │   │   ├── GymProgressScreen.tsx      # Gym progress dashboard
 │   │   │   ├── FoodsScreen.tsx            # Food & nutrition
 │   │   │   ├── ChatbotScreen.tsx          # AI coaching chatbot
+│   │   │   ├── ChatThreadScreen.tsx       # User-to-user chat thread
 │   │   │   ├── DailyActivityDetailsScreen.tsx  # Daily activity details
 │   │   │   ├── WaterIntakeDetailsScreen.tsx    # Water intake tracking
 │   │   │   ├── NotificationsScreen.tsx    # Notifications
-│   │   │   ├── MessagesScreen.tsx         # Messages
+│   │   │   ├── MessagesScreen.tsx         # Conversations & user search
 │   │   │   ├── AuthCallbackScreen.tsx     # OAuth callback
 │   │   │   ├── EmailVerificationScreen.tsx
 │   │   │   ├── ForgotPasswordScreen.tsx
@@ -198,6 +208,7 @@ Icoach-app/
 │   │   ├── services/                    # API & AI integration
 │   │   │   ├── api.ts                     # Backend API client
 │   │   │   ├── chatService.ts             # AI chatbot service
+│   │   │   ├── conversationService.ts     # User messaging & presence
 │   │   │   ├── socketService.ts           # Socket.IO client
 │   │   │   ├── progressService.ts         # Progress tracking
 │   │   │   ├── dailyActiveService.ts      # Daily activity service
@@ -251,6 +262,8 @@ Icoach-app/
 │   │   │   ├── dailyActivityController.ts
 │   │   │   ├── waterIntakeController.ts
 │   │   │   ├── chatHistoryController.ts
+│   │   │   ├── conversationController.ts
+│   │   │   ├── presenceController.ts
 │   │   │   └── viewController.ts
 │   │   ├── routes/                      # API endpoints
 │   │   │   ├── v1/                        # API v1 (versioned)
@@ -264,7 +277,9 @@ Icoach-app/
 │   │   │   │   ├── progressRoutes.ts
 │   │   │   │   ├── dailyActivityRoutes.ts
 │   │   │   │   ├── waterIntakeRoutes.ts
-│   │   │   │   └── chatHistoryRoutes.ts
+│   │   │   │   ├── chatHistoryRoutes.ts
+│   │   │   │   ├── conversationRoutes.ts
+│   │   │   │   └── presenceRoutes.ts
 │   │   │   └── web/                       # Web routes
 │   │   ├── models/                      # Database models (Sequelize)
 │   │   │   └── sql/
@@ -277,6 +292,9 @@ Icoach-app/
 │   │   │       ├── DailyActivity.ts       # Daily activity tracking
 │   │   │       ├── WaterIntake.ts         # Water intake tracking
 │   │   │       ├── ChatHistory.ts         # AI chat history
+│   │   │       ├── ChatConversation.ts    # User-to-user conversations
+│   │   │       ├── ChatParticipant.ts     # Conversation participants
+│   │   │       ├── ChatMessage.ts         # User chat messages
 │   │   │       ├── UserMetrics.ts         # Body metrics history
 │   │   │       ├── PersonalBest.ts        # Personal best records
 │   │   │       ├── FitnessPlan.ts         # Fitness plans
@@ -291,7 +309,7 @@ Icoach-app/
 │   │   │   └── metricsCalculationService.ts  # BMI, caloric needs
 │   │   ├── middleware/                  # Auth, validation, error handling
 │   │   ├── config/                      # Database & JWT configuration
-│   │   ├── migrations/                  # Database migrations (27 files)
+│   │   ├── migrations/                  # Database migrations (28 files)
 │   │   ├── seeders/                     # Database seeders
 │   │   ├── types/                       # TypeScript definitions
 │   │   ├── utils/                       # Helper utilities
@@ -365,6 +383,7 @@ graph TB
         ProfileModule[Profile Management<br/>- Body Metrics<br/>- Goals]
         ActivityModule[Activity Tracking<br/>- Steps<br/>- Water Intake]
         ChatModule[AI Chatbot<br/>- RAG Coaching]
+        MessagingModule[User Messaging<br/>- Direct Chat<br/>- Presence<br/>- Read Receipts]
         SocketClient[Socket.IO Client<br/>- Real-time Updates]
         Storage[Local Storage<br/>- AsyncStorage<br/>- Offline Data]
     end
@@ -401,8 +420,10 @@ graph TB
             UserLogic[User Logic<br/>Progress & Activity]
         end
         
-        subgraph "💬 Chat Service"
+        subgraph "💬 Chat & Messaging Service"
             ChatDB[(PostgreSQL<br/>Chat History)]
+            ConversationDB[(PostgreSQL<br/>Conversations<br/>Messages<br/>Participants)]
+            PresenceTracker[Presence Tracker<br/>Online/Offline]
         end
         
         ImageService[Image Service<br/>Cloudinary]
@@ -437,6 +458,7 @@ graph TB
     
     AuthModule --> Gateway
     WorkoutModule --> Gateway
+    MessagingModule --> Gateway
     NutritionModule --> Gateway
     ProfileModule --> Gateway
     ActivityModule --> Gateway
@@ -451,6 +473,8 @@ graph TB
     API --> NutritionLogic
     API --> UserLogic
     API --> ChatDB
+    API --> ConversationDB
+    API --> PresenceTracker
     API --> ImageService
     API --> EmailService
     API --> MetricsService
@@ -478,13 +502,13 @@ graph TB
     classDef user fill:#fce4ec,stroke:#c2185b,stroke-width:2px
     classDef db fill:#e0f2f1,stroke:#00695c,stroke-width:2px
     
-    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,SocketClient,Storage mobile
+    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,MessagingModule,SocketClient,Storage mobile
     class Gateway gateway
-    class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService backend
+    class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService,PresenceTracker backend
     class AI_API,FoodRecognition,RAGChat,ToolExecutor ai
     class Cloudinary,OAuthProviders,GroqAPI external
     class User user
-    class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,RedisCache,VectorDB,AIRedis db
+    class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,ConversationDB,RedisCache,VectorDB,AIRedis db
 ```
 
 ### 🔄 Authentication Flow (Simplified)
@@ -801,6 +825,7 @@ Detailed documentation for each component:
 | PUT | `/body-info` | Update body metrics |
 | POST | `/forgot-password` | Request password reset |
 | POST | `/reset-password` | Reset password with token |
+| GET | `/search` | Search users by name/username |
 
 ### Workouts (`/api/v1/workouts`)
 | Method | Endpoint | Description |
@@ -864,6 +889,20 @@ Detailed documentation for each component:
 | POST | `/` | Save chat message |
 | DELETE | `/:id` | Delete chat entry |
 
+### Conversations (`/api/v1/conversations`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List user's conversations (paginated) |
+| POST | `/` | Create direct conversation with another user |
+| GET | `/:id/messages` | Get messages for a conversation (cursor-paginated) |
+| POST | `/:id/messages` | Send a message in a conversation |
+| POST | `/:id/read` | Mark conversation as read |
+
+### Presence (`/api/v1/presence`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get online status for specified user IDs |
+
 ### Foods (`/api/v1/foods`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -913,6 +952,11 @@ Detailed documentation for each component:
 
 #### AI & Chat
 - `chat_histories` - AI chatbot conversation history
+
+#### User-to-User Messaging
+- `chat_conversations` - Direct messaging conversations (supports group flag)
+- `chat_participants` - Conversation membership with roles (admin/member) and read tracking
+- `chat_messages` - Individual chat messages with edit tracking
 
 #### Medical & Safety
 - `injuries` - Injury catalog
@@ -1067,6 +1111,9 @@ docker run -p 8000:8000 icoach-ai:latest
 - [x] Voice feedback during workouts
 - [x] API Gateway with rate limiting
 - [x] Real-time WebSocket communication (Socket.IO)
+- [x] User-to-user direct messaging with presence tracking
+- [x] Read receipts and conversation management
+- [x] User search for starting conversations
 - [x] Dark/Light theme support
 - [x] Edge-to-edge UI (Android)
 - [x] Medical notes & injury tracking
@@ -1082,6 +1129,7 @@ docker run -p 8000:8000 icoach-ai:latest
 - [ ] AI-powered workout recommendations
 - [ ] Video exercise demonstrations
 - [ ] Nutrition planning assistant
+- [ ] Group chat messaging
 - [ ] Community forums & social features
 - [ ] Premium subscription tiers
 - [ ] Coach/Trainer accounts
