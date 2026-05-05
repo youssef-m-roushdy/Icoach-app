@@ -6,6 +6,9 @@ import SavedWorkout from './SavedWorkout.js';
 import Injury from './Injury.js';
 import FitnessPlan from './FitnessPlan.js';
 import ChatHistory from './ChatHistory.js';
+import ChatConversation from './ChatConversation.js';
+import ChatParticipant from './ChatParticipant.js';
+import ChatMessage from './ChatMessage.js';
 import WorkoutInjury from './WorkoutInjury.js';
 import UserInjury from './UserInjury.js';
 import WorkoutSession from './WorkoutSession.js';
@@ -35,6 +38,22 @@ FitnessPlan.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 User.hasMany(ChatHistory, { foreignKey: 'userId', as: 'chatHistory' });
 ChatHistory.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// User-to-user chat associations
+ChatConversation.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+User.hasMany(ChatConversation, { foreignKey: 'createdBy', as: 'createdConversations' });
+
+ChatConversation.hasMany(ChatParticipant, { foreignKey: 'conversationId', as: 'participants' });
+ChatParticipant.belongsTo(ChatConversation, { foreignKey: 'conversationId', as: 'conversation' });
+
+ChatConversation.hasMany(ChatMessage, { foreignKey: 'conversationId', as: 'messages' });
+ChatMessage.belongsTo(ChatConversation, { foreignKey: 'conversationId', as: 'conversation' });
+
+User.hasMany(ChatParticipant, { foreignKey: 'userId', as: 'chatParticipations' });
+ChatParticipant.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+User.hasMany(ChatMessage, { foreignKey: 'senderId', as: 'sentMessages' });
+ChatMessage.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 // ============================================
 // NEW ASSOCIATIONS for WorkoutSession, UserMetrics, PersonalBest
@@ -93,6 +112,9 @@ export {
   Injury,
   FitnessPlan,
   ChatHistory,
+  ChatConversation,
+  ChatParticipant,
+  ChatMessage,
   WorkoutSession,
   UserMetrics,
   PersonalBest,
@@ -111,6 +133,9 @@ export type { SavedWorkoutAttributes, SavedWorkoutCreationAttributes } from './S
 export type { InjuryAttributes, InjuryCreationAttributes } from './Injury.js';
 export type { FitnessPlanAttributes, FitnessPlanCreationAttributes } from './FitnessPlan.js';
 export type { ChatHistoryAttributes, ChatHistoryCreationAttributes } from './ChatHistory.js';
+export type { ChatConversationAttributes, ChatConversationCreationAttributes } from './ChatConversation.js';
+export type { ChatParticipantAttributes, ChatParticipantCreationAttributes } from './ChatParticipant.js';
+export type { ChatMessageAttributes, ChatMessageCreationAttributes } from './ChatMessage.js';
 export type { WorkoutInjuryAttributes, WorkoutInjuryCreationAttributes } from './WorkoutInjury.js';
 export type { UserInjuryAttributes, UserInjuryCreationAttributes } from './UserInjury.js';
 export type { WorkoutSessionAttributes, WorkoutSessionCreationAttributes } from './WorkoutSession.js';
@@ -129,6 +154,9 @@ const sqlModels = {
   Injury,
   FitnessPlan,
   ChatHistory,
+  ChatConversation,
+  ChatParticipant,
+  ChatMessage,
   WorkoutInjury,
   UserInjury,
   WorkoutSession,

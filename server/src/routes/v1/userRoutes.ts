@@ -18,6 +18,7 @@ import {
   validateTokenParam,
   validatePagination,
   validateResendVerification,
+  validateUserSearch,
 } from '../../middleware/validations/index.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { uploadProfilePicture, handleMulterError } from '../../middleware/upload.js';
@@ -541,6 +542,15 @@ router.post('/resend-verification',
 router.get('/profile', 
   authenticate,
   asyncHandler(UserController.getProfile)
+);
+
+/**
+ * Search users for chat
+ */
+router.get('/search',
+  authenticate,
+  validateUserSearch,
+  asyncHandler(UserController.searchUsers)
 );
 
 /**

@@ -11,6 +11,7 @@ export {
   validateIdParam,
   validateTokenParam,
   validatePagination,
+  validateUserSearch,
 } from './userValidation.js';
 
 // Workout validations
@@ -118,3 +119,14 @@ export {
   validateCheckIfSaved,
   validateBulkSavedWorkouts,
 } from './savedWorkoutValidation.js';
+
+// Conversation validations
+export {
+  validateCreateConversation,
+  validateGetConversations,
+  validateConversationIdParam,
+  validateGetConversationMessages,
+  validateSendConversationMessage,
+  validateMarkConversationRead,
+  validatePresenceQuery,
+} from './conversationValidation.js';

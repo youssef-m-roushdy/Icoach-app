@@ -21,6 +21,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import EditBodyInfoScreen from '../screens/EditBodyInfoScreen';
 import FoodsScreen from '../screens/FoodsScreen';
 import MessagesScreen from '../screens/MessagesScreen';
+import ChatThreadScreen from '../screens/ChatThreadScreen';
 import WorkoutsScreen from '../screens/WorkoutsScreen';
 import LiveWorkoutScreen from '../screens/LiveWorkoutScreen';
 import SavedWorkoutsScreen from '../screens/SavedWorkoutsScreen';
@@ -89,6 +90,7 @@ export type RootStackParamList = {
 
   // Messages
   Messages: undefined;
+  ChatThread: { conversationId: number; participant?: { id: number; username: string; firstName?: string; lastName?: string; avatar?: string | null } };
 
   // Onboarding
   Onboarding: undefined;
@@ -870,6 +872,11 @@ export const AppNavigator: React.FC = () => {
                     />
                   ),
                 })}
+              />
+              <Stack.Screen
+                name="ChatThread"
+                component={ChatThreadScreen}
+                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="EditWorkoutSession"

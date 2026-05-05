@@ -239,3 +239,25 @@ export const validatePagination = [
   
   handleValidationErrors,
 ];
+
+/**
+ * User Search Validation
+ */
+export const validateUserSearch = [
+  query('q')
+    .notEmpty()
+    .withMessage('Search query is required')
+    .isString()
+    .withMessage('Search query must be a string')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Search query must be between 2 and 50 characters'),
+
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('Limit must be between 1 and 50')
+    .toInt(),
+
+  handleValidationErrors,
+];

@@ -399,6 +399,31 @@ export class UserController {
   }
 
   /**
+   * Search users for chat (authenticated)
+   */
+  static async searchUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const user = (req as any).user;
+      if (!user?.id) {
+        throw new AppError('Authentication required', 401);
+      }
+
+      const query = String(req.query.q || '').trim();
+      const limit = Math.min(parseInt(String(req.query.limit || '10'), 10) || 10, 50);
+
+      const results = await UserService.searchUsers(query, limit, user.id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Users retrieved successfully',
+        data: results,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Update user by ID (admin only)
    */
   static async updateUser(req: Request, res: Response, next: NextFunction): Promise<void> {

@@ -14,6 +14,12 @@ interface SocketEvents {
   onReconnectFailed?: () => void;
 }
 
+interface SocketConnectOptions {
+  userId?: string;
+  token?: string;
+  handlers?: SocketEvents;
+}
+
 interface EmailVerifiedData {
   success: boolean;
   message: string;
@@ -28,6 +34,7 @@ interface EmailVerifiedData {
 class SocketService {
   private socket: Socket | null = null;
   private userId: string | null = null;
+  private authToken: string | null = null;
   private eventHandlers: SocketEvents = {};
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
@@ -35,8 +42,12 @@ class SocketService {
   /**
    * Connect to the Socket.IO server THROUGH API GATEWAY
    */
-  connect(userId: string, handlers?: SocketEvents): void {
-    if (this.socket?.connected && this.userId === userId) {
+  connect(options: SocketConnectOptions): void {
+    const userId = options.userId || null;
+    const token = options.token || null;
+    const handlers = options.handlers;
+
+    if (this.socket?.connected && this.userId === userId && this.authToken === token) {
       console.log('🔌 [GATEWAY SOCKET] Already connected for user:', userId);
       return;
     }
@@ -45,10 +56,12 @@ class SocketService {
     this.disconnect();
 
     this.userId = userId;
+    this.authToken = token;
     this.eventHandlers = handlers || {};
 
     console.log('🌐 [GATEWAY SOCKET] Connecting through gateway:', GATEWAY_URL);
     console.log('🌐 [GATEWAY SOCKET] User ID:', userId);
+    console.log('🌐 [GATEWAY SOCKET] Auth token set:', !!token);
     console.log('🌐 [GATEWAY SOCKET] Socket.IO path: /socket.io');
 
     // Connect through the gateway
@@ -64,9 +77,11 @@ class SocketService {
       reconnectionDelayMax: 5000,
       timeout: 20000,
       forceNew: true,
+      auth: token ? { token } : undefined,
       // Important for gateway routing
       extraHeaders: {
         'X-Client-Type': 'mobile-app',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       // Handle CORS
       withCredentials: true,
@@ -91,11 +106,14 @@ class SocketService {
       this.reconnectAttempts = 0;
 
       // Register user with server
-      if (this.userId) {
-        console.log('📤 [GATEWAY SOCKET] Emitting register event with userId:', this.userId);
-        this.socket?.emit('register', this.userId);
+      if (this.authToken || this.userId) {
+        const payload = this.authToken
+          ? { token: this.authToken, userId: this.userId }
+          : this.userId;
+        console.log('📤 [GATEWAY SOCKET] Emitting register event');
+        this.socket?.emit('register', payload);
       } else {
-        console.log('⚠️ [GATEWAY SOCKET] No userId to register!');
+        console.log('⚠️ [GATEWAY SOCKET] No auth token or userId to register');
       }
 
       this.eventHandlers.onConnected?.();
@@ -147,8 +165,11 @@ class SocketService {
     this.socket.io.on('reconnect', () => {
       console.log('✅ [GATEWAY SOCKET] Reconnected to gateway!');
       // Re-register user after reconnection
-      if (this.userId) {
-        this.socket?.emit('register', this.userId);
+      if (this.authToken || this.userId) {
+        const payload = this.authToken
+          ? { token: this.authToken, userId: this.userId }
+          : this.userId;
+        this.socket?.emit('register', payload);
       }
     });
 
@@ -224,6 +245,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.userId = null;
+      this.authToken = null;
       console.log('🔌 [GATEWAY SOCKET] Disconnected from gateway');
     }
   }
@@ -282,7 +304,9 @@ export const testGatewaySocket = () => {
   console.log('🧪 [TEST] Gateway URL:', GATEWAY_URL);
   console.log('🧪 [TEST] Socket.IO Path: /socket.io');
 
-  socketService.connect('test-user-' + Date.now(), {
+  socketService.connect({
+    userId: 'test-user-' + Date.now(),
+    handlers: {
     onConnected: () => {
       console.log('✅ [TEST] Connection successful!');
       console.log('✅ [TEST] Socket ID:', socketService.getSocketId());
@@ -293,6 +317,7 @@ export const testGatewaySocket = () => {
     },
     onDisconnected: (reason) => {
       console.log('🔌 [TEST] Disconnected:', reason);
+    }
     }
   });
 

@@ -245,6 +245,35 @@ export class UserService {
   }
 
   /**
+   * Search users for chat (limited fields)
+   */
+  static async searchUsers(query: string, limit: number = 10, excludeUserId?: number): Promise<UserAttributes[]> {
+    const whereClause: any = { isActive: true };
+
+    if (excludeUserId) {
+      whereClause.id = { [Op.ne]: excludeUserId };
+    }
+
+    if (query && query.trim().length > 0) {
+      const likeQuery = `%${query.trim()}%`;
+      whereClause[Op.or] = [
+        { username: { [Op.iLike]: likeQuery } },
+        { firstName: { [Op.iLike]: likeQuery } },
+        { lastName: { [Op.iLike]: likeQuery } },
+      ];
+    }
+
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: ['id', 'username', 'firstName', 'lastName', 'avatar', 'isActive'],
+      order: [['firstName', 'ASC']],
+      limit,
+    });
+
+    return users.map((user) => user.toJSON());
+  }
+
+  /**
    * Authenticate user (login)
    */
   static async authenticateUser(emailOrUsername: string, password: string): Promise<{

@@ -1,15 +1,32 @@
 // server/src/services/socketService.ts
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
+import jwt from 'jsonwebtoken';
+import { jwtConfig } from '../config/jwt.js';
+import {
+  ChatConversation,
+  ChatParticipant,
+  ChatMessage,
+  User,
+} from '../models/sql/index.js';
 
-interface UserSocket {
-  odId: string;
-  socket: Socket;
+interface PresenceState {
+  online: boolean;
+  lastSeen: Date | null;
 }
+
+interface RegisterPayload {
+  token?: string;
+  userId?: string | number;
+}
+
+const USER_ATTRIBUTES = ['id', 'firstName', 'lastName', 'username', 'avatar', 'isActive'];
 
 class SocketService {
   private io: SocketIOServer | null = null;
-  private userSockets: Map<string, Socket> = new Map(); // Map userId to socket
+  private userSockets: Map<string, Set<Socket>> = new Map();
+  private socketToUser: Map<string, string> = new Map();
+  private presence: Map<string, PresenceState> = new Map();
 
   /**
    * Initialize Socket.IO server
@@ -31,10 +48,33 @@ class SocketService {
       },
     });
 
+    this.setupAuth();
     this.setupEventHandlers();
-    console.log('🔌 Socket.IO server initialized');
+    console.log('Socket.IO server initialized');
 
     return this.io;
+  }
+
+  /**
+   * Setup connection auth
+   */
+  private setupAuth(): void {
+    if (!this.io) return;
+
+    this.io.use((socket, next) => {
+      const token = this.extractToken(socket);
+      if (!token) {
+        return next();
+      }
+
+      const userId = this.verifyAccessToken(token);
+      if (!userId) {
+        return next(new Error('Invalid authentication token'));
+      }
+
+      socket.data.userId = userId;
+      return next();
+    });
   }
 
   /**
@@ -44,55 +84,273 @@ class SocketService {
     if (!this.io) return;
 
     this.io.on('connection', (socket: Socket) => {
-      console.log(`🔌 New socket connection: ${socket.id}`);
+      console.log(`Socket connected: ${socket.id}`);
 
-      // Handle user registration (associate userId with socket)
-      socket.on('register', (userId: string) => {
-        console.log('\n========== SOCKET REGISTRATION ==========');
-        console.log('📝 [REGISTER] Received registration request');
-        console.log('📝 [REGISTER] User ID:', userId, '| Type:', typeof userId);
-        console.log('📝 [REGISTER] Socket ID:', socket.id);
-        
-        if (userId) {
-          // Always convert to string for consistent Map key lookup
-          const normalizedUserId = String(userId);
-          this.userSockets.set(normalizedUserId, socket);
-          socket.data.userId = normalizedUserId;
-          
-          console.log('✅ [REGISTER] User registered successfully!');
-          console.log('✅ [REGISTER] Normalized User ID:', normalizedUserId, '| Type:', typeof normalizedUserId);
-          console.log('✅ [REGISTER] Current connected users:', Array.from(this.userSockets.keys()));
-          console.log('✅ [REGISTER] Total connected users:', this.userSockets.size);
-          
-          // Send confirmation back to client
-          socket.emit('registered', { 
-            success: true, 
-            message: 'Successfully connected to real-time updates' 
+      if (socket.data.userId) {
+        this.registerSocket(socket, String(socket.data.userId));
+        socket.emit('registered', {
+          success: true,
+          message: 'Connected to real-time updates',
+        });
+      }
+
+      socket.on('register', (payload: RegisterPayload | string) => {
+        const currentUserId = socket.data.userId ? String(socket.data.userId) : null;
+        if (currentUserId) {
+          return;
+        }
+
+        const token = typeof payload === 'string' ? payload : payload?.token;
+        const fallbackUserId = typeof payload === 'object' ? payload?.userId : null;
+
+        let userId = token ? this.verifyAccessToken(token) : null;
+        if (!userId && fallbackUserId && process.env.NODE_ENV !== 'production') {
+          userId = String(fallbackUserId);
+        }
+
+        if (!userId) {
+          socket.emit('registered', {
+            success: false,
+            message: 'Authentication required for socket registration',
           });
-          console.log('✅ [REGISTER] Confirmation sent to client');
-          console.log('=========================================\n');
-        } else {
-          console.log('⚠️ [REGISTER] No userId provided!');
-          console.log('=========================================\n');
+          return;
+        }
+
+        socket.data.userId = userId;
+        this.registerSocket(socket, userId);
+
+        socket.emit('registered', {
+          success: true,
+          message: 'Connected to real-time updates',
+        });
+      });
+
+      socket.on('presence:watch', (userIds: Array<string | number> | string) => {
+        const ids = Array.isArray(userIds)
+          ? userIds
+          : typeof userIds === 'string'
+            ? userIds.split(',')
+            : [];
+        ids.forEach((id) => {
+          const normalized = String(id);
+          socket.join(this.getPresenceRoom(normalized));
+          const presence = this.getPresence([normalized])[0];
+          socket.emit('presence:update', presence);
+        });
+      });
+
+      socket.on('presence:unwatch', (userIds: Array<string | number> | string) => {
+        const ids = Array.isArray(userIds)
+          ? userIds
+          : typeof userIds === 'string'
+            ? userIds.split(',')
+            : [];
+        ids.forEach((id) => {
+          socket.leave(this.getPresenceRoom(String(id)));
+        });
+      });
+
+      socket.on('conversation:join', async (conversationId: number) => {
+        const userId = socket.data.userId ? Number(socket.data.userId) : null;
+        if (!userId) return;
+
+        const id = Number(conversationId);
+        if (Number.isNaN(id)) return;
+
+        const participant = await ChatParticipant.findOne({
+          where: { conversationId: id, userId, leftAt: null },
+        });
+
+        if (!participant) {
+          socket.emit('conversation:error', {
+            conversationId: id,
+            message: 'Not a participant in this conversation',
+          });
+          return;
+        }
+
+        socket.join(this.getConversationRoom(id));
+        socket.emit('conversation:joined', { conversationId: id });
+      });
+
+      socket.on('conversation:leave', (conversationId: number) => {
+        const id = Number(conversationId);
+        if (Number.isNaN(id)) return;
+        socket.leave(this.getConversationRoom(id));
+      });
+
+      socket.on('message:send', async (payload: { conversationId: number; content: string }, ack?: Function) => {
+        try {
+          const userId = socket.data.userId ? Number(socket.data.userId) : null;
+          if (!userId) {
+            throw new Error('Authentication required');
+          }
+
+          const conversationId = Number(payload?.conversationId);
+          if (Number.isNaN(conversationId)) {
+            throw new Error('Invalid conversation id');
+          }
+
+          const content = String(payload?.content || '').trim();
+          if (!content) {
+            throw new Error('Content is required');
+          }
+
+          const participant = await ChatParticipant.findOne({
+            where: { conversationId, userId, leftAt: null },
+          });
+
+          if (!participant) {
+            throw new Error('Not a participant in this conversation');
+          }
+
+          const message = await ChatMessage.create({
+            conversationId,
+            senderId: userId,
+            content,
+          });
+
+          await ChatConversation.update(
+            { updatedAt: new Date() },
+            { where: { id: conversationId } }
+          );
+
+          const sender = await User.findByPk(userId, { attributes: USER_ATTRIBUTES });
+          const data = {
+            conversationId,
+            message: {
+              ...message.toJSON(),
+              sender,
+            },
+          };
+
+          this.emitToConversation(conversationId, 'message:new', data);
+
+          const participants = await ChatParticipant.findAll({
+            where: { conversationId, leftAt: null },
+            attributes: ['userId'],
+          });
+
+          participants.forEach((participantItem) => {
+            this.emitToUser(participantItem.userId, 'message:new', data);
+          });
+
+          if (typeof ack === 'function') {
+            ack({ ok: true, message: data.message });
+          }
+        } catch (error: any) {
+          if (typeof ack === 'function') {
+            ack({ ok: false, error: error?.message || 'Failed to send message' });
+          }
         }
       });
 
-      // Handle disconnection
       socket.on('disconnect', (reason) => {
-        const userId = socket.data.userId;
-        if (userId) {
-          this.userSockets.delete(userId);
-          console.log(`🔌 User ${userId} disconnected: ${reason}`);
-        } else {
-          console.log(`🔌 Socket ${socket.id} disconnected: ${reason}`);
-        }
+        this.unregisterSocket(socket);
+        console.log(`Socket disconnected: ${socket.id} (${reason})`);
       });
 
-      // Handle errors
       socket.on('error', (error) => {
-        console.error(`❌ Socket error for ${socket.id}:`, error);
+        console.error(`Socket error for ${socket.id}:`, error);
       });
     });
+  }
+
+  private extractToken(socket: Socket): string | null {
+    const authToken = (socket.handshake as any)?.auth?.token;
+    if (authToken && typeof authToken === 'string') {
+      return authToken;
+    }
+
+    const header = socket.handshake.headers?.authorization;
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      return header.substring('Bearer '.length).trim();
+    }
+
+    const queryToken = socket.handshake.query?.token;
+    if (typeof queryToken === 'string') {
+      return queryToken;
+    }
+
+    return null;
+  }
+
+  private verifyAccessToken(token: string): string | null {
+    const publicKey = jwtConfig.access.publicKey;
+    if (!publicKey) {
+      return null;
+    }
+
+    try {
+      const decoded = jwt.verify(token, publicKey, {
+        algorithms: [jwtConfig.access.algorithm],
+        issuer: jwtConfig.issuer,
+        audience: jwtConfig.audience,
+      }) as any;
+
+      if (decoded.type !== 'access') {
+        return null;
+      }
+
+      return String(decoded.id);
+    } catch {
+      return null;
+    }
+  }
+
+  private registerSocket(socket: Socket, userId: string): void {
+    const sockets = this.userSockets.get(userId) ?? new Set<Socket>();
+    sockets.add(socket);
+    this.userSockets.set(userId, sockets);
+    this.socketToUser.set(socket.id, userId);
+
+    socket.join(this.getUserRoom(userId));
+    this.emitPresenceUpdate(userId, true);
+  }
+
+  private unregisterSocket(socket: Socket): void {
+    const userId = this.socketToUser.get(socket.id) || (socket.data.userId ? String(socket.data.userId) : null);
+    if (!userId) return;
+
+    const sockets = this.userSockets.get(userId);
+    if (sockets) {
+      sockets.delete(socket);
+      if (sockets.size === 0) {
+        this.userSockets.delete(userId);
+        this.emitPresenceUpdate(userId, false);
+      }
+    }
+
+    this.socketToUser.delete(socket.id);
+  }
+
+  private emitPresenceUpdate(userId: string, online: boolean): void {
+    const state: PresenceState = {
+      online,
+      lastSeen: online ? null : new Date(),
+    };
+
+    this.presence.set(userId, state);
+
+    if (this.io) {
+      this.io.to(this.getPresenceRoom(userId)).emit('presence:update', {
+        userId,
+        online,
+        lastSeen: state.lastSeen,
+      });
+    }
+  }
+
+  private getUserRoom(userId: string): string {
+    return `user:${userId}`;
+  }
+
+  private getConversationRoom(conversationId: number): string {
+    return `conversation:${conversationId}`;
+  }
+
+  private getPresenceRoom(userId: string): string {
+    return `presence:${userId}`;
   }
 
   /**
@@ -104,57 +362,43 @@ class SocketService {
     isEmailVerified: boolean;
     firstName?: string;
   }): boolean {
-    // Always normalize to string for consistent Map key lookup
     const normalizedUserId = String(userId);
-    
-    console.log('\n========== EMAIL VERIFICATION SOCKET EMIT ==========');
-    console.log('🔍 [SOCKET] Looking for user socket...');
-    console.log('🔍 [SOCKET] User ID:', userId, '| Normalized:', normalizedUserId);
-    console.log('🔍 [SOCKET] Connected sockets map size:', this.userSockets.size);
-    console.log('🔍 [SOCKET] All connected user IDs:', Array.from(this.userSockets.keys()));
-    
-    const socket = this.userSockets.get(normalizedUserId);
-    
-    if (socket && socket.connected) {
-      const payload = {
-        success: true,
-        message: 'Your email has been verified successfully!',
-        user: userData,
-      };
-      console.log('✅ [SOCKET] User socket found and connected!');
-      console.log('✅ [SOCKET] Socket ID:', socket.id);
-      console.log('✅ [SOCKET] Sending payload:', JSON.stringify(payload, null, 2));
-      
-      socket.emit('email_verified', payload);
-      
-      console.log('📧 [SOCKET] Email verified event SENT to user', normalizedUserId);
-      console.log('================================================\n');
-      return true;
-    }
-    
-    console.log('⚠️ [SOCKET] User', normalizedUserId, 'NOT connected!');
-    console.log('⚠️ [SOCKET] Socket exists:', !!socket);
-    if (socket) {
-      console.log('⚠️ [SOCKET] Socket connected status:', socket.connected);
-    }
-    console.log('================================================\n');
-    return false;
+    const payload = {
+      success: true,
+      message: 'Your email has been verified successfully!',
+      user: userData,
+    };
+
+    return this.emitToUser(normalizedUserId, 'email_verified', payload);
   }
 
   /**
    * Emit a custom event to a specific user
    */
-  emitToUser(userId: string, event: string, data: any): boolean {
-    const socket = this.userSockets.get(userId);
-    
-    if (socket && socket.connected) {
-      socket.emit(event, data);
-      console.log(`📤 Event '${event}' sent to user ${userId}`);
-      return true;
+  emitToUser(userId: string | number, event: string, data: any): boolean {
+    const normalizedUserId = String(userId);
+    const sockets = this.userSockets.get(normalizedUserId);
+    if (!sockets || sockets.size === 0) {
+      return false;
     }
-    
-    console.log(`⚠️ User ${userId} not connected, cannot send event '${event}'`);
-    return false;
+
+    let delivered = false;
+    sockets.forEach((socket) => {
+      if (socket.connected) {
+        socket.emit(event, data);
+        delivered = true;
+      }
+    });
+
+    return delivered;
+  }
+
+  /**
+   * Emit a custom event to a conversation room
+   */
+  emitToConversation(conversationId: number, event: string, data: any): void {
+    if (!this.io) return;
+    this.io.to(this.getConversationRoom(conversationId)).emit(event, data);
   }
 
   /**
@@ -163,7 +407,6 @@ class SocketService {
   broadcast(event: string, data: any): void {
     if (this.io) {
       this.io.emit(event, data);
-      console.log(`📢 Broadcast event '${event}' to all users`);
     }
   }
 
@@ -177,9 +420,26 @@ class SocketService {
   /**
    * Check if a user is connected
    */
-  isUserConnected(userId: string): boolean {
-    const socket = this.userSockets.get(userId);
-    return socket?.connected ?? false;
+  isUserConnected(userId: string | number): boolean {
+    const normalizedUserId = String(userId);
+    const sockets = this.userSockets.get(normalizedUserId);
+    if (!sockets || sockets.size === 0) return false;
+    return Array.from(sockets).some((socket) => socket.connected);
+  }
+
+  /**
+   * Get presence for a set of users
+   */
+  getPresence(userIds: Array<string | number>): Array<{ userId: string; online: boolean; lastSeen: Date | null }> {
+    return userIds.map((id) => {
+      const normalized = String(id);
+      const state = this.presence.get(normalized);
+      return {
+        userId: normalized,
+        online: state?.online ?? this.isUserConnected(normalized),
+        lastSeen: state?.lastSeen ?? null,
+      };
+    });
   }
 
   /**

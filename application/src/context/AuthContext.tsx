@@ -274,23 +274,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('🔌 [AUTH SOCKET] user?.isEmailVerified:', user?.isEmailVerified);
     console.log(
       '🔌 [AUTH SOCKET] Should connect:',
-      !!(user?.id && !user?.isEmailVerified)
+      !!(user?.id && token)
     );
 
-    if (user?.id && !user?.isEmailVerified) {
-      console.log('🔌 [AUTH SOCKET] ✅ Connecting socket for unverified user:', user.id);
+    if (user?.id && token) {
+      console.log('🔌 [AUTH SOCKET] ✅ Connecting socket for user:', user.id);
 
-      socketService.connect(String(user.id), {
-        onEmailVerified: handleEmailVerified,
-        onConnected: () => {
-          console.log('✅ [AUTH SOCKET] Socket connected for real-time updates');
-          console.log('✅ [AUTH SOCKET] Handler registered for user:', user.id);
-        },
-        onDisconnected: (reason) =>
-          console.log('🔌 [AUTH SOCKET] Socket disconnected:', reason),
+      socketService.connect({
+        userId: String(user.id),
+        token,
+        handlers: {
+          onEmailVerified: handleEmailVerified,
+          onConnected: () => {
+            console.log('✅ [AUTH SOCKET] Socket connected for real-time updates');
+            console.log('✅ [AUTH SOCKET] Handler registered for user:', user.id);
+          },
+          onDisconnected: (reason) =>
+            console.log('🔌 [AUTH SOCKET] Socket disconnected:', reason),
+        }
       });
     } else {
-      console.log('🔌 [AUTH SOCKET] Disconnecting socket (no user or already verified)');
+      console.log('🔌 [AUTH SOCKET] Disconnecting socket (no user or token)');
       socketService.disconnect();
     }
 
@@ -299,7 +303,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       socketService.disconnect();
     };
-  }, [user?.id, user?.isEmailVerified, handleEmailVerified]);
+  }, [user?.id, user?.isEmailVerified, token, handleEmailVerified]);
 
   return (
     <>
