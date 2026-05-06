@@ -6,15 +6,17 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Modal,
   ActivityIndicator,
   Image,
   Alert,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context';
@@ -50,6 +52,46 @@ export default function MessagesScreen() {
   const [searchResults, setSearchResults] = useState<UserSummary[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const newChatSheetRef = useRef<BottomSheetModal>(null);
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  const handleOpenNewChat = useCallback(() => {
+    setIsNewChatOpen(true);
+    newChatSheetRef.current?.present();
+  }, []);
+
+  const handleCloseNewChat = useCallback(() => {
+    setIsNewChatOpen(false);
+    newChatSheetRef.current?.dismiss();
+    setSearchQuery('');
+    setSearchResults([]);
+  }, []);
+
+  useEffect(() => {
+    const backAction = () => {
+      if (isNewChatOpen) {
+        handleCloseNewChat();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [isNewChatOpen, handleCloseNewChat]);
 
   const normalizeParticipants = useCallback(
     (items: Array<ConversationParticipant | UserSummary>): UserSummary[] =>
@@ -231,9 +273,7 @@ export default function MessagesScreen() {
           throw new Error('Conversation creation failed');
         }
 
-        setIsNewChatOpen(false);
-        setSearchQuery('');
-        setSearchResults([]);
+        handleCloseNewChat();
 
         setConversations((prev) => {
           const exists = prev.some(
@@ -472,134 +512,87 @@ export default function MessagesScreen() {
             bottom: Math.max(insets.bottom + 16, 30),
           },
         ]}
-        onPress={() => setIsNewChatOpen(true)}
+        onPress={handleOpenNewChat}
       >
         <Ionicons name="add" size={26} color={colors.text} />
       </TouchableOpacity>
 
       {/* ── New Chat Modal ── */}
-      <Modal
-        visible={isNewChatOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setIsNewChatOpen(false);
-          setSearchQuery('');
-          setSearchResults([]);
-        }}
+      <BottomSheetModal
+        ref={newChatSheetRef}
+        snapPoints={['75%']}
+        enableDynamicSizing={false}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: colors.modalBg }}
+        handleIndicatorStyle={{ backgroundColor: (colors as any).divider ?? '#C0C0C0', width: 40, height: 4 }}
+        onDismiss={handleCloseNewChat}
+        keyboardBehavior="extend"
+        keyboardBlurBehavior="restore"
       >
-        {/*
-          Outer overlay — tapping the dark area closes the modal.
-          We use KeyboardAvoidingView as the root so the sheet rises
-          with the keyboard on iOS.
-        */}
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <BottomSheetView
+          style={[styles.modalContent, { paddingBottom: modalListBottomPadding }]}
         >
-          {/* Tap-away backdrop */}
-          <TouchableOpacity
-            style={StyleSheet.absoluteFillObject}
-            activeOpacity={1}
-            onPress={() => {
-              setIsNewChatOpen(false);
-              setSearchQuery('');
-              setSearchResults([]);
-            }}
-          />
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              New Message
+            </Text>
+            <TouchableOpacity
+              onPress={handleCloseNewChat}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={22} color={colors.text} />
+            </TouchableOpacity>
+          </View>
 
-          {/*
-            The actual sheet.
-            • On iOS: KeyboardAvoidingView pushes it up automatically.
-            • On Android: we add dynamic paddingBottom driven by keyboardHeight.
-          */}
+          {/* Search box */}
           <View
             style={[
-              styles.modalContent,
+              styles.searchBox,
               {
-                backgroundColor: colors.modalBg,
-                borderColor: colors.cardBorder,
-                // Safe-area bottom padding (Android keyboard handled via paddingBottom below)
-                paddingBottom: modalListBottomPadding,
+                borderColor: colors.inputBorder,
+                backgroundColor: colors.inputBg,
               },
             ]}
           >
-            {/* Drag handle */}
-            <View
-              style={[
-                styles.modalHandle,
-                { backgroundColor: colors.subtleText + '60' },
-              ]}
+            <Ionicons name="search" size={18} color={colors.subtleText} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search by username"
+              placeholderTextColor={colors.placeholder}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
             />
-
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                New Message
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setIsNewChatOpen(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={22} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search box */}
-            <View
-              style={[
-                styles.searchBox,
-                {
-                  borderColor: colors.inputBorder,
-                  backgroundColor: colors.inputBg,
-                },
-              ]}
-            >
-              <Ionicons name="search" size={18} color={colors.subtleText} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search by username"
-                placeholderTextColor={colors.placeholder}
-                style={[styles.searchInput, { color: colors.text }]}
-                autoCapitalize="none"
-                autoCorrect={false}
-                // Keeps the keyboard visible when tapping results
-                returnKeyType="search"
-              />
-              {isSearching && (
-                <ActivityIndicator size="small" color={colors.primary} />
-              )}
-            </View>
-
-            {/* Results list — flex: 1 so it fills remaining space and scrolls */}
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderUserResult}
-              style={styles.searchList}
-              contentContainerStyle={styles.searchListContent}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                searchQuery.trim().length >= 2 && !isSearching ? (
-                  <Text
-                    style={[
-                      styles.searchEmpty,
-                      { color: colors.subtleText },
-                    ]}
-                  >
-                    No users found
-                  </Text>
-                ) : null
-              }
-            />
+            {isSearching && (
+              <ActivityIndicator size="small" color={colors.primary} />
+            )}
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <BottomSheetFlatList
+            data={searchResults}
+            keyExtractor={(item: UserSummary) => item.id.toString()}
+            renderItem={renderUserResult}
+            style={styles.searchList}
+            contentContainerStyle={styles.searchListContent}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              searchQuery.trim().length >= 2 && !isSearching ? (
+                <Text
+                  style={[
+                    styles.searchEmpty,
+                    { color: colors.subtleText },
+                  ]}
+                >
+                  No users found
+                </Text>
+              ) : null
+            }
+          />
+        </BottomSheetView>
+      </BottomSheetModal>
     </View>
   );
 }
@@ -732,15 +725,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContent: {
-    // Fixed height so flex:1 on the FlatList child can resolve.
-    // maxHeight alone leaves an undefined height for flex children.
-    height: '75%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
-    borderWidth: 1,
-    borderBottomWidth: 0,
   },
   modalHandle: {
     width: 36,
