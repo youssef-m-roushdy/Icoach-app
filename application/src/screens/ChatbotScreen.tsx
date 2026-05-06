@@ -728,79 +728,93 @@ export default function ChatbotScreen({ navigation }: Props) {
             onLongPress={() => handleLongPress(item)}
             delayLongPress={400}
           >
-            <View
-              style={[
-                styles.messageBubble,
-                isAI
-                  ? [
-                      styles.aiBubble,
-                      {
-                        backgroundColor: colors.authInputBg || colors.surface,
-                        borderColor: isError
-                          ? '#FF555540'
-                          : colors.authInputBorder || colors.cardBorder,
-                        // Subtle shadow for AI bubbles
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 4,
-                        elevation: 1,
-                      },
-                    ]
-                  : [
-                      styles.userBubble,
-                      {
-                        backgroundColor: colors.primary,
-                        shadowColor: colors.primary,
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.25,
-                        shadowRadius: 6,
-                        elevation: 3,
-                      },
-                    ],
-              ]}
-            >
-              {isThinking ? (
-                <TypingDots color={colors.primary} />
-              ) : (
-                <>
-                  <Text
-                    style={[
-                      styles.messageText,
-                      isAI
-                        ? { color: isError ? '#FF5555' : colors.text }
-                        : { color: '#FFFFFF' },
-                    ]}
-                  >
-                    {item.text}
-                    {item.status === 'streaming' && item.text !== '' && (
-                      <BlinkingCursor color={isAI ? colors.primary : '#FFFFFF90'} />
-                    )}
-                  </Text>
-
-                  {/* Timestamp row */}
-                  <View style={styles.timestampRow}>
-                    {isCopied && (
-                      <Text style={[styles.copiedHint, { color: isAI ? colors.primary : '#FFFFFF90' }]}>
-                        ✓ Copied
-                      </Text>
-                    )}
+            {isAI ? (
+              <View
+                style={[
+                  styles.messageBubble,
+                  styles.aiBubble,
+                  {
+                    backgroundColor: colors.authInputBg || colors.surface,
+                    borderColor: isError
+                      ? '#FF555540'
+                      : colors.authInputBorder || colors.cardBorder,
+                    // Subtle shadow for AI bubbles
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 4,
+                    elevation: 1,
+                  },
+                ]}
+              >
+                {isThinking ? (
+                  <TypingDots color={colors.primary} />
+                ) : (
+                  <>
                     <Text
                       style={[
-                        styles.timestamp,
-                        isAI ? { color: colors.textSecondary } : { color: '#FFFFFF80' },
+                        styles.messageText,
+                        { color: isError ? '#FF5555' : colors.text },
                       ]}
                     >
-                      {formatRelativeTime(item.timestamp)}
+                      {item.text}
+                      {item.status === 'streaming' && item.text !== '' && (
+                        <BlinkingCursor color={colors.primary} />
+                      )}
                     </Text>
-                    {/* Delivery tick for user messages */}
-                    {!isAI && item.status === 'done' && (
-                      <Ionicons name="checkmark-done" size={12} color="#FFFFFF80" style={{ marginLeft: 2 }} />
-                    )}
-                  </View>
-                </>
-              )}
-            </View>
+
+                    {/* Timestamp row */}
+                    <View style={styles.timestampRow}>
+                      {isCopied && (
+                        <Text style={[styles.copiedHint, { color: colors.primary }]}>
+                          ✓ Copied
+                        </Text>
+                      )}
+                      <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
+                        {formatRelativeTime(item.timestamp)}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : (
+              <LinearGradient
+                colors={[colors.primary, (colors as any).secondary || colors.primary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.messageBubble,
+                  styles.userBubble,
+                  {
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 6,
+                    elevation: 3,
+                  },
+                ]}
+              >
+                <Text style={[styles.messageText, { color: '#FFFFFF' }]}>
+                  {item.text}
+                </Text>
+
+                {/* Timestamp row */}
+                <View style={styles.timestampRow}>
+                  {isCopied && (
+                    <Text style={[styles.copiedHint, { color: '#FFFFFF90' }]}>
+                      ✓ Copied
+                    </Text>
+                  )}
+                  <Text style={[styles.timestamp, { color: '#FFFFFF80' }]}>
+                    {formatRelativeTime(item.timestamp)}
+                  </Text>
+                  {/* Delivery tick for user messages */}
+                  {item.status === 'done' && (
+                    <Ionicons name="checkmark-done" size={12} color="#FFFFFF80" style={{ marginLeft: 2 }} />
+                  )}
+                </View>
+              </LinearGradient>
+            )}
           </TouchableWithoutFeedback>
         </View>
       );

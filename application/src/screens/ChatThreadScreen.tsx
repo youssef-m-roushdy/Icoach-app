@@ -18,6 +18,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context';
 import { conversationService, type ConversationMessage, type UserSummary, type PresenceState } from '../services/conversationService';
 import { socketService } from '../services/socketService';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ChatThreadParams {
   conversationId: number;
@@ -30,6 +32,7 @@ export default function ChatThreadScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { token, user } = useAuth();
+  const keyboardHeight = useKeyboardHeight();
 
   const { conversationId, participant } = (route.params || {}) as ChatThreadParams;
 
@@ -172,22 +175,43 @@ export default function ChatThreadScreen() {
 
     return (
       <View style={[styles.messageRow, isOwnMessage ? styles.messageRight : styles.messageLeft]}>
-        <View
-          style={[
-            styles.messageBubble,
-            {
-              backgroundColor: isOwnMessage ? colors.primary : colors.surface,
-              borderColor: colors.cardBorder,
-            },
-          ]}
-        >
-          <Text style={[styles.messageText, { color: isOwnMessage ? colors.background : colors.text }]}>
-            {item.content}
-          </Text>
-          <Text style={[styles.messageTime, { color: isOwnMessage ? colors.background : colors.subtleText }]}> 
-            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
+        {isOwnMessage ? (
+          <LinearGradient
+            colors={[colors.primary, (colors as any).secondary || colors.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.messageBubble,
+              {
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.messageText, { color: '#FFFFFF' }]}>
+              {item.content}
+            </Text>
+            <Text style={[styles.messageTime, { color: '#FFFFFF80' }]}> 
+              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </LinearGradient>
+        ) : (
+          <View
+            style={[
+              styles.messageBubble,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.messageText, { color: colors.text }]}>
+              {item.content}
+            </Text>
+            <Text style={[styles.messageTime, { color: colors.subtleText }]}> 
+              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -196,6 +220,17 @@ export default function ChatThreadScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
+
       <View style={[styles.header, { borderBottomColor: colors.cardBorder }]}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -213,25 +248,33 @@ export default function ChatThreadScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderMessage}
-          contentContainerStyle={styles.messagesContent}
-        />
-      )}
-
       <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <View style={[styles.inputRow, { borderTopColor: colors.cardBorder }]}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            style={{ flex: 1 }}
+            data={messages}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.messagesContent}
+          />
+        )}
+
+        <View 
+          style={[styles.inputRow, { 
+            borderTopColor: colors.cardBorder,
+            paddingBottom:
+              Math.max(insets.bottom + 10, 20) +
+              (Platform.OS === 'android' ? keyboardHeight : 0),
+          }]}
         >
           <TextInput
             value={inputValue}
@@ -261,6 +304,30 @@ export default function ChatThreadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    top: 150,
+    left: -80,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    bottom: -50,
+    right: 20,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
   },
   header: {
     flexDirection: 'row',

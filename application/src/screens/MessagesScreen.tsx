@@ -11,6 +11,8 @@ import {
   Image,
   Alert,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +28,8 @@ import {
 } from '../services/conversationService';
 import { socketService } from '../services/socketService';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type PresenceMap = Record<string, PresenceState>;
 
@@ -34,6 +38,7 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { token, user } = useAuth();
+  const keyboardHeight = useKeyboardHeight();
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,11 +58,13 @@ export default function MessagesScreen() {
           if ('username' in item) {
             return item;
           }
-
           return item.user;
         })
-        .filter((participant): participant is UserSummary => !!participant && participant.id !== user?.id),
-    [user?.id]
+        .filter(
+          (participant): participant is UserSummary =>
+            !!participant && participant.id !== user?.id,
+        ),
+    [user?.id],
   );
 
   const loadConversations = useCallback(async () => {
@@ -117,7 +124,9 @@ export default function MessagesScreen() {
 
     const handleMessageNew = (payload: { conversationId: number; message: any }) => {
       setConversations((prev) => {
-        const index = prev.findIndex((item) => item.conversation.id === payload.conversationId);
+        const index = prev.findIndex(
+          (item) => item.conversation.id === payload.conversationId,
+        );
         if (index === -1) return prev;
 
         const updated = {
@@ -133,9 +142,14 @@ export default function MessagesScreen() {
       });
     };
 
-    const handleConversationNew = (payload: { conversation: any; participants: any[] }) => {
+    const handleConversationNew = (payload: {
+      conversation: any;
+      participants: any[];
+    }) => {
       setConversations((prev) => {
-        const exists = prev.some((item) => item.conversation.id === payload.conversation.id);
+        const exists = prev.some(
+          (item) => item.conversation.id === payload.conversation.id,
+        );
         if (exists) return prev;
 
         const participants = normalizeParticipants(payload.participants || []);
@@ -150,7 +164,8 @@ export default function MessagesScreen() {
         return [item, ...prev];
       });
 
-      const participantId = payload.participants?.[0]?.user?.id || payload.participants?.[0]?.id;
+      const participantId =
+        payload.participants?.[0]?.user?.id || payload.participants?.[0]?.id;
       if (participantId) {
         socketService.emit('presence:watch', [participantId]);
       }
@@ -202,49 +217,57 @@ export default function MessagesScreen() {
     };
   }, [isNewChatOpen, searchQuery, token]);
 
-  const handleStartConversation = useCallback(async (participant: UserSummary) => {
-    if (!token) return;
+  const handleStartConversation = useCallback(
+    async (participant: UserSummary) => {
+      if (!token) return;
 
-    try {
-      const response = await conversationService.createConversation(token, participant.id);
-      const data = response.data;
-      if (!data) {
-        throw new Error('Conversation creation failed');
+      try {
+        const response = await conversationService.createConversation(
+          token,
+          participant.id,
+        );
+        const data = response.data;
+        if (!data) {
+          throw new Error('Conversation creation failed');
+        }
+
+        setIsNewChatOpen(false);
+        setSearchQuery('');
+        setSearchResults([]);
+
+        setConversations((prev) => {
+          const exists = prev.some(
+            (item) => item.conversation.id === data.conversation.id,
+          );
+          if (exists) return prev;
+
+          const otherParticipants = normalizeParticipants(data.participants || []);
+
+          return [
+            {
+              conversation: data.conversation,
+              participants: otherParticipants,
+              lastMessage: null,
+              lastReadAt: null,
+            },
+            ...prev,
+          ];
+        });
+
+        if (participant?.id) {
+          socketService.emit('presence:watch', [participant.id]);
+        }
+
+        navigation.navigate('ChatThread', {
+          conversationId: data.conversation.id,
+          participant,
+        });
+      } catch (error: any) {
+        Alert.alert('Error', error?.message || 'Unable to start conversation');
       }
-
-      setIsNewChatOpen(false);
-      setSearchQuery('');
-      setSearchResults([]);
-
-      setConversations((prev) => {
-        const exists = prev.some((item) => item.conversation.id === data.conversation.id);
-        if (exists) return prev;
-
-        const otherParticipants = normalizeParticipants(data.participants || []);
-
-        return [
-          {
-            conversation: data.conversation,
-            participants: otherParticipants,
-            lastMessage: null,
-            lastReadAt: null,
-          },
-          ...prev,
-        ];
-      });
-
-      if (participant?.id) {
-        socketService.emit('presence:watch', [participant.id]);
-      }
-
-      navigation.navigate('ChatThread', {
-        conversationId: data.conversation.id,
-        participant,
-      });
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Unable to start conversation');
-    }
-  }, [navigation, normalizeParticipants, token, user?.id]);
+    },
+    [navigation, normalizeParticipants, token],
+  );
 
   const formatTime = useCallback((timestamp?: string | null) => {
     if (!timestamp) return '';
@@ -264,49 +287,78 @@ export default function MessagesScreen() {
   const renderConversation = ({ item }: { item: ConversationListItem }) => {
     const participant = item.participants[0];
     const displayName = participant
-      ? `${participant.firstName || ''} ${participant.lastName || ''}`.trim() || participant.username
+      ? `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+        participant.username
       : 'Unknown';
     const lastMessage = item.lastMessage?.content || 'No messages yet';
-    const lastTime = formatTime(item.lastMessage?.createdAt || item.conversation.updatedAt);
+    const lastTime = formatTime(
+      item.lastMessage?.createdAt || item.conversation.updatedAt,
+    );
     const lastReadAt = item.lastReadAt ? new Date(item.lastReadAt) : null;
-    const lastMessageDate = item.lastMessage?.createdAt ? new Date(item.lastMessage.createdAt) : null;
-    const isUnread = lastMessageDate && (!lastReadAt || lastMessageDate > lastReadAt);
+    const lastMessageDate = item.lastMessage?.createdAt
+      ? new Date(item.lastMessage.createdAt)
+      : null;
+    const isUnread =
+      lastMessageDate && (!lastReadAt || lastMessageDate > lastReadAt);
 
     const presence = participant ? presenceMap[String(participant.id)] : undefined;
     const isOnline = presence?.online;
 
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-        onPress={() => navigation.navigate('ChatThread', {
-          conversationId: item.conversation.id,
-          participant,
-        })}
+        style={[
+          styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        ]}
+        onPress={() =>
+          navigation.navigate('ChatThread', {
+            conversationId: item.conversation.id,
+            participant,
+          })
+        }
       >
         <View style={styles.avatarWrapper}>
           <Image
-            source={participant?.avatar ? { uri: participant.avatar } : require('../../assets/icon.png')}
+            source={
+              participant?.avatar
+                ? { uri: participant.avatar }
+                : require('../../assets/icon.png')
+            }
             style={styles.avatar}
           />
           {participant && (
-            <View style={[
-              styles.presenceDot,
-              { backgroundColor: isOnline ? '#22c55e' : colors.subtleText },
-            ]} />
+            <View
+              style={[
+                styles.presenceDot,
+                { backgroundColor: isOnline ? '#22c55e' : colors.subtleText },
+              ]}
+            />
           )}
         </View>
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+            <Text
+              style={[styles.name, { color: colors.text }]}
+              numberOfLines={1}
+            >
               {displayName}
             </Text>
-            <Text style={[styles.time, { color: colors.subtleText }]}>{lastTime}</Text>
+            <Text style={[styles.time, { color: colors.subtleText }]}>
+              {lastTime}
+            </Text>
           </View>
           <View style={styles.cardFooter}>
-            <Text style={[styles.preview, { color: colors.textSecondary }]} numberOfLines={1}>
+            <Text
+              style={[styles.preview, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
               {lastMessage}
             </Text>
-            {isUnread && <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />}
+            {isUnread && (
+              <View
+                style={[styles.unreadDot, { backgroundColor: colors.primary }]}
+              />
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -314,7 +366,8 @@ export default function MessagesScreen() {
   };
 
   const renderUserResult = ({ item }: { item: UserSummary }) => {
-    const displayName = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.username;
+    const displayName =
+      `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.username;
 
     return (
       <TouchableOpacity
@@ -322,12 +375,20 @@ export default function MessagesScreen() {
         onPress={() => handleStartConversation(item)}
       >
         <Image
-          source={item.avatar ? { uri: item.avatar } : require('../../assets/icon.png')}
+          source={
+            item.avatar
+              ? { uri: item.avatar }
+              : require('../../assets/icon.png')
+          }
           style={styles.searchAvatar}
         />
         <View style={styles.searchInfo}>
-          <Text style={[styles.searchName, { color: colors.text }]}>{displayName}</Text>
-          <Text style={[styles.searchUsername, { color: colors.subtleText }]}>@{item.username}</Text>
+          <Text style={[styles.searchName, { color: colors.text }]}>
+            {displayName}
+          </Text>
+          <Text style={[styles.searchUsername, { color: colors.subtleText }]}>
+            @{item.username}
+          </Text>
         </View>
         <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
       </TouchableOpacity>
@@ -338,21 +399,59 @@ export default function MessagesScreen() {
     ? 'Loading conversations...'
     : 'Start a new chat to see messages here.';
 
+  // Bottom padding for the main list — respects safe area
+  const listBottomPadding = Math.max(insets.bottom + 90, 120);
+
+  // For Android: extra bottom padding inside the modal driven by keyboard height
+  const modalListBottomPadding =
+    Platform.OS === 'android'
+      ? Math.max(insets.bottom + 12, 12) + keyboardHeight
+      : Math.max(insets.bottom + 12, 12);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={colors.authBgGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      >
+        <View style={[styles.decorativeCircle1, { backgroundColor: colors.authCircle1 }]} />
+        <View style={[styles.decorativeCircle2, { backgroundColor: colors.authCircle2 }]} />
+        <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
+      </LinearGradient>
       <FlatList
         data={conversations}
         keyExtractor={(item) => item.conversation.id.toString()}
         renderItem={renderConversation}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: listBottomPadding },
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             {isLoading ? (
               <ActivityIndicator color={colors.primary} />
             ) : (
-              <Ionicons name="chatbubbles-outline" size={48} color={colors.subtleText} />
+              <Ionicons
+                name="chatbubbles-outline"
+                size={48}
+                color={colors.subtleText}
+              />
             )}
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{emptyMessage}</Text>
+            <Text
+              style={[styles.emptyText, { color: colors.textSecondary }]}
+            >
+              {emptyMessage}
+            </Text>
           </View>
         }
         refreshControl={
@@ -364,29 +463,102 @@ export default function MessagesScreen() {
         }
       />
 
+      {/* FAB — positioned above the bottom safe area */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            bottom: Math.max(insets.bottom + 16, 30),
+          },
+        ]}
         onPress={() => setIsNewChatOpen(true)}
       >
-        <Ionicons name="add" size={26} color={colors.background} />
+        <Ionicons name="add" size={26} color={colors.text} />
       </TouchableOpacity>
 
+      {/* ── New Chat Modal ── */}
       <Modal
         visible={isNewChatOpen}
         animationType="slide"
         transparent
-        onRequestClose={() => setIsNewChatOpen(false)}
+        onRequestClose={() => {
+          setIsNewChatOpen(false);
+          setSearchQuery('');
+          setSearchResults([]);
+        }}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.modalOverlay }]}>
-          <View style={[styles.modalContent, { backgroundColor: colors.modalBg, borderColor: colors.cardBorder }]}>
+        {/*
+          Outer overlay — tapping the dark area closes the modal.
+          We use KeyboardAvoidingView as the root so the sheet rises
+          with the keyboard on iOS.
+        */}
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* Tap-away backdrop */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => {
+              setIsNewChatOpen(false);
+              setSearchQuery('');
+              setSearchResults([]);
+            }}
+          />
+
+          {/*
+            The actual sheet.
+            • On iOS: KeyboardAvoidingView pushes it up automatically.
+            • On Android: we add dynamic paddingBottom driven by keyboardHeight.
+          */}
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.modalBg,
+                borderColor: colors.cardBorder,
+                // Safe-area bottom padding (Android keyboard handled via paddingBottom below)
+                paddingBottom: modalListBottomPadding,
+              },
+            ]}
+          >
+            {/* Drag handle */}
+            <View
+              style={[
+                styles.modalHandle,
+                { backgroundColor: colors.subtleText + '60' },
+              ]}
+            />
+
+            {/* Header */}
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>New Message</Text>
-              <TouchableOpacity onPress={() => setIsNewChatOpen(false)}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                New Message
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsNewChatOpen(false);
+                  setSearchQuery('');
+                  setSearchResults([]);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.searchBox, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
+            {/* Search box */}
+            <View
+              style={[
+                styles.searchBox,
+                {
+                  borderColor: colors.inputBorder,
+                  backgroundColor: colors.inputBg,
+                },
+              ]}
+            >
               <Ionicons name="search" size={18} color={colors.subtleText} />
               <TextInput
                 value={searchQuery}
@@ -396,21 +568,37 @@ export default function MessagesScreen() {
                 style={[styles.searchInput, { color: colors.text }]}
                 autoCapitalize="none"
                 autoCorrect={false}
+                // Keeps the keyboard visible when tapping results
+                returnKeyType="search"
               />
-              {isSearching && <ActivityIndicator size="small" color={colors.primary} />}
+              {isSearching && (
+                <ActivityIndicator size="small" color={colors.primary} />
+              )}
             </View>
 
+            {/* Results list — flex: 1 so it fills remaining space and scrolls */}
             <FlatList
               data={searchResults}
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderUserResult}
-              contentContainerStyle={styles.searchList}
+              style={styles.searchList}
+              contentContainerStyle={styles.searchListContent}
+              keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
-                <Text style={[styles.searchEmpty, { color: colors.subtleText }]}>No users found</Text>
+                searchQuery.trim().length >= 2 && !isSearching ? (
+                  <Text
+                    style={[
+                      styles.searchEmpty,
+                      { color: colors.subtleText },
+                    ]}
+                  >
+                    No users found
+                  </Text>
+                ) : null
               }
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -420,10 +608,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    top: 150,
+    left: -80,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    bottom: -50,
+    right: 20,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
   listContent: {
     padding: 16,
-    paddingBottom: 120,
   },
+
+  // ── Conversation card ──────────────────────────────────────────────────
   card: {
     flexDirection: 'row',
     padding: 14,
@@ -483,6 +696,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginLeft: 8,
   },
+
+  // ── Empty state ────────────────────────────────────────────────────────
   emptyState: {
     alignItems: 'center',
     marginTop: 80,
@@ -491,26 +706,48 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
   },
+
+  // ── FAB ───────────────────────────────────────────────────────────────
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 30,
     width: 54,
     height: 54,
     borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
+    // bottom is set inline to respect safe area
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
+
+  // ── Modal ─────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
+    // Semi-transparent background — set as backgroundColor on the KAV itself
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContent: {
-    maxHeight: '80%',
+    // Fixed height so flex:1 on the FlatList child can resolve.
+    // maxHeight alone leaves an undefined height for flex children.
+    height: '75%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     borderWidth: 1,
+    borderBottomWidth: 0,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -530,19 +767,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
+    marginBottom: 4,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
   },
+
+  // Results list takes remaining space so it scrolls rather than getting clipped
   searchList: {
-    paddingVertical: 12,
+    flex: 1,
+  },
+  searchListContent: {
+    paddingVertical: 8,
   },
   searchItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   searchAvatar: {
     width: 40,
