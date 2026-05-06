@@ -290,9 +290,9 @@ export default function ChatThreadScreen() {
             disabled={isSending}
           >
             {isSending ? (
-              <ActivityIndicator color={colors.background} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Ionicons name="send" size={18} color={colors.background} />
+              <Ionicons name="send" size={18} color="#FFFFFF" />
             )}
           </TouchableOpacity>
         </View>
