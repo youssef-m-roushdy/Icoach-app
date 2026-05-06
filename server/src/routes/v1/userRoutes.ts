@@ -577,6 +577,7 @@ router.get('/search',
  *                 lastName: "Smith"
  *                 bio: "Updated bio description"
  *                 phone: "+1987654321"
+ *                 username: "johndoe"
  *             body_metrics:
  *               summary: Update body metrics
  *               value:

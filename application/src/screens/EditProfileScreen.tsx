@@ -181,6 +181,7 @@ export default function EditProfileScreen() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -188,6 +189,7 @@ export default function EditProfileScreen() {
       setLastName(user.lastName || "");
       setPhone(user.phone || "");
       setBio(user.bio || "");
+      setUsername(user.username || "");
     }
   }, [user]);
 
@@ -225,6 +227,9 @@ export default function EditProfileScreen() {
       }
       if (bio.trim() !== (user?.bio || "")) {
         updateData.bio = bio.trim() || null;
+      }
+      if (username.trim() !== (user?.username || "")) {
+        updateData.username = username.trim() || null;
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -366,10 +371,9 @@ export default function EditProfileScreen() {
           >
             <ProfileInput
               label="Username"
-              value={user?.username || ""}
-              onChangeText={() => {}}
+              value={username}
+              onChangeText={setUsername}
               icon={<Feather name="at-sign" size={18} color={C.primary} />}
-              editable={false}
               note="Username cannot be changed"
             />
             <View style={styles.inputSpacer} />

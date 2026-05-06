@@ -9,31 +9,41 @@ export const validateUserRegistration = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
-  
+
   body('username')
+    .optional()
+    .customSanitizer((value) => {
+      return value
+        .toLowerCase()                 // ALL SMALL LETTERS
+        .trim()                        // remove spaces around
+        .replace(/[.\-\s]+/g, '_')     // . - space => _
+        .replace(/[^a-z0-9_]/g, '')    // remove any invalid char
+        .replace(/_+/g, '_')           // ____ => _
+        .replace(/^_+|_+$/g, '');      // remove _ at start/end
+    })
     .isLength({ min: 3, max: 30 })
     .withMessage('Username must be between 3 and 30 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
-  
+    .matches(/^[a-z0-9_]+$/)
+    .withMessage('Username can only contain lowercase letters, numbers, and underscores'),
+
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  
+
   body('firstName')
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('First name must be between 1 and 50 characters'),
-  
+
   body('lastName')
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('Last name must be between 1 and 50 characters'),
-  
+
   handleValidationErrors,
 ];
 
@@ -45,11 +55,11 @@ export const validateUserLogin = [
     .notEmpty()
     .withMessage('Email or username is required')
     .trim(),
-  
+
   body('password')
     .notEmpty()
     .withMessage('Password is required'),
-  
+
   handleValidationErrors,
 ];
 
@@ -62,47 +72,56 @@ export const validateProfileUpdate = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
-  
+
   body('username')
     .optional()
+    .customSanitizer((value) => {
+      return value
+        .toLowerCase()                 // ALL SMALL LETTERS
+        .trim()                        // remove spaces around
+        .replace(/[.\-\s]+/g, '_')     // . - space => _
+        .replace(/[^a-z0-9_]/g, '')    // remove any invalid char
+        .replace(/_+/g, '_')           // ____ => _
+        .replace(/^_+|_+$/g, '');      // remove _ at start/end
+    })
     .isLength({ min: 3, max: 30 })
     .withMessage('Username must be between 3 and 30 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
-    .withMessage('Username can only contain letters, numbers, and underscores'),
-  
+    .matches(/^[a-z0-9_]+$/)
+    .withMessage('Username can only contain lowercase letters, numbers, and underscores'),
+
   body('firstName')
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('First name must be between 1 and 50 characters'),
-  
+
   body('lastName')
     .optional()
     .trim()
     .isLength({ min: 1, max: 50 })
     .withMessage('Last name must be between 1 and 50 characters'),
-  
+
   body('bio')
     .optional()
     .trim()
     .isLength({ max: 500 })
     .withMessage('Bio must not exceed 500 characters'),
-  
+
   body('dateOfBirth')
     .optional()
     .isISO8601()
     .withMessage('Please provide a valid date'),
-  
+
   body('phone')
     .optional()
     .matches(/^\+?[1-9]\d{1,14}$/)
     .withMessage('Please provide a valid phone number'),
-  
+
   body('gender')
     .optional()
     .isIn(['male', 'female', 'other'])
     .withMessage('Gender must be male, female, or other'),
-  
+
   handleValidationErrors,
 ];
 
@@ -114,32 +133,32 @@ export const validateBodyInformation = [
     .optional()
     .isFloat({ min: 0, max: 300 })
     .withMessage('Height must be between 0 and 300 cm'),
-  
+
   body('weight')
     .optional()
     .isFloat({ min: 0, max: 500 })
     .withMessage('Weight must be between 0 and 500 kg'),
-  
+
   body('fitnessGoal')
     .optional()
     .isIn(['weight_loss', 'muscle_gain', 'maintenance'])
     .withMessage('Invalid fitness goal'),
-  
+
   body('activityLevel')
     .optional()
     .isIn(['sedentary', 'lightly_active', 'moderately_active', 'very_active'])
     .withMessage('Invalid activity level'),
-  
+
   body('bodyFatPercentage')
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('Body fat percentage must be between 0 and 100'),
-  
+
   body('bmi')
     .optional()
     .isFloat({ min: 0, max: 100 })
     .withMessage('BMI must be between 0 and 100'),
-  
+
   handleValidationErrors,
 ];
 
@@ -150,13 +169,13 @@ export const validatePasswordChange = [
   body('currentPassword')
     .notEmpty()
     .withMessage('Current password is required'),
-  
+
   body('newPassword')
     .isLength({ min: 8 })
     .withMessage('New password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/)
     .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  
+
   handleValidationErrors,
 ];
 
@@ -168,7 +187,7 @@ export const validatePasswordResetRequest = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
-  
+
   handleValidationErrors,
 ];
 
@@ -180,7 +199,7 @@ export const validateResendVerification = [
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
-  
+
   handleValidationErrors,
 ];
 
@@ -191,13 +210,13 @@ export const validatePasswordReset = [
   body('token')
     .notEmpty()
     .withMessage('Reset token is required'),
-  
+
   body('newPassword')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-  
+
   handleValidationErrors,
 ];
 
@@ -208,7 +227,7 @@ export const validateIdParam = [
   param('id')
     .isInt({ min: 1 })
     .withMessage('Valid user ID is required'),
-  
+
   handleValidationErrors,
 ];
 
@@ -219,7 +238,7 @@ export const validateTokenParam = [
   param('token')
     .isLength({ min: 1 })
     .withMessage('Token is required'),
-  
+
   handleValidationErrors,
 ];
 
@@ -231,12 +250,12 @@ export const validatePagination = [
     .optional()
     .isInt({ min: 1 })
     .withMessage('Page must be a positive integer'),
-  
+
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
-  
+
   handleValidationErrors,
 ];
 
