@@ -3,11 +3,16 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
 import { jwtConfig } from '../config/jwt.js';
+
+// === FIREBASE NOTIFICATION === Import Firebase Admin
+import { firebaseAdmin } from '../config/firebase.js'; 
+
 import {
   ChatConversation,
   ChatParticipant,
   ChatMessage,
   User,
+  ExpoToken, // (Note: This table will now store Firebase FCM Tokens)
 } from '../models/sql/index.js';
 
 interface PresenceState {
@@ -215,7 +220,7 @@ class SocketService {
             { where: { id: conversationId } }
           );
 
-          const sender = await User.findByPk(userId, { attributes: USER_ATTRIBUTES });
+          const sender: any = await User.findByPk(userId, { attributes: USER_ATTRIBUTES });
           const data = {
             conversationId,
             message: {
@@ -231,8 +236,18 @@ class SocketService {
             attributes: ['userId'],
           });
 
-          participants.forEach((participantItem) => {
-            this.emitToUser(participantItem.userId, 'message:new', data);
+          // === FIREBASE NOTIFICATION === Send push notification if the user is offline
+          participants.forEach(async (participantItem) => {
+            const recipientId = participantItem.userId;
+            
+            // Try to send the message via WebSocket first
+            const isDelivered = this.emitToUser(recipientId, 'message:new', data);
+
+            // If the message is not delivered (user closed the app) and the recipient is not the sender
+            if (!isDelivered && recipientId !== userId) {
+              const senderName = sender.firstName || sender.username || 'User';
+              await this.sendFirebasePushNotification(recipientId, senderName, content, conversationId);
+            }
           });
 
           if (typeof ack === 'function') {
@@ -254,6 +269,45 @@ class SocketService {
         console.error(`Socket error for ${socket.id}:`, error);
       });
     });
+  }
+
+  // === FIREBASE NOTIFICATION === Function to send push notifications via Firebase
+  private async sendFirebasePushNotification(recipientId: number, senderName: string, messageContent: string, conversationId: number): Promise<void> {
+    try {
+      // 1. Fetch tokens for the recipient user's devices
+      const userTokens: any = await ExpoToken.findAll({ 
+        where: { user_id: recipientId } 
+      });
+
+      if (!userTokens || userTokens.length === 0) return;
+
+      // 2. Map tokens into an array
+      const tokens = userTokens.map((t: any) => t.token);
+
+      // 3. Prepare the notification payload
+      const message = {
+        notification: {
+          title: `New message from ${senderName}`,
+          body: messageContent,
+        },
+        data: { 
+          type: 'chat', 
+          conversationId: String(conversationId) // Firebase requires data values to be strings only
+        },
+        tokens: tokens, // Send to multiple devices simultaneously
+      };
+
+      // 4. Send the notification
+      if (firebaseAdmin) {
+        const response = await firebaseAdmin.messaging().sendEachForMulticast(message);
+        console.log(`Firebase Push sent: ${response.successCount} successful, ${response.failureCount} failed.`);
+      } else {
+        console.warn('Firebase Admin is not initialized!');
+      }
+      
+    } catch (error) {
+      console.error('Error sending chat push notification via Firebase:', error);
+    }
   }
 
   private extractToken(socket: Socket): string | null {
@@ -378,8 +432,10 @@ class SocketService {
   emitToUser(userId: string | number, event: string, data: any): boolean {
     const normalizedUserId = String(userId);
     const sockets = this.userSockets.get(normalizedUserId);
+    
+    // If no connected sockets exist, return false so the code falls back to sending a Push Notification
     if (!sockets || sockets.size === 0) {
-      return false;
+      return false; 
     }
 
     let delivered = false;
