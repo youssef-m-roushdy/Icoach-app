@@ -379,6 +379,27 @@
       "UpstreamHttpMethod": ["GET"]
     },
     {
+      "DownstreamPathTemplate": "/api/v1/notifications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/notifications/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"],
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "15m",
+        "PeriodTimespan": 900,
+        "Limit": 50,
+        "ClientIdHeader": "X-Forwarded-For"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/notifications/expo-tokens/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "UpstreamPathTemplate": "/api/v1/notifications/expo-tokens/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"]
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/chat-history/batch",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],

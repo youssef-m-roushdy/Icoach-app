@@ -1,3 +1,4 @@
+// context/AuthContext.tsx
 import React, {
   createContext,
   useContext,
@@ -10,8 +11,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services';
 import { setGlobalRefreshTokenFunction } from '../services/api';
 import { socketService } from '../services/socketService';
+import { notificationService } from '../services/notificationService';
 import type { User } from '../types';
-import SuccessModal from '../components/common/SuccessModal'; // Adjust path as needed
+import SuccessModal from '../components/common/SuccessModal';
 
 interface AuthContextType {
   user: User | null;
@@ -31,9 +33,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Storage keys
 const TOKEN_KEY = '@icoach_token';
 const REFRESH_TOKEN_KEY = '@icoach_refresh_token';
 const USER_KEY = '@icoach_user';
+const EXPO_TOKEN_KEY = '@icoach_expo_push_token';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -139,24 +143,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout
   // =========================================
   const logout = useCallback(async () => {
-    // 1. Fire and forget the API call so the UI doesn't hang waiting for the network
+    console.log('🚪 Starting logout process...');
+
+    // 1. Remove Expo push token from backend and storage
     if (token) {
-      authService.logout(token).catch(error => {
-        console.error('Logout API error:', error);
-      });
+      try {
+        const expoToken = await AsyncStorage.getItem(EXPO_TOKEN_KEY);
+        
+        if (expoToken) {
+          console.log('🧹 Removing push token from backend...');
+          
+          await notificationService.removeExpoToken(expoToken, token)
+            .then(() => console.log('✅ Push token removed from backend'))
+            .catch(err => console.error('❌ Failed to remove push token from backend:', err));
+          
+          await AsyncStorage.removeItem(EXPO_TOKEN_KEY)
+            .then(() => console.log('✅ Push token removed from storage'))
+            .catch(err => console.error('❌ Failed to remove push token from storage:', err));
+        }
+
+        // 2. Call logout API (fire and forget)
+        authService.logout(token).catch(error => {
+          console.error('Logout API error:', error);
+        });
+      } catch (error) {
+        console.error('Error during push token cleanup:', error);
+      }
     }
 
-    // 2. Disconnect realtime services
+    // 3. Disconnect socket
     socketService.disconnect();
+    console.log('🔌 Socket disconnected');
 
-    // 3. Clear local state IMMEDIATELY to trigger the instant jump to WelcomeScreen
+    // 4. Clear auth state immediately (triggers UI update)
     setUser(null);
     setToken(null);
+    console.log('👤 User state cleared');
 
-    // 4. Remove storage tokens without awaiting
-    AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]).catch(err => {
+    // 5. Clear all auth storage
+    await AsyncStorage.multiRemove([
+      TOKEN_KEY, 
+      REFRESH_TOKEN_KEY, 
+      USER_KEY
+    ]).then(() => {
+      console.log('🗑️ Auth storage cleared');
+    }).catch(err => {
       console.error('Failed to clear storage:', err);
     });
+
+    console.log('✅ Logout complete');
   }, [token]);
 
   // =========================================
@@ -200,7 +235,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('❌ Token refresh failed:', error);
 
-      // لو refresh فشل، نعمل logout كامل
+      // If refresh fails, do a full logout
       await logout();
       return null;
     }

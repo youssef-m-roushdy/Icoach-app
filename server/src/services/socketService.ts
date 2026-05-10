@@ -2,17 +2,16 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
+import { Expo } from 'expo-server-sdk';
+import type { ExpoPushMessage } from 'expo-server-sdk';
 import { jwtConfig } from '../config/jwt.js';
-
-// === FIREBASE NOTIFICATION === Import Firebase Admin
-import { firebaseAdmin } from '../config/firebase.js'; 
 
 import {
   ChatConversation,
   ChatParticipant,
   ChatMessage,
   User,
-  ExpoToken, // (Note: This table will now store Firebase FCM Tokens)
+  ExpoToken,
 } from '../models/sql/index.js';
 
 interface PresenceState {
@@ -32,6 +31,9 @@ class SocketService {
   private userSockets: Map<string, Set<Socket>> = new Map();
   private socketToUser: Map<string, string> = new Map();
   private presence: Map<string, PresenceState> = new Map();
+
+  // Single shared Expo SDK instance (handles chunking, retries, receipts)
+  private expo = new Expo();
 
   /**
    * Initialize Socket.IO server
@@ -61,7 +63,7 @@ class SocketService {
   }
 
   /**
-   * Setup connection auth
+   * Setup connection auth middleware
    */
   private setupAuth(): void {
     if (!this.io) return;
@@ -91,6 +93,7 @@ class SocketService {
     this.io.on('connection', (socket: Socket) => {
       console.log(`Socket connected: ${socket.id}`);
 
+      // Auto-register if userId is present from auth middleware
       if (socket.data.userId) {
         this.registerSocket(socket, String(socket.data.userId));
         socket.emit('registered', {
@@ -99,6 +102,7 @@ class SocketService {
         });
       }
 
+      // Handle manual registration event
       socket.on('register', (payload: RegisterPayload | string) => {
         const currentUserId = socket.data.userId ? String(socket.data.userId) : null;
         if (currentUserId) {
@@ -109,6 +113,8 @@ class SocketService {
         const fallbackUserId = typeof payload === 'object' ? payload?.userId : null;
 
         let userId = token ? this.verifyAccessToken(token) : null;
+
+        // Development fallback for userId mapping
         if (!userId && fallbackUserId && process.env.NODE_ENV !== 'production') {
           userId = String(fallbackUserId);
         }
@@ -130,12 +136,14 @@ class SocketService {
         });
       });
 
+      // Presence Management
       socket.on('presence:watch', (userIds: Array<string | number> | string) => {
         const ids = Array.isArray(userIds)
           ? userIds
           : typeof userIds === 'string'
             ? userIds.split(',')
             : [];
+
         ids.forEach((id) => {
           const normalized = String(id);
           socket.join(this.getPresenceRoom(normalized));
@@ -150,11 +158,13 @@ class SocketService {
           : typeof userIds === 'string'
             ? userIds.split(',')
             : [];
+
         ids.forEach((id) => {
           socket.leave(this.getPresenceRoom(String(id)));
         });
       });
 
+      // Conversation Management
       socket.on('conversation:join', async (conversationId: number) => {
         const userId = socket.data.userId ? Number(socket.data.userId) : null;
         if (!userId) return;
@@ -184,6 +194,7 @@ class SocketService {
         socket.leave(this.getConversationRoom(id));
       });
 
+      // Message Handling
       socket.on('message:send', async (payload: { conversationId: number; content: string }, ack?: Function) => {
         try {
           const userId = socket.data.userId ? Number(socket.data.userId) : null;
@@ -236,20 +247,26 @@ class SocketService {
             attributes: ['userId'],
           });
 
-          // === FIREBASE NOTIFICATION === Send push notification if the user is offline
+          // Process delivery and fallback to Expo push if offline
           participants.forEach(async (participantItem) => {
             const recipientId = participantItem.userId;
-            
-            // Try to send the message via WebSocket first
+
+            // Try WebSocket delivery first
             const isDelivered = this.emitToUser(recipientId, 'message:new', data);
 
-            // If the message is not delivered (user closed the app) and the recipient is not the sender
+            // If offline and not the sender → send push notification
             if (!isDelivered && recipientId !== userId) {
               const senderName = sender.firstName || sender.username || 'User';
-              await this.sendFirebasePushNotification(recipientId, senderName, content, conversationId);
+              await this.sendExpoPushNotification(
+                recipientId,
+                senderName,
+                content,
+                conversationId,
+              );
             }
           });
 
+          // Acknowledge success to sender
           if (typeof ack === 'function') {
             ack({ ok: true, message: data.message });
           }
@@ -271,45 +288,85 @@ class SocketService {
     });
   }
 
-  // === FIREBASE NOTIFICATION === Function to send push notifications via Firebase
-  private async sendFirebasePushNotification(recipientId: number, senderName: string, messageContent: string, conversationId: number): Promise<void> {
+  /**
+   * Send push notifications via Expo Push Service.
+   *
+   * This replaces the previous Firebase FCM implementation.
+   * The expo_tokens table stores ExponentPushToken[…] strings (registered
+   * by the React Native app via getExpoPushTokenAsync). The Expo Push Service
+   * handles FCM/APNs routing internally, so no Firebase Admin SDK is needed
+   * for this delivery path.
+   */
+  private async sendExpoPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<void> {
     try {
-      // 1. Fetch tokens for the recipient user's devices
-      const userTokens: any = await ExpoToken.findAll({ 
-        where: { user_id: recipientId } 
+      const userTokens: any[] = await ExpoToken.findAll({
+        where: { userId: recipientId },
       });
 
-      if (!userTokens || userTokens.length === 0) return;
+      if (!userTokens?.length) return;
 
-      // 2. Map tokens into an array
-      const tokens = userTokens.map((t: any) => t.token);
-
-      // 3. Prepare the notification payload
-      const message = {
-        notification: {
+      // Filter to valid Expo push tokens only
+      const messages: ExpoPushMessage[] = userTokens
+        .filter((t) => Expo.isExpoPushToken(t.token))
+        .map((t) => ({
+          to: t.token,
           title: `New message from ${senderName}`,
           body: messageContent,
-        },
-        data: { 
-          type: 'chat', 
-          conversationId: String(conversationId) // Firebase requires data values to be strings only
-        },
-        tokens: tokens, // Send to multiple devices simultaneously
-      };
+          data: {
+            type: 'chat',
+            conversationId: String(conversationId),
+            // NOTE: participant data is not included here because we don't
+            // have the full participant object at this point. The AppNavigator
+            // tap handler will fall back to the Messages screen when participant
+            // is absent (see the navigation listener in AppNavigator.tsx).
+          },
+          sound: 'default' as const,
+          priority: 'high' as const,
+        }));
 
-      // 4. Send the notification
-      if (firebaseAdmin) {
-        const response = await firebaseAdmin.messaging().sendEachForMulticast(message);
-        console.log(`Firebase Push sent: ${response.successCount} successful, ${response.failureCount} failed.`);
-      } else {
-        console.warn('Firebase Admin is not initialized!');
+      if (!messages.length) {
+        console.warn(`No valid Expo tokens for user ${recipientId}`);
+        return;
       }
-      
+
+      // Expo SDK handles chunking automatically (max 100 per request)
+      const chunks = this.expo.chunkPushNotifications(messages);
+
+      for (const chunk of chunks) {
+        try {
+          const tickets = await this.expo.sendPushNotificationsAsync(chunk);
+          console.log(
+            `Expo push sent to user ${recipientId}:`,
+            tickets.map((t) => t.status).join(', '),
+          );
+
+          // Log any per-token errors (invalid tokens should be cleaned up)
+          tickets.forEach((ticket, i) => {
+            if (ticket.status === 'error') {
+              console.error(
+                `Expo push error for token ${messages[i]?.to}:`,
+                ticket.message,
+                ticket.details,
+              );
+            }
+          });
+        } catch (chunkError) {
+          console.error('Expo push chunk error:', chunkError);
+        }
+      }
     } catch (error) {
-      console.error('Error sending chat push notification via Firebase:', error);
+      console.error('Error sending Expo push notification:', error);
     }
   }
 
+  /**
+   * Extract JWT from socket handshake
+   */
   private extractToken(socket: Socket): string | null {
     const authToken = (socket.handshake as any)?.auth?.token;
     if (authToken && typeof authToken === 'string') {
@@ -329,6 +386,9 @@ class SocketService {
     return null;
   }
 
+  /**
+   * Verify the extracted JWT using the public key
+   */
   private verifyAccessToken(token: string): string | null {
     const publicKey = jwtConfig.access.publicKey;
     if (!publicKey) {
@@ -352,6 +412,9 @@ class SocketService {
     }
   }
 
+  /**
+   * Register a user's socket connection
+   */
   private registerSocket(socket: Socket, userId: string): void {
     const sockets = this.userSockets.get(userId) ?? new Set<Socket>();
     sockets.add(socket);
@@ -362,6 +425,9 @@ class SocketService {
     this.emitPresenceUpdate(userId, true);
   }
 
+  /**
+   * Unregister a user's socket connection on disconnect
+   */
   private unregisterSocket(socket: Socket): void {
     const userId = this.socketToUser.get(socket.id) || (socket.data.userId ? String(socket.data.userId) : null);
     if (!userId) return;
@@ -378,6 +444,9 @@ class SocketService {
     this.socketToUser.delete(socket.id);
   }
 
+  /**
+   * Broadcast presence status updates
+   */
   private emitPresenceUpdate(userId: string, online: boolean): void {
     const state: PresenceState = {
       online,
@@ -408,7 +477,7 @@ class SocketService {
   }
 
   /**
-   * Emit email verified event to specific user
+   * Emit email verified event to a specific user
    */
   emitEmailVerified(userId: string, userData: {
     id: string;
@@ -427,15 +496,15 @@ class SocketService {
   }
 
   /**
-   * Emit a custom event to a specific user
+   * Emit a custom event to a specific user.
+   * Returns true if delivered via WebSocket, false if the user is offline.
    */
   emitToUser(userId: string | number, event: string, data: any): boolean {
     const normalizedUserId = String(userId);
     const sockets = this.userSockets.get(normalizedUserId);
-    
-    // If no connected sockets exist, return false so the code falls back to sending a Push Notification
+
     if (!sockets || sockets.size === 0) {
-      return false; 
+      return false;
     }
 
     let delivered = false;
@@ -458,7 +527,7 @@ class SocketService {
   }
 
   /**
-   * Broadcast event to all connected users
+   * Broadcast an event to all connected users
    */
   broadcast(event: string, data: any): void {
     if (this.io) {
@@ -474,7 +543,7 @@ class SocketService {
   }
 
   /**
-   * Check if a user is connected
+   * Check if a specific user currently has an active socket connection
    */
   isUserConnected(userId: string | number): boolean {
     const normalizedUserId = String(userId);
@@ -484,7 +553,7 @@ class SocketService {
   }
 
   /**
-   * Get presence for a set of users
+   * Retrieve the presence state for an array of users
    */
   getPresence(userIds: Array<string | number>): Array<{ userId: string; online: boolean; lastSeen: Date | null }> {
     return userIds.map((id) => {
@@ -499,12 +568,12 @@ class SocketService {
   }
 
   /**
-   * Get count of connected users
+   * Get the total count of currently connected users
    */
   getConnectedUsersCount(): number {
     return this.userSockets.size;
   }
 }
 
-// Export singleton instance
+// Export a singleton instance of the service
 export const socketService = new SocketService();

@@ -18,7 +18,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Allows iCoach to find your contacts who are already using the app.",
-        "NSCameraUsageDescription": "iCoach needs camera access to analyze your exercise form and count reps."
+        "NSCameraUsageDescription": "iCoach needs camera access to analyze your exercise form and count reps.",
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -27,6 +28,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.icoach.app",
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -43,12 +45,22 @@
     "plugins": [
       "expo-font",
       "expo-web-browser",
-      "react-native-vision-camera"
+      "react-native-vision-camera",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#ffffff"
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "e9d44f80-67fa-4e70-ac84-207599f51436"
-      }
+      },
+      "expoProjectId": "e9d44f80-67fa-4e70-ac84-207599f51436"
     },
     "owner": "amrproject00"
   }

@@ -1,3 +1,5 @@
+import type { validateUpdateExpoToken } from './notificationValidations.js';
+
 // User validations
 export {
   validateUserRegistration,
@@ -130,3 +132,10 @@ export {
   validateMarkConversationRead,
   validatePresenceQuery,
 } from './conversationValidation.js';
+
+//validations for notifications
+export {
+  validateRegisterExpoToken,
+  validateRemoveExpoToken,
+  validateUpdateExpoToken,
+} from './notificationValidations.js';
