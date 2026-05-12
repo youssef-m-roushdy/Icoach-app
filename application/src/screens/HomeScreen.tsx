@@ -29,7 +29,7 @@ const BLUE = '#007BFF';
 const SUCCESS = '#10B981';
 const WARNING = '#F59E0B';
 
-type NavigationTarget = 'notifications' | 'messages' | 'chatbot';
+type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'foodlens';
 
 export default function HomeScreen() {
   const { user } = useAuth() as any;
@@ -63,6 +63,9 @@ export default function HomeScreen() {
         break;
       case 'chatbot':
         navigation.navigate('Chatbot' as never);
+        break;
+      case 'foodlens':
+        navigation.navigate('FoodItems' as never);
         break;
     }
   };
@@ -165,6 +168,8 @@ export default function HomeScreen() {
         <View style={styles.headerContainer}>
           {/* Quick Action Icons - Prominent and Accessible */}
           <View style={styles.quickActions}>
+            
+            {/* 1. Alerts */}
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
               onPress={() => handleNavigateTo('notifications')}
@@ -179,6 +184,7 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
 
+            {/* 2. Messages */}
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
               onPress={() => handleNavigateTo('messages')}
@@ -190,6 +196,7 @@ export default function HomeScreen() {
               <Text style={[styles.actionTitle, { color: colors.text }]}>Messages</Text>
             </TouchableOpacity>
 
+            {/* 3. AI Coach */}
             <TouchableOpacity
               style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
               onPress={() => handleNavigateTo('chatbot')}
@@ -200,6 +207,20 @@ export default function HomeScreen() {
               </View>
               <Text style={[styles.actionTitle, { color: colors.text }]}>AI Coach</Text>
             </TouchableOpacity>
+
+            {/* 4. Food Lens (NEW) */}
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
+              onPress={() => handleNavigateTo('foodlens')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.actionIconBg, { backgroundColor: `${colors.primary}10` }]}>
+                <MaterialCommunityIcons name="line-scan" size={24} color={colors.primary} />
+              </View>
+              <Text style={[styles.actionTitle, { color: colors.text }]}>Lens</Text>
+            </TouchableOpacity>
+
+          
           </View>
         </View>
 
@@ -830,7 +851,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   badge: {

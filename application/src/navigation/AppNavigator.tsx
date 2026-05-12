@@ -37,6 +37,7 @@ import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
 import EditWorkoutSessionScreen from '../screens/EditWorkoutSessionScreen';
 import WaterIntakeDetailsScreen from '../screens/WaterIntakeDetailsScreen';
 import DailyActivityDetailsScreen from '../screens/DailyActivityDetailsScreen';
+import FoodItemsScreen from '../screens/FoodItemsScreen';
 
 import { SystemNavigationBarProtector } from '../components/SystemNavigationBarProtector';
 
@@ -108,6 +109,7 @@ export type RootStackParamList = {
   GymProgress: undefined;
   LiveWorkout: undefined;
   Foods: undefined;
+  FoodItems: undefined;
   Workouts: undefined;
   Home: undefined;
 
@@ -832,6 +834,22 @@ export const AppNavigator: React.FC = () => {
               <Stack.Screen
                 name="Foods"
                 component={FoodsScreen}
+              />
+              <Stack.Screen
+                name="FoodItems"
+                component={FoodItemsScreen}
+                options={({ navigation }) => ({
+                  header: () => (
+                    <CustomHeader
+                      title="Food Database"
+                      onProfilePress={() => { }}
+                      onMenuPress={() => { }}
+                      colors={colors}
+                      showBack={true}
+                      onBackPress={() => navigation.goBack()}
+                    />
+                  ),
+                })}
               />
               <Stack.Screen
                 name="Workouts"
