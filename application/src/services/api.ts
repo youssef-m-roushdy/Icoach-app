@@ -364,6 +364,7 @@ export const userService = {
         return request('/v1/users/profile/avatar', {
           method: 'PUT',
           headers: {
+            'bypass-tunnel-reminder': 'true',
             Authorization: `Bearer ${accessToken}`,
           },
           body: formData,

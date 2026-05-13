@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,9 +13,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context';
-import { COLORS, SIZES } from '../../constants';
 import { useTheme } from '../../context/ThemeContext';
 import { AntDesign } from '@expo/vector-icons';
 import {
@@ -24,60 +22,43 @@ import {
   getErrorMessage,
 } from '../../utils/toast';
 
+// Configure once at module level - not inside component
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: true,
+  forceCodeForRefreshToken: true,
+  profileImageSize: 120,
+});
+
 interface GoogleButtonProps {
   mode?: 'signin' | 'signup';
 }
 
 export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) => {
   const [isInProgress, setIsInProgress] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
-  const navigation = useNavigation();
   const { setAuthState } = useAuth();
   const { theme, colors } = useTheme();
   const isDarkMode = theme === 'dark';
 
   const buttonText = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google';
 
-  // Configure Google Sign-In once when component mounts
-  useEffect(() => {
-    const configureGoogleSignIn = async () => {
-      try {
-        await GoogleSignin.configure({
-          webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-          offlineAccess: true,
-          forceCodeForRefreshToken: true,
-          profileImageSize: 120,
-        });
-        setIsConfigured(true);
-        console.log('✅ Google Sign-In configured successfully');
-      } catch (error) {
-        console.error('❌ Failed to configure Google Sign-In:', error);
-      }
-    };
-
-    configureGoogleSignIn();
-  }, []);
-
   const handleGoogleLogin = async () => {
-    if (isInProgress || !isConfigured) return;
-
+    if (isInProgress) return;
     setIsInProgress(true);
 
     try {
       console.log('🔵 Starting native Google Sign-In...');
 
-      // Check if Google Play Services are available (Android only)
       await GoogleSignin.hasPlayServices({
-        showPlayServicesUpdateDialog: true, // This shows a native dialog if needed
+        showPlayServicesUpdateDialog: true,
       });
 
-      // This opens the NATIVE account picker modal - NO BROWSER!
       const response = await GoogleSignin.signIn();
 
       if (isSuccessResponse(response)) {
         console.log('✅ Got user info from Google:', response.data);
 
-        const { idToken, user } = response.data;
+        const { idToken } = response.data;
 
         if (!idToken) {
           throw new Error('No ID token received from Google');
@@ -85,11 +66,12 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
 
         console.log('🔄 Sending idToken to server...');
 
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
         const serverResponse = await fetch(`${apiUrl}/v1/auth/google/mobile`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'bypass-tunnel-reminder': 'true',
           },
           body: JSON.stringify({ idToken }),
         });
@@ -100,13 +82,11 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
           throw new Error(data.message || 'Server authentication failed');
         }
 
-        // Store tokens locally
         await AsyncStorage.setItem('token', data.data.accessToken);
         if (data.data.refreshToken) {
           await AsyncStorage.setItem('refreshToken', data.data.refreshToken);
         }
 
-        // Set auth state in context
         await setAuthState(
           data.data.accessToken,
           data.data.user,
@@ -156,10 +136,10 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
           backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
           borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
         },
-        (isInProgress || !isConfigured) && styles.buttonDisabled,
+        isInProgress && styles.buttonDisabled,
       ]}
       onPress={handleGoogleLogin}
-      disabled={isInProgress || !isConfigured}
+      disabled={isInProgress}
       activeOpacity={0.8}
     >
       {isInProgress ? (

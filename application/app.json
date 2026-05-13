@@ -54,7 +54,8 @@
           "icon": "./assets/adaptive-icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "./plugins/withFirebaseNotificationColor"
     ],
     "extra": {
       "eas": {
