@@ -9,6 +9,7 @@ export interface ExpoToken {
   id: number;
   userId: number;
   token: string;
+  provider?: 'expo' | 'fcm';
   deviceType: string | null;
   createdAt: string;
   updatedAt: string;
@@ -17,6 +18,7 @@ export interface ExpoToken {
 export interface RegisterPushTokenData {
   token: string;
   deviceType?: 'ios' | 'android' | 'web';
+  provider?: 'expo' | 'fcm';
 }
 
 export interface UpdatePushTokenData {

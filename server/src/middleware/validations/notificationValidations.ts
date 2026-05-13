@@ -20,6 +20,11 @@ export const validateRegisterExpoToken = [
     .optional()
     .isIn(['ios', 'android', 'web'])
     .withMessage('Device type must be one of: ios, android, web'),
+
+  body('provider')
+    .optional()
+    .isIn(['expo', 'fcm'])
+    .withMessage('Provider must be one of: expo, fcm'),
   
   handleValidationErrors,
 ];

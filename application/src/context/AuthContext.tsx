@@ -38,6 +38,7 @@ const TOKEN_KEY = '@icoach_token';
 const REFRESH_TOKEN_KEY = '@icoach_refresh_token';
 const USER_KEY = '@icoach_user';
 const EXPO_TOKEN_KEY = '@icoach_expo_push_token';
+const FCM_TOKEN_KEY = '@icoach_fcm_push_token';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -160,6 +161,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           await AsyncStorage.removeItem(EXPO_TOKEN_KEY)
             .then(() => console.log('✅ Push token removed from storage'))
             .catch(err => console.error('❌ Failed to remove push token from storage:', err));
+        }
+
+        const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+
+        if (fcmToken) {
+          console.log('🧹 Removing FCM token from backend...');
+
+          await notificationService.removeExpoToken(fcmToken, token)
+            .then(() => console.log('✅ FCM token removed from backend'))
+            .catch(err => console.error('❌ Failed to remove FCM token from backend:', err));
+
+          await AsyncStorage.removeItem(FCM_TOKEN_KEY)
+            .then(() => console.log('✅ FCM token removed from storage'))
+            .catch(err => console.error('❌ Failed to remove FCM token from storage:', err));
         }
 
         // 2. Call logout API (fire and forget)

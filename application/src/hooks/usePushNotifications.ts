@@ -8,6 +8,7 @@ import { notificationService } from '../services/notificationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EXPO_TOKEN_KEY = '@icoach_expo_push_token';
+const FCM_TOKEN_KEY = '@icoach_fcm_push_token';
 
 export function usePushNotifications() {
   const { token: authToken, user } = useAuth();
@@ -50,9 +51,10 @@ export function usePushNotifications() {
 
         console.log('✅ Notification permissions granted');
 
-        // Read project ID from app config
+        // Read project ID from app config (EAS builds prefer easConfig)
         const projectId =
-          Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+          (Constants.easConfig?.projectId as string | undefined) ||
+          (Constants.expoConfig?.extra?.eas?.projectId as string | undefined);
 
         if (!projectId) {
           console.error(
@@ -63,6 +65,17 @@ export function usePushNotifications() {
         }
 
         console.log('📋 Using project ID:', projectId);
+
+        // Android notification channel (required for high importance notifications)
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('messages', {
+            name: 'Messages',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+            sound: 'default',
+          });
+        }
 
         // Get Expo push token
         const { data: expoToken } = await Notifications.getExpoPushTokenAsync({
@@ -85,16 +98,40 @@ export function usePushNotifications() {
 
         // ✅ Use non-null assertion (!) since we checked authToken at the top
         const response = await notificationService.registerExpoToken(
-          { token: expoToken, deviceType },
+          { token: expoToken, deviceType, provider: 'expo' },
           authToken!
         );
 
         if (response.success) {
-          console.log('✅ Push token registered with backend');
+          console.log('✅ Expo push token registered with backend');
           // Save token so logout can remove it
           await AsyncStorage.setItem(EXPO_TOKEN_KEY, expoToken);
         } else {
           console.error('❌ Backend registration failed:', response.message);
+        }
+
+        // Register native FCM token on Android for direct Firebase delivery
+        if (Platform.OS === 'android') {
+          const devicePushToken = await Notifications.getDevicePushTokenAsync();
+          if (devicePushToken?.type === 'fcm' && devicePushToken.data) {
+            const fcmResponse = await notificationService.registerExpoToken(
+              {
+                token: devicePushToken.data,
+                deviceType: 'android',
+                provider: 'fcm',
+              },
+              authToken!
+            );
+
+            if (fcmResponse.success) {
+              console.log('✅ FCM token registered with backend');
+              await AsyncStorage.setItem(FCM_TOKEN_KEY, devicePushToken.data);
+            } else {
+              console.error('❌ FCM registration failed:', fcmResponse.message);
+            }
+          } else {
+            console.warn('⚠️ FCM token not available on this device');
+          }
         }
       } catch (error) {
         console.error('❌ Push notification setup failed:', error);

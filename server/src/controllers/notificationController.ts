@@ -1,5 +1,6 @@
 // controllers/notificationController.ts
 import type { Request, Response, NextFunction } from 'express';
+import { Expo } from 'expo-server-sdk';
 import { ExpoToken } from '../models/sql/index.js';
 import { AppError } from '../utils/errors.js';
 
@@ -10,6 +11,20 @@ interface AuthenticatedRequest extends Request {
     role: string;
   };
 }
+
+const isPushDebugEnabled = (): boolean => process.env.PUSH_DEBUG === 'true';
+
+const maskToken = (token: string): string => {
+  if (!token) return '';
+  if (token.length <= 12) return token;
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+};
+
+const normalizeProvider = (provider: unknown, token: string): 'expo' | 'fcm' => {
+  if (provider === 'expo' || provider === 'fcm') return provider;
+  if (Expo.isExpoPushToken(token)) return 'expo';
+  return 'fcm';
+};
 
 // ========================================================================
 // Expo Push Tokens
@@ -30,10 +45,21 @@ export const registerExpoToken = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const { token, deviceType } = req.body;
+    const { token, deviceType, provider: providerInput } = req.body;
 
     if (!token) {
       throw new AppError('Expo push token is required', 400);
+    }
+
+    const provider = normalizeProvider(providerInput, token);
+
+    if (isPushDebugEnabled()) {
+      console.log('Push token register request', {
+        userId: user.id,
+        provider,
+        deviceType: deviceType || null,
+        token: maskToken(token),
+      });
     }
 
     // Check if token already exists
@@ -45,6 +71,7 @@ export const registerExpoToken = async (
       // Update existing token - reassign to current user if needed
       await existingToken.update({
         userId: user.id,
+        provider,
         deviceType: deviceType || existingToken.deviceType,
         updatedAt: new Date()
       });
@@ -61,6 +88,7 @@ export const registerExpoToken = async (
     const newToken = await ExpoToken.create({
       userId: user.id,
       token,
+      provider,
       deviceType,
     });
 

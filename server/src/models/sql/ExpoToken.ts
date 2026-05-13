@@ -13,6 +13,7 @@ interface ExpoTokenAttributes {
   id: number;
   userId: number;
   token: string;
+  provider: 'expo' | 'fcm';
   deviceType?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -22,7 +23,7 @@ interface ExpoTokenAttributes {
 interface ExpoTokenCreationAttributes
   extends Optional<
     ExpoTokenAttributes,
-    'id' | 'deviceType' | 'createdAt' | 'updatedAt'
+    'id' | 'deviceType' | 'createdAt' | 'updatedAt' | 'provider'
   > {}
 
 class ExpoToken extends Model<
@@ -33,6 +34,7 @@ class ExpoToken extends Model<
   declare id: CreationOptional<number>;
   declare userId: number;
   declare token: string;
+  declare provider: CreationOptional<'expo' | 'fcm'>;
   declare deviceType: CreationOptional<string | null>;
   declare readonly createdAt: CreationOptional<Date>;
   declare readonly updatedAt: CreationOptional<Date>;
@@ -85,6 +87,12 @@ ExpoToken.init(
           msg: 'Token cannot be empty',
         },
       },
+    },
+    provider: {
+      type: DataTypes.STRING(16),
+      allowNull: false,
+      defaultValue: 'expo',
+      field: 'provider',
     },
     deviceType: {
       type: DataTypes.STRING(50),

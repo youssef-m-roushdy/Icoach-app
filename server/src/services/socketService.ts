@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Expo } from 'expo-server-sdk';
 import type { ExpoPushMessage } from 'expo-server-sdk';
 import { jwtConfig } from '../config/jwt.js';
+import { firebaseAdmin } from '../config/firebase.js';
 
 import {
   ChatConversation,
@@ -34,6 +35,16 @@ class SocketService {
 
   // Single shared Expo SDK instance (handles chunking, retries, receipts)
   private expo = new Expo();
+
+  private isPushDebugEnabled(): boolean {
+    return process.env.PUSH_DEBUG === 'true';
+  }
+
+  private maskToken(token: string): string {
+    if (!token) return '';
+    if (token.length <= 12) return token;
+    return `${token.slice(0, 6)}...${token.slice(-4)}`;
+  }
 
   /**
    * Initialize Socket.IO server
@@ -247,7 +258,7 @@ class SocketService {
             attributes: ['userId'],
           });
 
-          // Process delivery and fallback to Expo push if offline
+          // Process delivery and fallback to push if offline
           participants.forEach(async (participantItem) => {
             const recipientId = participantItem.userId;
 
@@ -257,7 +268,13 @@ class SocketService {
             // If offline and not the sender → send push notification
             if (!isDelivered && recipientId !== userId) {
               const senderName = sender.firstName || sender.username || 'User';
-              await this.sendExpoPushNotification(
+              if (this.isPushDebugEnabled()) {
+                console.log('Push fallback triggered', {
+                  recipientId,
+                  conversationId,
+                });
+              }
+              await this.sendPushNotification(
                 recipientId,
                 senderName,
                 content,
@@ -291,12 +308,22 @@ class SocketService {
   /**
    * Send push notifications via Expo Push Service.
    *
-   * This replaces the previous Firebase FCM implementation.
    * The expo_tokens table stores ExponentPushToken[…] strings (registered
    * by the React Native app via getExpoPushTokenAsync). The Expo Push Service
-   * handles FCM/APNs routing internally, so no Firebase Admin SDK is needed
-   * for this delivery path.
+    * handles FCM/APNs routing internally for Expo tokens.
    */
+  private async sendPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<void> {
+    await Promise.all([
+      this.sendExpoPushNotification(recipientId, senderName, messageContent, conversationId),
+      this.sendFcmPushNotification(recipientId, senderName, messageContent, conversationId),
+    ]);
+  }
+
   private async sendExpoPushNotification(
     recipientId: number,
     senderName: string,
@@ -312,6 +339,7 @@ class SocketService {
 
       // Filter to valid Expo push tokens only
       const messages: ExpoPushMessage[] = userTokens
+        .filter((t) => (t.provider ?? 'expo') === 'expo')
         .filter((t) => Expo.isExpoPushToken(t.token))
         .map((t) => ({
           to: t.token,
@@ -325,13 +353,23 @@ class SocketService {
             // tap handler will fall back to the Messages screen when participant
             // is absent (see the navigation listener in AppNavigator.tsx).
           },
+          channelId: 'messages',
           sound: 'default' as const,
           priority: 'high' as const,
         }));
 
       if (!messages.length) {
-        console.warn(`No valid Expo tokens for user ${recipientId}`);
+        if (this.isPushDebugEnabled()) {
+          console.warn(`No valid Expo tokens for user ${recipientId}`);
+        }
         return;
+      }
+
+      if (this.isPushDebugEnabled()) {
+        console.log('Expo push tokens resolved', {
+          recipientId,
+          tokens: messages.map((m) => this.maskToken(m.to)),
+        });
       }
 
       // Expo SDK handles chunking automatically (max 100 per request)
@@ -361,6 +399,101 @@ class SocketService {
       }
     } catch (error) {
       console.error('Error sending Expo push notification:', error);
+    }
+  }
+
+  private async sendFcmPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<void> {
+    try {
+      if (firebaseAdmin.apps.length === 0) {
+        if (this.isPushDebugEnabled()) {
+          console.warn('Firebase Admin not initialized; skipping FCM push');
+        }
+        return;
+      }
+
+      const userTokens: any[] = await ExpoToken.findAll({
+        where: { userId: recipientId, provider: 'fcm' },
+      });
+
+      const tokens = userTokens
+        .map((t) => t.token)
+        .filter((token) => typeof token === 'string' && token.length > 0);
+
+      if (!tokens.length) return;
+
+      if (this.isPushDebugEnabled()) {
+        console.log('FCM tokens resolved', {
+          recipientId,
+          tokens: tokens.map((token) => this.maskToken(token)),
+        });
+      }
+
+      const response = await firebaseAdmin.messaging().sendEachForMulticast({
+        tokens,
+        notification: {
+          title: `New message from ${senderName}`,
+          body: messageContent,
+        },
+        data: {
+          type: 'chat',
+          conversationId: String(conversationId),
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'messages',
+          },
+        },
+      });
+
+      if (this.isPushDebugEnabled()) {
+        console.log('FCM push results', {
+          recipientId,
+          successCount: response.successCount,
+          failureCount: response.failureCount,
+        });
+      }
+
+      const invalidTokens: string[] = [];
+      response.responses.forEach((item, index) => {
+        if (!item.success) {
+          const code = item.error?.code;
+          if (
+            code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token'
+          ) {
+            invalidTokens.push(tokens[index]);
+          }
+
+          if (this.isPushDebugEnabled()) {
+            console.warn('FCM push error', {
+              recipientId,
+              token: this.maskToken(tokens[index]),
+              code,
+            });
+          }
+        }
+      });
+
+      if (invalidTokens.length > 0) {
+        await ExpoToken.destroy({
+          where: { token: invalidTokens },
+        });
+
+        if (this.isPushDebugEnabled()) {
+          console.log('Removed invalid FCM tokens', {
+            recipientId,
+            tokens: invalidTokens.map((token) => this.maskToken(token)),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error sending FCM push notification:', error);
     }
   }
 

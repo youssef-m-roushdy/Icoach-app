@@ -41,6 +41,10 @@ router.use(authenticate);
  *         token:
  *           type: string
  *           example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+ *         provider:
+ *           type: string
+ *           enum: [expo, fcm]
+ *           example: "expo"
  *         deviceType:
  *           type: string
  *           enum: [ios, android, web]
@@ -63,6 +67,11 @@ router.use(authenticate);
  *           type: string
  *           description: Expo push notification token from device
  *           example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+ *         provider:
+ *           type: string
+ *           enum: [expo, fcm]
+ *           description: Token provider (Expo or FCM)
+ *           example: "expo"
  *         deviceType:
  *           type: string
  *           enum: [ios, android, web]
