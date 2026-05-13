@@ -324,6 +324,27 @@ class SocketService {
     ]);
   }
 
+  async sendChatPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<void> {
+    if (this.isPushDebugEnabled()) {
+      console.log('Push fallback triggered', {
+        recipientId,
+        conversationId,
+      });
+    }
+
+    await this.sendPushNotification(
+      recipientId,
+      senderName,
+      messageContent,
+      conversationId,
+    );
+  }
+
   private async sendExpoPushNotification(
     recipientId: number,
     senderName: string,
@@ -366,9 +387,12 @@ class SocketService {
       }
 
       if (this.isPushDebugEnabled()) {
+        const resolvedTokens = messages.flatMap((message) =>
+          Array.isArray(message.to) ? message.to : [message.to]
+        );
         console.log('Expo push tokens resolved', {
           recipientId,
-          tokens: messages.map((m) => this.maskToken(m.to)),
+          tokens: resolvedTokens.map((token) => this.maskToken(token)),
         });
       }
 

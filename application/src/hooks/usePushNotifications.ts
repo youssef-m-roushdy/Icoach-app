@@ -16,6 +16,20 @@ export function usePushNotifications() {
   const isRegistering = useRef(false);
 
   useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    Notifications.setNotificationChannelAsync('messages', {
+      name: 'Messages',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+      sound: 'default',
+    }).catch((error) => {
+      console.warn('Failed to create notification channel:', error);
+    });
+  }, []);
+
+  useEffect(() => {
     const userId = user?.id || null;
 
     // Skip if no user, no authToken, or same user already registered
@@ -65,17 +79,6 @@ export function usePushNotifications() {
         }
 
         console.log('📋 Using project ID:', projectId);
-
-        // Android notification channel (required for high importance notifications)
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('messages', {
-            name: 'Messages',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-            sound: 'default',
-          });
-        }
 
         // Get Expo push token
         const { data: expoToken } = await Notifications.getExpoPushTokenAsync({

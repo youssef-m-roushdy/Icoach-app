@@ -344,9 +344,21 @@ export const sendMessage = async (req: Request, res: Response, next: NextFunctio
       attributes: ['userId'],
     });
 
-    participants.forEach((participant) => {
-      socketService.emitToUser(participant.userId, 'message:new', payload);
-    });
+    const senderName =
+      sender?.firstName || sender?.username || sender?.lastName || 'User';
+
+    for (const participant of participants) {
+      const isDelivered = socketService.emitToUser(participant.userId, 'message:new', payload);
+
+      if (!isDelivered && participant.userId !== user.id) {
+        await socketService.sendChatPushNotification(
+          participant.userId,
+          senderName,
+          content,
+          conversationId,
+        );
+      }
+    }
 
     res.status(201).json({
       success: true,

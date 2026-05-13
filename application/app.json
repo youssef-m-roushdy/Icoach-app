@@ -35,7 +35,8 @@
         "READ_CONTACTS",
         "CAMERA",
         "ACTIVITY_RECOGNITION",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
