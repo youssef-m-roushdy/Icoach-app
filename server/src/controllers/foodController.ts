@@ -15,7 +15,7 @@ export class FoodController {
       const offset = (page - 1) * limit;
 
       // Optional filters
-      const search = req.query.search as string;
+      const search = (req.query.search as string)?.toLowerCase().trim();
       const minCalories = req.query.minCalories ? parseFloat(req.query.minCalories as string) : undefined;
       const maxCalories = req.query.maxCalories ? parseFloat(req.query.maxCalories as string) : undefined;
       const minProtein = req.query.minProtein ? parseFloat(req.query.minProtein as string) : undefined;

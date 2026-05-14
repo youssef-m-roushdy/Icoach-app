@@ -193,7 +193,7 @@ const WorkoutsScreen = () => {
       if (!tokenRef.current) return;
 
       // Only show spinner if we don't have workouts, to avoid screen flashes
-      if (workouts.length === 0) setLoading(true);
+      if (initialLoad) setLoading(true);
 
       const params: any = {
         page: pagination.page,

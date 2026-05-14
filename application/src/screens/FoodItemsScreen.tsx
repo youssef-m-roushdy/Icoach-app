@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,40 +25,43 @@ import { showErrorToast, showInfoToast, getErrorMessage } from '../utils/toast';
 export default function FoodItemsScreen() {
   const { token } = useAuth();
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp<any>>();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
   const isThreeButtonNav = systemBottomInset > 24;
-  const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
 
   // ─── State ─────────────────────────────────────────────────────────────────
   const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Search State
+
+  // ✅ Two-state search pattern (same as WorkoutsScreen):
+  //    searchInput  → controlled TextInput value, updates on every keystroke (no re-fetch)
+  //    searchQuery  → actual filter sent to API, only updates after debounce
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  
+  const isInitialLoadRef = useRef(true);
+
   // Filter States
   const [minCalories, setMinCalories] = useState('');
   const [maxCalories, setMaxCalories] = useState('');
   const [minProtein, setMinProtein] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  
+
   // Pagination State
   const [pagination, setPagination] = useState<PaginationData>({
     currentPage: 1,
     totalPages: 0,
     totalItems: 0,
-    itemsPerPage: 10,
+    itemsPerPage: 20,
     hasNextPage: false,
     hasPreviousPage: false,
   });
-  
+
   const flatListRef = useRef<FlatList>(null);
-  
+
   // Keep a stable reference to token
   const tokenRef = useRef<string | null>(null);
   useEffect(() => {
@@ -70,28 +74,23 @@ export default function FoodItemsScreen() {
       if (!tokenRef.current) return;
 
       // Only show full loading spinner on initial load
-      if (foods.length === 0) setLoading(true);
-      setIsSearching(true);
+      if (isInitialLoadRef.current) setLoading(true);
 
-      const params: any = {
+      const response = await foodService.getFoods(tokenRef.current, {
         page: pagination.currentPage,
         limit: pagination.itemsPerPage,
-      };
-
-      if (searchQuery) params.search = searchQuery;
-      if (minCalories) params.minCalories = Number(minCalories);
-      if (maxCalories) params.maxCalories = Number(maxCalories);
-      if (minProtein) params.minProtein = Number(minProtein);
-
-      const response = await foodService.getFoods(tokenRef.current, params);
+        ...(searchQuery ? { search: searchQuery } : {}),
+        ...(minCalories ? { minCalories: Number(minCalories) } : {}),
+        ...(maxCalories ? { maxCalories: Number(maxCalories) } : {}),
+        ...(minProtein ? { minProtein: Number(minProtein) } : {}),
+      });
 
       if (response.success && response.data) {
         setFoods(response.data);
-        
+
         if (response.pagination) {
           setPagination(response.pagination);
         } else {
-          // Fallback pagination calculation
           setPagination((prev) => ({
             ...prev,
             totalItems: response.data.length,
@@ -100,8 +99,7 @@ export default function FoodItemsScreen() {
             hasPreviousPage: prev.currentPage > 1,
           }));
         }
-        
-        // Show info if no results with active filters
+
         if (
           response.data.length === 0 &&
           (searchQuery || minCalories || maxCalories || minProtein)
@@ -128,11 +126,12 @@ export default function FoodItemsScreen() {
     } finally {
       setLoading(false);
       setIsSearching(false);
+      isInitialLoadRef.current = false;
     }
   }, [
     pagination.currentPage,
     pagination.itemsPerPage,
-    searchQuery,
+    searchQuery,       // ✅ Only searchQuery (not searchInput) triggers re-fetch
     minCalories,
     maxCalories,
     minProtein,
@@ -153,12 +152,11 @@ export default function FoodItemsScreen() {
   // Handle hardware back button press
   useEffect(() => {
     const backAction = () => {
-      // If on a page other than 1, go to previous page
-      if (pagination && pagination.currentPage > 1) {
+      if (pagination.currentPage > 1) {
         goToPage(pagination.currentPage - 1);
-        return true; // Prevent default back behavior
+        return true;
       }
-      return false; // Allow default back behavior (navigation)
+      return false;
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -166,26 +164,31 @@ export default function FoodItemsScreen() {
   }, [pagination]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
+
+  // ✅ Mirrors WorkoutsScreen: input updates immediately, searchQuery updates after debounce
   const handleSearchChange = (text: string) => {
     setSearchInput(text);
-    
-    // Clear previous timeout
+    setIsSearching(true);
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
-    // Set new timeout for debounced search
+
     searchTimeoutRef.current = setTimeout(() => {
       setSearchQuery(text);
       setPagination((prev) => ({ ...prev, currentPage: 1 }));
-    }, 500);
+      setIsSearching(false);
+    }, 100);
   };
 
   const handleClearSearch = () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     setSearchInput('');
     setSearchQuery('');
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
-    
+
     showInfoToast({
       title: 'Search Cleared',
       message: 'Search filter has been cleared',
@@ -198,6 +201,9 @@ export default function FoodItemsScreen() {
   };
 
   const clearAllFilters = () => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     setSearchInput('');
     setSearchQuery('');
     setMinCalories('');
@@ -205,18 +211,25 @@ export default function FoodItemsScreen() {
     setMinProtein('');
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
     setShowFilters(false);
-    
+
     showInfoToast({
       title: 'Filters Cleared',
       message: 'All filters have been reset',
     });
   };
 
-  const goToPage = useCallback((page: number) => {
-    if (page >= 1 && page <= pagination.totalPages && page !== pagination.currentPage) {
-      setPagination((prev) => ({ ...prev, currentPage: page }));
-    }
-  }, [pagination.totalPages, pagination.currentPage]);
+  const goToPage = useCallback(
+    (page: number) => {
+      if (
+        page >= 1 &&
+        page <= pagination.totalPages &&
+        page !== pagination.currentPage
+      ) {
+        setPagination((prev) => ({ ...prev, currentPage: page }));
+      }
+    },
+    [pagination.totalPages, pagination.currentPage]
+  );
 
   const goToNextPage = () => goToPage(pagination.currentPage + 1);
   const goToPreviousPage = () => goToPage(pagination.currentPage - 1);
@@ -235,7 +248,8 @@ export default function FoodItemsScreen() {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(' ');
 
-  const hasActiveFilters = searchQuery || minCalories || maxCalories || minProtein;
+  // ✅ Checks searchInput (visible state) so indicator/clear appear immediately as user types
+  const hasActiveFilters = searchInput || minCalories || maxCalories || minProtein;
 
   // ─── Render Functions ──────────────────────────────────────────────────────
   const renderPageNumbers = () => {
@@ -245,7 +259,6 @@ export default function FoodItemsScreen() {
     const currentPage = pagination.currentPage;
     const totalPages = pagination.totalPages;
 
-    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI completely static
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, currentPage + 2);
 
@@ -308,7 +321,7 @@ export default function FoodItemsScreen() {
         <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
           {formatFoodName(item.name)}
         </Text>
-        
+
         <View style={styles.macrosContainer}>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
             <Text style={[styles.macroValue, { color: colors.primary }]}>{item.calories}</Text>
@@ -327,7 +340,7 @@ export default function FoodItemsScreen() {
             <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Fat</Text>
           </View>
         </View>
-        
+
         {item.sugar !== undefined && (
           <View style={styles.sugarInfo}>
             <Ionicons name="nutrition-outline" size={12} color={colors.textSecondary} />
@@ -342,7 +355,12 @@ export default function FoodItemsScreen() {
 
   if (loading && !refreshing && foods.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: colors.background, paddingTop: insets.top },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={{ color: colors.primary, marginTop: 12 }}>Loading food database...</Text>
       </View>
@@ -350,8 +368,10 @@ export default function FoodItemsScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Animated Gradient Background */}
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+    >
+      {/* Gradient Background */}
       <LinearGradient
         colors={colors.authBgGradient as any}
         start={{ x: 0, y: 0 }}
@@ -363,10 +383,17 @@ export default function FoodItemsScreen() {
         <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
       </LinearGradient>
 
-      {/* Search and Filter Header */}
-      <View style={styles.headerContainer}>
-        <Text style={[styles.title, { color: colors.text }]}>🥗 Food Database</Text>
-        
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Food Database</Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      {/* Search and Filter Section */}
+      <View style={styles.searchFilterContainer}>
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
           <View
@@ -379,6 +406,7 @@ export default function FoodItemsScreen() {
             ]}
           >
             <Ionicons name="search" size={18} color={colors.primary} />
+            {/* ✅ value={searchInput} — controlled by local state, NOT searchQuery */}
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
               placeholder="Search foods (e.g., chicken, rice)..."
@@ -387,9 +415,7 @@ export default function FoodItemsScreen() {
               onChangeText={handleSearchChange}
               returnKeyType="search"
             />
-            {isSearching && (
-              <ActivityIndicator size="small" color={colors.primary} />
-            )}
+            {isSearching && <ActivityIndicator size="small" color={colors.primary} />}
             {searchInput !== '' && !isSearching && (
               <TouchableOpacity onPress={handleClearSearch}>
                 <Ionicons name="close-circle" size={18} color={colors.primary} />
@@ -420,26 +446,43 @@ export default function FoodItemsScreen() {
             >
               Filters
             </Text>
-            {hasActiveFilters && (
+            {hasActiveFilters ? (
               <View style={[styles.activeFilterDot, { backgroundColor: colors.primary }]} />
-            )}
+            ) : null}
           </TouchableOpacity>
-          
-          {hasActiveFilters && (
+
+          {hasActiveFilters ? (
             <TouchableOpacity onPress={clearAllFilters}>
               <Text style={[styles.clearText, { color: '#EF4444' }]}>Clear All</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {/* Expandable Filters */}
         {showFilters && (
-          <View style={[styles.filtersPanel, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.border }]}>
+          <View
+            style={[
+              styles.filtersPanel,
+              {
+                backgroundColor: colors.authInputBg || colors.surface,
+                borderColor: colors.authInputBorder || colors.border,
+              },
+            ]}
+          >
             <View style={styles.filterRow}>
               <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Min Calories</Text>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                  Min Calories
+                </Text>
                 <TextInput
-                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  style={[
+                    styles.filterInput,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
                   placeholder="0"
                   placeholderTextColor={colors.textSecondary}
                   value={minCalories}
@@ -448,9 +491,18 @@ export default function FoodItemsScreen() {
                 />
               </View>
               <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Max Calories</Text>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                  Max Calories
+                </Text>
                 <TextInput
-                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  style={[
+                    styles.filterInput,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
                   placeholder="1000"
                   placeholderTextColor={colors.textSecondary}
                   value={maxCalories}
@@ -461,9 +513,18 @@ export default function FoodItemsScreen() {
             </View>
             <View style={styles.filterRow}>
               <View style={styles.filterItem}>
-                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Min Protein (g)</Text>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
+                  Min Protein (g)
+                </Text>
                 <TextInput
-                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  style={[
+                    styles.filterInput,
+                    {
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      color: colors.text,
+                    },
+                  ]}
                   placeholder="0"
                   placeholderTextColor={colors.textSecondary}
                   value={minProtein}
@@ -491,32 +552,32 @@ export default function FoodItemsScreen() {
         extraData={pagination.currentPage}
         contentContainerStyle={[
           styles.listContent,
-          // Dynamic padding: smaller when pagination is visible (matching Saved Workouts)
-          { paddingBottom: pagination && pagination.totalPages > 1 ? 16 : Math.max(insets.bottom + 20, 20) }
+          {
+            paddingBottom:
+              pagination && pagination.totalPages > 1
+                ? 16
+                : Math.max(insets.bottom + 20, 20),
+          },
         ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="restaurant-outline" size={64} color={colors.primary} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              {hasActiveFilters
-                ? 'No foods match your filters'
-                : 'No foods found'}
+              {hasActiveFilters ? 'No foods match your filters' : 'No foods found'}
             </Text>
-            {hasActiveFilters && (
+            {hasActiveFilters ? (
               <TouchableOpacity onPress={clearAllFilters}>
                 <Text style={[styles.clearFiltersLink, { color: colors.primary }]}>
                   Clear filters and try again
                 </Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
         }
       />
 
-      {/* Pagination Controls - Outside FlatList like Saved Workouts */}
+      {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
         <View style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
           <View
@@ -534,7 +595,10 @@ export default function FoodItemsScreen() {
             ]}
           >
             <TouchableOpacity
-              style={[styles.navButton, pagination.currentPage === 1 && styles.navButtonDisabled]}
+              style={[
+                styles.navButton,
+                pagination.currentPage === 1 && styles.navButtonDisabled,
+              ]}
               onPress={goToFirstPage}
               disabled={pagination.currentPage === 1}
             >
@@ -546,7 +610,10 @@ export default function FoodItemsScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.navButton, !pagination.hasPreviousPage && styles.navButtonDisabled]}
+              style={[
+                styles.navButton,
+                !pagination.hasPreviousPage && styles.navButtonDisabled,
+              ]}
               onPress={goToPreviousPage}
               disabled={!pagination.hasPreviousPage}
             >
@@ -567,7 +634,10 @@ export default function FoodItemsScreen() {
             </ScrollView>
 
             <TouchableOpacity
-              style={[styles.navButton, !pagination.hasNextPage && styles.navButtonDisabled]}
+              style={[
+                styles.navButton,
+                !pagination.hasNextPage && styles.navButtonDisabled,
+              ]}
               onPress={goToNextPage}
               disabled={!pagination.hasNextPage}
             >
@@ -579,14 +649,21 @@ export default function FoodItemsScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.navButton, pagination.currentPage === pagination.totalPages && styles.navButtonDisabled]}
+              style={[
+                styles.navButton,
+                pagination.currentPage === pagination.totalPages && styles.navButtonDisabled,
+              ]}
               onPress={goToLastPage}
               disabled={pagination.currentPage === pagination.totalPages}
             >
               <Ionicons
                 name="play-forward"
                 size={20}
-                color={pagination.currentPage === pagination.totalPages ? colors.textSecondary : colors.primary}
+                color={
+                  pagination.currentPage === pagination.totalPages
+                    ? colors.textSecondary
+                    : colors.primary
+                }
               />
             </TouchableOpacity>
           </View>
@@ -604,9 +681,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  decorativeCircle1: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125 },
-  decorativeCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100 },
-  decorativeCircle3: { position: 'absolute', top: '30%', left: '-20%', width: 150, height: 150, borderRadius: 75 },
+  decorativeCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -100,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  decorativeCircle2: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+  },
+  decorativeCircle3: {
+    position: 'absolute',
+    top: '30%',
+    left: '-20%',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -614,19 +712,33 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    // paddingBottom is handled dynamically in contentContainerStyle
   },
-  
-  // Header Styles
-  headerContainer: {
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRight: {
+    width: 32,
+  },
+
+  // Search and Filter Container
+  searchFilterContainer: {
     paddingHorizontal: 16,
-    paddingTop: 16,
     paddingBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
   },
   searchWrapper: {
     marginBottom: 8,
@@ -645,7 +757,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 2,
   },
-  
+
   // Filter Styles
   filterActions: {
     flexDirection: 'row',
@@ -713,7 +825,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  
+
   // Food Card Styles
   foodCard: {
     flexDirection: 'row',
@@ -773,7 +885,7 @@ const styles = StyleSheet.create({
   sugarText: {
     fontSize: 11,
   },
-  
+
   // Empty State
   emptyContainer: {
     alignItems: 'center',
@@ -791,8 +903,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 12,
   },
-  
-  // Pagination - Matching Saved Workouts Screen
+
+  // Pagination
   paginationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
