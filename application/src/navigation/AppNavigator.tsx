@@ -5,7 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 
-import { useColorScheme, Image, Platform } from 'react-native';
+import { useColorScheme, Image, Platform, AppState } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
@@ -39,6 +39,7 @@ import EditWorkoutSessionScreen from '../screens/EditWorkoutSessionScreen';
 import WaterIntakeDetailsScreen from '../screens/WaterIntakeDetailsScreen';
 import DailyActivityDetailsScreen from '../screens/DailyActivityDetailsScreen';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { socketService } from '../services/socketService';
 
 import { SystemNavigationBarProtector } from '../components/SystemNavigationBarProtector';
 
@@ -134,6 +135,21 @@ export type BottomTabParamList = {
   Workouts: undefined;
   Progress: undefined;
   Profile: undefined;
+};
+
+type MessageNewPayload = {
+  conversationId: number;
+  message: {
+    content: string;
+    senderId: number;
+    sender?: {
+      id: number;
+      username?: string;
+      firstName?: string;
+      lastName?: string;
+      avatar?: string | null;
+    };
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -634,6 +650,68 @@ export const AppNavigator: React.FC = () => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigationRef, setNavigationRef] = useState<any>(null);
   usePushNotifications();
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleMessageNew = (payload: MessageNewPayload) => {
+      if (!payload?.message) return;
+      if (AppState.currentState !== 'active') return;
+      if (payload.message.senderId === user?.id) return;
+
+      const currentRoute = navigationRef?.getCurrentRoute?.();
+      const isChatThread = currentRoute?.name === 'ChatThread';
+      const activeConversationId = isChatThread
+        ? Number((currentRoute as any)?.params?.conversationId)
+        : null;
+
+      if (isChatThread && activeConversationId === payload.conversationId) {
+        return;
+      }
+
+      void (async () => {
+        const permissions = await Notifications.getPermissionsAsync();
+        if (permissions.status !== 'granted') return;
+
+        const sender = payload.message.sender;
+        const senderName =
+          [sender?.firstName, sender?.lastName].filter(Boolean).join(' ') ||
+          sender?.username ||
+          'New message';
+
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: senderName,
+            body: payload.message.content || 'New message',
+            sound: 'default',
+            channelId: 'messages',
+            data: {
+              type: 'chat',
+              conversationId: String(payload.conversationId),
+              participant: sender
+                ? {
+                    id: sender.id,
+                    username: sender.username,
+                    firstName: sender.firstName,
+                    lastName: sender.lastName,
+                    avatar: sender.avatar ?? null,
+                  }
+                : undefined,
+            },
+          },
+          trigger: null,
+        });
+      })().catch((error) => {
+        console.warn('Failed to schedule message notification:', error);
+      });
+    };
+
+    socketService.setEventHandlers({ onMessageNew: handleMessageNew });
+
+    return () => {
+      socketService.setEventHandlers({ onMessageNew: undefined });
+    };
+  }, [isAuthenticated, navigationRef, user?.id]);
 
   useEffect(() => {
     if (!navigationRef) return;

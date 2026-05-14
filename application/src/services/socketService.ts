@@ -7,6 +7,7 @@ export const GATEWAY_URL = API_BASE_URL.replace(/\/api$/, '').replace(/\/api\/v1
 
 interface SocketEvents {
   onEmailVerified?: (data: EmailVerifiedData) => void;
+  onMessageNew?: (data: MessageNewPayload) => void;
   onConnected?: () => void;
   onDisconnected?: (reason: string) => void;
   onError?: (error: Error) => void;
@@ -28,6 +29,25 @@ interface EmailVerifiedData {
     email: string;
     isEmailVerified: boolean;
     firstName?: string;
+  };
+}
+
+interface MessageSender {
+  id: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string | null;
+}
+
+interface MessageNewPayload {
+  conversationId: number;
+  message: {
+    id: number;
+    content: string;
+    senderId: number;
+    sender?: MessageSender;
+    createdAt?: string;
   };
 }
 
@@ -57,7 +77,7 @@ class SocketService {
 
     this.userId = userId;
     this.authToken = token;
-    this.eventHandlers = handlers || {};
+    this.eventHandlers = { ...this.eventHandlers, ...(handlers || {}) };
 
     console.log('🌐 [GATEWAY SOCKET] Connecting through gateway:', GATEWAY_URL);
     console.log('🌐 [GATEWAY SOCKET] User ID:', userId);
@@ -148,6 +168,11 @@ class SocketService {
         console.log('⚠️ [GATEWAY SOCKET] No handler registered for email_verified event!');
       }
       console.log('═══════════════════════════════════════════\n');
+    });
+
+    // New message event
+    this.socket.on('message:new', (data: MessageNewPayload) => {
+      this.eventHandlers.onMessageNew?.(data);
     });
 
     // Transport upgrade (polling → WebSocket)
