@@ -103,7 +103,7 @@ export type RootStackParamList = {
 
   // Messages
   Messages: undefined;
-  ChatThread: { conversationId: number; participant?: { id: number; username: string; firstName?: string; lastName?: string; avatar?: string | null } };
+  ChatThread: { conversationId: number; participant?: { id: number; username: string; firstName?: string; lastName?: string; avatar?: string | null }; lastReadAt?: string | null };
 
   // Onboarding
   Onboarding: undefined;
@@ -684,7 +684,6 @@ export const AppNavigator: React.FC = () => {
             title: senderName,
             body: payload.message.content || 'New message',
             sound: 'default',
-            channelId: 'messages',
             data: {
               type: 'chat',
               conversationId: String(payload.conversationId),
@@ -699,7 +698,7 @@ export const AppNavigator: React.FC = () => {
                 : undefined,
             },
           },
-          trigger: null,
+          trigger: Platform.OS === 'android' ? { channelId: 'messages' } : null,
         });
       })().catch((error) => {
         console.warn('Failed to schedule message notification:', error);

@@ -27,6 +27,8 @@ interface RegisterPayload {
 
 const USER_ATTRIBUTES = ['id', 'firstName', 'lastName', 'username', 'avatar', 'isActive'];
 
+type MessageDeliveryStatus = 'delivered' | 'push' | 'offline';
+
 class SocketService {
   private io: SocketIOServer | null = null;
   private userSockets: Map<string, Set<Socket>> = new Map();
@@ -259,29 +261,38 @@ class SocketService {
           });
 
           // Process delivery and fallback to push if offline
-          participants.forEach(async (participantItem) => {
+          for (const participantItem of participants) {
             const recipientId = participantItem.userId;
+            if (recipientId === userId) continue;
 
             // Try WebSocket delivery first
             const isDelivered = this.emitToUser(recipientId, 'message:new', data);
 
-            // If offline and not the sender → send push notification
-            if (!isDelivered && recipientId !== userId) {
-              const senderName = sender.firstName || sender.username || 'User';
-              if (this.isPushDebugEnabled()) {
-                console.log('Push fallback triggered', {
-                  recipientId,
-                  conversationId,
-                });
-              }
-              await this.sendPushNotification(
-                recipientId,
-                senderName,
-                content,
+            if (isDelivered) {
+              this.emitMessageStatus(userId, {
                 conversationId,
-              );
+                messageId: message.id,
+                recipientId,
+                status: 'delivered',
+              });
+              continue;
             }
-          });
+
+            const senderName = sender.firstName || sender.username || 'User';
+            const status = await this.sendChatPushNotification(
+              recipientId,
+              senderName,
+              content,
+              conversationId,
+            );
+
+            this.emitMessageStatus(userId, {
+              conversationId,
+              messageId: message.id,
+              recipientId,
+              status,
+            });
+          }
 
           // Acknowledge success to sender
           if (typeof ack === 'function') {
@@ -317,11 +328,13 @@ class SocketService {
     senderName: string,
     messageContent: string,
     conversationId: number,
-  ): Promise<void> {
-    await Promise.all([
+  ): Promise<boolean> {
+    const [expoSent, fcmSent] = await Promise.all([
       this.sendExpoPushNotification(recipientId, senderName, messageContent, conversationId),
       this.sendFcmPushNotification(recipientId, senderName, messageContent, conversationId),
     ]);
+
+    return expoSent || fcmSent;
   }
 
   async sendChatPushNotification(
@@ -329,7 +342,7 @@ class SocketService {
     senderName: string,
     messageContent: string,
     conversationId: number,
-  ): Promise<void> {
+  ): Promise<MessageDeliveryStatus> {
     if (this.isPushDebugEnabled()) {
       console.log('Push fallback triggered', {
         recipientId,
@@ -337,12 +350,26 @@ class SocketService {
       });
     }
 
-    await this.sendPushNotification(
+    const pushAttempted = await this.sendPushNotification(
       recipientId,
       senderName,
       messageContent,
       conversationId,
     );
+
+    return pushAttempted ? 'push' : 'offline';
+  }
+
+  emitMessageStatus(
+    senderId: number,
+    payload: {
+      conversationId: number;
+      messageId: number;
+      recipientId: number;
+      status: MessageDeliveryStatus;
+    }
+  ): void {
+    this.emitToUser(senderId, 'message:status', payload);
   }
 
   private async sendExpoPushNotification(
@@ -350,13 +377,14 @@ class SocketService {
     senderName: string,
     messageContent: string,
     conversationId: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
+    let hasTokens = false;
     try {
       const userTokens: any[] = await ExpoToken.findAll({
         where: { userId: recipientId },
       });
 
-      if (!userTokens?.length) return;
+      if (!userTokens?.length) return false;
 
       // Filter to valid Expo push tokens only
       const messages: ExpoPushMessage[] = userTokens
@@ -383,8 +411,10 @@ class SocketService {
         if (this.isPushDebugEnabled()) {
           console.warn(`No valid Expo tokens for user ${recipientId}`);
         }
-        return;
+        return false;
       }
+
+      hasTokens = true;
 
       if (this.isPushDebugEnabled()) {
         const resolvedTokens = messages.flatMap((message) =>
@@ -424,6 +454,8 @@ class SocketService {
     } catch (error) {
       console.error('Error sending Expo push notification:', error);
     }
+
+    return hasTokens;
   }
 
   private async sendFcmPushNotification(
@@ -431,13 +463,13 @@ class SocketService {
     senderName: string,
     messageContent: string,
     conversationId: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       if (firebaseAdmin.apps.length === 0) {
         if (this.isPushDebugEnabled()) {
           console.warn('Firebase Admin not initialized; skipping FCM push');
         }
-        return;
+        return false;
       }
 
       const userTokens: any[] = await ExpoToken.findAll({
@@ -448,7 +480,7 @@ class SocketService {
         .map((t) => t.token)
         .filter((token) => typeof token === 'string' && token.length > 0);
 
-      if (!tokens.length) return;
+      if (!tokens.length) return false;
 
       if (this.isPushDebugEnabled()) {
         console.log('FCM tokens resolved', {
@@ -516,9 +548,13 @@ class SocketService {
           });
         }
       }
+
+      return true;
     } catch (error) {
       console.error('Error sending FCM push notification:', error);
     }
+
+    return false;
   }
 
   /**

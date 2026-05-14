@@ -8,6 +8,7 @@ export const GATEWAY_URL = API_BASE_URL.replace(/\/api$/, '').replace(/\/api\/v1
 interface SocketEvents {
   onEmailVerified?: (data: EmailVerifiedData) => void;
   onMessageNew?: (data: MessageNewPayload) => void;
+  onMessageStatus?: (data: MessageStatusPayload) => void;
   onConnected?: () => void;
   onDisconnected?: (reason: string) => void;
   onError?: (error: Error) => void;
@@ -51,11 +52,20 @@ interface MessageNewPayload {
   };
 }
 
+interface MessageStatusPayload {
+  conversationId: number;
+  messageId: number;
+  recipientId: number;
+  status: 'delivered' | 'push' | 'offline';
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private userId: string | null = null;
   private authToken: string | null = null;
   private eventHandlers: SocketEvents = {};
+  private messageListeners = new Set<(data: MessageNewPayload) => void>();
+  private messageStatusListeners = new Set<(data: MessageStatusPayload) => void>();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
 
@@ -173,6 +183,12 @@ class SocketService {
     // New message event
     this.socket.on('message:new', (data: MessageNewPayload) => {
       this.eventHandlers.onMessageNew?.(data);
+      this.messageListeners.forEach((handler) => handler(data));
+    });
+
+    this.socket.on('message:status', (data: MessageStatusPayload) => {
+      this.eventHandlers.onMessageStatus?.(data);
+      this.messageStatusListeners.forEach((handler) => handler(data));
     });
 
     // Transport upgrade (polling → WebSocket)
@@ -241,6 +257,22 @@ class SocketService {
    */
   setEventHandlers(handlers: SocketEvents): void {
     this.eventHandlers = { ...this.eventHandlers, ...handlers };
+  }
+
+  addMessageListener(handler: (data: MessageNewPayload) => void): void {
+    this.messageListeners.add(handler);
+  }
+
+  removeMessageListener(handler: (data: MessageNewPayload) => void): void {
+    this.messageListeners.delete(handler);
+  }
+
+  addMessageStatusListener(handler: (data: MessageStatusPayload) => void): void {
+    this.messageStatusListeners.add(handler);
+  }
+
+  removeMessageStatusListener(handler: (data: MessageStatusPayload) => void): void {
+    this.messageStatusListeners.delete(handler);
   }
 
   /**
