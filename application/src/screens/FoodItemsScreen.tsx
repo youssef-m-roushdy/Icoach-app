@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,22 @@ import {
   ActivityIndicator,
   TextInput,
   FlatList,
-  Platform,
+  ScrollView,
+  RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Icon from 'react-native-vector-icons/Feather';
-import { COLORS, SIZES } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { foodService, Food } from '../services/foodService'; // Make sure foodService is exported in your api index
-import { showErrorToast, getErrorMessage } from '../utils/toast';
+import { foodService, Food, PaginationData } from '../services/foodService';
+import { showErrorToast, showInfoToast, getErrorMessage } from '../utils/toast';
 
 export default function FoodItemsScreen() {
   const { token } = useAuth();
-  const { theme, colors } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
   const isThreeButtonNav = systemBottomInset > 24;
@@ -31,73 +32,201 @@ export default function FoodItemsScreen() {
   // ─── State ─────────────────────────────────────────────────────────────────
   const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Search State
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  
+  // Filter States
+  const [minCalories, setMinCalories] = useState('');
+  const [maxCalories, setMaxCalories] = useState('');
+  const [minProtein, setMinProtein] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
   // Pagination State
-  const [page, setPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const LIMIT = 10;
-
-  // ─── Debounce Search ───────────────────────────────────────────────────────
+  const [pagination, setPagination] = useState<PaginationData>({
+    currentPage: 1,
+    totalPages: 0,
+    totalItems: 0,
+    itemsPerPage: 10,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+  
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Keep a stable reference to token
+  const tokenRef = useRef<string | null>(null);
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 500); // 500ms debounce
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
+    tokenRef.current = token;
+  }, [token]);
 
   // ─── Fetch Data ────────────────────────────────────────────────────────────
-  const fetchFoods = async (pageNum: number, query: string, isRefresh = false) => {
-    if (!token) return;
-    
+  const loadFoods = useCallback(async () => {
     try {
-      if (isRefresh) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
+      if (!tokenRef.current) return;
 
-      const response = await foodService.getFoods(token, {
-        page: pageNum,
-        limit: LIMIT,
-        search: query,
-      });
+      // Only show full loading spinner on initial load
+      if (foods.length === 0) setLoading(true);
+      setIsSearching(true);
+
+      const params: any = {
+        page: pagination.currentPage,
+        limit: pagination.itemsPerPage,
+      };
+
+      if (searchQuery) params.search = searchQuery;
+      if (minCalories) params.minCalories = Number(minCalories);
+      if (maxCalories) params.maxCalories = Number(maxCalories);
+      if (minProtein) params.minProtein = Number(minProtein);
+
+      const response = await foodService.getFoods(tokenRef.current, params);
 
       if (response.success && response.data) {
-        if (isRefresh) {
-          setFoods(response.data);
+        setFoods(response.data);
+        
+        if (response.pagination) {
+          setPagination(response.pagination);
         } else {
-          setFoods((prev) => [...prev, ...response.data]);
+          // Fallback pagination calculation
+          setPagination((prev) => ({
+            ...prev,
+            totalItems: response.data.length,
+            totalPages: Math.ceil(response.data.length / prev.itemsPerPage) || 1,
+            hasNextPage: false,
+            hasPreviousPage: prev.currentPage > 1,
+          }));
         }
-        setHasNextPage(response.pagination.hasNextPage);
+        
+        // Show info if no results with active filters
+        if (
+          response.data.length === 0 &&
+          (searchQuery || minCalories || maxCalories || minProtein)
+        ) {
+          showInfoToast({
+            title: 'No Results',
+            message: 'No foods match your search criteria',
+          });
+        }
+      } else {
+        showErrorToast({
+          title: 'Load Failed',
+          message: response.message || 'Failed to load foods',
+        });
+        setFoods([]);
       }
     } catch (error: unknown) {
+      console.error('Failed to load foods:', error);
       showErrorToast({
-        title: 'Error Fetching Foods',
-        message: getErrorMessage(error) || 'Could not load the food database.',
+        title: 'Load Failed',
+        message: getErrorMessage(error) || 'Failed to load foods',
       });
+      setFoods([]);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
+      setIsSearching(false);
     }
-  };
+  }, [
+    pagination.currentPage,
+    pagination.itemsPerPage,
+    searchQuery,
+    minCalories,
+    maxCalories,
+    minProtein,
+  ]);
 
   // ─── Effects ───────────────────────────────────────────────────────────────
-  // Fetch when search changes or on mount
   useEffect(() => {
-    setPage(1);
-    fetchFoods(1, debouncedSearch, true);
-  }, [debouncedSearch]);
+    loadFoods();
+  }, [loadFoods]);
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [pagination.currentPage]);
+
+  // Handle hardware back button press
+  useEffect(() => {
+    const backAction = () => {
+      // If on a page other than 1, go to previous page
+      if (pagination && pagination.currentPage > 1) {
+        goToPage(pagination.currentPage - 1);
+        return true; // Prevent default back behavior
+      }
+      return false; // Allow default back behavior (navigation)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [pagination]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleLoadMore = () => {
-    if (!loadingMore && hasNextPage && !loading) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchFoods(nextPage, debouncedSearch, false);
+  const handleSearchChange = (text: string) => {
+    setSearchInput(text);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+    
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    }, 500);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    
+    showInfoToast({
+      title: 'Search Cleared',
+      message: 'Search filter has been cleared',
+    });
+  };
+
+  const applyFilters = () => {
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    setShowFilters(false);
+  };
+
+  const clearAllFilters = () => {
+    setSearchInput('');
+    setSearchQuery('');
+    setMinCalories('');
+    setMaxCalories('');
+    setMinProtein('');
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    setShowFilters(false);
+    
+    showInfoToast({
+      title: 'Filters Cleared',
+      message: 'All filters have been reset',
+    });
+  };
+
+  const goToPage = useCallback((page: number) => {
+    if (page >= 1 && page <= pagination.totalPages && page !== pagination.currentPage) {
+      setPagination((prev) => ({ ...prev, currentPage: page }));
+    }
+  }, [pagination.totalPages, pagination.currentPage]);
+
+  const goToNextPage = () => goToPage(pagination.currentPage + 1);
+  const goToPreviousPage = () => goToPage(pagination.currentPage - 1);
+  const goToFirstPage = () => goToPage(1);
+  const goToLastPage = () => goToPage(pagination.totalPages);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadFoods();
+    setRefreshing(false);
   };
 
   const formatFoodName = (name: string): string =>
@@ -106,109 +235,123 @@ export default function FoodItemsScreen() {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(' ');
 
-  // ─── Render Components ─────────────────────────────────────────────────────
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <Text style={[styles.title, { color: colors.text }]}>🥗 Food Database</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Explore nutrition facts for your favorite meals
-      </Text>
+  const hasActiveFilters = searchQuery || minCalories || maxCalories || minProtein;
 
-      <View
+  // ─── Render Functions ──────────────────────────────────────────────────────
+  const renderPageNumbers = () => {
+    if (!pagination || pagination.totalPages === 0) return null;
+
+    const pages = [];
+    const currentPage = pagination.currentPage;
+    const totalPages = pagination.totalPages;
+
+    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI completely static
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if (endPage - startPage < 4) {
+      if (startPage === 1) {
+        endPage = Math.min(totalPages, 5);
+      } else if (endPage === totalPages) {
+        startPage = Math.max(1, totalPages - 4);
+      }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return pages.map((page) => (
+      <TouchableOpacity
+        key={page}
         style={[
-          styles.searchContainer,
-          { 
-            backgroundColor: colors.authInputBg || colors.card,
-            borderColor: colors.authInputBorder || colors.border 
+          styles.pageNumber,
+          page === currentPage && [
+            styles.pageNumberActive,
+            { backgroundColor: colors.primary },
+          ],
+          page !== currentPage && {
+            backgroundColor: colors.primary,
+            opacity: 0.3,
           },
         ]}
+        onPress={() => goToPage(page)}
       >
-        <Icon name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search foods (e.g. Chicken, Rice)..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Icon name="x-circle" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+        <Text
+          style={[
+            styles.pageNumberText,
+            page === currentPage && styles.pageNumberTextActive,
+          ]}
+        >
+          {page}
+        </Text>
+      </TouchableOpacity>
+    ));
+  };
 
   const renderFoodItem = ({ item }: { item: Food }) => (
     <View
       style={[
         styles.foodCard,
-        { 
-          backgroundColor: colors.authInputBg || colors.card, 
-          borderColor: colors.authInputBorder || colors.border 
+        {
+          backgroundColor: colors.authInputBg || colors.surface,
+          borderColor: colors.authInputBorder || colors.border,
         },
       ]}
     >
-      <Image 
-        source={{ uri: item.pic || 'https://via.placeholder.com/150' }} 
-        style={styles.foodImage} 
+      <Image
+        source={{ uri: item.pic || 'https://via.placeholder.com/150' }}
+        style={styles.foodImage}
         resizeMode="cover"
       />
       <View style={styles.foodInfo}>
-        <Text style={[styles.foodName, { color: colors.primary }]} numberOfLines={1}>
+        <Text style={[styles.foodName, { color: colors.text }]} numberOfLines={1}>
           {formatFoodName(item.name)}
         </Text>
         
         <View style={styles.macrosContainer}>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
-            <Text style={[styles.macroValue, { color: colors.text }]}>{item.calories}</Text>
+            <Text style={[styles.macroValue, { color: colors.primary }]}>{item.calories}</Text>
             <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>kcal</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
-            <Text style={[styles.macroValue, { color: colors.text }]}>{item.protein}g</Text>
+            <Text style={[styles.macroValue, { color: '#10B981' }]}>{item.protein}g</Text>
             <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Protein</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
-            <Text style={[styles.macroValue, { color: colors.text }]}>{item.carbohydrate}g</Text>
+            <Text style={[styles.macroValue, { color: '#F59E0B' }]}>{item.carbohydrate}g</Text>
             <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Carbs</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
-            <Text style={[styles.macroValue, { color: colors.text }]}>{item.fat}g</Text>
+            <Text style={[styles.macroValue, { color: '#EF4444' }]}>{item.fat}g</Text>
             <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>Fat</Text>
           </View>
         </View>
+        
+        {item.sugar !== undefined && (
+          <View style={styles.sugarInfo}>
+            <Ionicons name="nutrition-outline" size={12} color={colors.textSecondary} />
+            <Text style={[styles.sugarText, { color: colors.textSecondary }]}>
+              Sugar: {item.sugar}g
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );
 
-  const renderFooter = () => {
-    if (!loadingMore) return null;
+  if (loading && !refreshing && foods.length === 0) {
     return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={colors.primary} />
+      <View style={[styles.centerContainer, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.primary, marginTop: 12 }}>Loading food database...</Text>
       </View>
     );
-  };
+  }
 
-  const renderEmptyComponent = () => {
-    if (loading) return null; // Prevent showing empty text while initial loading
-    return (
-      <View style={styles.emptyContainer}>
-        <Icon name="inbox" size={48} color={colors.textSecondary} />
-        <Text style={[styles.emptyText, { color: colors.text }]}>No foods found</Text>
-        <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
-          Try adjusting your search query
-        </Text>
-      </View>
-    );
-  };
-
-  // ─── Main Render ───────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Animated Gradient Background matches the template */}
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Animated Gradient Background */}
       <LinearGradient
         colors={colors.authBgGradient as any}
         start={{ x: 0, y: 0 }}
@@ -220,140 +363,477 @@ export default function FoodItemsScreen() {
         <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
       </LinearGradient>
 
-      {loading && page === 1 ? (
-        <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-          {renderHeader()}
-          <View style={styles.centerSpinner}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={{ color: colors.primary, marginTop: SIZES.md }}>Loading database...</Text>
+      {/* Search and Filter Header */}
+      <View style={styles.headerContainer}>
+        <Text style={[styles.title, { color: colors.text }]}>🥗 Food Database</Text>
+        
+        {/* Search Bar */}
+        <View style={styles.searchWrapper}>
+          <View
+            style={[
+              styles.searchInputContainer,
+              {
+                borderColor: colors.authInputBorder || colors.border,
+                backgroundColor: colors.authInputBg || colors.surface,
+              },
+            ]}
+          >
+            <Ionicons name="search" size={18} color={colors.primary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search foods (e.g., chicken, rice)..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchInput}
+              onChangeText={handleSearchChange}
+              returnKeyType="search"
+            />
+            {isSearching && (
+              <ActivityIndicator size="small" color={colors.primary} />
+            )}
+            {searchInput !== '' && !isSearching && (
+              <TouchableOpacity onPress={handleClearSearch}>
+                <Ionicons name="close-circle" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-      ) : (
-        <FlatList
-          data={foods}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
-          renderItem={renderFoodItem}
-          ListHeaderComponent={renderHeader}
-          ListFooterComponent={renderFooter}
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingTop: insets.top, paddingBottom: dynamicPaddingBottom }
-          ]}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5} // Trigger load more when 50% from bottom
-          showsVerticalScrollIndicator={false}
-        />
+
+        {/* Filter Toggle and Clear */}
+        <View style={styles.filterActions}>
+          <TouchableOpacity
+            style={[
+              styles.filterToggle,
+              showFilters && { backgroundColor: colors.primary + '20' },
+            ]}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons
+              name="funnel"
+              size={16}
+              color={showFilters ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[
+                styles.filterToggleText,
+                { color: showFilters ? colors.primary : colors.textSecondary },
+              ]}
+            >
+              Filters
+            </Text>
+            {hasActiveFilters && (
+              <View style={[styles.activeFilterDot, { backgroundColor: colors.primary }]} />
+            )}
+          </TouchableOpacity>
+          
+          {hasActiveFilters && (
+            <TouchableOpacity onPress={clearAllFilters}>
+              <Text style={[styles.clearText, { color: '#EF4444' }]}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Expandable Filters */}
+        {showFilters && (
+          <View style={[styles.filtersPanel, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.border }]}>
+            <View style={styles.filterRow}>
+              <View style={styles.filterItem}>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Min Calories</Text>
+                <TextInput
+                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  placeholder="0"
+                  placeholderTextColor={colors.textSecondary}
+                  value={minCalories}
+                  onChangeText={setMinCalories}
+                  keyboardType="numeric"
+                />
+              </View>
+              <View style={styles.filterItem}>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Max Calories</Text>
+                <TextInput
+                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  placeholder="1000"
+                  placeholderTextColor={colors.textSecondary}
+                  value={maxCalories}
+                  onChangeText={setMaxCalories}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={styles.filterRow}>
+              <View style={styles.filterItem}>
+                <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Min Protein (g)</Text>
+                <TextInput
+                  style={[styles.filterInput, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
+                  placeholder="0"
+                  placeholderTextColor={colors.textSecondary}
+                  value={minProtein}
+                  onChangeText={setMinProtein}
+                  keyboardType="numeric"
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.applyFilterButton, { backgroundColor: colors.primary }]}
+                onPress={applyFilters}
+              >
+                <Text style={styles.applyFilterText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Food List */}
+      <FlatList
+        ref={flatListRef}
+        data={foods}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
+        renderItem={renderFoodItem}
+        extraData={pagination.currentPage}
+        contentContainerStyle={[
+          styles.listContent,
+          // Dynamic padding: smaller when pagination is visible (matching Saved Workouts)
+          { paddingBottom: pagination && pagination.totalPages > 1 ? 16 : Math.max(insets.bottom + 20, 20) }
+        ]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="restaurant-outline" size={64} color={colors.primary} />
+            <Text style={[styles.emptyText, { color: colors.text }]}>
+              {hasActiveFilters
+                ? 'No foods match your filters'
+                : 'No foods found'}
+            </Text>
+            {hasActiveFilters && (
+              <TouchableOpacity onPress={clearAllFilters}>
+                <Text style={[styles.clearFiltersLink, { color: colors.primary }]}>
+                  Clear filters and try again
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
+      />
+
+      {/* Pagination Controls - Outside FlatList like Saved Workouts */}
+      {pagination && pagination.totalPages > 1 && (
+        <View style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
+          <View
+            style={[
+              styles.paginationContainer,
+              {
+                backgroundColor: 'transparent',
+                borderColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 16,
+                marginHorizontal: 10,
+                marginTop: 10,
+                paddingVertical: 10,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              style={[styles.navButton, pagination.currentPage === 1 && styles.navButtonDisabled]}
+              onPress={goToFirstPage}
+              disabled={pagination.currentPage === 1}
+            >
+              <Ionicons
+                name="play-back"
+                size={20}
+                color={pagination.currentPage === 1 ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navButton, !pagination.hasPreviousPage && styles.navButtonDisabled]}
+              onPress={goToPreviousPage}
+              disabled={!pagination.hasPreviousPage}
+            >
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color={!pagination.hasPreviousPage ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pageNumbersContainer}
+              style={{ flexGrow: 0, flexShrink: 1 }}
+            >
+              {renderPageNumbers()}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.navButton, !pagination.hasNextPage && styles.navButtonDisabled]}
+              onPress={goToNextPage}
+              disabled={!pagination.hasNextPage}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={!pagination.hasNextPage ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navButton, pagination.currentPage === pagination.totalPages && styles.navButtonDisabled]}
+              onPress={goToLastPage}
+              disabled={pagination.currentPage === pagination.totalPages}
+            >
+              <Ionicons
+                name="play-forward"
+                size={20}
+                color={pagination.currentPage === pagination.totalPages ? colors.textSecondary : colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.pageInfo, { color: colors.text }]}>
+            Page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalItems} foods)
+          </Text>
+        </View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Background Decorations
+  container: {
+    flex: 1,
+  },
   decorativeCircle1: { position: 'absolute', top: -100, right: -100, width: 250, height: 250, borderRadius: 125 },
   decorativeCircle2: { position: 'absolute', bottom: -50, left: -50, width: 200, height: 200, borderRadius: 100 },
   decorativeCircle3: { position: 'absolute', top: '30%', left: '-20%', width: 150, height: 150, borderRadius: 75 },
-  
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   listContent: {
-    paddingHorizontal: SIZES.lg,
+    padding: 16,
+    // paddingBottom is handled dynamically in contentContainerStyle
   },
+  
+  // Header Styles
   headerContainer: {
-    paddingTop: SIZES.lg,
-    paddingBottom: SIZES.md,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  title: { fontSize: SIZES.h1, fontWeight: 'bold', marginBottom: SIZES.sm },
-  subtitle: { fontSize: SIZES.body, marginBottom: SIZES.xl },
-
-  // Search Input
-  searchContainer: {
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  searchWrapper: {
+    marginBottom: 8,
+  },
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SIZES.md,
-    height: 50,
-    borderRadius: SIZES.radiusMedium,
     borderWidth: 1,
-    marginBottom: SIZES.sm,
-  },
-  searchIcon: {
-    marginRight: SIZES.sm,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: SIZES.body,
-    height: '100%',
+    fontSize: 14,
+    paddingVertical: 2,
   },
-
-  // Food Card
+  
+  // Filter Styles
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  filterToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activeFilterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  clearText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filtersPanel: {
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  filterItem: {
+    flex: 1,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  filterInput: {
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  applyFilterButton: {
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginTop: 20,
+  },
+  applyFilterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // Food Card Styles
   foodCard: {
     flexDirection: 'row',
-    borderRadius: SIZES.radiusMedium,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: SIZES.sm,
-    marginBottom: SIZES.md,
+    padding: 12,
+    marginBottom: 12,
+    marginHorizontal: 4,
     alignItems: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   foodImage: {
     width: 80,
     height: 80,
-    borderRadius: SIZES.radiusSmall,
-    marginRight: SIZES.md,
+    borderRadius: 12,
+    marginRight: 12,
   },
   foodInfo: {
     flex: 1,
     justifyContent: 'center',
   },
   foodName: {
-    fontSize: SIZES.h3,
-    fontWeight: 'bold',
-    marginBottom: SIZES.sm,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
   },
   macrosContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 6,
   },
   macroBadge: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: SIZES.radiusSmall,
-    minWidth: 45,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    minWidth: 48,
   },
   macroValue: {
-    fontSize: SIZES.small,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
   },
   macroLabel: {
-    fontSize: 10,
+    fontSize: 9,
+    marginTop: 1,
+  },
+  sugarInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 2,
   },
-
-  // States
-  loadingContainer: {
-    flex: 1,
-    paddingHorizontal: SIZES.lg,
+  sugarText: {
+    fontSize: 11,
   },
-  centerSpinner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerLoader: {
-    paddingVertical: SIZES.md,
-    alignItems: 'center',
-  },
+  
+  // Empty State
   emptyContainer: {
-    paddingTop: 60,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
   emptyText: {
-    fontSize: SIZES.h2,
-    fontWeight: 'bold',
-    marginTop: SIZES.md,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
   },
-  emptySubText: {
-    fontSize: SIZES.body,
-    marginTop: SIZES.xs,
+  clearFiltersLink: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 12,
+  },
+  
+  // Pagination - Matching Saved Workouts Screen
+  paginationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    paddingBottom: 8,
+  },
+  pageNumbersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  navButton: {
+    padding: 8,
+    marginHorizontal: 4,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  pageNumber: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 2,
+    borderRadius: 6,
+  },
+  pageNumberActive: {
+    opacity: 1,
+  },
+  pageNumberText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+  },
+  pageNumberTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  pageInfo: {
+    textAlign: 'center',
+    fontSize: 12,
+    paddingBottom: 16,
+    paddingTop: 0,
   },
 });
