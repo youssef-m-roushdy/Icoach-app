@@ -31,7 +31,7 @@ const BLUE = '#007BFF';
 const SUCCESS = '#10B981';
 const WARNING = '#F59E0B';
 
-type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'foodlens';
+type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'FoodSearch';
 
 export default function HomeScreen() {
   const { user, token } = useAuth() as any;
@@ -67,7 +67,7 @@ export default function HomeScreen() {
       case 'chatbot':
         navigation.navigate('Chatbot' as never);
         break;
-      case 'foodlens':
+      case 'FoodSearch':
         navigation.navigate('FoodItems' as never);
         break;
     }
@@ -356,7 +356,7 @@ export default function HomeScreen() {
                   shadowColor: '#10B981',
                 }
               ]}
-              onPress={() => handleNavigateTo('foodlens')}
+              onPress={() => handleNavigateTo('FoodSearch')}
               activeOpacity={0.7}
             >
               <LinearGradient
@@ -365,17 +365,15 @@ export default function HomeScreen() {
                 end={{ x: 1, y: 1 }}
                 style={styles.quickActionIconGradient}
               >
-                <MaterialCommunityIcons name="line-scan" size={22} color="#FFFFFF" />
+                <MaterialCommunityIcons name="silverware-fork-knife" size={22} color="#FFFFFF" />
               </LinearGradient>
               <View style={styles.quickActionContent}>
-                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Lens</Text>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Macros</Text>
                 <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-                  Scan & identify meals
+                  Find calories & macros
                 </Text>
               </View>
-              <View style={styles.newFeatureBadge}>
-                <Text style={styles.newFeatureText}>NEW</Text>
-              </View>
+
             </TouchableOpacity>
           </View>
         </View>

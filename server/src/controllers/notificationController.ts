@@ -148,7 +148,7 @@ export const removeExpoToken = async (
     if (!rawToken) {
       throw new AppError('Expo push token is required', 400);
     }
-    const expoPushToken = decodeURIComponent(rawToken);
+    const expoPushToken = decodeURIComponent(rawToken as string);
 
     // Find the token
     const token = await ExpoToken.findOne({
@@ -200,7 +200,7 @@ export const updateExpoToken = async (
     if (!rawToken) {
       throw new AppError('Expo push token is required', 400);
     }
-    const expoPushToken = decodeURIComponent(rawToken);
+    const expoPushToken = decodeURIComponent(rawToken as string);
     const { deviceType } = req.body;
 
     const token = await ExpoToken.findOne({
