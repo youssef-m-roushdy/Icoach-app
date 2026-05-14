@@ -24,6 +24,7 @@ export interface UserSummary {
   lastName?: string;
   avatar?: string | null;
   isActive?: boolean;
+  lastReadAt?: string | null;
 }
 
 export interface ConversationMessage {
@@ -42,6 +43,7 @@ export interface ConversationListItem {
   participants: UserSummary[];
   lastMessage?: ConversationMessage | null;
   lastReadAt?: string | null;
+  unreadCount?: number;
 }
 
 export interface PaginationInfo {

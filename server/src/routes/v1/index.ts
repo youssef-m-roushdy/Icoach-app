@@ -12,6 +12,7 @@ import workoutSessionSetRoutes from './workoutSessionSetRoutes.js';
 import chatHistoryRoutes from './chatHistoryRoutes.js';
 import conversationRoutes from './conversationRoutes.js';
 import presenceRoutes from './presenceRoutes.js';
+import notificationRoutes from './notificationRoutes.js';
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use('/workout-sessions/:sessionId/sets', workoutSessionSetRoutes);
 router.use('/chat-history', chatHistoryRoutes);
 router.use('/conversations', conversationRoutes);
 router.use('/presence', presenceRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

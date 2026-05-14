@@ -2,12 +2,17 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
+import { Expo } from 'expo-server-sdk';
+import type { ExpoPushMessage } from 'expo-server-sdk';
 import { jwtConfig } from '../config/jwt.js';
+import { firebaseAdmin } from '../config/firebase.js';
+
 import {
   ChatConversation,
   ChatParticipant,
   ChatMessage,
   User,
+  ExpoToken,
 } from '../models/sql/index.js';
 
 interface PresenceState {
@@ -22,11 +27,26 @@ interface RegisterPayload {
 
 const USER_ATTRIBUTES = ['id', 'firstName', 'lastName', 'username', 'avatar', 'isActive'];
 
+type MessageDeliveryStatus = 'delivered' | 'push' | 'offline';
+
 class SocketService {
   private io: SocketIOServer | null = null;
   private userSockets: Map<string, Set<Socket>> = new Map();
   private socketToUser: Map<string, string> = new Map();
   private presence: Map<string, PresenceState> = new Map();
+
+  // Single shared Expo SDK instance (handles chunking, retries, receipts)
+  private expo = new Expo();
+
+  private isPushDebugEnabled(): boolean {
+    return process.env.PUSH_DEBUG === 'true';
+  }
+
+  private maskToken(token: string): string {
+    if (!token) return '';
+    if (token.length <= 12) return token;
+    return `${token.slice(0, 6)}...${token.slice(-4)}`;
+  }
 
   /**
    * Initialize Socket.IO server
@@ -56,7 +76,7 @@ class SocketService {
   }
 
   /**
-   * Setup connection auth
+   * Setup connection auth middleware
    */
   private setupAuth(): void {
     if (!this.io) return;
@@ -86,6 +106,7 @@ class SocketService {
     this.io.on('connection', (socket: Socket) => {
       console.log(`Socket connected: ${socket.id}`);
 
+      // Auto-register if userId is present from auth middleware
       if (socket.data.userId) {
         this.registerSocket(socket, String(socket.data.userId));
         socket.emit('registered', {
@@ -94,6 +115,7 @@ class SocketService {
         });
       }
 
+      // Handle manual registration event
       socket.on('register', (payload: RegisterPayload | string) => {
         const currentUserId = socket.data.userId ? String(socket.data.userId) : null;
         if (currentUserId) {
@@ -104,6 +126,8 @@ class SocketService {
         const fallbackUserId = typeof payload === 'object' ? payload?.userId : null;
 
         let userId = token ? this.verifyAccessToken(token) : null;
+
+        // Development fallback for userId mapping
         if (!userId && fallbackUserId && process.env.NODE_ENV !== 'production') {
           userId = String(fallbackUserId);
         }
@@ -125,12 +149,14 @@ class SocketService {
         });
       });
 
+      // Presence Management
       socket.on('presence:watch', (userIds: Array<string | number> | string) => {
         const ids = Array.isArray(userIds)
           ? userIds
           : typeof userIds === 'string'
             ? userIds.split(',')
             : [];
+
         ids.forEach((id) => {
           const normalized = String(id);
           socket.join(this.getPresenceRoom(normalized));
@@ -145,11 +171,13 @@ class SocketService {
           : typeof userIds === 'string'
             ? userIds.split(',')
             : [];
+
         ids.forEach((id) => {
           socket.leave(this.getPresenceRoom(String(id)));
         });
       });
 
+      // Conversation Management
       socket.on('conversation:join', async (conversationId: number) => {
         const userId = socket.data.userId ? Number(socket.data.userId) : null;
         if (!userId) return;
@@ -179,6 +207,7 @@ class SocketService {
         socket.leave(this.getConversationRoom(id));
       });
 
+      // Message Handling
       socket.on('message:send', async (payload: { conversationId: number; content: string }, ack?: Function) => {
         try {
           const userId = socket.data.userId ? Number(socket.data.userId) : null;
@@ -215,7 +244,7 @@ class SocketService {
             { where: { id: conversationId } }
           );
 
-          const sender = await User.findByPk(userId, { attributes: USER_ATTRIBUTES });
+          const sender: any = await User.findByPk(userId, { attributes: USER_ATTRIBUTES });
           const data = {
             conversationId,
             message: {
@@ -231,10 +260,41 @@ class SocketService {
             attributes: ['userId'],
           });
 
-          participants.forEach((participantItem) => {
-            this.emitToUser(participantItem.userId, 'message:new', data);
-          });
+          // Process delivery and fallback to push if offline
+          for (const participantItem of participants) {
+            const recipientId = participantItem.userId;
+            if (recipientId === userId) continue;
 
+            // Try WebSocket delivery first
+            const isDelivered = this.emitToUser(recipientId, 'message:new', data);
+
+            if (isDelivered) {
+              this.emitMessageStatus(userId, {
+                conversationId,
+                messageId: message.id,
+                recipientId,
+                status: 'delivered',
+              });
+              continue;
+            }
+
+            const senderName = sender.firstName || sender.username || 'User';
+            const status = await this.sendChatPushNotification(
+              recipientId,
+              senderName,
+              content,
+              conversationId,
+            );
+
+            this.emitMessageStatus(userId, {
+              conversationId,
+              messageId: message.id,
+              recipientId,
+              status,
+            });
+          }
+
+          // Acknowledge success to sender
           if (typeof ack === 'function') {
             ack({ ok: true, message: data.message });
           }
@@ -256,6 +316,250 @@ class SocketService {
     });
   }
 
+  /**
+   * Send push notifications via Expo Push Service.
+   *
+   * The expo_tokens table stores ExponentPushToken[…] strings (registered
+   * by the React Native app via getExpoPushTokenAsync). The Expo Push Service
+    * handles FCM/APNs routing internally for Expo tokens.
+   */
+  private async sendPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<boolean> {
+    const [expoSent, fcmSent] = await Promise.all([
+      this.sendExpoPushNotification(recipientId, senderName, messageContent, conversationId),
+      this.sendFcmPushNotification(recipientId, senderName, messageContent, conversationId),
+    ]);
+
+    return expoSent || fcmSent;
+  }
+
+  async sendChatPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<MessageDeliveryStatus> {
+    if (this.isPushDebugEnabled()) {
+      console.log('Push fallback triggered', {
+        recipientId,
+        conversationId,
+      });
+    }
+
+    const pushAttempted = await this.sendPushNotification(
+      recipientId,
+      senderName,
+      messageContent,
+      conversationId,
+    );
+
+    return pushAttempted ? 'push' : 'offline';
+  }
+
+  emitMessageStatus(
+    senderId: number,
+    payload: {
+      conversationId: number;
+      messageId: number;
+      recipientId: number;
+      status: MessageDeliveryStatus;
+    }
+  ): void {
+    this.emitToUser(senderId, 'message:status', payload);
+  }
+
+  private async sendExpoPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<boolean> {
+    let hasTokens = false;
+    try {
+      const userTokens: any[] = await ExpoToken.findAll({
+        where: { userId: recipientId },
+      });
+
+      if (!userTokens?.length) return false;
+
+      // Filter to valid Expo push tokens only
+      const messages: ExpoPushMessage[] = userTokens
+        .filter((t) => (t.provider ?? 'expo') === 'expo')
+        .filter((t) => Expo.isExpoPushToken(t.token))
+        .map((t) => ({
+          to: t.token,
+          title: `New message from ${senderName}`,
+          body: messageContent,
+          data: {
+            type: 'chat',
+            conversationId: String(conversationId),
+            // NOTE: participant data is not included here because we don't
+            // have the full participant object at this point. The AppNavigator
+            // tap handler will fall back to the Messages screen when participant
+            // is absent (see the navigation listener in AppNavigator.tsx).
+          },
+          channelId: 'messages',
+          sound: 'default' as const,
+          priority: 'high' as const,
+        }));
+
+      if (!messages.length) {
+        if (this.isPushDebugEnabled()) {
+          console.warn(`No valid Expo tokens for user ${recipientId}`);
+        }
+        return false;
+      }
+
+      hasTokens = true;
+
+      if (this.isPushDebugEnabled()) {
+        const resolvedTokens = messages.flatMap((message) =>
+          Array.isArray(message.to) ? message.to : [message.to]
+        );
+        console.log('Expo push tokens resolved', {
+          recipientId,
+          tokens: resolvedTokens.map((token) => this.maskToken(token)),
+        });
+      }
+
+      // Expo SDK handles chunking automatically (max 100 per request)
+      const chunks = this.expo.chunkPushNotifications(messages);
+
+      for (const chunk of chunks) {
+        try {
+          const tickets = await this.expo.sendPushNotificationsAsync(chunk);
+          console.log(
+            `Expo push sent to user ${recipientId}:`,
+            tickets.map((t) => t.status).join(', '),
+          );
+
+          // Log any per-token errors (invalid tokens should be cleaned up)
+          tickets.forEach((ticket, i) => {
+            if (ticket.status === 'error') {
+              console.error(
+                `Expo push error for token ${messages[i]?.to}:`,
+                ticket.message,
+                ticket.details,
+              );
+            }
+          });
+        } catch (chunkError) {
+          console.error('Expo push chunk error:', chunkError);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending Expo push notification:', error);
+    }
+
+    return hasTokens;
+  }
+
+  private async sendFcmPushNotification(
+    recipientId: number,
+    senderName: string,
+    messageContent: string,
+    conversationId: number,
+  ): Promise<boolean> {
+    try {
+      if (firebaseAdmin.apps.length === 0) {
+        if (this.isPushDebugEnabled()) {
+          console.warn('Firebase Admin not initialized; skipping FCM push');
+        }
+        return false;
+      }
+
+      const userTokens: any[] = await ExpoToken.findAll({
+        where: { userId: recipientId, provider: 'fcm' },
+      });
+
+      const tokens = userTokens
+        .map((t) => t.token)
+        .filter((token) => typeof token === 'string' && token.length > 0);
+
+      if (!tokens.length) return false;
+
+      if (this.isPushDebugEnabled()) {
+        console.log('FCM tokens resolved', {
+          recipientId,
+          tokens: tokens.map((token) => this.maskToken(token)),
+        });
+      }
+
+      const response = await firebaseAdmin.messaging().sendEachForMulticast({
+        tokens,
+        notification: {
+          title: `New message from ${senderName}`,
+          body: messageContent,
+        },
+        data: {
+          type: 'chat',
+          conversationId: String(conversationId),
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'messages',
+          },
+        },
+      });
+
+      if (this.isPushDebugEnabled()) {
+        console.log('FCM push results', {
+          recipientId,
+          successCount: response.successCount,
+          failureCount: response.failureCount,
+        });
+      }
+
+      const invalidTokens: string[] = [];
+      response.responses.forEach((item, index) => {
+        if (!item.success) {
+          const code = item.error?.code;
+          if (
+            code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token'
+          ) {
+            invalidTokens.push(tokens[index]);
+          }
+
+          if (this.isPushDebugEnabled()) {
+            console.warn('FCM push error', {
+              recipientId,
+              token: this.maskToken(tokens[index]),
+              code,
+            });
+          }
+        }
+      });
+
+      if (invalidTokens.length > 0) {
+        await ExpoToken.destroy({
+          where: { token: invalidTokens },
+        });
+
+        if (this.isPushDebugEnabled()) {
+          console.log('Removed invalid FCM tokens', {
+            recipientId,
+            tokens: invalidTokens.map((token) => this.maskToken(token)),
+          });
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error sending FCM push notification:', error);
+    }
+
+    return false;
+  }
+
+  /**
+   * Extract JWT from socket handshake
+   */
   private extractToken(socket: Socket): string | null {
     const authToken = (socket.handshake as any)?.auth?.token;
     if (authToken && typeof authToken === 'string') {
@@ -275,6 +579,9 @@ class SocketService {
     return null;
   }
 
+  /**
+   * Verify the extracted JWT using the public key
+   */
   private verifyAccessToken(token: string): string | null {
     const publicKey = jwtConfig.access.publicKey;
     if (!publicKey) {
@@ -298,6 +605,9 @@ class SocketService {
     }
   }
 
+  /**
+   * Register a user's socket connection
+   */
   private registerSocket(socket: Socket, userId: string): void {
     const sockets = this.userSockets.get(userId) ?? new Set<Socket>();
     sockets.add(socket);
@@ -308,6 +618,9 @@ class SocketService {
     this.emitPresenceUpdate(userId, true);
   }
 
+  /**
+   * Unregister a user's socket connection on disconnect
+   */
   private unregisterSocket(socket: Socket): void {
     const userId = this.socketToUser.get(socket.id) || (socket.data.userId ? String(socket.data.userId) : null);
     if (!userId) return;
@@ -324,6 +637,9 @@ class SocketService {
     this.socketToUser.delete(socket.id);
   }
 
+  /**
+   * Broadcast presence status updates
+   */
   private emitPresenceUpdate(userId: string, online: boolean): void {
     const state: PresenceState = {
       online,
@@ -354,7 +670,7 @@ class SocketService {
   }
 
   /**
-   * Emit email verified event to specific user
+   * Emit email verified event to a specific user
    */
   emitEmailVerified(userId: string, userData: {
     id: string;
@@ -373,11 +689,13 @@ class SocketService {
   }
 
   /**
-   * Emit a custom event to a specific user
+   * Emit a custom event to a specific user.
+   * Returns true if delivered via WebSocket, false if the user is offline.
    */
   emitToUser(userId: string | number, event: string, data: any): boolean {
     const normalizedUserId = String(userId);
     const sockets = this.userSockets.get(normalizedUserId);
+
     if (!sockets || sockets.size === 0) {
       return false;
     }
@@ -402,7 +720,7 @@ class SocketService {
   }
 
   /**
-   * Broadcast event to all connected users
+   * Broadcast an event to all connected users
    */
   broadcast(event: string, data: any): void {
     if (this.io) {
@@ -418,7 +736,7 @@ class SocketService {
   }
 
   /**
-   * Check if a user is connected
+   * Check if a specific user currently has an active socket connection
    */
   isUserConnected(userId: string | number): boolean {
     const normalizedUserId = String(userId);
@@ -428,7 +746,7 @@ class SocketService {
   }
 
   /**
-   * Get presence for a set of users
+   * Retrieve the presence state for an array of users
    */
   getPresence(userIds: Array<string | number>): Array<{ userId: string; online: boolean; lastSeen: Date | null }> {
     return userIds.map((id) => {
@@ -443,12 +761,12 @@ class SocketService {
   }
 
   /**
-   * Get count of connected users
+   * Get the total count of currently connected users
    */
   getConnectedUsersCount(): number {
     return this.userSockets.size;
   }
 }
 
-// Export singleton instance
+// Export a singleton instance of the service
 export const socketService = new SocketService();

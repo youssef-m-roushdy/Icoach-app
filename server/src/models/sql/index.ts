@@ -17,6 +17,7 @@ import PersonalBest from './PersonalBest.js';
 import DailyActivity from './DailyActivity.js'; // ✅ Already imported
 import WaterIntake from './WaterIntake.js';
 import WorkoutSessionSet from './WorkoutSessionSet.js';
+import ExpoToken from './ExpoToken.js';
 
 // Define associations
 
@@ -98,6 +99,17 @@ WorkoutSessionSet.belongsTo(WorkoutSession, {
   as: 'session',
 });
 
+// User ↔ ExpoToken (one-to-many)
+User.hasMany(ExpoToken, { 
+  foreignKey: 'userId', 
+  as: 'pushTokens', 
+  onDelete: 'CASCADE' 
+});
+ExpoToken.belongsTo(User, { 
+  foreignKey: 'userId', 
+  as: 'user' 
+});
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -123,6 +135,7 @@ export {
   UserInjury,
   WaterIntake,
   WorkoutSessionSet,
+  ExpoToken
 };
 
 // Export types
@@ -144,6 +157,7 @@ export type { PersonalBestAttributes, PersonalBestCreationAttributes } from './P
 export type { DailyActivityAttributes, DailyActivityCreationAttributes } from './DailyActivity.js'; 
 export type { WaterIntakeAttributes, WaterIntakeCreationAttributes } from './WaterIntake.js'; 
 export type { WorkoutSessionSetAttributes, WorkoutSessionSetCreationAttributes } from './WorkoutSessionSet.js';
+export type { ExpoTokenAttributes, ExpoTokenCreationAttributes } from './ExpoToken.js';
 
 // Default export with all models for convenience
 const sqlModels = {
@@ -165,6 +179,7 @@ const sqlModels = {
   DailyActivity, 
   WaterIntake, 
   WorkoutSessionSet,
+  ExpoToken
 };
 
 export default sqlModels;

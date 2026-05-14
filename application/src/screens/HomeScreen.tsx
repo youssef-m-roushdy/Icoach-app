@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SmartWaterInput from '../components/SmartWaterInput';
+import { conversationService, type ConversationListItem } from '../services/conversationService';
+import { socketService } from '../services/socketService';
 
 const BLUE = '#007BFF';
 // PRIMARY color replaced dynamically with colors.primary
@@ -32,10 +34,11 @@ const WARNING = '#F59E0B';
 type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'foodlens';
 
 export default function HomeScreen() {
-  const { user } = useAuth() as any;
+  const { user, token } = useAuth() as any;
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   const stepData = useStepCounter();
   const waterData = useWaterIntake();
@@ -77,6 +80,71 @@ export default function HomeScreen() {
   const handleNavigateToStepHistory = () => {
   navigation.navigate('DailyActivityDetails' as never);
 };
+
+  const computeUnreadCount = useCallback(
+    (items: ConversationListItem[]) => {
+      if (!user?.id) return 0;
+
+      const totalFromServer = items.reduce((sum, item) => sum + (item.unreadCount ?? 0), 0);
+      if (totalFromServer > 0) {
+        return totalFromServer;
+      }
+
+      return items.reduce((count, item) => {
+        const lastMessage = item.lastMessage;
+        if (!lastMessage) return count;
+        if (lastMessage.senderId === user.id) return count;
+
+        if (!item.lastReadAt) {
+          return count + 1;
+        }
+
+        const lastReadTime = new Date(item.lastReadAt).getTime();
+        const lastMessageTime = new Date(lastMessage.createdAt).getTime();
+        if (Number.isNaN(lastReadTime) || Number.isNaN(lastMessageTime)) return count;
+
+        return lastMessageTime > lastReadTime ? count + 1 : count;
+      }, 0);
+    },
+    [user?.id]
+  );
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!token) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const response = await conversationService.listConversations(token, 1, 50);
+    const items = response.data?.conversations ?? [];
+    setUnreadMessages(computeUnreadCount(items));
+  }, [token, computeUnreadCount]);
+
+  useEffect(() => {
+    loadUnreadCount().catch(() => null);
+  }, [loadUnreadCount]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUnreadCount().catch(() => null);
+    });
+
+    return unsubscribe;
+  }, [navigation, loadUnreadCount]);
+
+  useEffect(() => {
+    const handleMessageNew = (payload: { conversationId: number; message?: { senderId: number } }) => {
+      if (!payload?.message) return;
+      if (payload.message.senderId === user?.id) return;
+      loadUnreadCount().catch(() => null);
+    };
+
+    socketService.addMessageListener(handleMessageNew);
+
+    return () => {
+      socketService.removeMessageListener(handleMessageNew);
+    };
+  }, [loadUnreadCount, user?.id]);
 
   // Step Goal Handlers
   const handleEditStepGoal = () => {

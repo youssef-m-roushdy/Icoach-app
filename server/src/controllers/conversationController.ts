@@ -226,10 +226,38 @@ export const listConversations = async (req: Request, res: Response, next: NextF
       lastMessageMap.set(entry.conversationId, entry.lastMessage || null);
     });
 
+    const unreadCounts = await Promise.all(
+      rows.map(async (conversation) => {
+        const lastReadAt = lastReadMap.get(conversation.id) || null;
+        const where: any = {
+          conversationId: conversation.id,
+          senderId: { [Op.ne]: user.id },
+        };
+
+        if (lastReadAt) {
+          where.createdAt = { [Op.gt]: lastReadAt };
+        }
+
+        const count = await ChatMessage.count({ where });
+        return { conversationId: conversation.id, count };
+      })
+    );
+
+    const unreadCountMap = new Map<number, number>();
+    unreadCounts.forEach((entry) => {
+      unreadCountMap.set(entry.conversationId, entry.count);
+    });
+
     const conversations = rows.map((conversation) => {
       const participants = (conversation as any).participants || [];
       const otherParticipants = participants
-        .map((participant: any) => participant.user)
+        .map((participant: any) => {
+          const userData = participant.user ? (typeof participant.user.toJSON === 'function' ? participant.user.toJSON() : participant.user) : null;
+          if (userData) {
+            userData.lastReadAt = participant.lastReadAt;
+          }
+          return userData;
+        })
         .filter((participant: any) => participant?.id !== user.id);
 
       return {
@@ -237,6 +265,7 @@ export const listConversations = async (req: Request, res: Response, next: NextF
         participants: otherParticipants,
         lastMessage: lastMessageMap.get(conversation.id) || null,
         lastReadAt: lastReadMap.get(conversation.id) || null,
+        unreadCount: unreadCountMap.get(conversation.id) || 0,
       };
     });
 
@@ -344,9 +373,39 @@ export const sendMessage = async (req: Request, res: Response, next: NextFunctio
       attributes: ['userId'],
     });
 
-    participants.forEach((participant) => {
-      socketService.emitToUser(participant.userId, 'message:new', payload);
-    });
+    const senderName =
+      sender?.firstName || sender?.username || sender?.lastName || 'User';
+
+    for (const participant of participants) {
+      const recipientId = participant.userId;
+      if (recipientId === user.id) continue;
+
+      const isDelivered = socketService.emitToUser(recipientId, 'message:new', payload);
+
+      if (isDelivered) {
+        socketService.emitMessageStatus(user.id, {
+          conversationId,
+          messageId: message.id,
+          recipientId,
+          status: 'delivered',
+        });
+        continue;
+      }
+
+      const status = await socketService.sendChatPushNotification(
+        recipientId,
+        senderName,
+        content,
+        conversationId,
+      );
+
+      socketService.emitMessageStatus(user.id, {
+        conversationId,
+        messageId: message.id,
+        recipientId,
+        status,
+      });
+    }
 
     res.status(201).json({
       success: true,
