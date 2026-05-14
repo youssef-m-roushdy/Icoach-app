@@ -234,142 +234,151 @@ export default function HomeScreen() {
 
         {/* Professional Header with Quick Actions */}
         <View style={styles.quickActionsSection}>
-  <View style={styles.sectionHeader}>
-    <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-  </View>
-  
-  <View style={styles.quickActionsGrid}>
-    {/* Alerts - Notification Center */}
-    <TouchableOpacity
-      style={[
-        styles.quickActionItem,
-        { 
-          backgroundColor: colors.authInputBg || colors.surface,
-          borderColor: '#EF444420',
-          shadowColor: '#EF4444',
-        }
-      ]}
-      onPress={() => handleNavigateTo('notifications')}
-      activeOpacity={0.7}
-    >
-      <LinearGradient
-        colors={['#EF4444', '#DC2626']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.quickActionIconGradient}
-      >
-        <Ionicons name="notifications" size={22} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.quickActionContent}>
-        <Text style={[styles.quickActionLabel, { color: colors.text }]}>Alerts</Text>
-        <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-          3 new notifications
-        </Text>
-      </View>
-      {true && (
-        <View style={styles.notificationBadge}>
-          <Text style={styles.notificationBadgeText}>3</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          </View>
+          
+          <View style={styles.quickActionsGrid}>
+            {/* Alerts - Notification Center */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#EF444420',
+                  shadowColor: '#EF4444',
+                }
+              ]}
+              onPress={() => handleNavigateTo('notifications')}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <Ionicons name="notifications" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Alerts</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  View notifications
+                </Text>
+              </View>
+              {/* ✅ Show badge if there are notifications - you can add a notifications count state if needed */}
+            </TouchableOpacity>
+
+            {/* Messages - Communication Hub */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#3B82F620',
+                  shadowColor: '#3B82F6',
+                }
+              ]}
+              onPress={() => handleNavigateTo('messages')}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Messages</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  {unreadMessages > 0 
+                    ? `${unreadMessages} unread message${unreadMessages !== 1 ? 's' : ''}`
+                    : 'Chat with trainers'
+                  }
+                </Text>
+              </View>
+              {/* ✅ Dynamic badge based on unread count */}
+              {unreadMessages > 0 && (
+                <View style={[styles.notificationBadge, { backgroundColor: '#3B82F6' }]}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </Text>
+                </View>
+              )}
+              {unreadMessages === 0 && (
+                <View style={styles.chevronContainer}>
+                  <Feather name="chevron-right" size={16} color={colors.textSecondary} />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* AI Coach - Smart Assistant */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#8B5CF620',
+                  shadowColor: '#8B5CF6',
+                }
+              ]}
+              onPress={() => handleNavigateTo('chatbot')}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <MaterialCommunityIcons name="robot" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>AI Coach</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  Get instant guidance
+                </Text>
+              </View>
+              <View style={styles.aiGlowIndicator}>
+                <View style={styles.aiPulse} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Food Lens - Smart Scanner */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#10B98120',
+                  shadowColor: '#10B981',
+                }
+              ]}
+              onPress={() => handleNavigateTo('foodlens')}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <MaterialCommunityIcons name="line-scan" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Lens</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  Scan & identify meals
+                </Text>
+              </View>
+              <View style={styles.newFeatureBadge}>
+                <Text style={styles.newFeatureText}>NEW</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
-
-    {/* Messages - Communication Hub */}
-    <TouchableOpacity
-      style={[
-        styles.quickActionItem,
-        { 
-          backgroundColor: colors.authInputBg || colors.surface,
-          borderColor: '#3B82F620',
-          shadowColor: '#3B82F6',
-        }
-      ]}
-      onPress={() => handleNavigateTo('messages')}
-      activeOpacity={0.7}
-    >
-      <LinearGradient
-        colors={['#3B82F6', '#2563EB']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.quickActionIconGradient}
-      >
-        <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.quickActionContent}>
-        <Text style={[styles.quickActionLabel, { color: colors.text }]}>Messages</Text>
-        <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-          Chat with trainers
-        </Text>
-      </View>
-      <View style={styles.chevronContainer}>
-        <Feather name="chevron-right" size={16} color={colors.textSecondary} />
-      </View>
-    </TouchableOpacity>
-
-    {/* AI Coach - Smart Assistant */}
-    <TouchableOpacity
-      style={[
-        styles.quickActionItem,
-        { 
-          backgroundColor: colors.authInputBg || colors.surface,
-          borderColor: '#8B5CF620',
-          shadowColor: '#8B5CF6',
-        }
-      ]}
-      onPress={() => handleNavigateTo('chatbot')}
-      activeOpacity={0.7}
-    >
-      <LinearGradient
-        colors={['#8B5CF6', '#7C3AED']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.quickActionIconGradient}
-      >
-        <MaterialCommunityIcons name="robot" size={22} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.quickActionContent}>
-        <Text style={[styles.quickActionLabel, { color: colors.text }]}>AI Coach</Text>
-        <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-          Get instant guidance
-        </Text>
-      </View>
-      <View style={styles.aiGlowIndicator}>
-        <View style={styles.aiPulse} />
-      </View>
-    </TouchableOpacity>
-
-    {/* Food Lens - Smart Scanner */}
-    <TouchableOpacity
-      style={[
-        styles.quickActionItem,
-        { 
-          backgroundColor: colors.authInputBg || colors.surface,
-          borderColor: '#10B98120',
-          shadowColor: '#10B981',
-        }
-      ]}
-      onPress={() => handleNavigateTo('foodlens')}
-      activeOpacity={0.7}
-    >
-      <LinearGradient
-        colors={['#10B981', '#059669']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.quickActionIconGradient}
-      >
-        <MaterialCommunityIcons name="line-scan" size={22} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.quickActionContent}>
-        <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Lens</Text>
-        <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-          Scan & identify meals
-        </Text>
-      </View>
-      <View style={styles.newFeatureBadge}>
-        <Text style={styles.newFeatureText}>NEW</Text>
-      </View>
-    </TouchableOpacity>
-  </View>
-</View>
 
         {/* Daily Steps Section - Professional Card */}
         <View style={styles.section}>
