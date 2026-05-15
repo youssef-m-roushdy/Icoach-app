@@ -1512,7 +1512,8 @@ const handleNext = useCallback(() => {
   }, [step, goTo, handleSubmit]);
 
   const handleBack = useCallback(() => {
-    if (step > 0) {
+  if (step > 0) {
+    goTo(step - 1);
   }
 }, [step, goTo]);
 

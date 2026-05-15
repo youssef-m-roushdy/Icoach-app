@@ -88,8 +88,18 @@ export default function FoodItemsScreen() {
       if (response.success && response.data) {
         setFoods(response.data);
 
-        if (response.pagination) {
-          setPagination(response.pagination);
+        const pag = response.pagination;
+        if (pag) {
+          setPagination((prev) => ({
+            ...prev,
+            totalItems: pag.totalItems ?? prev.totalItems,
+            totalPages: pag.totalPages ?? prev.totalPages,
+            hasNextPage: pag.hasNextPage ?? prev.hasNextPage,
+            hasPreviousPage: pag.hasPreviousPage ?? prev.hasPreviousPage,
+            itemsPerPage: pag.itemsPerPage ?? prev.itemsPerPage,
+            // Do NOT update 'currentPage' from response to prevent race conditions
+            // and infinite loops when rapidly changing pages.
+          }));
         } else {
           setPagination((prev) => ({
             ...prev,

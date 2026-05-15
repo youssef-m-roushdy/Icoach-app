@@ -204,19 +204,16 @@ const SavedWorkoutsScreen = () => {
         const workoutData = savedWorkoutsData.map((item) => item.workout);
         setWorkouts(workoutData);
 
-        // Safely handle pagination data
-        if (result.data?.pagination) {
-          setPagination({
-            total: result.data.pagination.total || 0,
-            page: result.data.pagination.page || 1,
-            limit: result.data.pagination.limit || 5,
-            totalPages: result.data.pagination.totalPages || 0,
-          });
+        const pag = result.data?.pagination;
+        if (pag) {
+          setPagination((prev) => ({
+            ...prev,
+            total: pag.total ?? prev.total,
+            limit: pag.limit ?? prev.limit,
+            totalPages: pag.totalPages ?? prev.totalPages,
+          }));
         } else {
-          // If no pagination in response, calculate based on data
-          const totalPages =
-            Math.ceil((savedWorkoutsData.length || 0) / pagination.limit) || 1;
-
+          const totalPages = Math.ceil((savedWorkoutsData.length || 0) / pagination.limit) || 1;
           setPagination((prev) => ({
             ...prev,
             total: savedWorkoutsData.length || 0,

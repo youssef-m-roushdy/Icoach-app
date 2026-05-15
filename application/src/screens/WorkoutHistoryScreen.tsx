@@ -277,14 +277,24 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
       if (response?.success) {
         setSessions(response.data || []);
-        setPagination(
-          response.pagination || {
+        const pag = response.pagination;
+        if (pag) {
+          setPagination((prev) => ({
+            ...prev,
+            total: pag.total ?? prev.total,
+            // Do NOT update 'page' from response to prevent race conditions
+            // and infinite loops when rapidly changing pages.
+            limit: pag.limit ?? prev.limit,
+            totalPages: pag.totalPages ?? prev.totalPages,
+          }));
+        } else {
+          setPagination((prev) => ({
+            ...prev,
             total: response.data?.length || 0,
-            page: 1,
-            limit: pagination.limit,
+            limit: prev.limit,
             totalPages: 1,
-          },
-        );
+          }));
+        }
       } else {
         console.log(response?.message)
         showErrorToast({
