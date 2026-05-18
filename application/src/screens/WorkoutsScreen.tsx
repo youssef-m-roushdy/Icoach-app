@@ -193,7 +193,7 @@ const WorkoutsScreen = () => {
       if (!tokenRef.current) return;
 
       // Only show spinner if we don't have workouts, to avoid screen flashes
-      if (workouts.length === 0) setLoading(true);
+      if (initialLoad) setLoading(true);
 
       const params: any = {
         page: pagination.page,
@@ -234,14 +234,17 @@ const WorkoutsScreen = () => {
         );
 
         setWorkouts(workoutsWithSavedStatus);
-
-        if (paginationData) {
-          setPagination({
-            total: paginationData.total || 0,
-            page: paginationData.page || 1,
-            limit: paginationData.limit || pagination.limit,
-            totalPages: paginationData.totalPages || 0,
-          });
+        
+        const pag = paginationData;
+        if (pag) {
+          setPagination((prev) => ({
+            ...prev,
+            total: pag.total ?? prev.total,
+            // Do NOT update 'page' from response to prevent race conditions
+            // and infinite loops when rapidly changing pages.
+            limit: pag.limit ?? prev.limit,
+            totalPages: pag.totalPages ?? prev.totalPages,
+          }));
         } else {
           const total = workoutsWithSavedStatus.length;
           const totalPages = Math.max(Math.ceil(total / pagination.limit), 1);

@@ -171,9 +171,14 @@ export default function MessagesScreen() {
         );
         if (index === -1) return prev;
 
+        const isOwnMessage = payload.message?.senderId === user?.id;
+        const currentUnread = prev[index].unreadCount ?? 0;
+        const nextUnread = isOwnMessage ? currentUnread : currentUnread + 1;
+
         const updated = {
           ...prev[index],
           lastMessage: payload.message,
+          unreadCount: nextUnread,
           conversation: {
             ...prev[index].conversation,
             updatedAt: payload.message?.createdAt || prev[index].conversation.updatedAt,
@@ -182,6 +187,22 @@ export default function MessagesScreen() {
 
         return [updated, ...prev.filter((_, idx) => idx !== index)];
       });
+    };
+
+    const handleMessageRead = (payload: { conversationId: number; userId: number; lastReadAt: string }) => {
+      if (payload.userId !== user?.id) return;
+
+      setConversations((prev) =>
+        prev.map((item) =>
+          item.conversation.id === payload.conversationId
+            ? {
+                ...item,
+                lastReadAt: payload.lastReadAt,
+                unreadCount: 0,
+              }
+            : item
+        )
+      );
     };
 
     const handleConversationNew = (payload: {
@@ -201,6 +222,7 @@ export default function MessagesScreen() {
           participants,
           lastMessage: null,
           lastReadAt: null,
+          unreadCount: 0,
         };
 
         return [item, ...prev];
@@ -215,14 +237,16 @@ export default function MessagesScreen() {
 
     socket.on('presence:update', handlePresenceUpdate);
     socket.on('message:new', handleMessageNew);
+    socket.on('message:read', handleMessageRead);
     socket.on('conversation:new', handleConversationNew);
 
     return () => {
       socket.off('presence:update', handlePresenceUpdate);
       socket.off('message:new', handleMessageNew);
+      socket.off('message:read', handleMessageRead);
       socket.off('conversation:new', handleConversationNew);
     };
-  }, [normalizeParticipants]);
+  }, [normalizeParticipants, user?.id]);
 
   useEffect(() => {
     if (!isNewChatOpen) return;
@@ -340,6 +364,7 @@ export default function MessagesScreen() {
       : null;
     const isUnread =
       lastMessageDate && (!lastReadAt || lastMessageDate > lastReadAt);
+    const unreadCount = item.unreadCount ?? (isUnread ? 1 : 0);
 
     const presence = participant ? presenceMap[String(participant.id)] : undefined;
     const isOnline = presence?.online;
@@ -354,6 +379,7 @@ export default function MessagesScreen() {
           navigation.navigate('ChatThread', {
             conversationId: item.conversation.id,
             participant,
+            lastReadAt: item.lastReadAt ?? null,
           })
         }
       >
@@ -394,10 +420,12 @@ export default function MessagesScreen() {
             >
               {lastMessage}
             </Text>
-            {isUnread && (
-              <View
-                style={[styles.unreadDot, { backgroundColor: colors.primary }]}
-              />
+            {unreadCount > 0 && (
+              <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.unreadBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
             )}
           </View>
         </View>
@@ -683,11 +711,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  unreadBadge: {
+    minWidth: 20,
+    paddingHorizontal: 6,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 8,
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
   },
 
   // ── Empty state ────────────────────────────────────────────────────────

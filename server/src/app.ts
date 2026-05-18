@@ -10,6 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { configurePassport } from './config/passport.js';
 import { initializeDatabases } from './config/database.js';
+import { initializeFirebase } from './config/firebase.js';
 import { setupSwagger } from './config/swagger.js';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -177,6 +178,8 @@ const startServer = async () => {
   try {
     // Initialize databases
     await initializeDatabases();
+
+    initializeFirebase();
     
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

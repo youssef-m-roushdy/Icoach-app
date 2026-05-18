@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,19 +23,22 @@ import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import SmartWaterInput from '../components/SmartWaterInput';
+import { conversationService, type ConversationListItem } from '../services/conversationService';
+import { socketService } from '../services/socketService';
 
 const BLUE = '#007BFF';
 // PRIMARY color replaced dynamically with colors.primary
 const SUCCESS = '#10B981';
 const WARNING = '#F59E0B';
 
-type NavigationTarget = 'notifications' | 'messages' | 'chatbot';
+type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'FoodSearch';
 
 export default function HomeScreen() {
-  const { user } = useAuth() as any;
+  const { user, token } = useAuth() as any;
   const { colors } = useTheme();
   const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   const stepData = useStepCounter();
   const waterData = useWaterIntake();
@@ -64,6 +67,9 @@ export default function HomeScreen() {
       case 'chatbot':
         navigation.navigate('Chatbot' as never);
         break;
+      case 'FoodSearch':
+        navigation.navigate('FoodItems' as never);
+        break;
     }
   };
 
@@ -74,6 +80,71 @@ export default function HomeScreen() {
   const handleNavigateToStepHistory = () => {
   navigation.navigate('DailyActivityDetails' as never);
 };
+
+  const computeUnreadCount = useCallback(
+    (items: ConversationListItem[]) => {
+      if (!user?.id) return 0;
+
+      const totalFromServer = items.reduce((sum, item) => sum + (item.unreadCount ?? 0), 0);
+      if (totalFromServer > 0) {
+        return totalFromServer;
+      }
+
+      return items.reduce((count, item) => {
+        const lastMessage = item.lastMessage;
+        if (!lastMessage) return count;
+        if (lastMessage.senderId === user.id) return count;
+
+        if (!item.lastReadAt) {
+          return count + 1;
+        }
+
+        const lastReadTime = new Date(item.lastReadAt).getTime();
+        const lastMessageTime = new Date(lastMessage.createdAt).getTime();
+        if (Number.isNaN(lastReadTime) || Number.isNaN(lastMessageTime)) return count;
+
+        return lastMessageTime > lastReadTime ? count + 1 : count;
+      }, 0);
+    },
+    [user?.id]
+  );
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!token) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const response = await conversationService.listConversations(token, 1, 50);
+    const items = response.data?.conversations ?? [];
+    setUnreadMessages(computeUnreadCount(items));
+  }, [token, computeUnreadCount]);
+
+  useEffect(() => {
+    loadUnreadCount().catch(() => null);
+  }, [loadUnreadCount]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUnreadCount().catch(() => null);
+    });
+
+    return unsubscribe;
+  }, [navigation, loadUnreadCount]);
+
+  useEffect(() => {
+    const handleMessageNew = (payload: { conversationId: number; message?: { senderId: number } }) => {
+      if (!payload?.message) return;
+      if (payload.message.senderId === user?.id) return;
+      loadUnreadCount().catch(() => null);
+    };
+
+    socketService.addMessageListener(handleMessageNew);
+
+    return () => {
+      socketService.removeMessageListener(handleMessageNew);
+    };
+  }, [loadUnreadCount, user?.id]);
 
   // Step Goal Handlers
   const handleEditStepGoal = () => {
@@ -162,43 +233,147 @@ export default function HomeScreen() {
       >
 
         {/* Professional Header with Quick Actions */}
-        <View style={styles.headerContainer}>
-          {/* Quick Action Icons - Prominent and Accessible */}
-          <View style={styles.quickActions}>
+        <View style={styles.quickActionsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+          </View>
+          
+          <View style={styles.quickActionsGrid}>
+            {/* Alerts - Notification Center */}
             <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#EF444420',
+                  shadowColor: '#EF4444',
+                }
+              ]}
               onPress={() => handleNavigateTo('notifications')}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIconBg, { backgroundColor: `${colors.primary}10` }]}>
-                <Ionicons name="notifications-outline" size={24} color={colors.primary} />
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <Ionicons name="notifications" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Alerts</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  View notifications
+                </Text>
               </View>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>Alerts</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>3</Text>
-              </View>
+              {/* ✅ Show badge if there are notifications - you can add a notifications count state if needed */}
             </TouchableOpacity>
 
+            {/* Messages - Communication Hub */}
             <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#3B82F620',
+                  shadowColor: '#3B82F6',
+                }
+              ]}
               onPress={() => handleNavigateTo('messages')}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIconBg, { backgroundColor: `${colors.primary}10` }]}>
-                <Ionicons name="chatbubbles-outline" size={24} color={colors.primary} />
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Messages</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  {unreadMessages > 0 
+                    ? `${unreadMessages} unread message${unreadMessages !== 1 ? 's' : ''}`
+                    : 'Chat with trainers'
+                  }
+                </Text>
               </View>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>Messages</Text>
+              {/* ✅ Dynamic badge based on unread count */}
+              {unreadMessages > 0 && (
+                <View style={[styles.notificationBadge, { backgroundColor: '#3B82F6' }]}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </Text>
+                </View>
+              )}
+              {unreadMessages === 0 && (
+                <View style={styles.chevronContainer}>
+                  <Feather name="chevron-right" size={16} color={colors.textSecondary} />
+                </View>
+              )}
             </TouchableOpacity>
 
+            {/* AI Coach - Smart Assistant */}
             <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#8B5CF620',
+                  shadowColor: '#8B5CF6',
+                }
+              ]}
               onPress={() => handleNavigateTo('chatbot')}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIconBg, { backgroundColor: `${colors.primary}10` }]}>
-                <MaterialCommunityIcons name="robot-outline" size={24} color={colors.primary} />
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <MaterialCommunityIcons name="robot" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>AI Coach</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  Get instant guidance
+                </Text>
               </View>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>AI Coach</Text>
+              <View style={styles.aiGlowIndicator}>
+                <View style={styles.aiPulse} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Food Lens - Smart Scanner */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionItem,
+                { 
+                  backgroundColor: colors.authInputBg || colors.surface,
+                  borderColor: '#10B98120',
+                  shadowColor: '#10B981',
+                }
+              ]}
+              onPress={() => handleNavigateTo('FoodSearch')}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickActionIconGradient}
+              >
+                <MaterialCommunityIcons name="silverware-fork-knife" size={22} color="#FFFFFF" />
+              </LinearGradient>
+              <View style={styles.quickActionContent}>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Macros</Text>
+                <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
+                  Find calories & macros
+                </Text>
+              </View>
+
             </TouchableOpacity>
           </View>
         </View>
@@ -830,7 +1005,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   actionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   badge: {
@@ -859,6 +1034,123 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+    quickActionsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickActionItem: {
+    width: '47%',
+    padding: 14,
+    borderRadius: 24,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  quickActionIconGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  quickActionContent: {
+    gap: 2,
+  },
+  quickActionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  quickActionDesc: {
+    fontSize: 11,
+    fontWeight: '400',
+    lineHeight: 14,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  chevronContainer: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    opacity: 0.5,
+  },
+  aiGlowIndicator: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  aiPulse: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  newFeatureBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  newFeatureText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   sectionTitle: {
     fontSize: 18,

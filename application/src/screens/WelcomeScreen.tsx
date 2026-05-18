@@ -125,10 +125,7 @@ export default function WelcomeScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top + 10, 44) }]}>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.logo}
-        />
+
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.themeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}

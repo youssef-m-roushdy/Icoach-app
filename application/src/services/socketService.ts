@@ -7,6 +7,8 @@ export const GATEWAY_URL = API_BASE_URL.replace(/\/api$/, '').replace(/\/api\/v1
 
 interface SocketEvents {
   onEmailVerified?: (data: EmailVerifiedData) => void;
+  onMessageNew?: (data: MessageNewPayload) => void;
+  onMessageStatus?: (data: MessageStatusPayload) => void;
   onConnected?: () => void;
   onDisconnected?: (reason: string) => void;
   onError?: (error: Error) => void;
@@ -31,11 +33,39 @@ interface EmailVerifiedData {
   };
 }
 
+interface MessageSender {
+  id: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string | null;
+}
+
+interface MessageNewPayload {
+  conversationId: number;
+  message: {
+    id: number;
+    content: string;
+    senderId: number;
+    sender?: MessageSender;
+    createdAt?: string;
+  };
+}
+
+interface MessageStatusPayload {
+  conversationId: number;
+  messageId: number;
+  recipientId: number;
+  status: 'delivered' | 'push' | 'offline';
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private userId: string | null = null;
   private authToken: string | null = null;
   private eventHandlers: SocketEvents = {};
+  private messageListeners = new Set<(data: MessageNewPayload) => void>();
+  private messageStatusListeners = new Set<(data: MessageStatusPayload) => void>();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
 
@@ -57,7 +87,7 @@ class SocketService {
 
     this.userId = userId;
     this.authToken = token;
-    this.eventHandlers = handlers || {};
+    this.eventHandlers = { ...this.eventHandlers, ...(handlers || {}) };
 
     console.log('🌐 [GATEWAY SOCKET] Connecting through gateway:', GATEWAY_URL);
     console.log('🌐 [GATEWAY SOCKET] User ID:', userId);
@@ -150,6 +180,17 @@ class SocketService {
       console.log('═══════════════════════════════════════════\n');
     });
 
+    // New message event
+    this.socket.on('message:new', (data: MessageNewPayload) => {
+      this.eventHandlers.onMessageNew?.(data);
+      this.messageListeners.forEach((handler) => handler(data));
+    });
+
+    this.socket.on('message:status', (data: MessageStatusPayload) => {
+      this.eventHandlers.onMessageStatus?.(data);
+      this.messageStatusListeners.forEach((handler) => handler(data));
+    });
+
     // Transport upgrade (polling → WebSocket)
     this.socket.io.engine.on('upgrade', (transport) => {
       console.log('⬆️ [GATEWAY SOCKET] Transport upgraded to:', transport.name);
@@ -216,6 +257,22 @@ class SocketService {
    */
   setEventHandlers(handlers: SocketEvents): void {
     this.eventHandlers = { ...this.eventHandlers, ...handlers };
+  }
+
+  addMessageListener(handler: (data: MessageNewPayload) => void): void {
+    this.messageListeners.add(handler);
+  }
+
+  removeMessageListener(handler: (data: MessageNewPayload) => void): void {
+    this.messageListeners.delete(handler);
+  }
+
+  addMessageStatusListener(handler: (data: MessageStatusPayload) => void): void {
+    this.messageStatusListeners.add(handler);
+  }
+
+  removeMessageStatusListener(handler: (data: MessageStatusPayload) => void): void {
+    this.messageStatusListeners.delete(handler);
   }
 
   /**

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5583656943",
+    "project_id": "icoach-app-project",
+    "storage_bucket": "icoach-app-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5583656943:android:ebe4325d64d735aad0081a",
+        "android_client_info": {
+          "package_name": "com.icoach.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAG0pdHBqm9PBTF5nQvcHP6UsEyz4fitHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
