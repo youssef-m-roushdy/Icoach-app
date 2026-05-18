@@ -27,6 +27,7 @@ import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { chatService, ChatStreamEvent } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import SuccessModal from '../components/common/SuccessModal';
+import ar from '../../i18n/locales/ar.json';
 
 // ============================================================================
 // Types
@@ -48,16 +49,21 @@ type Props = {
 };
 
 // ============================================================================
-// Constants
+// Constants – translated suggestions
 // ============================================================================
 
-const SUGGESTIONS = ['💪 Workout Plan', '🥗 Nutrition Tips', '🎯 Set Goals', '📊 Check Progress'];
-const STREAMING_MSG_ID = 'ai-streaming';
-const NEAR_BOTTOM_THRESHOLD = 100; // px — consider "at bottom" within this range
-const MAX_INPUT_LENGTH = 500;
-const CHAR_WARN_THRESHOLD = 400; // show counter at this point
+const SUGGESTIONS = [
+  ar.suggestionWorkoutPlan,
+  ar.suggestionNutritionTips,
+  ar.suggestionSetGoals,
+  ar.suggestionCheckProgress,
+];
 
-// Typewriter speed
+const STREAMING_MSG_ID = 'ai-streaming';
+const NEAR_BOTTOM_THRESHOLD = 100;
+const MAX_INPUT_LENGTH = 500;
+const CHAR_WARN_THRESHOLD = 400;
+
 const TYPEWRITER_CHARS_PER_TICK = 3;
 const TYPEWRITER_INTERVAL_MS = 16;
 
@@ -87,13 +93,13 @@ const stripMarkdown = (text: string): string =>
     .trim();
 
 // ============================================================================
-// Utility: Relative timestamp
+// Utility: Relative timestamp (localized)
 // ============================================================================
 
 const formatRelativeTime = (date: Date): string => {
   const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 60) return ar.justNow;
+  if (diff < 3600) return `${Math.floor(diff / 60)}${ar.minutesAgo}`;
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
@@ -191,7 +197,7 @@ const CopyToast = React.memo(({ visible, color }: { visible: boolean; color: str
       ]}
     >
       <Ionicons name="checkmark" size={12} color="#fff" />
-      <Text style={styles.copyToastText}>Copied!</Text>
+      <Text style={styles.copyToastText}>{ar.copied}</Text>
     </Animated.View>
   );
 });
@@ -209,7 +215,6 @@ const WelcomeState = React.memo(
     onSuggestion: (text: string) => void;
   }) => (
     <View style={styles.welcomeContainer}>
-      {/* Pulse rings */}
       <View style={styles.welcomeAvatarWrapper}>
         <View style={[styles.pulseRing, styles.pulseRingOuter, { borderColor: `${colors.primary}18` }]} />
         <View style={[styles.pulseRing, styles.pulseRingInner, { borderColor: `${colors.primary}30` }]} />
@@ -218,9 +223,9 @@ const WelcomeState = React.memo(
         </View>
       </View>
 
-      <Text style={[styles.welcomeTitle, { color: colors.text }]}>AI Coach</Text>
+      <Text style={[styles.welcomeTitle, { color: colors.text }]}>{ar.aiCoach}</Text>
       <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-        Your personal fitness assistant.{'\n'}Ask me anything to get started.
+        {ar.chatbotWelcomeSubtitle}
       </Text>
 
       <View style={styles.welcomeChipsGrid}>
@@ -278,7 +283,7 @@ export default function ChatbotScreen({ navigation }: Props) {
   const sessionIdRef = useRef<string | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const historyLoadedRef = useRef(false);
-  const isLoadingHistoryRef = useRef(false); // fix race condition
+  const isLoadingHistoryRef = useRef(false);
 
   // Typewriter refs
   const pendingTextRef = useRef('');
@@ -418,7 +423,7 @@ export default function ChatbotScreen({ navigation }: Props) {
   }, []);
 
   const addErrorMessage = useCallback(
-    (errorText: string, retryContent?: string) => {
+    (errorText: string) => {
       setMessages((prev) => [
         ...prev,
         {
@@ -549,7 +554,7 @@ export default function ChatbotScreen({ navigation }: Props) {
         setShowClearChatSuccess(true);
       } catch (error) {
         console.error('Failed to clear history on server:', error);
-        setErrorMessage('Failed to clear chat history. Please try again.');
+        setErrorMessage(ar.clearChatError);
         setShowClearChatError(true);
       }
     }
@@ -610,7 +615,7 @@ export default function ChatbotScreen({ navigation }: Props) {
               case 'done':
                 if (event.session_id) sessionIdRef.current = event.session_id;
                 if (!hasReceivedChunksRef.current) {
-                  pendingTextRef.current = "I'm here to help! What would you like to know?";
+                  pendingTextRef.current = ar.fallbackAiResponse;
                   ensureStreamingBubble();
                   startTypewriter();
                 }
@@ -637,7 +642,7 @@ export default function ChatbotScreen({ navigation }: Props) {
         } else if (err?.status === 429) {
           setShowRateLimitModal(true);
         } else {
-          addErrorMessage('Failed to send message. Please try again.');
+          addErrorMessage(ar.sendMessageFailed);
         }
         setIsStreaming(false);
         setStatusText('');
@@ -661,7 +666,6 @@ export default function ChatbotScreen({ navigation }: Props) {
     (suggestion: string) => {
       const text = suggestion.split(' ').slice(1).join(' ');
       setInputText(text);
-      // Small delay so the input text is set before sending
       setTimeout(() => sendMessage(text), 50);
     },
     [sendMessage]
@@ -669,7 +673,6 @@ export default function ChatbotScreen({ navigation }: Props) {
 
   // -------------------------------------------------------------------------
   // Determine if two consecutive messages should be grouped
-  // (same sender, < 2 min apart) — hides avatar + reduces margin for grouped
   // -------------------------------------------------------------------------
 
   const isGrouped = useCallback(
@@ -678,7 +681,7 @@ export default function ChatbotScreen({ navigation }: Props) {
       const prev = messages[index - 1];
       if (!prev || prev.sender !== item.sender) return false;
       const diff = item.timestamp.getTime() - prev.timestamp.getTime();
-      return diff < 120_000; // 2 minutes
+      return diff < 120_000;
     },
     [messages]
   );
@@ -704,7 +707,6 @@ export default function ChatbotScreen({ navigation }: Props) {
             grouped && styles.messageContainerGrouped,
           ]}
         >
-          {/* AI avatar — hidden when grouped */}
           {isAI && (
             <View style={[styles.aiAvatarSlot]}>
               {!grouped && (
@@ -738,7 +740,6 @@ export default function ChatbotScreen({ navigation }: Props) {
                     borderColor: isError
                       ? '#FF555540'
                       : colors.authInputBorder || colors.cardBorder,
-                    // Subtle shadow for AI bubbles
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 1 },
                     shadowOpacity: 0.05,
@@ -763,11 +764,10 @@ export default function ChatbotScreen({ navigation }: Props) {
                       )}
                     </Text>
 
-                    {/* Timestamp row */}
                     <View style={styles.timestampRow}>
                       {isCopied && (
                         <Text style={[styles.copiedHint, { color: colors.primary }]}>
-                          ✓ Copied
+                          {ar.copied}
                         </Text>
                       )}
                       <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
@@ -798,17 +798,15 @@ export default function ChatbotScreen({ navigation }: Props) {
                   {item.text}
                 </Text>
 
-                {/* Timestamp row */}
                 <View style={styles.timestampRow}>
                   {isCopied && (
                     <Text style={[styles.copiedHint, { color: '#FFFFFF90' }]}>
-                      ✓ Copied
+                      {ar.copied}
                     </Text>
                   )}
                   <Text style={[styles.timestamp, { color: '#FFFFFF80' }]}>
                     {formatRelativeTime(item.timestamp)}
                   </Text>
-                  {/* Delivery tick for user messages */}
                   {item.status === 'done' && (
                     <Ionicons name="checkmark-done" size={12} color="#FFFFFF80" style={{ marginLeft: 2 }} />
                   )}
@@ -827,10 +825,7 @@ export default function ChatbotScreen({ navigation }: Props) {
   const charsLeft = MAX_INPUT_LENGTH - inputText.length;
   const showCharCount = inputText.length >= CHAR_WARN_THRESHOLD;
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <LinearGradient
@@ -851,20 +846,19 @@ export default function ChatbotScreen({ navigation }: Props) {
             <MaterialCommunityIcons name="robot-happy" size={22} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>AI Coach</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.aiCoach}</Text>
             <View style={styles.headerStatusRow}>
-              {/* Green presence dot */}
               {!isStreaming && !isLoadingHistory && (
                 <View style={[styles.onlineDot, { backgroundColor: '#22C55E' }]} />
               )}
               <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
                 {isLoadingHistory
-                  ? 'Loading history…'
+                  ? ar.loadingHistory
                   : statusText
                   ? statusText
                   : isStreaming
-                  ? 'Typing…'
-                  : 'Online • Always here'}
+                  ? ar.typing
+                  : ar.onlineAlwaysHere}
               </Text>
             </View>
           </View>
@@ -888,11 +882,10 @@ export default function ChatbotScreen({ navigation }: Props) {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Loading conversations…
+              {ar.loadingConversations}
             </Text>
           </View>
         ) : showWelcome ? (
-          // ── Welcome / empty state ──────────────────────────────────────
           <ScrollView
             contentContainerStyle={{ flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
@@ -901,7 +894,6 @@ export default function ChatbotScreen({ navigation }: Props) {
             <WelcomeState colors={colors} onSuggestion={handleSuggestionTap} />
           </ScrollView>
         ) : (
-          // ── Message list ───────────────────────────────────────────────
           <FlatList
             ref={flatListRef}
             style={{ flex: 1 }}
@@ -921,7 +913,6 @@ export default function ChatbotScreen({ navigation }: Props) {
           />
         )}
 
-        {/* Scroll-to-bottom FAB */}
         {!showWelcome && (
           <Animated.View
             pointerEvents={isNearBottom ? 'none' : 'auto'}
@@ -933,7 +924,6 @@ export default function ChatbotScreen({ navigation }: Props) {
           </Animated.View>
         )}
 
-        {/* Suggestion chips — shown after history loads & not streaming */}
         {showSuggestions && (
           <View style={[styles.suggestionsContainer, { backgroundColor: colors.surface + 'F0', borderTopColor: colors.authInputBorder || colors.cardBorder }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -974,7 +964,6 @@ export default function ChatbotScreen({ navigation }: Props) {
           ]}
         >
           <View style={{ flex: 1 }}>
-            {/* Character count warning */}
             {showCharCount && (
               <Text
                 style={[
@@ -999,7 +988,7 @@ export default function ChatbotScreen({ navigation }: Props) {
                 },
               ]}
               placeholder={
-                isStreaming ? 'AI is replying…' : 'Ask me anything about fitness…'
+                isStreaming ? ar.aiReplying : ar.askMeAnything
               }
               placeholderTextColor={colors.textSecondary}
               value={inputText}
@@ -1039,38 +1028,38 @@ export default function ChatbotScreen({ navigation }: Props) {
 
       <SuccessModal
         visible={showClearChatConfirm}
-        title="Clear Chat"
-        message="Are you sure you want to clear all messages? This cannot be undone."
-        primaryButtonText="Clear"
+        title={ar.clearChatTitle}
+        message={ar.clearChatMessage}
+        primaryButtonText={ar.clear}
         onPrimaryPress={proceedClearChat}
-        secondaryButtonText="Cancel"
+        secondaryButtonText={ar.cancel}
         onSecondaryPress={() => setShowClearChatConfirm(false)}
         iconName="trash-bin"
       />
 
       <SuccessModal
         visible={showClearChatSuccess}
-        title="Chat Cleared"
-        message="Your conversation history has been cleared."
-        primaryButtonText="OK"
+        title={ar.chatClearedTitle}
+        message={ar.chatClearedMessage}
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowClearChatSuccess(false)}
         iconName="checkmark-circle"
       />
 
       <SuccessModal
         visible={showClearChatError}
-        title="Error"
+        title={ar.error}
         message={errorMessage}
-        primaryButtonText="OK"
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowClearChatError(false)}
         iconName="alert-circle"
       />
 
       <SuccessModal
         visible={showSessionExpiredModal}
-        title="Session Expired"
-        message="Your session has expired. Please log in again to continue."
-        primaryButtonText="Log In"
+        title={ar.sessionExpiredTitle}
+        message={ar.sessionExpiredMessage}
+        primaryButtonText={ar.logIn}
         onPrimaryPress={() => {
           setShowSessionExpiredModal(false);
           navigation.navigate('Login' as never);
@@ -1080,9 +1069,9 @@ export default function ChatbotScreen({ navigation }: Props) {
 
       <SuccessModal
         visible={showRateLimitModal}
-        title="Rate Limit Exceeded"
-        message="Too many requests. Please wait a moment before sending another message."
-        primaryButtonText="Got it"
+        title={ar.rateLimitExceededTitle}
+        message={ar.rateLimitExceededMessage}
+        primaryButtonText={ar.gotIt}
         onPrimaryPress={() => setShowRateLimitModal(false)}
         iconName="hourglass"
       />
@@ -1091,13 +1080,11 @@ export default function ChatbotScreen({ navigation }: Props) {
 }
 
 // ============================================================================
-// Styles
+// Styles (unchanged)
 // ============================================================================
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  // ── Header ──────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1126,7 +1113,6 @@ const styles = StyleSheet.create({
   onlineDot: { width: 6, height: 6, borderRadius: 3 },
   headerSubtitle: { fontSize: 11.5, flex: 1 },
 
-  // ── Messages ─────────────────────────────────────────────────────────────
   messagesList: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 8 },
 
   messageContainer: {
@@ -1172,7 +1158,6 @@ const styles = StyleSheet.create({
   timestamp: { fontSize: 10.5 },
   copiedHint: { fontSize: 10, fontWeight: '600', marginRight: 4 },
 
-  // ── Typing dots ──────────────────────────────────────────────────────────
   typingDotsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1181,7 +1166,6 @@ const styles = StyleSheet.create({
   },
   typingDot: { width: 8, height: 8, borderRadius: 4 },
 
-  // ── Scroll to bottom FAB ─────────────────────────────────────────────────
   fabScrollBottom: {
     position: 'absolute',
     bottom: 16,
@@ -1203,7 +1187,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
 
-  // ── Suggestion chips ─────────────────────────────────────────────────────
   suggestionsContainer: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1222,7 +1205,6 @@ const styles = StyleSheet.create({
   suggestionEmoji: { fontSize: 14 },
   suggestionText: { fontSize: 13, fontWeight: '500' },
 
-  // ── Input bar ────────────────────────────────────────────────────────────
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1257,7 +1239,6 @@ const styles = StyleSheet.create({
     marginBottom: 1,
   },
 
-  // ── Copy toast ────────────────────────────────────────────────────────────
   copyToast: {
     position: 'absolute',
     bottom: 70,
@@ -1272,7 +1253,6 @@ const styles = StyleSheet.create({
   },
   copyToastText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
-  // ── Loading ───────────────────────────────────────────────────────────────
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1281,7 +1261,6 @@ const styles = StyleSheet.create({
   },
   loadingText: { fontSize: 14 },
 
-  // ── Welcome / empty state ─────────────────────────────────────────────────
   welcomeContainer: {
     flex: 1,
     alignItems: 'center',

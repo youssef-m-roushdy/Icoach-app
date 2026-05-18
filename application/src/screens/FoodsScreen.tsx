@@ -35,6 +35,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+import ar from '../../i18n/locales/ar.json';
 
 // ─── Gesture vs button nav detection ─────────────────────────────────────────
 function getNavBarInfo(): { height: number; isGestureMode: boolean } {
@@ -125,8 +126,8 @@ export default function FoodsScreen() {
 
       if (!data || !data.food_data) {
         showInfoToast({
-          title: 'No Result',
-          message: 'Could not identify the food clearly. Please try another image.',
+          title: ar.noResult,
+          message: ar.couldNotIdentifyFood,
         });
         return;
       }
@@ -135,13 +136,13 @@ export default function FoodsScreen() {
       setSelectedImage(imageUri);
 
       showSuccessToast({
-        title: 'Food Identified',
-        message: `${formatFoodName(data.food_data.name)} detected successfully`,
+        title: ar.foodIdentified,
+        message: `${formatFoodName(data.food_data.name)} ${ar.detectedSuccessfully}`,
       });
     } catch (error: unknown) {
       showErrorToast({
-        title: 'Recognition Failed',
-        message: getErrorMessage(error) || 'Failed to identify food. Please try again.',
+        title: ar.recognitionFailed,
+        message: getErrorMessage(error) || ar.failedToIdentifyFood,
       });
     } finally {
       setLoading(false);
@@ -155,11 +156,11 @@ export default function FoodsScreen() {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
-            title: 'Camera Permission',
-            message: 'This app needs access to your camera to take photos of food.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
+            title: ar.cameraPermissionTitle,
+            message: ar.cameraPermissionMessage,
+            buttonNeutral: ar.askMeLater,
+            buttonNegative: ar.cancel,
+            buttonPositive: ar.ok,
           }
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
@@ -178,8 +179,8 @@ export default function FoodsScreen() {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
       showErrorToast({
-        title: 'Permission Denied',
-        message: 'Camera permission is required to take photos.',
+        title: ar.permissionDenied,
+        message: ar.cameraPermissionRequired,
       });
       return;
     }
@@ -199,8 +200,8 @@ export default function FoodsScreen() {
         if (response.errorCode) {
           console.log('Camera Error Code:', response.errorCode);
           showErrorToast({
-            title: 'Camera Error',
-            message: response.errorMessage || 'An error occurred while opening the camera',
+            title: ar.cameraError,
+            message: response.errorMessage || ar.cameraErrorMessage,
           });
           return;
         }
@@ -209,8 +210,8 @@ export default function FoodsScreen() {
           predictFood(response.assets[0].uri);
         } else {
           showInfoToast({
-            title: 'No Image Selected',
-            message: 'Please capture a valid image to continue.',
+            title: ar.noImageSelected,
+            message: ar.captureValidImage,
           });
         }
       }
@@ -228,7 +229,7 @@ export default function FoodsScreen() {
 
         if (response.errorMessage) {
           showErrorToast({
-            title: 'Gallery Error',
+            title: ar.galleryError,
             message: response.errorMessage,
           });
           return;
@@ -238,8 +239,8 @@ export default function FoodsScreen() {
           predictFood(response.assets[0].uri);
         } else {
           showInfoToast({
-            title: 'No Image Selected',
-            message: 'Please choose a valid image from the gallery.',
+            title: ar.noImageSelected,
+            message: ar.chooseValidImage,
           });
         }
       }
@@ -278,16 +279,16 @@ export default function FoodsScreen() {
         contentContainerStyle={{ paddingBottom: dynamicPaddingBottom }} // Spacer for floating nav
       >
         <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>🍎 Food Recognition</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{ar.foodRecognition}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          AI-powered food identification
+          {ar.aiPoweredFoodIdentification}
         </Text>
 
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.primary }]}>
-              Identifying food...
+              {ar.identifyingFood}
             </Text>
           </View>
         ) : prediction && prediction.food_data && selectedImage ? (
@@ -305,18 +306,18 @@ export default function FoodsScreen() {
               </Text>
 
               <Text style={[styles.confidence, { color: colors.textSecondary }]}>
-                Confidence:{' '}
+                {ar.confidence}{' '}
                 {typeof prediction.confidence === 'number'
                   ? `${(prediction.confidence * 100).toFixed(1)}%`
-                  : 'N/A'}
+                  : ar.na}
               </Text>
 
               <View style={styles.nutritionGrid}>
                 {[
-                  { label: 'Calories', value: prediction.food_data.calories,    unit: 'kcal' },
-                  { label: 'Protein',  value: prediction.food_data.protein,      unit: 'g' },
-                  { label: 'Carbs',    value: prediction.food_data.carbohydrate, unit: 'g' },
-                  { label: 'Fat',      value: prediction.food_data.fat,          unit: 'g' },
+                  { label: ar.calories, value: prediction.food_data.calories,    unit: ar.kcal },
+                  { label: ar.protein,  value: prediction.food_data.protein,      unit: ar.gram },
+                  { label: ar.carbs,    value: prediction.food_data.carbohydrate, unit: ar.gram },
+                  { label: ar.fat,      value: prediction.food_data.fat,          unit: ar.gram },
                 ].map((n) => (
                   <View
                     key={n.label}
@@ -355,7 +356,7 @@ export default function FoodsScreen() {
                   { color: '#FFFFFF', position: 'relative' },
                 ]}
               >
-                Scan Another Food
+                {ar.scanAnotherFood}
               </Text>
             </TouchableOpacity>
           </View>
@@ -365,9 +366,9 @@ export default function FoodsScreen() {
             onPress={openSheet}
           >
             <Icon name="camera" size={48} color={colors.primary} />
-            <Text style={[styles.scanTitle, { color: colors.text }]}>Scan Your Food</Text>
+            <Text style={[styles.scanTitle, { color: colors.text }]}>{ar.scanYourFood}</Text>
             <Text style={[styles.scanText, { color: colors.textSecondary }]}>
-              Take a photo or choose from gallery to identify food and get nutrition info
+              {ar.scanDescription}
             </Text>
           </TouchableOpacity>
         )}
@@ -391,7 +392,7 @@ export default function FoodsScreen() {
               <View style={[styles.iconBox, { backgroundColor: colors.iconBg ?? colors.card }]}>
                 <Icon name="camera" size={22} color={colors.primary} />
               </View>
-              <Text style={[styles.optionText, { color: colors.text }]}>Take Photo</Text>
+              <Text style={[styles.optionText, { color: colors.text }]}>{ar.takePhoto}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.option} onPress={openGallery} activeOpacity={0.7}>
@@ -399,13 +400,13 @@ export default function FoodsScreen() {
                 <Ion name="images-outline" size={22} color={colors.primary} />
               </View>
               <Text style={[styles.optionText, { color: colors.text }]}>
-                Choose from Gallery
+                {ar.chooseFromGallery}
               </Text>
             </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.divider ?? colors.border }]} />
             <TouchableOpacity style={styles.cancelBtn} onPress={closeSheet}>
-              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: colors.textSecondary }]}>{ar.cancel}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetView>

@@ -24,6 +24,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
+import ar from '../../i18n/locales/ar.json';
 
 type ResetPasswordNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -58,28 +59,28 @@ export default function ResetPasswordScreen() {
     if (password.length < 8) {
       return {
         isValid: false,
-        message: 'Password must be at least 8 characters long',
+        message: ar.passwordMinLengthError,
       };
     }
 
     if (!/[A-Z]/.test(password)) {
       return {
         isValid: false,
-        message: 'Password must contain at least one uppercase letter',
+        message: ar.passwordUppercaseError,
       };
     }
 
     if (!/[a-z]/.test(password)) {
       return {
         isValid: false,
-        message: 'Password must contain at least one lowercase letter',
+        message: ar.passwordLowercaseError,
       };
     }
 
     if (!/[0-9]/.test(password)) {
       return {
         isValid: false,
-        message: 'Password must contain at least one number',
+        message: ar.passwordNumberError,
       };
     }
 
@@ -103,9 +104,9 @@ export default function ResetPasswordScreen() {
       hasNumber,
     ].filter(Boolean).length;
 
-    if (strength <= 2) return { text: 'Weak', color: COLORS.error };
-    if (strength === 3) return { text: 'Fair', color: '#f59e0b' };
-    return { text: 'Strong', color: COLORS.success };
+    if (strength <= 2) return { text: ar.passwordWeak, color: COLORS.error };
+    if (strength === 3) return { text: ar.passwordFair, color: '#f59e0b' };
+    return { text: ar.passwordStrong, color: COLORS.success };
   };
 
   const passwordStrength = getPasswordStrength(newPassword);
@@ -113,24 +114,24 @@ export default function ResetPasswordScreen() {
   const handleResetPassword = async () => {
     if (!token.trim()) {
       showErrorToast({
-        title: 'Missing Token',
-        message: 'Please enter the reset token',
+        title: ar.missingToken,
+        message: ar.enterResetTokenMessage,
       });
       return;
     }
 
     if (!newPassword.trim() || !confirmPassword.trim()) {
       showErrorToast({
-        title: 'Missing Fields',
-        message: 'Please fill in all password fields',
+        title: ar.missingFields,
+        message: ar.fillAllPasswordFields,
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
       showErrorToast({
-        title: 'Password Mismatch',
-        message: 'Passwords do not match',
+        title: ar.passwordMismatch,
+        message: ar.passwordsDoNotMatch,
       });
       return;
     }
@@ -138,9 +139,9 @@ export default function ResetPasswordScreen() {
     const passwordValidation = validatePassword(newPassword);
     if (!passwordValidation.isValid) {
       showErrorToast({
-        title: 'Weak Password',
+        title: ar.weakPassword,
         message:
-          passwordValidation.message || 'Please choose a stronger password',
+          passwordValidation.message || ar.chooseStrongerPassword,
       });
       return;
     }
@@ -153,8 +154,8 @@ export default function ResetPasswordScreen() {
       setPasswordReset(true);
 
       showSuccessToast({
-        title: 'Password Reset Successful',
-        message: 'Your password has been updated successfully.',
+        title: ar.passwordResetSuccessTitle,
+        message: ar.passwordResetSuccessMessage,
       });
     } catch (error: unknown) {
       console.error('❌ Reset Password Error:', error);
@@ -167,13 +168,12 @@ export default function ResetPasswordScreen() {
         rawMessage.toLowerCase().includes('expired') ||
         rawMessage.toLowerCase().includes('token')
       ) {
-        displayMessage =
-          'Invalid or expired reset token. Please request a new one.';
+        displayMessage = ar.invalidOrExpiredToken;
       }
 
       showErrorToast({
-        title: 'Reset Failed',
-        message: displayMessage || 'Password reset failed',
+        title: ar.resetFailedTitle,
+        message: displayMessage || ar.resetFailedMessage,
       });
     } finally {
       setIsLoading(false);
@@ -220,19 +220,18 @@ export default function ResetPasswordScreen() {
               </View>
 
               <Text style={[styles.title, { color: colors.text }]}>
-                Password Reset Successfully!
+                {ar.passwordResetSuccessTitle}
               </Text>
 
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Your password has been updated successfully. You can now sign in
-                with your new password.
+                {ar.passwordResetSuccessMessage}
               </Text>
 
               <TouchableOpacity
                 style={styles.button}
                 onPress={() => navigation.replace('Login')}
               >
-                <Text style={styles.buttonText}>Sign In Now</Text>
+                <Text style={styles.buttonText}>{ar.signInNow}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -267,7 +266,7 @@ export default function ResetPasswordScreen() {
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>
-              Back
+              {ar.back}
             </Text>
           </TouchableOpacity>
 
@@ -299,13 +298,13 @@ export default function ResetPasswordScreen() {
               </View>
 
               <Text style={[styles.title, { color: colors.text }]}>
-                Reset Password
+                {ar.resetPasswordTitle}
               </Text>
 
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {email
-                  ? `Reset password for ${email}`
-                  : 'Enter reset token and new password'}
+                  ? `${ar.resetPasswordFor} ${email}`
+                  : ar.enterResetTokenAndPassword}
               </Text>
             </View>
 
@@ -313,7 +312,7 @@ export default function ResetPasswordScreen() {
             {!initialToken && (
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  Reset Token
+                  {ar.resetToken}
                 </Text>
                 <View
                   style={[
@@ -331,7 +330,7 @@ export default function ResetPasswordScreen() {
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder="Enter the reset token from email"
+                    placeholder={ar.enterResetToken}
                     placeholderTextColor={colors.textSecondary}
                     value={token}
                     onChangeText={setToken}
@@ -345,7 +344,7 @@ export default function ResetPasswordScreen() {
                   <Text
                     style={[styles.noteText, { color: colors.textSecondary }]}
                   >
-                    Check your email for the reset token sent to you
+                    {ar.checkEmailForToken}
                   </Text>
                 </View>
               </View>
@@ -354,7 +353,7 @@ export default function ResetPasswordScreen() {
             {/* New Password */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                New Password
+                {ar.newPassword}
               </Text>
               <View
                 style={[
@@ -372,7 +371,7 @@ export default function ResetPasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Enter new password"
+                  placeholder={ar.enterNewPassword}
                   placeholderTextColor={colors.textSecondary}
                   value={newPassword}
                   onChangeText={setNewPassword}
@@ -398,7 +397,7 @@ export default function ResetPasswordScreen() {
                   <Text
                     style={[styles.strengthLabel, { color: colors.textSecondary }]}
                   >
-                    Strength:
+                    {ar.strengthLabel}:
                   </Text>
                   <Text
                     style={[styles.strengthText, { color: passwordStrength.color }]}
@@ -416,9 +415,9 @@ export default function ResetPasswordScreen() {
                         styles.strengthFill,
                         {
                           width: `${
-                            passwordStrength.text === 'Weak'
+                            passwordStrength.text === ar.passwordWeak
                               ? 33
-                              : passwordStrength.text === 'Fair'
+                              : passwordStrength.text === ar.passwordFair
                               ? 66
                               : 100
                           }%`,
@@ -434,7 +433,7 @@ export default function ResetPasswordScreen() {
             {/* Confirm Password */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                Confirm New Password
+                {ar.confirmNewPassword}
               </Text>
               <View
                 style={[
@@ -452,7 +451,7 @@ export default function ResetPasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Confirm new password"
+                  placeholder={ar.confirmPasswordPlaceholder}
                   placeholderTextColor={colors.textSecondary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -477,7 +476,7 @@ export default function ResetPasswordScreen() {
 
               {confirmPassword.length > 0 && newPassword !== confirmPassword && (
                 <Text style={[styles.errorText, { color: COLORS.error }]}>
-                  Passwords do not match
+                  {ar.passwordsDoNotMatch}
                 </Text>
               )}
             </View>
@@ -490,7 +489,7 @@ export default function ResetPasswordScreen() {
               ]}
             >
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
-                Password Requirements:
+                {ar.passwordRequirements}
               </Text>
 
               <View style={styles.requirementItem}>
@@ -510,7 +509,7 @@ export default function ResetPasswordScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  At least 8 characters
+                  {ar.minLength}
                 </Text>
               </View>
 
@@ -531,7 +530,7 @@ export default function ResetPasswordScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  One uppercase letter
+                  {ar.oneUppercase}
                 </Text>
               </View>
 
@@ -552,7 +551,7 @@ export default function ResetPasswordScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  One lowercase letter
+                  {ar.oneLowercase}
                 </Text>
               </View>
 
@@ -573,7 +572,7 @@ export default function ResetPasswordScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  One number
+                  {ar.oneNumber}
                 </Text>
               </View>
 
@@ -594,7 +593,7 @@ export default function ResetPasswordScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  Special character (optional)
+                  {ar.oneSpecial}
                 </Text>
               </View>
             </View>
@@ -608,7 +607,7 @@ export default function ResetPasswordScreen() {
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.buttonText}>Reset Password</Text>
+                <Text style={styles.buttonText}>{ar.resetPasswordTitle}</Text>
               )}
             </TouchableOpacity>
 
@@ -618,7 +617,7 @@ export default function ResetPasswordScreen() {
               onPress={() => navigation.navigate('ForgotPassword')}
             >
               <Text style={[styles.forgotLinkText, { color: colors.primary }]}>
-                Need a new reset token?
+                {ar.needNewToken}
               </Text>
             </TouchableOpacity>
 
@@ -628,7 +627,7 @@ export default function ResetPasswordScreen() {
               onPress={() => navigation.navigate('Login')}
             >
               <Text style={[styles.loginLinkText, { color: colors.primary }]}>
-                Back to Sign In
+                {ar.backToSignIn}
               </Text>
             </TouchableOpacity>
           </View>

@@ -28,6 +28,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from "../utils/toast";
+import ar from '../../i18n/locales/ar.json';
 
 type EditProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -197,16 +198,16 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     if (!token) {
       showErrorToast({
-        title: "Authentication Error",
-        message: "Authentication token not found",
+        title: ar.authenticationError,
+        message: ar.authenticationTokenNotFound,
       });
       return;
     }
 
     if (!firstName.trim() || !lastName.trim()) {
       showErrorToast({
-        title: "Missing Required Fields",
-        message: "First name and last name are required",
+        title: ar.missingRequiredFields,
+        message: ar.firstNameAndLastNameRequired,
       });
       return;
     }
@@ -234,8 +235,8 @@ export default function EditProfileScreen() {
 
       if (Object.keys(updateData).length === 0) {
         showInfoToast({
-          title: "No Changes",
-          message: "There are no changes to save",
+          title: ar.noChanges,
+          message: ar.noChangesToSave,
         });
         return;
       }
@@ -247,8 +248,8 @@ export default function EditProfileScreen() {
       }
 
       showSuccessToast({
-        title: "Profile Updated",
-        message: "Your profile has been updated successfully",
+        title: ar.profileUpdated,
+        message: ar.profileUpdatedSuccessfully,
       });
 
       setTimeout(() => {
@@ -256,8 +257,8 @@ export default function EditProfileScreen() {
       }, 900);
     } catch (error: unknown) {
       showErrorToast({
-        title: "Update Failed",
-        message: getErrorMessage(error) || "Failed to update profile",
+        title: ar.updateFailed,
+        message: getErrorMessage(error) || ar.failedToUpdateProfile,
       });
     } finally {
       setIsLoading(false);
@@ -312,12 +313,12 @@ export default function EditProfileScreen() {
 
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Edit Profile
+            {ar.editProfile}
           </Text>
           <Text
             style={[styles.headerSubtitle, { color: colors.textSecondary }]}
           >
-            Update your personal information
+            {ar.updateYourPersonalInformation}
           </Text>
         </View>
 
@@ -344,60 +345,60 @@ export default function EditProfileScreen() {
         >
           {/* Personal Information */}
           <SectionCard
-            title="Personal Information"
+            title={ar.personalInformation}
             icon={<Feather name="user" size={20} color={C.primary} />}
           >
             <ProfileInput
-              label="First Name"
+              label={ar.firstName}
               value={firstName}
               onChangeText={setFirstName}
               icon={<Feather name="user" size={18} color={C.primary} />}
-              placeholder="John"
+              placeholder={ar.john}
             />
             <View style={styles.inputSpacer} />
             <ProfileInput
-              label="Last Name"
+              label={ar.lastName}
               value={lastName}
               onChangeText={setLastName}
               icon={<Feather name="user" size={18} color={C.primary} />}
-              placeholder="Doe"
+              placeholder={ar.doe}
             />
           </SectionCard>
 
           {/* Account Details (read-only) */}
           <SectionCard
-            title="Account Details"
+            title={ar.accountDetails}
             icon={<Feather name="settings" size={20} color={C.primary} />}
           >
             <ProfileInput
-              label="Username"
+              label={ar.username}
               value={username}
               onChangeText={setUsername}
               icon={<Feather name="at-sign" size={18} color={C.primary} />}
-              note="Username cannot be changed"
+              note={ar.usernameCannotBeChanged}
             />
             <View style={styles.inputSpacer} />
             <ProfileInput
-              label="Email"
+              label={ar.email}
               value={user?.email || ""}
               onChangeText={() => {}}
               icon={<Feather name="mail" size={18} color={C.primary} />}
               editable={false}
-              note="Email cannot be changed"
+              note={ar.emailCannotBeChanged}
             />
           </SectionCard>
 
           {/* Contact & Bio */}
           <SectionCard
-            title="Contact & Bio"
+            title={ar.contactAndBio}
             icon={<Feather name="phone" size={20} color={C.primary} />}
           >
             <ProfileInput
-              label="Phone"
+              label={ar.phone}
               value={phone}
               onChangeText={setPhone}
               icon={<Feather name="phone" size={18} color={C.primary} />}
-              placeholder="+1234567890"
+              placeholder={ar.phonePlaceholder}
               onFocus={() =>
                 setTimeout(
                   () =>
@@ -408,11 +409,11 @@ export default function EditProfileScreen() {
             />
             <View style={styles.inputSpacer} />
             <ProfileInput
-              label="Bio"
+              label={ar.bio}
               value={bio}
               onChangeText={setBio}
               icon={<Feather name="info" size={18} color={C.primary} />}
-              placeholder="Tell us about yourself..."
+              placeholder={ar.tellUsAboutYourself}
               multiline
               numberOfLines={4}
               onFocus={() =>
@@ -431,8 +432,7 @@ export default function EditProfileScreen() {
             <Text
               style={[styles.infoNoteText, { color: colors.textSecondary }]}
             >
-              Only your name, phone, and bio can be edited. Username and email
-              are permanent.
+              {ar.editProfileInfoNote}
             </Text>
           </View>
 
@@ -456,7 +456,7 @@ export default function EditProfileScreen() {
                   <Text
                     style={[styles.cancelButtonText, { color: colors.text }]}
                   >
-                    Cancel
+                    {ar.cancel}
                   </Text>
                 </TouchableOpacity>
 
@@ -473,7 +473,7 @@ export default function EditProfileScreen() {
                   >
                     <Feather name="check" size={20} color="#FFFFFF" />
                     <Text style={[styles.saveButtonText, { color: "#FFFFFF" }]}>
-                      Save Changes
+                      {ar.saveChanges}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>

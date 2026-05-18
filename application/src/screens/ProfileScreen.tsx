@@ -35,6 +35,7 @@ import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScro
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SuccessModal from '../components/common/SuccessModal';
+import ar from '../../i18n/locales/ar.json';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -122,13 +123,13 @@ export default function ProfileScreen() {
     const backAction = () => {
       if (isImageOptionsModalOpen) {
         closeImageOptionsSheet();
-        return true; // Prevent default back behavior
+        return true;
       }
       if (isSettingsModalOpen) {
         closeSettingsSheet();
-        return true; // Prevent default back behavior
+        return true;
       }
-      return false; // Allow default back behavior (navigation)
+      return false;
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -143,8 +144,8 @@ export default function ProfileScreen() {
   const loadProfile = useCallback(async () => {
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'No authentication token found',
+        title: ar.authenticationError,
+        message: ar.authenticationTokenNotFound,
       });
       return;
     }
@@ -157,15 +158,15 @@ export default function ProfileScreen() {
         updateUser(response.data);
       } else {
         showInfoToast({
-          title: 'Using Cached Data',
-          message: 'No fresh profile data returned. Showing cached profile info.',
+          title: ar.usingCachedData,
+          message: ar.noFreshProfileDataReturned,
         });
       }
     } catch (error: unknown) {
       console.error('❌ Profile Error:', error);
       showInfoToast({
-        title: 'Using Cached Data',
-        message: 'Unable to refresh profile right now. Showing cached profile data.',
+        title: ar.usingCachedData,
+        message: ar.unableToRefreshProfile,
       });
     } finally {
       setIsLoading(false);
@@ -176,8 +177,8 @@ export default function ProfileScreen() {
     async (uri: string) => {
       if (!token) {
         showErrorToast({
-          title: 'Authentication Error',
-          message: 'No authentication token found',
+          title: ar.authenticationError,
+          message: ar.authenticationTokenNotFound,
         });
         return;
       }
@@ -194,16 +195,16 @@ export default function ProfileScreen() {
         }
 
         showSuccessToast({
-          title: 'Profile Picture Updated',
-          message: 'Your profile picture has been updated successfully',
+          title: ar.profilePictureUpdated,
+          message: ar.profilePictureUpdatedMessage,
         });
 
         await loadProfile();
       } catch (error: unknown) {
         console.error('❌ Upload Error:', error);
         showErrorToast({
-          title: 'Upload Failed',
-          message: getErrorMessage(error) || 'Failed to update profile picture',
+          title: ar.uploadFailed,
+          message: getErrorMessage(error) || ar.failedToUpdateProfilePicture,
         });
       } finally {
         setIsLoading(false);
@@ -231,16 +232,16 @@ export default function ProfileScreen() {
         await uploadProfilePicture(image.path);
       } else {
         showInfoToast({
-          title: 'No Photo Captured',
-          message: 'Please capture a valid photo to continue.',
+          title: ar.noPhotoCaptured,
+          message: ar.captureValidImage,
         });
       }
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
         console.error('Error taking photo:', error);
         showErrorToast({
-          title: 'Camera Error',
-          message: getErrorMessage(error) || 'Failed to take photo',
+          title: ar.cameraError,
+          message: getErrorMessage(error) || ar.failedToTakePhoto,
         });
       }
     }
@@ -265,16 +266,16 @@ export default function ProfileScreen() {
         await uploadProfilePicture(image.path);
       } else {
         showInfoToast({
-          title: 'No Image Selected',
-          message: 'Please choose a valid image from the gallery.',
+          title: ar.noImageSelected,
+          message: ar.chooseValidImage,
         });
       }
     } catch (error: any) {
       if (error?.code !== 'E_PICKER_CANCELLED') {
         console.error('Error choosing photo:', error);
         showErrorToast({
-          title: 'Gallery Error',
-          message: getErrorMessage(error) || 'Failed to choose photo',
+          title: ar.galleryError,
+          message: getErrorMessage(error) || ar.failedToChoosePhoto,
         });
       }
     }
@@ -289,8 +290,8 @@ export default function ProfileScreen() {
     setShowDeletePicConfirm(false);
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'No authentication token found',
+        title: ar.authenticationError,
+        message: ar.authenticationTokenNotFound,
       });
       return;
     }
@@ -305,16 +306,16 @@ export default function ProfileScreen() {
       updateUser(updatedUserData);
 
       showSuccessToast({
-        title: 'Profile Picture Deleted',
-        message: 'Your profile picture has been deleted successfully',
+        title: ar.profilePictureDeleted,
+        message: ar.profilePictureDeletedMessage,
       });
 
       await loadProfile();
     } catch (error: unknown) {
       console.error('❌ Delete Error:', error);
       showErrorToast({
-        title: 'Delete Failed',
-        message: getErrorMessage(error) || 'Failed to delete profile picture',
+        title: ar.deleteFailed,
+        message: getErrorMessage(error) || ar.failedToDeleteProfilePicture,
       });
     } finally {
       setIsLoading(false);
@@ -346,20 +347,20 @@ export default function ProfileScreen() {
         enablePanDownToClose
       >
         <BottomSheetView style={[styles.modalContent, { paddingBottom: Math.max(30, systemBottomInset + 4) }]}>
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Profile Picture</Text>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>{ar.profilePicture}</Text>
 
           <TouchableOpacity style={styles.modalOpt} onPress={handleTakePhoto}>
             <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
               <Feather name="camera" size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.modalOptText, { color: colors.text }]}>Take Photo</Text>
+            <Text style={[styles.modalOptText, { color: colors.text }]}>{ar.takePhoto}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.modalOpt} onPress={handleChooseFromGallery}>
             <View style={[styles.modalOptIcon, { backgroundColor: colors.iconBg }]}>
               <Feather name="image" size={20} color={colors.primary} />
             </View>
-            <Text style={[styles.modalOptText, { color: colors.text }]}>Choose from Gallery</Text>
+            <Text style={[styles.modalOptText, { color: colors.text }]}>{ar.chooseFromGallery}</Text>
           </TouchableOpacity>
 
           {userData?.avatar && (
@@ -367,13 +368,13 @@ export default function ProfileScreen() {
               <View style={[styles.modalOptIcon, { backgroundColor: COLORS.error + '12' }]}>
                 <Feather name="trash-2" size={20} color={COLORS.error} />
               </View>
-              <Text style={[styles.modalOptText, { color: COLORS.error }]}>Delete Photo</Text>
+              <Text style={[styles.modalOptText, { color: COLORS.error }]}>{ar.deletePhoto}</Text>
             </TouchableOpacity>
           )}
 
           <View style={[styles.modalDivider, { backgroundColor: colors.divider ?? '#E0E0E0' }]} />
           <TouchableOpacity style={styles.modalCancel} onPress={closeImageOptionsSheet}>
-            <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>Cancel</Text>
+            <Text style={[styles.modalCancelText, { color: colors.subtleText }]}>{ar.cancel}</Text>
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheetModal>
@@ -393,15 +394,15 @@ export default function ProfileScreen() {
         handleIndicatorStyle={handleIndicatorStyle}
       >
         <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
-          <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 20, marginTop: 10 }]}>Settings & Account</Text>
+          <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 20, marginTop: 10 }]}>{ar.settingsAndAccount}</Text>
           
           <View style={styles.settingsGroup}>
-            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>ACCOUNT</Text>
+            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>{ar.account}</Text>
             <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); navigation.navigate('EditProfile'); }}>
               <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
                 <Feather name="user" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.settingsItemText, { color: colors.text }]}>Edit Profile</Text>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.editProfile}</Text>
               <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
             </TouchableOpacity>
 
@@ -409,7 +410,7 @@ export default function ProfileScreen() {
               <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="monitor-weight" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.settingsItemText, { color: colors.text }]}>Edit Body Info</Text>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.editBodyInfo}</Text>
               <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
             </TouchableOpacity>
 
@@ -417,13 +418,13 @@ export default function ProfileScreen() {
               <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
                 <Feather name="lock" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.settingsItemText, { color: colors.text }]}>Change Password</Text>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.changePassword}</Text>
               <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.settingsGroup}>
-            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>PREFERENCES</Text>
+            <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>{ar.preferences}</Text>
             
             {/* Professional Theme Switcher */}
             <View style={styles.themeSwitcherContainer}>
@@ -436,9 +437,9 @@ export default function ProfileScreen() {
                   )}
                 </View>
                 <View style={styles.themeSwitcherTextContainer}>
-                  <Text style={[styles.settingsItemText, { color: colors.text }]}>Theme</Text>
+                  <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.theme}</Text>
                   <Text style={[styles.themeSwitcherSubtext, { color: colors.textSecondary }]}>
-                    {theme === 'light' ? 'Light Mode' : 'Dark Mode'}
+                    {theme === 'light' ? ar.lightMode : ar.darkMode}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -459,12 +460,12 @@ export default function ProfileScreen() {
                       {theme === 'light' ? (
                         <>
                           <Feather name="sun" size={14} color="#FFF" />
-                          <Text style={styles.themeToggleText}>Light</Text>
+                          <Text style={styles.themeToggleText}>{ar.light}</Text>
                         </>
                       ) : (
                         <>
                           <Feather name="moon" size={14} color="#FFF" />
-                          <Text style={styles.themeToggleText}>Dark</Text>
+                          <Text style={styles.themeToggleText}>{ar.dark}</Text>
                         </>
                       )}
                     </View>
@@ -473,26 +474,26 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: 'Privacy', message: 'Privacy policy coming soon!'}) }}>
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: ar.privacyTitle, message: ar.privacyPolicyComingSoon}) }}>
               <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
                 <Feather name="shield" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.settingsItemText, { color: colors.text }]}>Privacy Policy</Text>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.privacyPolicy}</Text>
               <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: 'About', message: 'iCoach Version 1.0.0'}) }}>
+            <TouchableOpacity style={styles.settingsItem} onPress={() => { closeSettingsSheet(); showInfoToast({title: ar.about, message: ar.aboutDescription}) }}>
               <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
                 <Feather name="info" size={18} color={colors.primary} />
               </View>
-              <Text style={[styles.settingsItemText, { color: colors.text }]}>About</Text>
+              <Text style={[styles.settingsItemText, { color: colors.text }]}>{ar.about}</Text>
               <MaterialIcons name="chevron-right" size={20} color={colors.subtleText} />
             </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.logoutSettingBtn} onPress={handleLogout}>
             <Feather name="log-out" size={20} color={COLORS.error} style={{ marginRight: 10 }} />
-            <Text style={{ color: COLORS.error, fontSize: 16, fontWeight: '600' }}>Log Out</Text>
+            <Text style={{ color: COLORS.error, fontSize: 16, fontWeight: '600' }}>{ar.logout}</Text>
           </TouchableOpacity>
         </BottomSheetScrollView>
       </BottomSheetModal>
@@ -511,23 +512,23 @@ export default function ProfileScreen() {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.text }]}>
-          Failed to load profile
+          {ar.failedToLoadProfile}
         </Text>
         <TouchableOpacity
           onPress={loadProfile}
           style={[styles.retryButton, { backgroundColor: COLORS.primary }]}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{ar.retry}</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   const bmiCategory = userData.bmi
-    ? userData.bmi < 18.5 ? 'Underweight'
-    : userData.bmi < 25   ? 'Normal'
-    : userData.bmi < 30   ? 'Overweight'
-    : 'Obese'
+    ? userData.bmi < 18.5 ? ar.underweight
+    : userData.bmi < 25   ? ar.normal
+    : userData.bmi < 30   ? ar.overweight
+    : ar.obese
     : null;
 
   const getBMIColor = () => {
@@ -544,7 +545,6 @@ export default function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
 
-      {/* Animated Gradient Background matches SignIn */}
       <LinearGradient
         colors={colors.authBgGradient as any}
         start={{ x: 0, y: 0 }}
@@ -560,7 +560,6 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: dynamicPaddingBottom }]}
         >
-          {/* Settings icon */}
           <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: insets.top + 10 }}>
             <TouchableOpacity 
               onPress={openSettingsSheet}
@@ -629,7 +628,7 @@ export default function ProfileScreen() {
             >
               <MaterialIcons name="height" size={15} color={colors.primary} />
               <Text style={[styles.quickChipText, { color: colors.text }]}>
-                {userData.height ? `${userData.height} cm` : '-- cm'}
+                {userData.height ? `${userData.height} cm` : ar.notAvailableCm}
               </Text>
             </View>
 
@@ -641,7 +640,7 @@ export default function ProfileScreen() {
             >
               <MaterialIcons name="monitor-weight" size={15} color={colors.primary} />
               <Text style={[styles.quickChipText, { color: colors.text }]}>
-                {userData.weight ? `${userData.weight} kg` : '-- kg'}
+                {userData.weight ? `${userData.weight} kg` : ar.notAvailableKg}
               </Text>
             </View>
 
@@ -682,10 +681,10 @@ export default function ProfileScreen() {
 
               <View style={{ flex: 1 }}>
                 <Text style={[styles.verifyTitle, { color: COLORS.error }]}>
-                  Email Not Verified
+                  {ar.emailNotVerifiedTitle}
                 </Text>
                 <Text style={[styles.verifyMsg, { color: colors.textSecondary }]}>
-                  Verify to unlock all features
+                  {ar.verifyToUnlockFeatures}
                 </Text>
               </View>
 
@@ -693,7 +692,7 @@ export default function ProfileScreen() {
                 style={[styles.verifyAction, { backgroundColor: COLORS.error }]}
                 onPress={() => navigation.navigate('EmailVerification')}
               >
-                <Text style={styles.verifyActionText}>Verify</Text>
+                <Text style={styles.verifyActionText}>{ar.verify}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -705,7 +704,7 @@ export default function ProfileScreen() {
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Personal Information
+                {ar.personalInformation}
               </Text>
             </View>
 
@@ -714,7 +713,7 @@ export default function ProfileScreen() {
               style={[styles.editPill, { backgroundColor: colors.iconBg }]}
             >
               <Feather name="edit-2" size={13} color={colors.primary} />
-              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+              <Text style={[styles.editPillText, { color: colors.primary }]}>{ar.edit}</Text>
             </TouchableOpacity>
           </View>
 
@@ -725,16 +724,16 @@ export default function ProfileScreen() {
             ]}
           >
             {[
-              { icon: 'mail',     label: 'Email',    value: userData.email },
-              { icon: 'phone',    label: 'Phone',    value: userData.phone || 'Not provided' },
-              { icon: 'info',     label: 'Bio',      value: userData.bio || 'Not provided' },
-              { icon: 'calendar', label: 'Birthday', value: userData.dateOfBirth || 'Not provided' },
+              { icon: 'mail',     label: ar.emailLabel,    value: userData.email },
+              { icon: 'phone',    label: ar.phone,    value: userData.phone || ar.notProvided },
+              { icon: 'info',     label: ar.bio,      value: userData.bio || ar.notProvided },
+              { icon: 'calendar', label: ar.birthday, value: userData.dateOfBirth || ar.notProvided },
               {
                 icon: 'user',
-                label: 'Gender',
+                label: ar.gender,
                 value: userData.gender
                   ? userData.gender.charAt(0).toUpperCase() + userData.gender.slice(1)
-                  : 'Not provided',
+                  : ar.notProvided,
               },
             ].map((row, i, arr) => (
               <React.Fragment key={row.label}>
@@ -768,7 +767,7 @@ export default function ProfileScreen() {
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Body & Fitness
+                {ar.bodyAndFitness}
               </Text>
             </View>
 
@@ -777,14 +776,14 @@ export default function ProfileScreen() {
               style={[styles.editPill, { backgroundColor: colors.iconBg }]}
             >
               <Feather name="edit-2" size={13} color={colors.primary} />
-              <Text style={[styles.editPillText, { color: colors.primary }]}>Edit</Text>
+              <Text style={[styles.editPillText, { color: colors.primary }]}>{ar.edit}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.statsRow}>
             {[
-              { icon: 'height',         label: 'Height', value: userData.height || '--', unit: 'cm' },
-              { icon: 'monitor-weight', label: 'Weight', value: userData.weight || '--', unit: 'kg' },
+              { icon: 'height',         label: ar.height, value: userData.height || '--', unit: 'cm' },
+              { icon: 'monitor-weight', label: ar.weight, value: userData.weight || '--', unit: 'kg' },
             ].map((s) => (
               <View
                 key={s.label}
@@ -818,7 +817,7 @@ export default function ProfileScreen() {
                   {userData.bmi || '--'}
                 </Text>
                 <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>
-                  BMI Index
+                  {ar.bmiIndexLabel}
                 </Text>
               </View>
             </View>
@@ -851,7 +850,7 @@ export default function ProfileScreen() {
                   {userData.bodyFatPercentage ? `${userData.bodyFatPercentage}%` : '--'}
                 </Text>
                 <Text style={[styles.wideCardLabel, { color: colors.textSecondary }]}>
-                  Body Fat
+                  {ar.bodyFat}
                 </Text>
               </View>
             </View>
@@ -871,14 +870,14 @@ export default function ProfileScreen() {
               <View style={[styles.goalDot, { backgroundColor: colors.primary }]} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
-                  Fitness Goal
+                  {ar.fitnessGoal}
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.fitnessGoal
                     ? userData.fitnessGoal
                         .replace(/_/g, ' ')
                         .replace(/\b\w/g, (l: string) => l.toUpperCase())
-                    : 'Not set'}
+                    : ar.notSet}
                 </Text>
               </View>
             </View>
@@ -889,26 +888,26 @@ export default function ProfileScreen() {
               <View style={[styles.goalDot, { backgroundColor: '#10B981' }]} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.infoLabel, { color: colors.subtleText }]}>
-                  Activity Level
+                  {ar.activityLevel}
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
                   {userData.activityLevel
                     ? userData.activityLevel
                         .replace(/_/g, ' ')
                         .replace(/\b\w/g, (l: string) => l.toUpperCase())
-                    : 'Not set'}
+                    : ar.notSet}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Workout Data - WITH BOTH AI COACH OPTIONS */}
+        {/* Workout Data */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Workout Data</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.workoutData}</Text>
             </View>
           </View>
 
@@ -925,7 +924,7 @@ export default function ProfileScreen() {
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="bookmark" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Saved Workouts</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>{ar.savedWorkouts}</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
 
@@ -935,41 +934,41 @@ export default function ProfileScreen() {
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="clock" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>Workout History</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>{ar.workoutHistory}</Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
 
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
 
-            {/* AI Coach Camera Assistant - Live Workout */}
+            {/* AI Coach Camera Assistant */}
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('LiveWorkout')}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <MaterialIcons name="videocam" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>AI Coach Camera</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>{ar.aiCoachCamera}</Text>
               <Text style={[styles.menuBadge, { backgroundColor: colors.primary + '20', color: colors.primary }]}>
-                Camera Assistant
+                {ar.cameraAssistant}
               </Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
 
             <View style={[styles.rowDivider, { backgroundColor: colors.divider }]} />
 
-            {/* AI Coach Chat Assistant - Chatbot */}
+            {/* AI Coach Chat Assistant */}
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Chatbot')}>
               <View style={[styles.menuIconBox, { backgroundColor: colors.iconBg }]}>
                 <Feather name="message-circle" size={17} color={colors.primary} />
               </View>
-              <Text style={[styles.menuText, { color: colors.text }]}>AI Coach Chat</Text>
+              <Text style={[styles.menuText, { color: colors.text }]}>{ar.aiCoachChat}</Text>
               <Text style={[styles.menuBadge, { backgroundColor: colors.primary + '20', color: colors.primary }]}>
-                Text Assistant
+                {ar.textAssistant}
               </Text>
               <Feather name="chevron-right" size={18} color={colors.subtleText} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={[styles.versionText, { color: colors.subtleText }]}>Version 1.0.0</Text>
+        <Text style={[styles.versionText, { color: colors.subtleText }]}>{ar.versionNumber}</Text>
       </ScrollView>
 
       {renderImageOptionsModal()}
@@ -977,22 +976,22 @@ export default function ProfileScreen() {
 
       <SuccessModal
         visible={showDeletePicConfirm}
-        title="Delete Profile Picture"
-        message="Are you sure you want to delete your profile picture?"
-        primaryButtonText="Delete"
+        title={ar.deleteProfilePictureTitle}
+        message={ar.deleteProfilePictureMessage}
+        primaryButtonText={ar.delete}
         onPrimaryPress={proceedDeleteProfilePicture}
-        secondaryButtonText="Cancel"
+        secondaryButtonText={ar.cancel}
         onSecondaryPress={() => setShowDeletePicConfirm(false)}
         iconName="trash-outline"
       />
 
       <SuccessModal
         visible={showLogoutConfirm}
-        title="Logout"
-        message="Are you sure you want to logout?"
-        primaryButtonText="Logout"
+        title={ar.logout}
+        message={ar.logoutConfirmationMessage}
+        primaryButtonText={ar.logout}
         onPrimaryPress={proceedLogout}
-        secondaryButtonText="Cancel"
+        secondaryButtonText={ar.cancel}
         onSecondaryPress={() => setShowLogoutConfirm(false)}
         iconName="log-out-outline"
       />

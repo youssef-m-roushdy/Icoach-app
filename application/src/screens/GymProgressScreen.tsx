@@ -28,6 +28,7 @@ import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { progressService } from '../services/progressService';
 import { ApiError } from '../services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ar from '../../i18n/locales/ar.json';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -93,12 +94,12 @@ const calculatePointsPercentage = (current: number, max: number): number =>
 
 const getMetricLabel = (key: MetricKey): string => {
   const labels: Record<MetricKey, string> = {
-    strength: 'Strength',
-    endurance: 'Endurance',
-    consistency: 'Consistency',
-    volume: 'Volume',
-    progress: 'Progress',
-    habits: 'Habits',
+    strength: ar.strength,
+    endurance: ar.endurance,
+    consistency: ar.consistency,
+    volume: ar.volume,
+    progress: ar.progress,
+    habits: ar.habits,
   };
   return labels[key];
 };
@@ -326,10 +327,10 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
   const { colors } = useTheme();
 
   const stats: Array<{ label: string; value: string | number }> = [
-    { label: 'Total Workouts', value: data.totalWorkouts },
-    { label: 'Weekly Avg', value: data.weeklyAvg.toFixed(1) },
-    { label: 'Current Streak', value: `${data.currentStreak}d` },
-    { label: 'Best Streak', value: `${data.longestStreak}d` },
+    { label: ar.totalWorkouts, value: data.totalWorkouts },
+    { label: ar.weeklyAvg, value: data.weeklyAvg.toFixed(1) },
+    { label: ar.currentStreak, value: `${data.currentStreak}d` },
+    { label: ar.bestStreak, value: `${data.longestStreak}d` },
   ];
 
   return (
@@ -347,7 +348,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
       </View>
 
       <View style={[styles.pbSection, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
-        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>Personal Bests</Text>
+        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>{ar.personalBests}</Text>
         {data.personalBests.length > 0 ? (
           data.personalBests.map((pb: PersonalBest, i: number) => (
             <View key={i} style={styles.pbRow}>
@@ -358,13 +359,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
           ))
         ) : (
           <Text style={[styles.emptyText, { color: colors.subtleText }]}>
-            No personal bests yet. Keep working out!
+            {ar.noPersonalBestsYet}
           </Text>
         )}
       </View>
 
       <View style={[styles.volumeBar, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
-        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>Total Volume Lifted</Text>
+        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>{ar.totalVolumeLifted}</Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
           {(data.totalVolume / 1000).toFixed(1)}k kg
         </Text>
@@ -381,7 +382,7 @@ const LoadingScreen = () => {
   return (
     <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.loadingText, { color: colors.text }]}>Loading your progress...</Text>
+      <Text style={[styles.loadingText, { color: colors.text }]}>{ar.loadingYourProgress}</Text>
     </View>
   );
 };
@@ -399,7 +400,7 @@ const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => voi
         style={[styles.retryButton, { backgroundColor: colors.primary }]}
         onPress={onRetry}
       >
-        <Text style={styles.retryButtonText}>Try Again</Text>
+        <Text style={styles.retryButtonText}>{ar.tryAgain}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -430,7 +431,7 @@ export default function GymProgressScreen() {
       setError(null);
       
       if (!token) {
-        setError('Authentication required');
+        setError(ar.authenticationRequired);
         setLoading(false);
         return;
       }
@@ -440,14 +441,14 @@ export default function GymProgressScreen() {
       
       // Check if response was successful and has data
       if (!response.success || !response.data) {
-        throw new Error(response.message || 'Failed to load progress data');
+        throw new Error(response.message || ar.failedToLoadProgressData);
       }
 
       const dashboardData = response.data;
       
       // Convert string metrics to numbers with safe fallbacks
       const convertedData: UserData = {
-        name: dashboardData.name || 'User',
+        name: dashboardData.name || ar.user,
         joinedDate: dashboardData.joinedDate || '',
         avatarUrl: dashboardData.avatarUrl || null,
         currentPoints: dashboardData.currentPoints || 0,
@@ -478,9 +479,9 @@ export default function GymProgressScreen() {
       
       // Handle different error types
       if (err.name === 'ApiError') {
-        setError(err.message || 'Failed to load progress data');
+        setError(err.message || ar.failedToLoadProgressData);
       } else {
-        setError(err.message || 'Failed to load progress data');
+        setError(err.message || ar.failedToLoadProgressData);
       }
     } finally {
       setLoading(false);
@@ -522,7 +523,7 @@ export default function GymProgressScreen() {
   }
 
   if (error || !progressData) {
-    return <ErrorScreen message={error || 'No data available'} onRetry={fetchProgressData} />;
+    return <ErrorScreen message={error || ar.noDataAvailable} onRetry={fetchProgressData} />;
   }
 
   const computedScore = calculateFitnessScore(progressData.metrics);
@@ -565,7 +566,7 @@ export default function GymProgressScreen() {
                 {progressData.name}
               </Text>
               <Text style={[styles.joinedText, { color: colors.subtleText }]}>
-                Joined {progressData.joinedDate}
+                {ar.joined} {progressData.joinedDate}
               </Text>
             </View>
           </View>
@@ -591,7 +592,7 @@ export default function GymProgressScreen() {
         >
           <View style={styles.pointsRow}>
             <Text style={[styles.pointsText, { color: colors.text }]}>
-              {progressData.currentPoints} / {progressData.maxPoints} points
+              {progressData.currentPoints} / {progressData.maxPoints} {ar.points}
             </Text>
             <View style={styles.badgeContainer}>
               <View style={[styles.badgeIcon, { backgroundColor: colors.iconBg }]}>
@@ -631,7 +632,7 @@ export default function GymProgressScreen() {
           ]}
         >
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Progress</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{ar.progress}</Text>
             <View style={[styles.trendBadge, { backgroundColor: colors.iconBg }]}>
               <Text style={[styles.trendArrow, { color: colors.primary }]}>↗</Text>
             </View>
@@ -659,7 +660,7 @@ export default function GymProgressScreen() {
                     activeTab === tab && { color: colors.primary, fontWeight: '700' },
                   ]}
                 >
-                  {tab === 'fitness' ? 'Fitness Score' : 'Training'}
+                  {tab === 'fitness' ? ar.fitnessScore : ar.training}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -668,7 +669,7 @@ export default function GymProgressScreen() {
           {activeTab === 'fitness' ? (
             <View style={styles.fitnessTabContent}>
               <Text style={[styles.fitnessScoreLabel, { color: colors.primary }]}>
-                Fitness Score
+                {ar.fitnessScore}
               </Text>
               <AnimatedScore score={computedScore} color={colors.text} />
 

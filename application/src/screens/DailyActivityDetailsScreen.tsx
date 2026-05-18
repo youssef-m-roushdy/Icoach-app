@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { dailyActiveService } from '../services/dailyActiveService';
 import SuccessModal from '../components/common/SuccessModal';
 import EditStepGoalModal from '../components/EditStepGoalModal';
+import ar from '../../i18n/locales/ar.json';
 
 type TimeFrame = 'week' | 'month' | 'all';
 
@@ -174,7 +175,7 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
           </Text>
           {isToday && (
             <View style={[styles.todayBadge, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={[styles.todayBadgeText, { color: colors.primary }]}>Today</Text>
+              <Text style={[styles.todayBadgeText, { color: colors.primary }]}>{ar.today}</Text>
             </View>
           )}
         </View>
@@ -184,14 +185,14 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
             <Text style={[styles.historyAmountValue, { color: colors.text }]}>
               {dailyActiveService.formatSteps(steps)}
             </Text>
-            <Text style={[styles.historyAmountUnit, { color: colors.textSecondary }]}>steps</Text>
+            <Text style={[styles.historyAmountUnit, { color: colors.textSecondary }]}>{ar.steps}</Text>
           </View>
           <Text style={[styles.historySeparator, { color: colors.textSecondary }]}>/</Text>
           <View style={styles.historyAmount}>
             <Text style={[styles.historyAmountValue, { color: colors.textSecondary }]}>
               {dailyActiveService.formatSteps(goal)}
             </Text>
-            <Text style={[styles.historyAmountUnit, { color: colors.textSecondary }]}>steps</Text>
+            <Text style={[styles.historyAmountUnit, { color: colors.textSecondary }]}>{ar.steps}</Text>
           </View>
         </View>
         
@@ -227,7 +228,7 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading activity data...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{ar.loadingActivityData}</Text>
       </View>
     );
   }
@@ -255,7 +256,7 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Step Activity Details</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.stepActivityDetails}</Text>
         <TouchableOpacity onPress={() => setShowGoalModal(true)} style={styles.editButton}>
           <Feather name="edit-2" size={20} color={colors.primary} />
         </TouchableOpacity>
@@ -268,21 +269,21 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
       >
         {/* Today's Summary */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Summary</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.todaySummary}</Text>
           <View style={[styles.todayCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}>
             <View style={styles.todayMain}>
               <View style={styles.todayAmount}>
                 <Text style={[styles.todayAmountValue, { color: colors.text }]}>
                   {dailyActiveService.formatSteps(todaySteps)}
                 </Text>
-                <Text style={[styles.todayAmountUnit, { color: colors.textSecondary }]}>steps</Text>
+                <Text style={[styles.todayAmountUnit, { color: colors.textSecondary }]}>{ar.steps}</Text>
               </View>
               <Text style={[styles.todayDivider, { color: colors.textSecondary }]}>/</Text>
               <View style={styles.todayGoal}>
                 <Text style={[styles.todayGoalValue, { color: colors.textSecondary }]}>
                   {dailyActiveService.formatSteps(currentGoal)}
                 </Text>
-                <Text style={[styles.todayGoalUnit, { color: colors.textSecondary }]}>steps</Text>
+                <Text style={[styles.todayGoalUnit, { color: colors.textSecondary }]}>{ar.steps}</Text>
               </View>
             </View>
             
@@ -301,7 +302,7 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
             {isCompleted && (
               <View style={[styles.goalAchievedBadge, { backgroundColor: '#10B98120' }]}>
                 <Ionicons name="trophy" size={16} color="#10B981" />
-                <Text style={[styles.goalAchievedText, { color: '#10B981' }]}>Goal achieved! 🎉</Text>
+                <Text style={[styles.goalAchievedText, { color: '#10B981' }]}>{ar.goalAchieved}</Text>
               </View>
             )}
           </View>
@@ -309,27 +310,27 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
 
         {/* Key Stats Grid */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Statistics</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.statistics}</Text>
           <View style={styles.statsGrid}>
-            {renderStatCard('Current Streak', `${streak.currentStreak || 0}`, 'days', 'fire', '#F59E0B')}
-            {renderStatCard('Longest Streak', `${streak.longestStreak || 0}`, 'days', 'trophy', '#10B981')}
-            {renderStatCard('Total Points', `${(totalPoints || 0).toLocaleString()}`, 'points', 'star', '#8B5CF6')}
-            {renderStatCard('Total Steps', `${(totalStepsValue).toLocaleString()}`, 'steps', 'shoe-print', colors.primary)}
+            {renderStatCard(ar.currentStreak, `${streak.currentStreak || 0}`, ar.days, 'fire', '#F59E0B')}
+            {renderStatCard(ar.longestStreak, `${streak.longestStreak || 0}`, ar.days, 'trophy', '#10B981')}
+            {renderStatCard(ar.totalPoints, `${(totalPoints || 0).toLocaleString()}`, ar.points, 'star', '#8B5CF6')}
+            {renderStatCard(ar.totalSteps, `${(totalStepsValue).toLocaleString()}`, ar.steps, 'shoe-print', colors.primary)}
           </View>
         </View>
 
         {/* Weekly Chart */}
         <View style={styles.section}>
           <View style={styles.chartHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly Overview</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.weeklyOverview}</Text>
             <View style={styles.chartLegend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Partial</Text>
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{ar.partial}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Completed</Text>
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{ar.completed}</Text>
               </View>
             </View>
           </View>
@@ -343,7 +344,7 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
 
         {/* History List */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>History</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.history}</Text>
           {history.length > 0 ? (
             <View style={styles.historyList}>
               {history.slice(0, 30).map((item) => renderHistoryItem(item))}
@@ -351,8 +352,8 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
           ) : (
             <View style={[styles.emptyContainer, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}>
               <MaterialCommunityIcons name="shoe-print" size={48} color={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No step activity history yet</Text>
-              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Start walking to track your steps!</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{ar.noActivityHistory}</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>{ar.startWalking}</Text>
             </View>
           )}
         </View>
@@ -370,9 +371,9 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
       {/* Success Modal */}
       <SuccessModal
         visible={showSuccessModal}
-        title="Success"
+        title={ar.success}
         message={modalMessage}
-        primaryButtonText="OK"
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowSuccessModal(false)}
         iconName="checkmark-circle"
       />
@@ -380,9 +381,9 @@ export default function DailyActivityDetailsScreen({ navigation }: any) {
       {/* Error Modal */}
       <SuccessModal
         visible={showErrorModal}
-        title="Error"
+        title={ar.error}
         message={modalMessage}
-        primaryButtonText="OK"
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowErrorModal(false)}
         iconName="alert-circle"
       />

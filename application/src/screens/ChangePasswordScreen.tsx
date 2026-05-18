@@ -26,6 +26,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
+import ar from '../../i18n/locales/ar.json';
 
 type ChangePasswordNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -63,41 +64,40 @@ export default function ChangePasswordScreen() {
   const handleChangePassword = async () => {
     if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
       showErrorToast({
-        title: 'Missing Fields',
-        message: 'Please fill in all fields',
+        title: ar.missingFields,
+        message: ar.fillAllFields,
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
       showErrorToast({
-        title: 'Password Mismatch',
-        message: 'New passwords do not match',
+        title: ar.passwordMismatch,
+        message: ar.newPasswordsNoMatch,
       });
       return;
     }
 
     if (currentPassword === newPassword) {
       showErrorToast({
-        title: 'Invalid Password',
-        message: 'New password must be different from current password',
+        title: ar.invalidPassword,
+        message: ar.passwordMustDiffer,
       });
       return;
     }
 
     if (!validatePassword(newPassword)) {
       showErrorToast({
-        title: 'Weak Password',
-        message:
-          'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number',
+        title: ar.weakPassword,
+        message: ar.passwordCriteria,
       });
       return;
     }
 
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'No authentication token found',
+        title: ar.authError,
+        message: ar.noToken,
       });
       return;
     }
@@ -114,8 +114,8 @@ export default function ChangePasswordScreen() {
       console.log('✅ Password changed successfully:', response);
 
       showSuccessToast({
-        title: 'Password Changed',
-        message: 'Your password has been updated successfully. Please sign in again.',
+        title: ar.changePasswordSuccess,
+        message: ar.passwordUpdatedSuccessfully,
       });
 
       setTimeout(async () => {
@@ -132,13 +132,12 @@ export default function ChangePasswordScreen() {
         rawMessage.toLowerCase().includes('incorrect password') ||
         rawMessage.toLowerCase().includes('old password')
       ) {
-        displayMessage =
-          'The current password you entered is incorrect. Please try again.';
+        displayMessage = ar.currentPasswordIncorrect;
       }
 
       showErrorToast({
-        title: 'Change Password Failed',
-        message: displayMessage || 'Failed to change password',
+        title: ar.changePasswordFailed,
+        message: displayMessage,
       });
     } finally {
       setIsLoading(false);
@@ -162,12 +161,11 @@ export default function ChangePasswordScreen() {
       hasNumber,
     ].filter(Boolean).length;
 
-    if (strength <= 2) return { text: 'Weak', color: COLORS.error };
-    if (strength === 3) return { text: 'Fair', color: '#f59e0b' };
-    return { text: 'Strong', color: COLORS.success };
+    if (strength <= 2) return { text: ar.passwordWeak, color: COLORS.error };
+    if (strength === 3) return { text: ar.passwordFair, color: '#f59e0b' };
+    return { text: ar.passwordStrong, color: COLORS.success };
   };
 
-  // SPECIAL CASE: Check if password contains special characters (EXCLUDING underscore)
   const hasSpecialChar = (password: string): boolean => {
     const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
     return specialCharRegex.test(password);
@@ -193,7 +191,6 @@ export default function ChangePasswordScreen() {
 
   return (
     <View style={[styles.background, { backgroundColor: colors.background }]}>
-      {/* Animated Gradient Background */}
       <LinearGradient
         colors={(colors as any).authBgGradient || [colors.background, colors.background]}
         start={{ x: 0, y: 0 }}
@@ -228,7 +225,7 @@ export default function ChangePasswordScreen() {
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>
-              Back
+              {ar.back}
             </Text>
           </TouchableOpacity>
 
@@ -259,16 +256,16 @@ export default function ChangePasswordScreen() {
             </View>
 
             <Text style={[styles.title, { color: colors.text }]}>
-              Change Password
+              {ar.changePasswordTitle}
             </Text>
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Enter your current password and choose a new secure password
+              {ar.changePasswordDescription}
             </Text>
 
             {/* Current Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                Current Password
+                {ar.currentPassword}
               </Text>
               <View style={getInputWrapperStyle('currentPassword')}>
                 <MaterialIcons
@@ -278,7 +275,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Enter current password"
+                  placeholder={ar.enterCurrentPassword}
                   placeholderTextColor={colors.textSecondary}
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
@@ -302,7 +299,7 @@ export default function ChangePasswordScreen() {
             {/* New Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                New Password
+                {ar.newPassword}
               </Text>
               <View style={getInputWrapperStyle('newPassword')}>
                 <MaterialIcons
@@ -312,7 +309,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Enter new password"
+                  placeholder={ar.enterNewPassword}
                   placeholderTextColor={colors.textSecondary}
                   value={newPassword}
                   onChangeText={setNewPassword}
@@ -334,7 +331,7 @@ export default function ChangePasswordScreen() {
 
               {newPassword.length > 0 && (
                 <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
-                  Password Strength: {passwordStrength.text}
+                  {ar.passwordStrength}: {passwordStrength.text}
                 </Text>
               )}
             </View>
@@ -342,7 +339,7 @@ export default function ChangePasswordScreen() {
             {/* Confirm Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                Confirm New Password
+                {ar.confirmNewPassword}
               </Text>
               <View style={getInputWrapperStyle('confirmPassword')}>
                 <MaterialIcons
@@ -352,7 +349,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder="Confirm new password"
+                  placeholder={ar.confirmPasswordPlaceholder}
                   placeholderTextColor={colors.textSecondary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -374,7 +371,7 @@ export default function ChangePasswordScreen() {
 
             {confirmPassword.length > 0 && newPassword !== confirmPassword && (
               <Text style={[styles.errorText, { color: COLORS.error }]}>
-                Passwords do not match
+                {ar.passwordsDoNotMatch}
               </Text>
             )}
           </View>
@@ -387,7 +384,7 @@ export default function ChangePasswordScreen() {
             ]}
           >
             <Text style={[styles.requirementsTitle, { color: colors.text }]}>
-              Password Requirements:
+              {ar.passwordRequirements}
             </Text>
 
             <View style={styles.requirementItem}>
@@ -403,7 +400,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                At least 8 characters
+                {ar.minLength}
               </Text>
             </View>
 
@@ -422,7 +419,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                One uppercase letter
+                {ar.oneUppercase}
               </Text>
             </View>
 
@@ -441,7 +438,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                One lowercase letter
+                {ar.oneLowercase}
               </Text>
             </View>
 
@@ -460,7 +457,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                One number
+                {ar.oneNumber}
               </Text>
             </View>
 
@@ -479,14 +476,14 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                One special character (optional)
+                {ar.oneSpecial}
               </Text>
             </View>
 
             <View style={styles.noteContainer}>
               <MaterialIcons name="info" size={14} color={COLORS.primary} />
               <Text style={styles.noteText}>
-                Note: special characters like (!, @, #, $, %, ^, &, *, _).
+                {ar.specialCharNote}
               </Text>
             </View>
           </View>
@@ -507,7 +504,7 @@ export default function ChangePasswordScreen() {
               {isLoading ? (
                 <ActivityIndicator size="small" color={'#FFFFFF'} />
               ) : (
-                <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>Change Password</Text>
+                <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{ar.changePasswordTitle}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -518,7 +515,7 @@ export default function ChangePasswordScreen() {
             onPress={() => navigation.goBack()}
           >
             <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-              Cancel
+              {ar.cancel}
             </Text>
           </TouchableOpacity>
         </View>

@@ -27,6 +27,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from "../utils/toast";
+import ar from '../../i18n/locales/ar.json';
 
 type EditBodyInfoNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -255,7 +256,7 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
             { color: value ? colors.text : colors.textSecondary },
           ]}
         >
-          {value || "Select date"}
+          {value || ar.selectDate}
         </Text>
         <Feather name="chevron-down" size={18} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -321,24 +322,24 @@ export default function EditBodyInfoScreen() {
   const handleSave = async () => {
     if (!token) {
       showErrorToast({
-        title: "Authentication Error",
-        message: "Authentication token not found",
+        title: ar.authenticationError,
+        message: ar.authenticationTokenNotFound,
       });
       return;
     }
 
     if (height && (isNaN(parseFloat(height)) || parseFloat(height) <= 0)) {
       showErrorToast({
-        title: "Invalid Height",
-        message: "Please enter a valid height",
+        title: ar.invalidHeight,
+        message: ar.enterValidHeight,
       });
       return;
     }
 
     if (weight && (isNaN(parseFloat(weight)) || parseFloat(weight) <= 0)) {
       showErrorToast({
-        title: "Invalid Weight",
-        message: "Please enter a valid weight",
+        title: ar.invalidWeight,
+        message: ar.enterValidWeight,
       });
       return;
     }
@@ -350,8 +351,8 @@ export default function EditBodyInfoScreen() {
         parseFloat(bodyFatPercentage) > 100)
     ) {
       showErrorToast({
-        title: "Invalid Body Fat",
-        message: "Body fat percentage must be between 0 and 100",
+        title: ar.invalidBodyFat,
+        message: ar.bodyFatPercentageRange,
       });
       return;
     }
@@ -386,8 +387,8 @@ export default function EditBodyInfoScreen() {
 
       if (Object.keys(updateData).length === 0) {
         showInfoToast({
-          title: "No Changes",
-          message: "There are no changes to save",
+          title: ar.noChanges,
+          message: ar.noChangesToSave,
         });
         return;
       }
@@ -402,8 +403,8 @@ export default function EditBodyInfoScreen() {
       }
 
       showSuccessToast({
-        title: "Body Info Updated",
-        message: "Your body information has been updated successfully",
+        title: ar.bodyInfoUpdated,
+        message: ar.bodyInfoUpdatedSuccessfully,
       });
 
       setTimeout(() => {
@@ -411,8 +412,8 @@ export default function EditBodyInfoScreen() {
       }, 900);
     } catch (error: unknown) {
       showErrorToast({
-        title: "Update Failed",
-        message: getErrorMessage(error) || "Failed to update body information",
+        title: ar.updateFailed,
+        message: getErrorMessage(error) || ar.failedToUpdateBodyInfo,
       });
     } finally {
       setIsLoading(false);
@@ -425,10 +426,10 @@ export default function EditBodyInfoScreen() {
     if (!h || !w || h <= 0 || w <= 0) return null;
 
     const bmi = w / Math.pow(h / 100, 2);
-    if (bmi < 18.5) return { label: "Underweight", color: C.warning };
-    if (bmi < 25) return { label: "Normal", color: C.success };
-    if (bmi < 30) return { label: "Overweight", color: C.warning };
-    return { label: "Obese", color: C.error };
+    if (bmi < 18.5) return { label: ar.underweight, color: C.warning };
+    if (bmi < 25) return { label: ar.normal, color: C.success };
+    if (bmi < 30) return { label: ar.overweight, color: C.warning };
+    return { label: ar.obese, color: C.error };
   };
 
   const bmiCategory = getBMICategory();
@@ -489,12 +490,12 @@ export default function EditBodyInfoScreen() {
 
         <View style={styles.headerTitleContainer}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Edit Body Info
+            {ar.editBodyInfo}
           </Text>
           <Text
             style={[styles.headerSubtitle, { color: colors.textSecondary }]}
           >
-            Update your fitness profile
+            {ar.updateYourFitnessProfile}
           </Text>
         </View>
 
@@ -521,18 +522,18 @@ export default function EditBodyInfoScreen() {
         >
           {/* Personal Details Section */}
           <SectionCard
-            title="Personal Details"
+            title={ar.personalDetails}
             icon={<Feather name="user" size={20} color={C.primary} />}
           >
             <Text
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              Gender
+              {ar.gender}
             </Text>
 
             <View style={styles.genderRow}>
               <OptionChip
-                label="Male"
+                label={ar.male}
                 selected={gender === "male"}
                 onPress={() => setGender("male")}
                 color={C.male}
@@ -545,7 +546,7 @@ export default function EditBodyInfoScreen() {
                 }
               />
               <OptionChip
-                label="Female"
+                label={ar.female}
                 selected={gender === "female"}
                 onPress={() => setGender("female")}
                 color={C.female}
@@ -564,7 +565,7 @@ export default function EditBodyInfoScreen() {
             <Text
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              Date of Birth
+              {ar.dateOfBirth}
             </Text>
 
             <DateInput
@@ -580,13 +581,13 @@ export default function EditBodyInfoScreen() {
 
           {/* Body Measurements Section */}
           <SectionCard
-            title="Body Measurements"
+            title={ar.bodyMeasurements}
             icon={
               <MaterialIcons name="straighten" size={20} color={C.primary} />
             }
           >
             <MeasurementInput
-              label="Height"
+              label={ar.height}
               value={height}
               onChangeText={setHeight}
               unit="cm"
@@ -604,7 +605,7 @@ export default function EditBodyInfoScreen() {
             <View style={styles.inputSpacer} />
 
             <MeasurementInput
-              label="Weight"
+              label={ar.weight}
               value={weight}
               onChangeText={setWeight}
               unit="kg"
@@ -642,7 +643,7 @@ export default function EditBodyInfoScreen() {
                   ]}
                 />
                 <Text style={[styles.bmiPreviewText, { color: colors.text }]}>
-                  Your BMI indicates you are{" "}
+                  {ar.yourBmiIndicatesYouAre}{" "}
                   <Text style={{ color: bmiCategory.color, fontWeight: "700" }}>
                     {bmiCategory.label}
                   </Text>
@@ -653,7 +654,7 @@ export default function EditBodyInfoScreen() {
             <View style={styles.inputSpacer} />
 
             <MeasurementInput
-              label="Body Fat"
+              label={ar.bodyFat}
               value={bodyFatPercentage}
               onChangeText={setBodyFatPercentage}
               unit="%"
@@ -677,18 +678,18 @@ export default function EditBodyInfoScreen() {
 
           {/* Fitness Profile Section */}
           <SectionCard
-            title="Fitness Profile"
+            title={ar.fitnessProfile}
             icon={<Ionicons name="fitness" size={20} color={C.primary} />}
           >
             <Text
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              Fitness Goal
+              {ar.fitnessGoal}
             </Text>
 
             <View style={styles.goalsContainer}>
               <OptionChip
-                label="Weight Loss"
+                label={ar.weightLoss}
                 selected={fitnessGoal === "weight_loss"}
                 onPress={() => setFitnessGoal("weight_loss")}
                 icon={
@@ -700,7 +701,7 @@ export default function EditBodyInfoScreen() {
                 }
               />
               <OptionChip
-                label="Muscle Gain"
+                label={ar.muscleGain}
                 selected={fitnessGoal === "muscle_gain"}
                 onPress={() => setFitnessGoal("muscle_gain")}
                 icon={
@@ -712,7 +713,7 @@ export default function EditBodyInfoScreen() {
                 }
               />
               <OptionChip
-                label="Maintenance"
+                label={ar.maintenance}
                 selected={fitnessGoal === "maintenance"}
                 onPress={() => setFitnessGoal("maintenance")}
                 icon={
@@ -730,32 +731,32 @@ export default function EditBodyInfoScreen() {
             <Text
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
             >
-              Activity Level
+              {ar.activityLevel}
             </Text>
 
             <View style={styles.activityContainer}>
               <OptionChip
-                label="Sedentary"
+                label={ar.sedentary}
                 selected={activityLevel === "sedentary"}
                 onPress={() => setActivityLevel("sedentary")}
               />
               <OptionChip
-                label="Light"
+                label={ar.light}
                 selected={activityLevel === "lightly_active"}
                 onPress={() => setActivityLevel("lightly_active")}
               />
               <OptionChip
-                label="Moderate"
+                label={ar.moderate}
                 selected={activityLevel === "moderately_active"}
                 onPress={() => setActivityLevel("moderately_active")}
               />
               <OptionChip
-                label="Active"
+                label={ar.active}
                 selected={activityLevel === "very_active"}
                 onPress={() => setActivityLevel("very_active")}
               />
               <OptionChip
-                label="Extra"
+                label={ar.extra}
                 selected={activityLevel === "extra_active"}
                 onPress={() => setActivityLevel("extra_active")}
               />
@@ -774,16 +775,11 @@ export default function EditBodyInfoScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  {activityLevel === "sedentary" &&
-                    "Little to no exercise, desk job"}
-                  {activityLevel === "lightly_active" &&
-                    "Light exercise 1-3 days/week"}
-                  {activityLevel === "moderately_active" &&
-                    "Moderate exercise 3-5 days/week"}
-                  {activityLevel === "very_active" &&
-                    "Hard exercise 6-7 days/week"}
-                  {activityLevel === "extra_active" &&
-                    "Very hard exercise, physical job"}
+                  {activityLevel === "sedentary" && ar.sedentaryDescription}
+                  {activityLevel === "lightly_active" && ar.lightlyActiveDescription}
+                  {activityLevel === "moderately_active" && ar.moderatelyActiveDescription}
+                  {activityLevel === "very_active" && ar.veryActiveDescription}
+                  {activityLevel === "extra_active" && ar.extraActiveDescription}
                 </Text>
               </View>
             )}
@@ -809,7 +805,7 @@ export default function EditBodyInfoScreen() {
                   <Text
                     style={[styles.cancelButtonText, { color: colors.text }]}
                   >
-                    Cancel
+                    {ar.cancel}
                   </Text>
                 </TouchableOpacity>
 
@@ -829,7 +825,7 @@ export default function EditBodyInfoScreen() {
                   >
                     <Feather name="check" size={20} color="#FFFFFF" />
                     <Text style={[styles.saveButtonText, { color: "#FFFFFF" }]}>
-                      Save Changes
+                      {ar.saveChanges}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>

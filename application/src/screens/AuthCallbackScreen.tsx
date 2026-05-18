@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import type { RootStackParamList } from '../types/navigation';
+import ar from '../../i18n/locales/ar.json';
 
 type AuthCallbackRouteProp = RouteProp<RootStackParamList, 'AuthCallback'>;
 
@@ -18,22 +19,17 @@ const AuthCallbackScreen: React.FC = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get token, refresh token, and user data from URL parameters
         const { token, refreshToken, user } = route.params || {};
 
         if (token && user) {
           const userData = typeof user === 'string' ? JSON.parse(user) : user;
-          
-          // Update auth context with token, user data, and refresh token
           await setAuthState(token, userData, refreshToken);
           
-          // Navigate to home screen
           navigation.reset({
             index: 0,
             routes: [{ name: 'Home' as never }],
           });
         } else {
-          // If no token, redirect to sign in
           navigation.reset({
             index: 0,
             routes: [{ name: 'SignIn' as never }],
@@ -54,7 +50,9 @@ const AuthCallbackScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.text, { color: colors.textSecondary }]}>Completing authentication...</Text>
+      <Text style={[styles.text, { color: colors.textSecondary }]}>
+        {ar.completingAuth}
+      </Text>
     </View>
   );
 };

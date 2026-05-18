@@ -13,6 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationProp } from '@react-navigation/native';
+import ar from '../../i18n/locales/ar.json';
 
 // ✅ Types
 type NotificationType = 'achievement' | 'reminder' | 'meal' | 'tip' | 'challenge' | 'report' | 'social';
@@ -143,15 +144,15 @@ export default function NotificationsScreen({ navigation }: Props) {
   // ✅ Typed timestamp param
   const formatTimestamp = (timestamp: Date): string => {
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime(); // ✅ use .getTime() to avoid TS error on date subtraction
+    const diff = now.getTime() - timestamp.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+    if (minutes < 1) return ar.justNow;
+    if (minutes < 60) return `${minutes}${ar.minutesAgo}`;
+    if (hours < 24) return `${hours}${ar.hoursAgo}`;
+    return `${days}${ar.daysAgo}`;
   };
 
   const filteredNotifications = activeTab === 'unread'
@@ -208,10 +209,10 @@ export default function NotificationsScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.notifications}</Text>
         {unreadCount > 0 && (
           <TouchableOpacity onPress={markAllAsRead}>
-            <Text style={[styles.markAllText, { color: colors.primary }]}>Mark all read</Text>
+            <Text style={[styles.markAllText, { color: colors.primary }]}>{ar.markAllRead}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -223,7 +224,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           onPress={() => setActiveTab('all')}
         >
           <Text style={[styles.tabText, { color: activeTab === 'all' ? colors.primary : colors.textSecondary }]}>
-            All
+            {ar.all}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -231,7 +232,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           onPress={() => setActiveTab('unread')}
         >
           <Text style={[styles.tabText, { color: activeTab === 'unread' ? colors.primary : colors.textSecondary }]}>
-            Unread
+            {ar.unread}
           </Text>
           {unreadCount > 0 && (
             <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
@@ -253,9 +254,9 @@ export default function NotificationsScreen({ navigation }: Props) {
             <View style={[styles.emptyIconContainer, { backgroundColor: `${colors.primary}10` }]}>
               <Ionicons name="notifications-off-outline" size={48} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>{ar.noNotifications}</Text>
             <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
-              {activeTab === 'unread' ? "You've read all your notifications!" : "You're all caught up!"}
+              {activeTab === 'unread' ? ar.allReadMessages : ar.allCaughtUp}
             </Text>
           </View>
         }

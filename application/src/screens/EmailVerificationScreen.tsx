@@ -24,6 +24,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
+import ar from '../../i18n/locales/ar.json';
 
 type EmailVerificationNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -44,24 +45,24 @@ export default function EmailVerificationScreen() {
   const handleSendVerificationEmail = async () => {
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'No authentication token found',
+        title: ar.authenticationError,
+        message: ar.noAuthenticationTokenFound,
       });
       return;
     }
 
     if (!user?.email) {
       showErrorToast({
-        title: 'Missing Email',
-        message: 'No email found for this user',
+        title: ar.missingEmail,
+        message: ar.noEmailFoundForUser,
       });
       return;
     }
 
     if (user?.isEmailVerified) {
       showInfoToast({
-        title: 'Already Verified',
-        message: 'Your email is already verified',
+        title: ar.alreadyVerified,
+        message: ar.emailAlreadyVerified,
       });
       return;
     }
@@ -75,16 +76,15 @@ export default function EmailVerificationScreen() {
       setEmailSent(true);
 
       showSuccessToast({
-        title: 'Verification Email Sent',
-        message:
-          'A verification link has been sent to your email address. Please check your inbox and spam folder.',
+        title: ar.verificationEmailSent,
+        message: ar.verificationEmailSentMessage,
       });
     } catch (error: unknown) {
       console.error('❌ Resend Verification Error:', error);
 
       showErrorToast({
-        title: 'Send Failed',
-        message: getErrorMessage(error) || 'Failed to resend verification email',
+        title: ar.sendFailed,
+        message: getErrorMessage(error) || ar.failedToResendVerificationEmail,
       });
     } finally {
       setIsLoading(false);
@@ -95,16 +95,16 @@ export default function EmailVerificationScreen() {
   const handleVerifyEmail = async (verifyToken: string) => {
     if (!token) {
       showErrorToast({
-        title: 'Authentication Error',
-        message: 'No authentication token found',
+        title: ar.authenticationError,
+        message: ar.noAuthenticationTokenFound,
       });
       return;
     }
 
     if (!verifyToken.trim()) {
       showErrorToast({
-        title: 'Missing Token',
-        message: 'Verification token is required',
+        title: ar.missingToken,
+        message: ar.verificationTokenRequired,
       });
       return;
     }
@@ -123,8 +123,8 @@ export default function EmailVerificationScreen() {
       }
 
       showSuccessToast({
-        title: 'Email Verified',
-        message: 'Your email has been verified successfully!',
+        title: ar.emailVerified,
+        message: ar.emailVerifiedSuccessfully,
       });
 
       setTimeout(() => {
@@ -134,8 +134,8 @@ export default function EmailVerificationScreen() {
       console.error('❌ Email Verification Error:', error);
 
       showErrorToast({
-        title: 'Verification Failed',
-        message: getErrorMessage(error) || 'Failed to verify email',
+        title: ar.verificationFailed,
+        message: getErrorMessage(error) || ar.failedToVerifyEmail,
       });
     } finally {
       setIsLoading(false);
@@ -193,16 +193,16 @@ export default function EmailVerificationScreen() {
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>
-          {user?.isEmailVerified ? 'Email Verified' : 'Verify Your Email'}
+          {user?.isEmailVerified ? ar.emailVerified : ar.verifyYourEmail}
         </Text>
 
         {/* Description */}
         <Text style={[styles.description, { color: colors.textSecondary }]}>
           {user?.isEmailVerified
-            ? 'Your email is already verified. You now have full access to all features.'
+            ? ar.emailAlreadyVerifiedDescription
             : emailSent
-            ? "We've sent a verification link to your email address. Please check your inbox and click the link to verify your account."
-            : 'Your email address is not verified yet. Please verify it to secure your account and unlock all features.'}
+            ? ar.verificationEmailSentDescription
+            : ar.emailNotVerifiedDescription}
         </Text>
 
         {/* Email Display */}
@@ -235,14 +235,14 @@ export default function EmailVerificationScreen() {
               size={20}
               color={COLORS.success}
             />
-            <Text style={styles.verifiedText}>Email Verified</Text>
+            <Text style={styles.verifiedText}>{ar.emailVerified}</Text>
           </View>
         )}
 
         {/* Benefits */}
         <View style={styles.benefitsContainer}>
           <Text style={[styles.benefitsTitle, { color: colors.text }]}>
-            Why verify your email?
+            {ar.whyVerifyYourEmail}
           </Text>
 
           <View style={styles.benefitItem}>
@@ -252,7 +252,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              Secure your account and enable password recovery
+              {ar.benefitSecureAccount}
             </Text>
           </View>
 
@@ -263,7 +263,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              Receive important notifications and updates
+              {ar.benefitReceiveNotifications}
             </Text>
           </View>
 
@@ -274,7 +274,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              Access all premium features
+              {ar.benefitAccessPremium}
             </Text>
           </View>
         </View>
@@ -301,8 +301,8 @@ export default function EmailVerificationScreen() {
                   <MaterialIcons name="send" size={20} color={'#FFFFFF'} />
                   <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>
                     {emailSent
-                      ? 'Resend Verification Email'
-                      : 'Send Verification Email'}
+                      ? ar.resendVerificationEmail
+                      : ar.sendVerificationEmail}
                   </Text>
                 </>
               )}
@@ -310,7 +310,7 @@ export default function EmailVerificationScreen() {
             </TouchableOpacity>
 
             <Text style={[styles.helpText, { color: colors.textSecondary }]}>
-              Didn&apos;t receive the email? Check your spam folder or request a new one.
+              {ar.didNotReceiveEmail}
             </Text>
           </>
         )}
@@ -331,7 +331,7 @@ export default function EmailVerificationScreen() {
               },
             ]}
           >
-            {user?.isEmailVerified ? 'Continue' : 'Back to Profile'}
+            {user?.isEmailVerified ? ar.continue : ar.backToProfile}
           </Text>
         </TouchableOpacity>
       </View>

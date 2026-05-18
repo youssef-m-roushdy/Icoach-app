@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { waterIntakeService } from '../services/waterIntakeService';
 import SuccessModal from '../components/common/SuccessModal';
 import EditWaterGoalModal from '../components/EditWaterGoalModal';
+import ar from '../../i18n/locales/ar.json';
 
 type TimeFrame = 'week' | 'month' | 'all';
 
@@ -82,15 +83,15 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
     try {
       const response = await waterIntakeService.updateGoal(token!, { goalInLiters: newGoal });
       if (response.success) {
-        setModalMessage(`Water goal updated to ${newGoal}L (${Math.round(newGoal * 1000)}ml) successfully!`);
+        setModalMessage(`${ar.waterGoalUpdated} ${newGoal}L (${Math.round(newGoal * 1000)}ml)`);
         setShowSuccessModal(true);
         await loadAllData(); // Refresh data
       } else {
-        setModalMessage(response.message || 'Failed to update goal');
+        setModalMessage(response.message || ar.failedToUpdateGoal);
         setShowErrorModal(true);
       }
     } catch (error) {
-      setModalMessage('Failed to update goal. Please try again.');
+      setModalMessage(ar.failedToUpdateGoalTryAgain);
       setShowErrorModal(true);
     } finally {
       setUpdatingGoal(false);
@@ -152,7 +153,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
           </Text>
           {isToday && (
             <View style={[styles.todayBadge, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={[styles.todayBadgeText, { color: colors.primary }]}>Today</Text>
+              <Text style={[styles.todayBadgeText, { color: colors.primary }]}>{ar.today}</Text>
             </View>
           )}
         </View>
@@ -198,7 +199,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading water intake data...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>{ar.loadingWaterIntakeData}</Text>
       </View>
     );
   }
@@ -222,7 +223,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Water Intake Details</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.waterIntakeDetails}</Text>
         <TouchableOpacity onPress={() => setShowGoalModal(true)} style={styles.editButton}>
           <Feather name="edit-2" size={20} color={colors.primary} />
         </TouchableOpacity>
@@ -235,7 +236,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
       >
         {/* Today's Summary */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Today's Summary</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.todaySummary}</Text>
           <View style={[styles.todayCard, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}>
             <View style={styles.todayMain}>
               <View style={styles.todayAmount}>
@@ -268,7 +269,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
             {todayStats?.isCompleted && (
               <View style={[styles.goalAchievedBadge, { backgroundColor: '#10B98120' }]}>
                 <Ionicons name="trophy" size={16} color="#10B981" />
-                <Text style={[styles.goalAchievedText, { color: '#10B981' }]}>Goal achieved! 🎉</Text>
+                <Text style={[styles.goalAchievedText, { color: '#10B981' }]}>{ar.goalAchieved}</Text>
               </View>
             )}
           </View>
@@ -276,27 +277,27 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
 
         {/* Key Stats Grid */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Statistics</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.statistics}</Text>
           <View style={styles.statsGrid}>
-            {renderStatCard('Current Streak', `${streak.currentStreak}`, 'days', 'fire', '#F59E0B')}
-            {renderStatCard('Longest Streak', `${streak.longestStreak}`, 'days', 'trophy', '#10B981')}
-            {renderStatCard('Total Intake', `${total.totalLiters.toFixed(1)}`, 'liters', 'water', colors.primary)}
-            {renderStatCard('Daily Avg', `${total.averageDailyLiters.toFixed(1)}`, 'liters/day', 'chart-line', '#8B5CF6')}
+            {renderStatCard(ar.currentStreak, `${streak.currentStreak}`, ar.days, 'fire', '#F59E0B')}
+            {renderStatCard(ar.longestStreak, `${streak.longestStreak}`, ar.days, 'trophy', '#10B981')}
+            {renderStatCard(ar.totalIntake, `${total.totalLiters.toFixed(1)}`, ar.liters, 'water', colors.primary)}
+            {renderStatCard(ar.dailyAvg, `${total.averageDailyLiters.toFixed(1)}`, ar.litersPerDay, 'chart-line', '#8B5CF6')}
           </View>
         </View>
 
         {/* Weekly Chart */}
         <View style={styles.section}>
           <View style={styles.chartHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Weekly Overview</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.weeklyOverview}</Text>
             <View style={styles.chartLegend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Partial</Text>
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{ar.partial}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Completed</Text>
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{ar.completed}</Text>
               </View>
             </View>
           </View>
@@ -310,7 +311,7 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
 
         {/* History List */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>History</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.history}</Text>
           {history.length > 0 ? (
             <View style={styles.historyList}>
               {history.slice(0, 30).map((item) => renderHistoryItem(item))}
@@ -318,8 +319,8 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
           ) : (
             <View style={[styles.emptyContainer, { backgroundColor: colors.authInputBg || colors.surface, borderColor: colors.authInputBorder || colors.cardBorder }]}>
               <MaterialCommunityIcons name="water" size={48} color={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No water intake history yet</Text>
-              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Start logging your water intake!</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{ar.noWaterIntakeHistory}</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>{ar.startLoggingWater}</Text>
             </View>
           )}
         </View>
@@ -337,9 +338,9 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
       {/* Success Modal */}
       <SuccessModal
         visible={showSuccessModal}
-        title="Success"
+        title={ar.success}
         message={modalMessage}
-        primaryButtonText="OK"
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowSuccessModal(false)}
         iconName="checkmark-circle"
       />
@@ -347,9 +348,9 @@ export default function WaterIntakeDetailsScreen({ navigation }: any) {
       {/* Error Modal */}
       <SuccessModal
         visible={showErrorModal}
-        title="Error"
+        title={ar.error}
         message={modalMessage}
-        primaryButtonText="OK"
+        primaryButtonText={ar.ok}
         onPrimaryPress={() => setShowErrorModal(false)}
         iconName="alert-circle"
       />
