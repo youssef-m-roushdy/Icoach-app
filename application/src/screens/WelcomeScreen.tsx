@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types';
 import { LanguageSelector } from '../components/common';
@@ -19,6 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import ar from '../../i18n/locales/ar.json';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,10 +28,10 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 const FEATURES = [
-  { icon: 'robot-outline' as const, label: 'AI Coach' },
-  { icon: 'food-apple-outline' as const, label: 'Nutrition' },
-  { icon: 'dumbbell' as const, label: 'Workouts' },
-  { icon: 'chart-line' as const, label: 'Progress' },
+  { icon: 'robot-outline' as const, label: ar.aiCoach },
+  { icon: 'food-apple-outline' as const, label: ar.nutrition },
+  { icon: 'dumbbell' as const, label: ar.workouts },
+  { icon: 'chart-line' as const, label: ar.progress },
 ];
 
 // Icons can be positioned totally independent of each other now
@@ -41,8 +41,8 @@ const ORBIT_ICONS = [
   {
     icon: 'heart-pulse' as const,
     type: 'mci',
-    offsetX: 20,   // Customize this directly
-    offsetY: -95, // Customize this directly
+    offsetX: 20,
+    offsetY: -95,
     color: { light: '#E45A5A', dark: '#FF6B6B' },
   },
   {
@@ -99,7 +99,6 @@ const ICON_SIZE = 42;
 export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
   const { theme, colors, toggleTheme } = useTheme();
-  const { t } = useTranslation();
   const isLight = theme === 'light';
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
@@ -247,13 +246,13 @@ export default function WelcomeScreen() {
       >
         <View style={styles.titleBlock}>
           <Text style={[styles.welcomeLabel, { color: colors.textSecondary }]}>
-            {t('welcome')} {t('to')}
+            {ar.welcome} {ar.to}
           </Text>
           <Text style={[styles.appName, { color: colors.primary }]}>
-            {t('appName')}
+            {ar.appName}
           </Text>
           <Text style={[styles.subtitle, { color: colors.subtleText }]}>
-            {t('subtitle')}
+            {ar.subtitle}
           </Text>
         </View>
 
@@ -286,13 +285,13 @@ export default function WelcomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.ctaGradient}
           >
-            <Text style={styles.ctaText}>{t('getStarted')}</Text>
+            <Text style={styles.ctaText}>{ar.getStarted}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={[styles.termsText, { color: colors.subtleText }]}>
-          By continuing, you agree to our Terms &amp; Privacy Policy
+          {ar.termsAndPrivacyNotice}
         </Text>
       </View>
 

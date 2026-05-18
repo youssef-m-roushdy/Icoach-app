@@ -15,7 +15,6 @@ import {
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
-import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useStepCounter } from '../hooks/useStepCounter';
 import { useWaterIntake } from '../hooks/useWaterIntake';
@@ -25,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import SmartWaterInput from '../components/SmartWaterInput';
 import { conversationService, type ConversationListItem } from '../services/conversationService';
 import { socketService } from '../services/socketService';
+import ar from '../../i18n/locales/ar.json';
 
 const BLUE = '#007BFF';
 // PRIMARY color replaced dynamically with colors.primary
@@ -36,7 +36,6 @@ type NavigationTarget = 'notifications' | 'messages' | 'chatbot' | 'FoodSearch';
 export default function HomeScreen() {
   const { user, token } = useAuth() as any;
   const { colors } = useTheme();
-  const { t } = useTranslation();
   const [showAll, setShowAll] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   
@@ -155,13 +154,13 @@ export default function HomeScreen() {
   const handleSaveStepGoal = async () => {
     const newGoal = parseInt(tempStepGoal, 10);
     if (isNaN(newGoal) || newGoal < 1000 || newGoal > 50000) {
-      Alert.alert('Invalid Goal', 'Please enter a goal between 1,000 and 50,000 steps');
+      Alert.alert(ar.invalidGoal, ar.stepGoalRangeMessage);
       return;
     }
     
     await stepData.updateGoal(newGoal);
     setShowStepGoalModal(false);
-    Alert.alert('Success', `Daily step goal updated to ${newGoal.toLocaleString()} steps`);
+    Alert.alert(ar.success, ar.stepGoalUpdatedMessage.replace('{goal}', newGoal.toLocaleString()));
   };
 
   // Water Goal Handlers
@@ -173,13 +172,18 @@ export default function HomeScreen() {
   const handleSaveWaterGoal = async () => {
     const newGoal = parseFloat(tempWaterGoal);
     if (isNaN(newGoal) || newGoal < 0.5 || newGoal > 10) {
-      Alert.alert('Invalid Goal', 'Please enter a goal between 0.5 and 10 liters');
+      Alert.alert(ar.invalidGoal, ar.waterGoalRangeMessage);
       return;
     }
     
     await waterData.updateGoal(newGoal);
     setShowWaterGoalModal(false);
-    Alert.alert('Success', `Daily water goal updated to ${newGoal}L (${Math.round(newGoal * 1000)}ml)`);
+    Alert.alert(
+      ar.success,
+      ar.waterGoalUpdatedMessage
+        .replace('{goal}', newGoal.toString())
+        .replace('{ml}', Math.round(newGoal * 1000).toString())
+    );
   };
 
   const handleAddWater = (amount: number, unit: 'L' | 'ML') => {
@@ -195,20 +199,20 @@ export default function HomeScreen() {
 
   const showWaterPresetOptions = () => {
     Alert.alert(
-      'Add Water',
-      'Choose amount to add',
+      ar.addWater,
+      ar.chooseAmountToAdd,
       [
         ...waterData.quickAddPresets.map((preset) => ({
           text: preset.label,
           onPress: () => waterData.addWater(preset.amount, preset.unit),
         })),
-        { text: 'Cancel', style: 'cancel' },
+        { text: ar.cancel, style: 'cancel' },
       ]
     );
   };
 
-  const INITIAL_MEALS = ['Breakfast', 'Lunch', 'Workout Meal', 'Dinner'];
-  const EXTRA_MEALS = ['Morning Snack', 'Evening Snack', 'Post-Workout Shake'];
+  const INITIAL_MEALS = [ar.breakfast, ar.lunch, ar.workoutMeal, ar.dinner];
+  const EXTRA_MEALS = [ar.morningSnack, ar.eveningSnack, ar.postWorkoutShake];
   const displayedMeals = showAll ? [...INITIAL_MEALS, ...EXTRA_MEALS] : INITIAL_MEALS;
 
   return (
@@ -235,7 +239,7 @@ export default function HomeScreen() {
         {/* Professional Header with Quick Actions */}
         <View style={styles.quickActionsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.quickActions}</Text>
           </View>
           
           <View style={styles.quickActionsGrid}>
@@ -261,12 +265,11 @@ export default function HomeScreen() {
                 <Ionicons name="notifications" size={22} color="#FFFFFF" />
               </LinearGradient>
               <View style={styles.quickActionContent}>
-                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Alerts</Text>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>{ar.alerts}</Text>
                 <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-                  View notifications
+                  {ar.viewNotifications}
                 </Text>
               </View>
-              {/* ✅ Show badge if there are notifications - you can add a notifications count state if needed */}
             </TouchableOpacity>
 
             {/* Messages - Communication Hub */}
@@ -291,11 +294,11 @@ export default function HomeScreen() {
                 <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
               </LinearGradient>
               <View style={styles.quickActionContent}>
-                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Messages</Text>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>{ar.messages}</Text>
                 <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
                   {unreadMessages > 0 
-                    ? `${unreadMessages} unread message${unreadMessages !== 1 ? 's' : ''}`
-                    : 'Chat with trainers'
+                    ? ar.unreadMessagesCount.replace('{count}', unreadMessages.toString())
+                    : ar.chatWithTrainers
                   }
                 </Text>
               </View>
@@ -336,9 +339,9 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons name="robot" size={22} color="#FFFFFF" />
               </LinearGradient>
               <View style={styles.quickActionContent}>
-                <Text style={[styles.quickActionLabel, { color: colors.text }]}>AI Coach</Text>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>{ar.aiCoach}</Text>
                 <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-                  Get instant guidance
+                  {ar.getInstantGuidance}
                 </Text>
               </View>
               <View style={styles.aiGlowIndicator}>
@@ -368,9 +371,9 @@ export default function HomeScreen() {
                 <MaterialCommunityIcons name="silverware-fork-knife" size={22} color="#FFFFFF" />
               </LinearGradient>
               <View style={styles.quickActionContent}>
-                <Text style={[styles.quickActionLabel, { color: colors.text }]}>Food Macros</Text>
+                <Text style={[styles.quickActionLabel, { color: colors.text }]}>{ar.foodMacros}</Text>
                 <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]}>
-                  Find calories & macros
+                  {ar.findCaloriesAndMacros}
                 </Text>
               </View>
 
@@ -381,9 +384,9 @@ export default function HomeScreen() {
         {/* Daily Steps Section - Professional Card */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.activity}</Text>
             <TouchableOpacity onPress={handleNavigateToStepHistory}>
-              <Text style={[styles.sectionLink, { color: colors.primary }]}>Details →</Text>
+              <Text style={[styles.sectionLink, { color: colors.primary }]}>{ar.details} →</Text>
             </TouchableOpacity>
           </View>
 
@@ -391,7 +394,7 @@ export default function HomeScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.cardTitleRow}>
                 <MaterialCommunityIcons name="shoe-print" size={20} color={colors.primary} />
-                <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Steps</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{ar.dailySteps}</Text>
                 {stepData.isSyncing && (
                   <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
                 )}
@@ -401,7 +404,7 @@ export default function HomeScreen() {
                 onPress={handleEditStepGoal}
               >
                 <Text style={[styles.stepGoalText, { color: colors.primary }]}>
-                  Goal: {stepData.goal.toLocaleString()} ✎
+                  {ar.goal}: {stepData.goal.toLocaleString()} ✎
                 </Text>
               </TouchableOpacity>
             </View>
@@ -411,7 +414,7 @@ export default function HomeScreen() {
                 <Text style={[styles.stepsValue, { color: stepData.progress >= 1 ? SUCCESS : colors.text }]}>
                   {stepData.steps.toLocaleString()}
                 </Text>
-                <Text style={[styles.stepsUnit, { color: colors.textSecondary }]}>steps</Text>
+                <Text style={[styles.stepsUnit, { color: colors.textSecondary }]}>{ar.steps}</Text>
               </View>
               <View style={styles.progressWrapper}>
                 <View style={[styles.progressBarBg, { backgroundColor: colors.progressBg }]}>
@@ -428,7 +431,7 @@ export default function HomeScreen() {
                     {Math.round(stepData.progress * 100)}%
                   </Text>
                   <Text style={[styles.progressRemaining, { color: colors.textSecondary }]}>
-                    {stepData.remaining.toLocaleString()} left
+                    {stepData.remaining.toLocaleString()} {ar.remaining}
                   </Text>
                 </View>
               </View>
@@ -438,17 +441,17 @@ export default function HomeScreen() {
               <View style={[styles.statBox, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                 <Ionicons name="checkmark-circle" size={18} color={SUCCESS} />
                 <Text style={[styles.statValue, { color: colors.text }]}>{stepData.steps.toLocaleString()}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completed</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{ar.done}</Text>
               </View>
               <View style={[styles.statBox, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                 <Ionicons name="flag" size={18} color={WARNING} />
                 <Text style={[styles.statValue, { color: colors.text }]}>{stepData.goal.toLocaleString()}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Target</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{ar.goal}</Text>
               </View>
               <View style={[styles.statBox, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
                 <Ionicons name="trending-up" size={18} color={colors.primary} />
                 <Text style={[styles.statValue, { color: colors.text }]}>{stepData.remaining.toLocaleString()}</Text>
-                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Remaining</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{ar.remaining}</Text>
               </View>
             </View>
 
@@ -463,7 +466,7 @@ export default function HomeScreen() {
               <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
                 <Ionicons name="trophy" size={16} color={SUCCESS} />
                 <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
-                  🎉 Daily step goal achieved! Great job!
+                  {'🎉 ' + ar.dailyStepGoalAchieved}
                 </Text>
               </View>
             )}
@@ -473,10 +476,10 @@ export default function HomeScreen() {
         {/* Daily Food Section - Professional */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Nutrition Plan</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.nutritionPlan}</Text>
             <TouchableOpacity onPress={() => setShowAll(!showAll)}>
               <Text style={[styles.sectionLink, { color: colors.primary }]}>
-                {showAll ? 'Show less →' : 'View all →'}
+                {showAll ? `${ar.showLess} →` : `${ar.viewAll} →`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -486,13 +489,12 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Daily Water Intake - Professional with Real Data */}
         {/* Daily Water Intake - Professional with Smart Input */}
 <View style={styles.section}>
   <View style={styles.sectionHeader}>
-    <Text style={[styles.sectionTitle, { color: colors.text }]}>Hydration</Text>
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.hydration}</Text>
     <TouchableOpacity onPress={handleNavigateToWaterHistory}>
-      <Text style={[styles.sectionLink, { color: colors.primary }]}>Details →</Text>
+      <Text style={[styles.sectionLink, { color: colors.primary }]}>{ar.details} →</Text>
     </TouchableOpacity>
   </View>
 
@@ -500,7 +502,7 @@ export default function HomeScreen() {
     <View style={styles.waterHeader}>
       <View style={styles.cardTitleRow}>
         <MaterialCommunityIcons name="water" size={20} color={colors.primary} />
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Daily Water Intake</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{ar.dailyWaterIntake}</Text>
         {waterData.isSyncing && (
           <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
         )}
@@ -510,7 +512,7 @@ export default function HomeScreen() {
         onPress={handleEditWaterGoal}
       >
         <Text style={[styles.waterGoalText, { color: colors.primary }]}>
-          Goal: {waterData.cupsGoal} cups ✎
+          {ar.goalCups.replace('{cups}', waterData.cupsGoal.toString())} ✎
         </Text>
       </TouchableOpacity>
     </View>
@@ -527,12 +529,14 @@ export default function HomeScreen() {
           <Text style={[styles.waterCount, { color: waterData.isCompleted ? SUCCESS : colors.primary }]}>
             {waterData.cupsAmount}
           </Text>
-          <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>cups</Text>
+          <Text style={[styles.waterUnit, { color: colors.textSecondary }]}>{ar.cups}</Text>
         </View>
         {waterData.streakDays > 0 && (
           <View style={[styles.streakBadge, { backgroundColor: `${WARNING}20` }]}>
             <MaterialCommunityIcons name="fire" size={12} color={WARNING} />
-            <Text style={[styles.streakText, { color: WARNING }]}>{waterData.streakDays} day streak</Text>
+            <Text style={[styles.streakText, { color: WARNING }]}>
+              {ar.dayStreakWithCount.replace('{count}', waterData.streakDays.toString())}
+            </Text>
           </View>
         )}
       </View>
@@ -549,7 +553,10 @@ export default function HomeScreen() {
             ]} />
           </View>
           <Text style={[styles.waterProgressText, { color: colors.textSecondary }]}>
-            {waterData.cupsAmount} of {waterData.cupsGoal} cups completed
+            {ar.cupsCompletedWithCount
+              .replace('{completed}', waterData.cupsAmount.toString())
+              .replace('{total}', waterData.cupsGoal.toString())
+            }
           </Text>
         </View>
 
@@ -558,7 +565,7 @@ export default function HomeScreen() {
           onAddWater={(amount, unit) => waterData.addWater(amount, unit)}
           isSyncing={waterData.isSyncing}
           buttonStyle="gradient"
-          buttonText="Add Water"
+          buttonText={ar.addWater}
         />
       </View>
     </View>
@@ -568,22 +575,22 @@ export default function HomeScreen() {
         <Text style={[styles.waterStatValue, { color: colors.text }]}>
           {Math.round(waterData.goalInML)}
         </Text>
-        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Target</Text>
-        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>{ar.goal}</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>{ar.ml}</Text>
       </View>
       <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
         <Text style={[styles.waterStatValue, { color: colors.text }]}>
           {Math.round(waterData.amountInML)}
         </Text>
-        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Consumed</Text>
-        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>{ar.consumed}</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>{ar.ml}</Text>
       </View>
       <View style={[styles.waterStatItem, { backgroundColor: colors.statBg, borderColor: colors.statBorder }]}>
         <Text style={[styles.waterStatValue, { color: colors.text }]}>
           {Math.round(waterData.remainingML)}
         </Text>
-        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>Remaining</Text>
-        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>ml</Text>
+        <Text style={[styles.waterStatLabel, { color: colors.textSecondary }]}>{ar.remaining}</Text>
+        <Text style={[styles.waterStatUnit, { color: colors.textSecondary }]}>{ar.ml}</Text>
       </View>
     </View>
 
@@ -598,7 +605,7 @@ export default function HomeScreen() {
       <View style={[styles.goalAchievedBanner, { backgroundColor: `${SUCCESS}15`, borderColor: `${SUCCESS}30` }]}>
         <Ionicons name="trophy" size={16} color={SUCCESS} />
         <Text style={[styles.goalAchievedText, { color: SUCCESS }]}>
-          🎉 Daily hydration goal achieved! Great job!
+          {'🎉 ' + ar.dailyHydrationGoalAchieved}
         </Text>
       </View>
     )}
@@ -617,9 +624,9 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Step Goal</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{ar.editStepGoal}</Text>
             <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Set your daily step goal (1,000 - 50,000)
+              {ar.editStepGoalSubtitle}
             </Text>
             <TextInput
               style={[styles.modalInput, { 
@@ -630,7 +637,7 @@ export default function HomeScreen() {
               value={tempStepGoal}
               onChangeText={setTempStepGoal}
               keyboardType="numeric"
-              placeholder="Enter steps"
+              placeholder={ar.enterSteps}
               placeholderTextColor={colors.textSecondary}
               autoFocus
             />
@@ -639,13 +646,13 @@ export default function HomeScreen() {
                 style={[styles.modalButton, styles.cancelButton, { borderColor: colors.cardBorder }]}
                 onPress={() => setShowStepGoalModal(false)}
               >
-                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>{ar.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
                 onPress={handleSaveStepGoal}
               >
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text style={styles.saveButtonText}>{ar.save}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -661,9 +668,9 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Water Goal</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{ar.editWaterGoal}</Text>
             <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-              Set your daily water goal in liters (0.5 - 10.0)
+              {ar.editWaterGoalSubtitle}
             </Text>
             <View style={styles.inputWithUnit}>
               <TextInput
@@ -676,15 +683,15 @@ export default function HomeScreen() {
                 value={tempWaterGoal}
                 onChangeText={setTempWaterGoal}
                 keyboardType="decimal-pad"
-                placeholder="Enter liters"
+                placeholder={ar.enterLiters}
                 placeholderTextColor={colors.textSecondary}
                 autoFocus
               />
-              <Text style={[styles.inputUnit, { color: colors.textSecondary }]}>L</Text>
+              <Text style={[styles.inputUnit, { color: colors.textSecondary }]}>{ar.liters}</Text>
             </View>
             {tempWaterGoal && !isNaN(parseFloat(tempWaterGoal)) && (
               <Text style={[styles.mlPreview, { color: colors.primary }]}>
-                = {Math.round(parseFloat(tempWaterGoal) * 1000)} ml ({Math.round((parseFloat(tempWaterGoal) * 1000) / 250)} cups)
+                = {Math.round(parseFloat(tempWaterGoal) * 1000)} {ar.ml} ({Math.round((parseFloat(tempWaterGoal) * 1000) / 250)} {ar.cups})
               </Text>
             )}
             <View style={styles.modalButtons}>
@@ -692,13 +699,13 @@ export default function HomeScreen() {
                 style={[styles.modalButton, styles.cancelButton, { borderColor: colors.cardBorder }]}
                 onPress={() => setShowWaterGoalModal(false)}
               >
-                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>{ar.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.modalButton, styles.saveButton, { backgroundColor: colors.primary }]}
                 onPress={handleSaveWaterGoal}
               >
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text style={styles.saveButtonText}>{ar.save}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -708,13 +715,14 @@ export default function HomeScreen() {
   );
 }
 
-// Professional Meal Card Component (unchanged)
+// Professional Meal Card Component (unchanged styles, uses translated meal titles)
 const MealCard = ({ title }: { title: string }) => {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
 
-  const mealDetails = {
-    'Breakfast': [
+  // Map Arabic meal names to meal details
+  const mealDetails: Record<string, any[]> = {
+    [ar.breakfast]: [
       {
         name: 'Eggs & Toast',
         calories: '230 kcal',
@@ -740,7 +748,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/apple.jpg',
       },
     ],
-    'Lunch': [
+    [ar.lunch]: [
       {
         name: 'Grilled Salmon & Rice',
         calories: '280 kcal',
@@ -766,7 +774,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/caesar_salad.jpg',
       },
     ],
-    'Workout Meal': [
+    [ar.workoutMeal]: [
       {
         name: 'Banana & Honey',
         calories: '160 kcal',
@@ -792,7 +800,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/fig.jpg',
       },
     ],
-    'Dinner': [
+    [ar.dinner]: [
       {
         name: 'Kebda & Rice',
         calories: '240 kcal',
@@ -818,7 +826,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/chicken_wings.jpg',
       },
     ],
-    'Morning Snack': [
+    [ar.morningSnack]: [
       {
         name: 'Apple & Cheese',
         calories: '150 kcal',
@@ -844,7 +852,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/banana.jpg',
       },
     ],
-    'Evening Snack': [
+    [ar.eveningSnack]: [
       {
         name: 'Cheese & Crackers',
         calories: '170 kcal',
@@ -870,7 +878,7 @@ const MealCard = ({ title }: { title: string }) => {
         imageUrl: 'https://res.cloudinary.com/dsdkaxbl3/image/upload/v1763120284/icoach/foods/fig.jpg',
       },
     ],
-    'Post-Workout Shake': [
+    [ar.postWorkoutShake]: [
       {
         name: 'Banana & Milk',
         calories: '120 kcal',
@@ -898,7 +906,7 @@ const MealCard = ({ title }: { title: string }) => {
     ],
   };
 
-  const foodItems = mealDetails[title as keyof typeof mealDetails] || [];
+  const foodItems = mealDetails[title] || [];
   const totalCalories = foodItems.reduce((sum, item) => sum + (parseInt(item.calories) || 0), 0);
 
   return (
@@ -923,7 +931,7 @@ const MealCard = ({ title }: { title: string }) => {
           <View>
             <Text style={[mealStyles.title, { color: colors.text }]}>{title}</Text>
             <Text style={[mealStyles.subtitle, { color: colors.textSecondary }]}>
-              {foodItems.length} items • {totalCalories} cal
+              {foodItems.length} {ar.items} • {totalCalories} {ar.cal}
             </Text>
           </View>
         </View>

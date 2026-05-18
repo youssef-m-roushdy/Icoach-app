@@ -45,6 +45,7 @@ import {
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
+import ar from '../../i18n/locales/ar.json';
 
 interface WorkoutSessionWithDetails extends WorkoutSession {
   workout?: {
@@ -52,8 +53,8 @@ interface WorkoutSessionWithDetails extends WorkoutSession {
     name: string;
     body_part: string;
     target_area: string;
-    equipment: string;  // ✅ ADD
-    level: string;      // ✅ ADD
+    equipment: string;
+    level: string;
     gif_link: string;
   };
   sets?: {
@@ -282,8 +283,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
           setPagination((prev) => ({
             ...prev,
             total: pag.total ?? prev.total,
-            // Do NOT update 'page' from response to prevent race conditions
-            // and infinite loops when rapidly changing pages.
             limit: pag.limit ?? prev.limit,
             totalPages: pag.totalPages ?? prev.totalPages,
           }));
@@ -298,8 +297,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       } else {
         console.log(response?.message)
         showErrorToast({
-          title: "Error",
-          message: response?.message || "Failed to load workout sessions",
+          title: ar.error,
+          message: response?.message || ar.failedToLoadWorkoutSessions,
         });
       }
     } catch (error: any) {
@@ -310,8 +309,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       console.error("Failed to load sessions:", error);
 
       showErrorToast({
-        title: "Error",
-        message: getErrorMessage(error) || "Failed to load workout sessions",
+        title: ar.error,
+        message: getErrorMessage(error) || ar.failedToLoadWorkoutSessions,
       });
     } finally {
       setLoading(false);
@@ -338,8 +337,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     setPagination((prev) => ({ ...prev, page: 1 }));
     closeFilterSheet();
     showInfoToast({
-      title: "Filters Cleared",
-      message: "All filters have been reset",
+      title: ar.filtersClearedTitle,
+      message: ar.filtersClearedMessage,
     });
   };
 
@@ -350,7 +349,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     const currentPage = pagination.page;
     const totalPages = pagination.totalPages;
 
-    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI perfectly completely static
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, currentPage + 2);
 
@@ -420,8 +418,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
       if (response.success) {
         showSuccessToast({
-          title: "Success",
-          message: "Workout session deleted successfully",
+          title: ar.success,
+          message: ar.sessionDeletedSuccessfully,
         });
         closeDeleteSheet();
         setDeletingSession(null);
@@ -433,22 +431,21 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         }
       } else {
         showErrorToast({
-          title: "Error",
-          message: response.message || "Failed to delete session",
+          title: ar.error,
+          message: response.message || ar.failedToDeleteSession,
         });
       }
     } catch (error) {
       console.error("Failed to delete session:", error);
       showErrorToast({
-        title: "Error",
-        message: getErrorMessage(error) || "Failed to delete session",
+        title: ar.error,
+        message: getErrorMessage(error) || ar.failedToDeleteSession,
       });
     }
   };
 
   // ── Session card ───────────────────────────────────────────────────────────
-// ── Session card ───────────────────────────────────────────────────────────
-const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
+  const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
   const date = new Date(item.completedAt);
   const formattedDate = date.toLocaleDateString("en-US", {
     month: "short",
@@ -460,7 +457,6 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
     minute: "2-digit",
   });
 
-  // Use the aggregated fields from the API
   const totalSets = item.totalSets || item.sets?.length || 0;
   const totalReps = item.totalReps || 0;
   const maxWeight = item.maxWeight || 0;
@@ -513,7 +509,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               style={[styles.workoutName, { color: colors.text }]}
               numberOfLines={1}
             >
-              {item.workout?.name || `Workout #${item.workoutId}`}
+              {item.workout?.name || `${ar.workoutNumber}${item.workoutId}`}
             </Text>
             <View style={styles.workoutTags}>
               {item.workout?.body_part && (
@@ -599,39 +595,38 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               <Ionicons name="repeat" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {totalSets} {totalSets === 1 ? 'set' : 'sets'}
+              {totalSets} {totalSets === 1 ? ar.set : ar.sets}
             </Text>
           </View>
           
-          {/* Weight - Only show if there's actual weight used */}
           {maxWeight !== null && maxWeight > 0 && (
             <View style={styles.detailItem}>
               <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
                 <Ionicons name="barbell" size={14} color={colors.primary} />
               </View>
               <Text style={[styles.detailText, { color: colors.text }]}>
-                {maxWeight} kg
+                {maxWeight} {ar.kg}
               </Text>
             </View>
           )}
                     
-                    {totalVolume > 0 && (
-              <View style={styles.detailItem}>
-                <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
-                  <Ionicons name="fitness" size={14} color={colors.primary} />
-                </View>
-                <Text style={[styles.detailText, { color: colors.text }]}>
-                  {totalVolume} kg
-                </Text>
+          {totalVolume > 0 && (
+            <View style={styles.detailItem}>
+              <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
+                <Ionicons name="fitness" size={14} color={colors.primary} />
               </View>
-            )}
+              <Text style={[styles.detailText, { color: colors.text }]}>
+                {totalVolume} {ar.kg}
+              </Text>
+            </View>
+          )}
           
           <View style={styles.detailItem}>
             <View style={[styles.detailIconBg, { backgroundColor: colors.primary + "10" }]}>
               <Ionicons name="stats-chart" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {totalReps} reps
+              {totalReps} {ar.reps}
             </Text>
           </View>
           
@@ -640,7 +635,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               <Ionicons name="timer" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {item.duration} min
+              {item.duration} {ar.minuteAbbr}
             </Text>
           </View>
         </View>
@@ -686,7 +681,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
         },
       ]}
     >
-      {/* Animated Gradient Background matches WorkoutsScreen */}
+      {/* Animated Gradient Background */}
       <LinearGradient
         colors={colors.authBgGradient}
         start={{ x: 0, y: 0 }}
@@ -727,7 +722,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Workout History
+          {ar.workoutHistory}
         </Text>
         <TouchableOpacity
           style={[
@@ -742,7 +737,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
         >
           <Ionicons name="filter" size={18} color={colors.text} />
           <Text style={[styles.filterHeaderText, { color: colors.text }]}>
-            Filter
+            {ar.filterButton}
           </Text>
         </TouchableOpacity>
       </View>
@@ -772,7 +767,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    Body: {bodyPartFilter}
+                    {ar.bodyFilterPrefix + bodyPartFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setBodyPartFilter("")}>
                     <Ionicons
@@ -793,7 +788,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    Target: {targetAreaFilter}
+                    {ar.targetFilterPrefix + targetAreaFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setTargetAreaFilter("")}>
                     <Ionicons
@@ -814,7 +809,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    Name: {workoutNameFilter}
+                    {ar.nameFilterPrefix + workoutNameFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setWorkoutNameFilter("")}>
                     <Ionicons
@@ -835,7 +830,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    From: {startDate.toLocaleDateString()}
+                    {ar.fromDatePrefix + startDate.toLocaleDateString()}
                   </Text>
                   <TouchableOpacity onPress={() => setStartDate(null)}>
                     <Ionicons
@@ -856,7 +851,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    To: {endDate.toLocaleDateString()}
+                    {ar.toDatePrefix + endDate.toLocaleDateString()}
                   </Text>
                   <TouchableOpacity onPress={() => setEndDate(null)}>
                     <Ionicons
@@ -877,7 +872,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    ≥{minDuration} min
+                    {ar.minDurationFilterLabel.replace('{value}', minDuration)}
                   </Text>
                   <TouchableOpacity onPress={() => setMinDuration("")}>
                     <Ionicons
@@ -898,7 +893,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    ≥{minVolume} kg
+                    {ar.minVolumeFilterLabel.replace('{value}', minVolume)}
                   </Text>
                   <TouchableOpacity onPress={() => setMinVolume("")}>
                     <Ionicons
@@ -910,26 +905,26 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                 </View>
               )}
               {minSets && (
-  <View
-    style={[
-      styles.activeFilterChip,
-      { backgroundColor: colors.primary + "15" },
-    ]}
-  >
-    <Text
-      style={[styles.activeFilterText, { color: colors.primary }]}
-    >
-      ≥{minSets} sets
-    </Text>
-    <TouchableOpacity onPress={() => setMinSets("")}>
-      <Ionicons
-        name="close-circle"
-        size={14}
-        color={colors.primary}
-      />
-    </TouchableOpacity>
-  </View>
-)}
+                <View
+                  style={[
+                    styles.activeFilterChip,
+                    { backgroundColor: colors.primary + "15" },
+                  ]}
+                >
+                  <Text
+                    style={[styles.activeFilterText, { color: colors.primary }]}
+                  >
+                    {ar.minSetsFilterLabel.replace('{value}', minSets)}
+                  </Text>
+                  <TouchableOpacity onPress={() => setMinSets("")}>
+                    <Ionicons
+                      name="close-circle"
+                      size={14}
+                      color={colors.primary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </ScrollView>
         </View>
@@ -943,7 +938,6 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
         extraData={pagination.page}
         contentContainerStyle={[
           styles.listContent,
-          // Only add padding if pagination is not shown, otherwise pageInfo handles the padding!
           (!pagination || pagination.totalPages <= 1) && { paddingBottom: Math.max(insets.bottom + 20, 20) }
         ]}
         refreshControl={
@@ -969,7 +963,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               />
             </View>
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              No workout sessions found
+              {ar.noWorkoutSessionsFound}
             </Text>
             <Text style={[styles.emptySubText, { color: colors.subtleText }]}>
               {bodyPartFilter ||
@@ -980,8 +974,8 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               minDuration ||
               minVolume ||
               minSets
-                ? "Try clearing your filters"
-                : "Start your first workout to see it here!"}
+                ? ar.tryClearingFilters
+                : ar.startFirstWorkoutMessage}
             </Text>
           </View>
         }
@@ -1069,7 +1063,10 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
           </View>
 
           <Text style={[styles.pageInfo, { color: colors.text, marginTop: 0, marginBottom: 0, textAlign: 'center' }]}>
-            Page {pagination.page} of {pagination.totalPages} ({pagination.total} sessions)
+            {ar.sessionPaginationInfo
+              .replace('{page}', String(pagination.page))
+              .replace('{totalPages}', String(pagination.totalPages))
+              .replace('{total}', String(pagination.total))}
           </Text>
         </View>
       )}
@@ -1092,7 +1089,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             style={[styles.sheetHeader, { borderBottomColor: colors.border }]}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Filter Sessions
+              {ar.filterSessionsTitle}
             </Text>
             <TouchableOpacity
               onPress={closeFilterSheet}
@@ -1110,7 +1107,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             {/* Text Filters */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                Text Search
+                {ar.textSearchLabel}
               </Text>
               <View style={styles.textFilterContainer}>
                 <View
@@ -1125,7 +1122,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Ionicons name="body" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder="Body part (e.g., chest)"
+                    placeholder={ar.bodyPartPlaceholder}
                     placeholderTextColor={colors.placeholder}
                     value={bodyPartFilter}
                     onChangeText={setBodyPartFilter}
@@ -1153,7 +1150,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Ionicons name="locate" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder="Target area (e.g., upper chest)"
+                    placeholder={ar.targetAreaPlaceholder}
                     placeholderTextColor={colors.placeholder}
                     value={targetAreaFilter}
                     onChangeText={setTargetAreaFilter}
@@ -1181,7 +1178,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   <Ionicons name="barbell" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder="Workout name"
+                    placeholder={ar.workoutNamePlaceholder}
                     placeholderTextColor={colors.placeholder}
                     value={workoutNameFilter}
                     onChangeText={setWorkoutNameFilter}
@@ -1202,7 +1199,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             {/* Date Range */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                Date Range
+                {ar.dateRangeLabel}
               </Text>
               <View style={styles.dateRangeContainer}>
                 <TouchableOpacity
@@ -1221,7 +1218,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                     color={colors.primary}
                   />
                   <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                    {startDate ? startDate.toLocaleDateString() : "Start Date"}
+                    {startDate ? startDate.toLocaleDateString() : ar.startDatePlaceholder}
                   </Text>
                   {startDate && (
                     <TouchableOpacity onPress={() => setStartDate(null)}>
@@ -1246,7 +1243,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                     color={colors.primary}
                   />
                   <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                    {endDate ? endDate.toLocaleDateString() : "End Date"}
+                    {endDate ? endDate.toLocaleDateString() : ar.endDatePlaceholder}
                   </Text>
                   {endDate && (
                     <TouchableOpacity onPress={() => setEndDate(null)}>
@@ -1260,7 +1257,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             {/* Min Duration */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                Minimum Duration
+                {ar.minDurationLabel}
               </Text>
               <View
                 style={[
@@ -1281,7 +1278,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   keyboardType="numeric"
                   value={minDuration}
                   onChangeText={setMinDuration}
-                  placeholder="e.g., 30"
+                  placeholder={ar.minDurationPlaceholder}
                   placeholderTextColor={colors.placeholder}
                   onFocus={() =>
                     setTimeout(
@@ -1297,7 +1294,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                 <Text
                   style={[styles.inputSuffix, { color: colors.subtleText }]}
                 >
-                  min
+                  {ar.minuteAbbr}
                 </Text>
                 {minDuration !== "" && (
                   <TouchableOpacity onPress={() => setMinDuration("")}>
@@ -1314,7 +1311,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
             {/* Min Volume */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                Minimum Volume
+                {ar.minVolumeLabel}
               </Text>
               <View
                 style={[
@@ -1331,7 +1328,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   keyboardType="numeric"
                   value={minVolume}
                   onChangeText={setMinVolume}
-                  placeholder="e.g., 1000"
+                  placeholder={ar.minVolumePlaceholder}
                   placeholderTextColor={colors.placeholder}
                   onFocus={() =>
                     setTimeout(
@@ -1347,7 +1344,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                 <Text
                   style={[styles.inputSuffix, { color: colors.subtleText }]}
                 >
-                  kg
+                  {ar.kg}
                 </Text>
                 {minVolume !== "" && (
                   <TouchableOpacity onPress={() => setMinVolume("")}>
@@ -1361,37 +1358,37 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               </View>
             </View>
             <View style={styles.filterSection}>
-  <Text style={[styles.filterLabel, { color: colors.text }]}>
-    Minimum Sets
-  </Text>
-  <View
-    style={[
-      styles.filterInputContainer,
-      {
-        borderColor: colors.authInputBorder || colors.border,
-        backgroundColor: colors.authInputBg || colors.surface,
-      },
-    ]}
-  >
-    <Ionicons name="repeat" size={18} color={colors.primary} />
-    <TextInput
-      style={[styles.filterInput, { color: colors.text }]}
-      keyboardType="numeric"
-      value={minSets}
-      onChangeText={setMinSets}
-      placeholder="e.g., 3"
-      placeholderTextColor={colors.placeholder}
-    />
-    <Text style={[styles.inputSuffix, { color: colors.subtleText }]}>
-      sets
-    </Text>
-    {minSets !== "" && (
-      <TouchableOpacity onPress={() => setMinSets("")}>
-        <Ionicons name="close-circle" size={18} color={colors.primary} />
-      </TouchableOpacity>
-    )}
-  </View>
-  </View>
+              <Text style={[styles.filterLabel, { color: colors.text }]}>
+                {ar.minSetsLabel}
+              </Text>
+              <View
+                style={[
+                  styles.filterInputContainer,
+                  {
+                    borderColor: colors.authInputBorder || colors.border,
+                    backgroundColor: colors.authInputBg || colors.surface,
+                  },
+                ]}
+              >
+                <Ionicons name="repeat" size={18} color={colors.primary} />
+                <TextInput
+                  style={[styles.filterInput, { color: colors.text }]}
+                  keyboardType="numeric"
+                  value={minSets}
+                  onChangeText={setMinSets}
+                  placeholder={ar.minSetsPlaceholder}
+                  placeholderTextColor={colors.placeholder}
+                />
+                <Text style={[styles.inputSuffix, { color: colors.subtleText }]}>
+                  {ar.sets}
+                </Text>
+                {minSets !== "" && (
+                  <TouchableOpacity onPress={() => setMinSets("")}>
+                    <Ionicons name="close-circle" size={18} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </BottomSheetScrollView>
 
           <View
@@ -1416,7 +1413,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               onPress={clearFilters}
             >
               <Text style={[styles.clearButtonText, { color: colors.text }]}>
-                Clear All
+                {ar.clearAll}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1446,14 +1443,12 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                   { color: "#FFFFFF", position: "relative" },
                 ]}
               >
-                Apply Filters
+                {ar.applyFilters}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
       </BottomSheetModal>
-
-      {/* Edit Bottom Sheet */}
 
       {/* Delete Bottom Sheet */}
       <BottomSheetModal
@@ -1477,18 +1472,17 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
               <Ionicons name="warning-outline" size={48} color="#ef4444" />
             </View>
             <Text style={[styles.deleteTitle, { color: colors.text }]}>
-              Delete Session
+              {ar.deleteSessionTitle}
             </Text>
             <Text style={[styles.deleteMessage, { color: colors.subtleText }]}>
-              Are you sure you want to delete this workout session? This action
-              cannot be undone.
+              {ar.deleteSessionConfirmation}
             </Text>
             {deletingSession && (
               <Text
                 style={[styles.deleteWorkoutName, { color: colors.primary }]}
               >
                 {deletingSession.workout?.name ||
-                  `Workout #${deletingSession.workoutId}`}
+                  `${ar.workoutNumber}${deletingSession.workoutId}`}
               </Text>
             )}
             <View
@@ -1510,7 +1504,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                 onPress={closeDeleteSheet}
               >
                 <Text style={[styles.cancelDeleteText, { color: colors.text }]}>
-                  Cancel
+                  {ar.cancel}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1534,7 +1528,7 @@ const renderSessionItem = ({ item }: { item: WorkoutSessionWithDetails }) => {
                     { color: "#FFFFFF", position: "relative" },
                   ]}
                 >
-                  Delete
+                  {ar.delete}
                 </Text>
               </TouchableOpacity>
             </View>

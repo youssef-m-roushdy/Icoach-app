@@ -28,6 +28,7 @@ import {
 } from '../utils/toast';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ar from '../../i18n/locales/ar.json';
 
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -68,11 +69,10 @@ const WorkoutsScreen = () => {
   const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
 
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [loading, setLoading] = useState(false); // don't start true to avoid double flickers if undefined token
+  const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Keep a stable reference to token to avoid re-fetching when token refreshes automatically
   const tokenRef = useRef<string | null>(null);
   useEffect(() => {
     tokenRef.current = token;
@@ -85,14 +85,12 @@ const WorkoutsScreen = () => {
     totalPages: 0,
   });
 
-  // Search state - separate input value from actual search query
   const [searchInput, setSearchInput] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const flatListRef = useRef<FlatList>(null);
 
-  // Filters
   const [filters, setFilters] = useState<WorkoutFilters>({
     bodyParts: [],
     targetAreas: [],
@@ -146,7 +144,6 @@ const WorkoutsScreen = () => {
     filterSheetRef.current?.dismiss();
   }, []);
 
-  // aliases to support both old/new service names
   const checkWorkoutSavedFn =
     savedWorkoutService.checkWorkoutIsInSavedList ||
     savedWorkoutService.CheckWorkoutIsInSavedList;
@@ -174,25 +171,24 @@ const WorkoutsScreen = () => {
         });
       } else {
         showErrorToast({
-          title: 'Filters Error',
-          message: response?.message || 'Failed to load workout filters',
+          title: ar.filtersErrorTitle,
+          message: response?.message || ar.filtersErrorMessage,
         });
       }
     } catch (error: unknown) {
       console.error('Failed to load filters:', error);
 
       showErrorToast({
-        title: 'Filters Error',
-        message: getErrorMessage(error) || 'Failed to load workout filters',
+        title: ar.filtersErrorTitle,
+        message: getErrorMessage(error) || ar.filtersErrorMessage,
       });
     }
-  }, []); // Remove token from dependencies
+  }, []);
 
   const loadWorkouts = useCallback(async () => {
     try {
       if (!tokenRef.current) return;
 
-      // Only show spinner if we don't have workouts, to avoid screen flashes
       if (initialLoad) setLoading(true);
 
       const params: any = {
@@ -209,14 +205,12 @@ const WorkoutsScreen = () => {
       const result = await workoutService.getWorkouts(tokenRef.current, params);
 
       if (result?.success) {
-        // support multiple response shapes safely
         const workoutList: Workout[] = Array.isArray(result?.data)
           ? result.data
           : result?.data?.workouts || [];
 
         const paginationData = result?.pagination || result?.data?.pagination;
 
-        // Check saved status for each workout in parallel
         const workoutsWithSavedStatus = await Promise.all(
           workoutList.map(async (workout: Workout) => {
             try {
@@ -240,8 +234,6 @@ const WorkoutsScreen = () => {
           setPagination((prev) => ({
             ...prev,
             total: pag.total ?? prev.total,
-            // Do NOT update 'page' from response to prevent race conditions
-            // and infinite loops when rapidly changing pages.
             limit: pag.limit ?? prev.limit,
             totalPages: pag.totalPages ?? prev.totalPages,
           }));
@@ -265,14 +257,14 @@ const WorkoutsScreen = () => {
             searchQuery)
         ) {
           showInfoToast({
-            title: 'No Results',
-            message: 'No workouts match the selected filters',
+            title: ar.noResultsTitle,
+            message: ar.noWorkoutsMatchFilters,
           });
         }
       } else {
         showErrorToast({
-          title: 'Load Failed',
-          message: result?.message || 'Failed to load workouts',
+          title: ar.loadFailedTitle,
+          message: result?.message || ar.loadFailedMessage,
         });
         setWorkouts([]);
       }
@@ -280,8 +272,8 @@ const WorkoutsScreen = () => {
       console.error('Failed to load workouts:', error);
 
       showErrorToast({
-        title: 'Load Failed',
-        message: getErrorMessage(error) || 'Failed to load workouts',
+        title: ar.loadFailedTitle,
+        message: getErrorMessage(error) || ar.loadFailedMessage,
       });
 
       setWorkouts([]);
@@ -301,17 +293,14 @@ const WorkoutsScreen = () => {
     checkWorkoutSavedFn,
   ]);
 
-  // Load filters on mount
   useEffect(() => {
     loadFilters();
   }, [loadFilters]);
 
-  // Load workouts when filters/page/search change
   useEffect(() => {
     loadWorkouts();
   }, [loadWorkouts]);
 
-  // Scroll to top when page changes
   useEffect(() => {
     if (flatListRef.current) {
       flatListRef.current.scrollToOffset({ offset: 0, animated: true });
@@ -329,7 +318,6 @@ const WorkoutsScreen = () => {
   const goToFirstPage = () => goToPage(1);
   const goToLastPage = () => goToPage(pagination.totalPages);
 
-  // Handle hardware back button press
   useEffect(() => {
     const backAction = () => {
       if (showFilterModal) {
@@ -337,12 +325,11 @@ const WorkoutsScreen = () => {
         return true;
       }
       
-      // If on a page other than 1, go to previous page
       if (pagination && pagination.page > 1) {
         goToPage(pagination.page - 1);
-        return true; // Prevent default back behavior
+        return true;
       }
-      return false; // Allow default back behavior (navigation)
+      return false;
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -350,17 +337,14 @@ const WorkoutsScreen = () => {
     return () => backHandler.remove();
   }, [pagination, showFilterModal, goToPage, closeFilterSheet]);
 
-  // Handle search with debounce - only updates searchQuery after user stops typing
   const handleSearchChange = (text: string) => {
     setSearchInput(text);
     setIsSearching(true);
     
-    // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     
-    // Set new timeout to update search query after user stops typing
     searchTimeoutRef.current = setTimeout(() => {
       setSearchQuery(text);
       setPagination((prev) => ({ ...prev, page: 1 }));
@@ -374,8 +358,8 @@ const WorkoutsScreen = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
     
     showInfoToast({
-      title: 'Search Cleared',
-      message: 'Search filter has been cleared',
+      title: ar.searchClearedTitle,
+      message: ar.searchClearedMessage,
     });
   };
 
@@ -389,8 +373,8 @@ const WorkoutsScreen = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
 
     showInfoToast({
-      title: 'Filters Cleared',
-      message: 'All workout filters have been reset',
+      title: ar.filtersClearedTitle,
+      message: ar.filtersClearedMessage,
     });
   };
 
@@ -404,17 +388,16 @@ const WorkoutsScreen = () => {
     try {
       if (!token) {
         showErrorToast({
-          title: 'Authentication Error',
-          message: 'You need to be logged in to save workouts',
+          title: ar.authenticationError,
+          message: ar.needLoginToSaveWorkouts,
         });
         return;
       }
 
       if (workout.isSaved) {
         showInfoToast({
-          title: 'Already Saved',
-          message:
-            'This workout is already in your saved list. Go to Saved Workouts to remove it.',
+          title: ar.alreadySavedTitle,
+          message: ar.alreadySavedMessage,
         });
         return;
       }
@@ -428,15 +411,15 @@ const WorkoutsScreen = () => {
       );
 
       showSuccessToast({
-        title: 'Workout Saved',
-        message: `"${workout.name}" has been added to your saved workouts`,
+        title: ar.workoutSavedTitle,
+        message: ar.workoutSavedMessage.replace('{name}', workout.name),
       });
     } catch (error: unknown) {
       console.error('Failed to save workout:', error);
 
       showErrorToast({
-        title: 'Save Failed',
-        message: getErrorMessage(error) || 'Failed to save workout',
+        title: ar.saveFailedTitle,
+        message: getErrorMessage(error) || ar.saveFailedMessage,
       });
     }
   };
@@ -456,7 +439,6 @@ const WorkoutsScreen = () => {
     const currentPage = pagination.page;
     const totalPages = pagination.totalPages;
 
-    // Always show exactly 5 pages (or fewer if totalPages < 5) to keep UI completely static
     let startPage = Math.max(1, currentPage - 2);
     let endPage = Math.min(totalPages, currentPage + 2);
 
@@ -572,7 +554,6 @@ const WorkoutsScreen = () => {
             </Text>
           )}
 
-          {/* Start Session Button */}
           <TouchableOpacity
             style={[styles.startButton, { overflow: 'hidden' }]}
             onPress={() => handleStartSession(item)}
@@ -585,7 +566,7 @@ const WorkoutsScreen = () => {
               style={StyleSheet.absoluteFillObject}
             />
             <Ionicons name="play" size={20} color="#FFFFFF" />
-            <Text style={styles.startButtonText}>Start Session</Text>
+            <Text style={styles.startButtonText}>{ar.startSession}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -604,7 +585,6 @@ const WorkoutsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Animated Gradient Background matches SignIn */}
       <LinearGradient
         colors={colors.authBgGradient as any}
         start={{ x: 0, y: 0 }}
@@ -616,7 +596,6 @@ const WorkoutsScreen = () => {
         <View style={[styles.decorativeCircle3, { backgroundColor: colors.authCircle3 }]} />
       </LinearGradient>
 
-      {/* Filters Header with Search */}
       <View
         style={[
           styles.filtersContainer,
@@ -625,16 +604,15 @@ const WorkoutsScreen = () => {
       >
         <View style={styles.filtersHeader}>
           <Text style={[styles.filtersTitle, { color: colors.text }]}>
-            Filters
+            {ar.filters}
           </Text>
 
-          {/* Search Input */}
           <View style={styles.searchWrapper}>
             <View style={[styles.searchInputContainer, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface }]}>
               <Ionicons name="search" size={18} color={colors.primary} />
               <TextInput
                 style={[styles.searchInput, { color: colors.text }]}
-                placeholder="Search workouts..."
+                placeholder={ar.searchWorkoutsPlaceholder}
                 placeholderTextColor={colors.placeholder}
                 value={searchInput}
                 onChangeText={handleSearchChange}
@@ -656,7 +634,7 @@ const WorkoutsScreen = () => {
             selectedLevel ||
             searchQuery) && (
             <TouchableOpacity onPress={clearFilters}>
-              <Text style={styles.clearText}>Clear All</Text>
+              <Text style={styles.clearText}>{ar.clearAll}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -686,7 +664,7 @@ const WorkoutsScreen = () => {
                   { color: selectedBodyPart ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedBodyPart || 'Body Part'}
+                {selectedBodyPart || ar.bodyPart}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -719,7 +697,7 @@ const WorkoutsScreen = () => {
                   { color: selectedTargetArea ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedTargetArea || 'Target Area'}
+                {selectedTargetArea || ar.targetAreaFilterLabel}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -752,7 +730,7 @@ const WorkoutsScreen = () => {
                   { color: selectedEquipment ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedEquipment || 'Equipment'}
+                {selectedEquipment || ar.equipmentFilterLabel}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -785,7 +763,7 @@ const WorkoutsScreen = () => {
                   { color: selectedLevel ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedLevel || 'Level'}
+                {selectedLevel || ar.level}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -798,7 +776,6 @@ const WorkoutsScreen = () => {
         </ScrollView>
       </View>
 
-      {/* Filter Modal */}
       <BottomSheetModal
         ref={filterSheetRef}
         snapPoints={['50%', '70%']}
@@ -817,14 +794,13 @@ const WorkoutsScreen = () => {
             style={[styles.modalHeader, { borderBottomColor: colors.authInputBorder || colors.border }]}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Select{' '}
               {currentFilter === 'bodyPart'
-                ? 'Body Part'
+                ? ar.selectBodyPart
                 : currentFilter === 'targetArea'
-                ? 'Target Area'
+                ? ar.selectTargetArea
                 : currentFilter === 'equipment'
-                ? 'Equipment'
-                : 'Level'}
+                ? ar.selectEquipment
+                : ar.selectLevel}
             </Text>
           </View>
 
@@ -840,7 +816,7 @@ const WorkoutsScreen = () => {
               }}
             >
               <Text style={[styles.modalOptionText, { color: colors.text }]}>
-                All
+                {ar.allFilterOption}
               </Text>
             </TouchableOpacity>
 
@@ -931,7 +907,6 @@ const WorkoutsScreen = () => {
         extraData={pagination.page}
         contentContainerStyle={[
           styles.listContent, 
-          // Only add padding if pagination is not shown, otherwise pageInfo handles the padding!
           (!pagination || pagination.totalPages <= 1) && { paddingBottom: dynamicPaddingBottom }
         ]}
         refreshControl={
@@ -946,14 +921,13 @@ const WorkoutsScreen = () => {
               selectedEquipment ||
               selectedLevel ||
               searchQuery
-                ? 'No workouts match your filters'
-                : 'No workouts found'}
+                ? ar.noWorkoutsMatchFilters
+                : ar.noWorkoutsFound}
             </Text>
           </View>
         }
       />
 
-      {/* Pagination Controls */}
       {pagination && pagination.totalPages > 1 && (
         <View style={{ backgroundColor: 'transparent', paddingBottom: dynamicPaddingBottom }}>
           <View
@@ -1037,7 +1011,10 @@ const WorkoutsScreen = () => {
           </View>
 
           <Text style={[styles.pageInfo, { color: colors.text, marginTop: 0, marginBottom: 0 }]}>
-            Page {pagination.page} of {pagination.totalPages} ({pagination.total} workouts)
+            {ar.paginationInfoWorkouts
+              .replace('{page}', pagination.page.toString())
+              .replace('{totalPages}', pagination.totalPages.toString())
+              .replace('{total}', pagination.total.toString())}
           </Text>
         </View>
       )}
@@ -1059,7 +1036,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    // Space for floating bottom navigation added dynamically via contentContainerStyle
   },
   workoutCard: {
     borderRadius: 16,
@@ -1137,7 +1113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    paddingBottom: 5, // Reduced from 110, padding is now handled by pageInfo dynamically
+    paddingBottom: 5,
     borderTopWidth: 1,
   },
   pageNumbersContainer: {

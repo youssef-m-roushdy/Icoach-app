@@ -24,6 +24,7 @@ import { socketService } from '../services/socketService';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ar from '../../i18n/locales/ar.json';
 
 interface ChatThreadParams {
   conversationId: number;
@@ -80,7 +81,7 @@ export default function ChatThreadScreen() {
   const isRestoringRef = useRef(false);
 
   const displayName = useMemo(() => {
-    if (!participant) return 'Chat';
+    if (!participant) return ar.chat;
     return `${participant.firstName || ''} ${participant.lastName || ''}`.trim() || participant.username;
   }, [participant]);
 
@@ -177,17 +178,23 @@ export default function ChatThreadScreen() {
   };
 
   const formatLastSeen = useCallback((timestamp?: string | null) => {
-    if (!timestamp) return 'Offline';
+    if (!timestamp) return ar.offline;
     const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return 'Offline';
+    if (Number.isNaN(date.getTime())) return ar.offline;
 
     const now = new Date();
     const isSameDay = now.toDateString() === date.toDateString();
     if (isSameDay) {
-      return `Last seen ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return ar.lastSeenAtTime.replace(
+        '{time}',
+        date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
     }
 
-    return `Last seen ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+    return ar.lastSeenAtDate.replace(
+      '{date}',
+      date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    );
   }, []);
 
   const executeMarkRead = useCallback(async () => {
@@ -586,7 +593,7 @@ export default function ChatThreadScreen() {
     );
   };
 
-  const showStatus = presence?.online ? 'Online' : formatLastSeen(presence?.lastSeen || null);
+  const showStatus = presence?.online ? ar.online : formatLastSeen(presence?.lastSeen || null);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -660,7 +667,7 @@ export default function ChatThreadScreen() {
           <TextInput
             value={inputValue}
             onChangeText={setInputValue}
-            placeholder="Type a message"
+            placeholder={ar.typeMessage}
             placeholderTextColor={colors.placeholder}
             style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
             multiline

@@ -32,6 +32,7 @@ import { socketService } from '../services/socketService';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
+import ar from '../../i18n/locales/ar.json';
 
 type PresenceMap = Record<string, PresenceState>;
 
@@ -137,7 +138,7 @@ export default function MessagesScreen() {
         }
       }
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to load conversations');
+      Alert.alert(ar.error, error?.message || ar.failedToLoadConversations);
     } finally {
       setIsLoading(false);
     }
@@ -270,7 +271,7 @@ export default function MessagesScreen() {
         const response = await conversationService.searchUsers(token, query, 20);
         setSearchResults(response.data || []);
       } catch (error: any) {
-        Alert.alert('Error', error?.message || 'Failed to search users');
+        Alert.alert(ar.error, error?.message || ar.failedToSearchUsers);
       } finally {
         setIsSearching(false);
       }
@@ -294,7 +295,7 @@ export default function MessagesScreen() {
         );
         const data = response.data;
         if (!data) {
-          throw new Error('Conversation creation failed');
+          throw new Error(ar.conversationCreationFailed);
         }
 
         handleCloseNewChat();
@@ -327,7 +328,7 @@ export default function MessagesScreen() {
           participant,
         });
       } catch (error: any) {
-        Alert.alert('Error', error?.message || 'Unable to start conversation');
+        Alert.alert(ar.error, error?.message || ar.unableToStartConversation);
       }
     },
     [navigation, normalizeParticipants, token],
@@ -353,8 +354,8 @@ export default function MessagesScreen() {
     const displayName = participant
       ? `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
         participant.username
-      : 'Unknown';
-    const lastMessage = item.lastMessage?.content || 'No messages yet';
+      : ar.unknown;
+    const lastMessage = item.lastMessage?.content || ar.noMessagesYet;
     const lastTime = formatTime(
       item.lastMessage?.createdAt || item.conversation.updatedAt,
     );
@@ -464,8 +465,8 @@ export default function MessagesScreen() {
   };
 
   const emptyMessage = isLoading
-    ? 'Loading conversations...'
-    : 'Start a new chat to see messages here.';
+    ? ar.loadingConversations
+    : ar.startNewChatToSeeMessages;
 
   // Bottom padding for the main list — respects safe area
   const listBottomPadding = Math.max(insets.bottom + 90, 120);
@@ -563,7 +564,7 @@ export default function MessagesScreen() {
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              New Message
+              {ar.newMessage}
             </Text>
             <TouchableOpacity
               onPress={handleCloseNewChat}
@@ -587,7 +588,7 @@ export default function MessagesScreen() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search by username"
+              placeholder={ar.searchByUsername}
               placeholderTextColor={colors.placeholder}
               style={[styles.searchInput, { color: colors.text }]}
               autoCapitalize="none"
@@ -614,7 +615,7 @@ export default function MessagesScreen() {
                     { color: colors.subtleText },
                   ]}
                 >
-                  No users found
+                  {ar.noUsersFound}
                 </Text>
               ) : null
             }

@@ -45,6 +45,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
+import ar from '../../i18n/locales/ar.json';
 
 const { width: W } = Dimensions.get('window');
 const TOTAL_STEPS = 5;
@@ -387,17 +388,17 @@ const WeightGauge = memo(
     const bmi = height > 0 ? value / Math.pow(height / 100, 2) : 0;
     const bmiInfo =
       bmi < 18.5
-        ? { label: 'Underweight', color: C.warning }
+        ? { label: ar.underweight, color: C.warning }
         : bmi < 25
-        ? { label: 'Normal', color: C.success }
+        ? { label: ar.normal, color: C.success }
         : bmi < 30
-        ? { label: 'Overweight', color: C.warning }
-        : { label: 'Obese', color: C.error };
+        ? { label: ar.overweight, color: C.warning }
+        : { label: ar.obese, color: C.error };
 
     const cats = [
-      { label: 'Underweight', color: C.warning, active: bmi < 18.5 },
-      { label: 'Normal', color: C.success, active: bmi >= 18.5 && bmi < 25 },
-      { label: 'Overweight', color: C.warning, active: bmi >= 25 && bmi < 30 },
+      { label: ar.underweight, color: C.warning, active: bmi < 18.5 },
+      { label: ar.normal, color: C.success, active: bmi >= 18.5 && bmi < 25 },
+      { label: ar.overweight, color: C.warning, active: bmi >= 25 && bmi < 30 },
     ];
 
     const ticks = useMemo(
@@ -432,7 +433,7 @@ const WeightGauge = memo(
             {value.toFixed(1)}
           </Text>
           <Text style={[styles.weightUnit, { color: colors.textSecondary }]}>
-            kg
+            {ar.kgUnit}
           </Text>
         </View>
 
@@ -464,7 +465,7 @@ const WeightGauge = memo(
 
         <View style={[styles.bmiBox, { borderColor: bmiInfo.color }]}>
           <Text style={[styles.bmiBoxLbl, { color: colors.textSecondary }]}>
-            Your BMI shows you are
+            {ar.yourBmiIndicatesYouAre}
           </Text>
           <Text style={[styles.bmiBoxVal, { color: bmiInfo.color }]}>
             {bmiInfo.label}
@@ -562,7 +563,7 @@ const Step1Gender = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          What's Your Gender
+          {ar.whatsYourGender}
         </Animated.Text>
 
         <View style={styles.genderColumn}>
@@ -600,7 +601,7 @@ const Step1Gender = memo(
                   },
                 ]}
               >
-                Male
+                {ar.male}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -641,7 +642,7 @@ const Step1Gender = memo(
                   },
                 ]}
               >
-                Female
+                {ar.female}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -702,12 +703,12 @@ const Step2Birthday = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          When's Your Birthday?
+          {ar.whensYourBirthday}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          We'll customize your experience based on your age
+          {ar.customizeExperienceBasedOnAge}
         </Animated.Text>
         <Animated.View
           style={[
@@ -797,7 +798,7 @@ const Step3Height = memo(
     return (
       <View style={[styles.stepInner, { flex: 1 }]}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          Your Height
+          {ar.yourHeight}
         </Animated.Text>
 
         <View style={styles.heightMain}>
@@ -828,7 +829,7 @@ const Step3Height = memo(
         >
           <Text style={styles.heightValNum}>{height}</Text>
           <Text style={[styles.heightValUnit, { color: colors.textSecondary }]}>
-            cm
+            {ar.cmUnit}
           </Text>
         </Animated.View>
       </View>
@@ -885,12 +886,12 @@ const Step4Weight = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          Your Current Weight
+          {ar.yourCurrentWeight}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          We'll use this to track your progress
+          {ar.useToTrackProgress}
         </Animated.Text>
 
         <Animated.View style={gaugeStyle}>
@@ -905,16 +906,16 @@ const Step4Weight = memo(
 // STEP 5 — Goals
 // ═════════════════════════════════════════════════════════════════════════════
 const GOALS = [
-  { id: 'weight_loss', label: 'Lose Weight', icon: 'trending-down' },
-  { id: 'muscle_gain', label: 'Build Muscle', icon: 'fitness' },
-  { id: 'maintenance', label: 'Stay Fit', icon: 'heart' },
+  { id: 'weight_loss', label: ar.weightLoss, icon: 'trending-down' },
+  { id: 'muscle_gain', label: ar.muscleGain, icon: 'fitness' },
+  { id: 'maintenance', label: ar.maintenance, icon: 'heart' },
 ] as const;
 
 const ACTIVITIES = [
-  { id: 'sedentary', label: 'Sedentary', desc: 'Little to no exercise' },
-  { id: 'lightly_active', label: 'Light', desc: '1-3 days/week' },
-  { id: 'moderately_active', label: 'Moderate', desc: '3-5 days/week' },
-  { id: 'very_active', label: 'Active', desc: '6-7 days/week' },
+  { id: 'sedentary', label: ar.sedentary, desc: ar.sedentaryShortDesc },
+  { id: 'lightly_active', label: ar.light, desc: ar.lightlyActiveShortDesc },
+  { id: 'moderately_active', label: ar.moderate, desc: ar.moderatelyActiveShortDesc },
+  { id: 'very_active', label: ar.active, desc: ar.veryActiveShortDesc },
 ] as const;
 
 const GoalItem = memo(
@@ -1185,12 +1186,12 @@ const Step5Goals = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          Fitness Goals
+          {ar.fitnessGoals}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          What do you want to achieve?
+          {ar.whatDoYouWantToAchieve}
         </Animated.Text>
 
         <View style={styles.goalsRow}>
@@ -1208,7 +1209,7 @@ const Step5Goals = memo(
         </View>
 
         <Animated.Text style={[styles.sectionLabel, { color: colors.text }, lblStyle]}>
-          Activity Level
+          {ar.activityLevel}
         </Animated.Text>
 
         <View style={styles.activityList}>
@@ -1432,8 +1433,8 @@ export default function OnboardingScreen() {
   const handleSubmit = useCallback(async () => {
   if (!token) {
     showErrorToast({
-      title: 'Authentication Error',
-      message: 'Authentication token not found',
+      title: ar.authenticationError,
+      message: ar.authenticationTokenNotFound,
     });
     return;
   }
@@ -1462,8 +1463,8 @@ export default function OnboardingScreen() {
       const res = await userService.updateBodyInformation(body, token);
 
       showSuccessToast({
-        title: 'Profile Completed',
-        message: 'Your onboarding is complete. Welcome to ICoach!',
+        title: ar.profileCompleted,
+        message: ar.onboardingCompleteWelcome,
       });
 
       if (res.data && user) {
@@ -1482,8 +1483,8 @@ export default function OnboardingScreen() {
     ).catch(() => {});
 
     showErrorToast({
-      title: 'Update Failed',
-      message: getErrorMessage(error) || 'Failed to update profile',
+      title: ar.updateFailed,
+      message: getErrorMessage(error) || ar.failedToUpdateProfile,
     });
   } finally {
     setIsLoading(false);
@@ -1551,7 +1552,7 @@ const handleNext = useCallback(() => {
             disabled={step === 0}
           >
             <Ionicons name="chevron-back" size={22} color={C.primary} />
-            <Text style={styles.backTxt}>Back</Text>
+            <Text style={styles.backTxt}>{ar.back}</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -1564,7 +1565,7 @@ const handleNext = useCallback(() => {
           style={styles.headerSide}
         >
           <Text style={[styles.skipTxt, { color: colors.textSecondary }]}>
-            Skip
+            {ar.skip}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1587,7 +1588,7 @@ const handleNext = useCallback(() => {
         <ProgressDots current={step} />
         <View style={styles.stepCounter}>
           <Text style={[styles.stepCounterText, { color: colors.textSecondary }]}>
-            {step + 1} of {TOTAL_STEPS}
+            {ar.stepOfTotal.replace('{current}', String(step + 1)).replace('{total}', String(TOTAL_STEPS))}
           </Text>
         </View>
 
@@ -1671,7 +1672,7 @@ const handleNext = useCallback(() => {
               ) : (
                 <View style={styles.btnContent}>
                   <Text style={styles.btnTxt}>
-                    {isLastStep ? 'Get Started' : 'Continue'}
+                    {isLastStep ? ar.getStarted : ar.continue}
                   </Text>
                   {!isLastStep && (
                     <Ionicons
