@@ -45,7 +45,7 @@ import {
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from "react-i18next";
 
 interface WorkoutSessionWithDetails extends WorkoutSession {
   workout?: {
@@ -85,6 +85,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
+  const { t } = useTranslation();
 
   // Bottom sheet refs
   const filterSheetRef = useRef<BottomSheetModal>(null);
@@ -124,8 +125,6 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
   const [bodyPartFilter, setBodyPartFilter] = useState<string>("");
   const [targetAreaFilter, setTargetAreaFilter] = useState<string>("");
   const [workoutNameFilter, setWorkoutNameFilter] = useState<string>("");
-
-  // Edit modal state
 
   // Delete confirmation
   const [deletingSession, setDeletingSession] =
@@ -297,8 +296,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       } else {
         console.log(response?.message)
         showErrorToast({
-          title: ar.error,
-          message: response?.message || ar.failedToLoadWorkoutSessions,
+          title: t('error'),
+          message: response?.message || t('failedToLoadWorkoutSessions'),
         });
       }
     } catch (error: any) {
@@ -309,8 +308,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
       console.error("Failed to load sessions:", error);
 
       showErrorToast({
-        title: ar.error,
-        message: getErrorMessage(error) || ar.failedToLoadWorkoutSessions,
+        title: t('error'),
+        message: getErrorMessage(error) || t('failedToLoadWorkoutSessions'),
       });
     } finally {
       setLoading(false);
@@ -337,8 +336,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
     setPagination((prev) => ({ ...prev, page: 1 }));
     closeFilterSheet();
     showInfoToast({
-      title: ar.filtersClearedTitle,
-      message: ar.filtersClearedMessage,
+      title: t('filtersClearedTitle'),
+      message: t('filtersClearedMessage'),
     });
   };
 
@@ -418,8 +417,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
 
       if (response.success) {
         showSuccessToast({
-          title: ar.success,
-          message: ar.sessionDeletedSuccessfully,
+          title: t('success'),
+          message: t('sessionDeletedSuccessfully'),
         });
         closeDeleteSheet();
         setDeletingSession(null);
@@ -431,15 +430,15 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         }
       } else {
         showErrorToast({
-          title: ar.error,
-          message: response.message || ar.failedToDeleteSession,
+          title: t('error'),
+          message: response.message || t('failedToDeleteSession'),
         });
       }
     } catch (error) {
       console.error("Failed to delete session:", error);
       showErrorToast({
-        title: ar.error,
-        message: getErrorMessage(error) || ar.failedToDeleteSession,
+        title: t('error'),
+        message: getErrorMessage(error) || t('failedToDeleteSession'),
       });
     }
   };
@@ -509,7 +508,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               style={[styles.workoutName, { color: colors.text }]}
               numberOfLines={1}
             >
-              {item.workout?.name || `${ar.workoutNumber}${item.workoutId}`}
+              {item.workout?.name || `${t('workoutNumber')}${item.workoutId}`}
             </Text>
             <View style={styles.workoutTags}>
               {item.workout?.body_part && (
@@ -595,7 +594,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               <Ionicons name="repeat" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {totalSets} {totalSets === 1 ? ar.set : ar.sets}
+              {totalSets} {totalSets === 1 ? t('set') : t('sets')}
             </Text>
           </View>
           
@@ -605,7 +604,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 <Ionicons name="barbell" size={14} color={colors.primary} />
               </View>
               <Text style={[styles.detailText, { color: colors.text }]}>
-                {maxWeight} {ar.kg}
+                {maxWeight} {t('kg')}
               </Text>
             </View>
           )}
@@ -616,7 +615,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 <Ionicons name="fitness" size={14} color={colors.primary} />
               </View>
               <Text style={[styles.detailText, { color: colors.text }]}>
-                {totalVolume} {ar.kg}
+                {totalVolume} {t('kg')}
               </Text>
             </View>
           )}
@@ -626,7 +625,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               <Ionicons name="stats-chart" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {totalReps} {ar.reps}
+              {totalReps} {t('reps')}
             </Text>
           </View>
           
@@ -635,7 +634,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               <Ionicons name="timer" size={14} color={colors.primary} />
             </View>
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {item.duration} {ar.minuteAbbr}
+              {item.duration} {t('minuteAbbr')}
             </Text>
           </View>
         </View>
@@ -722,7 +721,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {ar.workoutHistory}
+          {t('workoutHistoryTitle')}
         </Text>
         <TouchableOpacity
           style={[
@@ -737,7 +736,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
         >
           <Ionicons name="filter" size={18} color={colors.text} />
           <Text style={[styles.filterHeaderText, { color: colors.text }]}>
-            {ar.filterButton}
+            {t('filterButton')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -767,7 +766,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.bodyFilterPrefix + bodyPartFilter}
+                    {t('bodyFilterPrefix') + bodyPartFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setBodyPartFilter("")}>
                     <Ionicons
@@ -788,7 +787,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.targetFilterPrefix + targetAreaFilter}
+                    {t('targetFilterPrefix') + targetAreaFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setTargetAreaFilter("")}>
                     <Ionicons
@@ -809,7 +808,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.nameFilterPrefix + workoutNameFilter}
+                    {t('nameFilterPrefix') + workoutNameFilter}
                   </Text>
                   <TouchableOpacity onPress={() => setWorkoutNameFilter("")}>
                     <Ionicons
@@ -830,7 +829,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.fromDatePrefix + startDate.toLocaleDateString()}
+                    {t('fromDatePrefix') + startDate.toLocaleDateString()}
                   </Text>
                   <TouchableOpacity onPress={() => setStartDate(null)}>
                     <Ionicons
@@ -851,7 +850,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.toDatePrefix + endDate.toLocaleDateString()}
+                    {t('toDatePrefix') + endDate.toLocaleDateString()}
                   </Text>
                   <TouchableOpacity onPress={() => setEndDate(null)}>
                     <Ionicons
@@ -872,7 +871,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.minDurationFilterLabel.replace('{value}', minDuration)}
+                    {t('minDurationFilterLabel').replace('{value}', minDuration)}
                   </Text>
                   <TouchableOpacity onPress={() => setMinDuration("")}>
                     <Ionicons
@@ -893,7 +892,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.minVolumeFilterLabel.replace('{value}', minVolume)}
+                    {t('minVolumeFilterLabel').replace('{value}', minVolume)}
                   </Text>
                   <TouchableOpacity onPress={() => setMinVolume("")}>
                     <Ionicons
@@ -914,7 +913,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Text
                     style={[styles.activeFilterText, { color: colors.primary }]}
                   >
-                    {ar.minSetsFilterLabel.replace('{value}', minSets)}
+                    {t('minSetsFilterLabel').replace('{value}', minSets)}
                   </Text>
                   <TouchableOpacity onPress={() => setMinSets("")}>
                     <Ionicons
@@ -963,7 +962,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               />
             </View>
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              {ar.noWorkoutSessionsFound}
+              {t('noWorkoutSessionsFound')}
             </Text>
             <Text style={[styles.emptySubText, { color: colors.subtleText }]}>
               {bodyPartFilter ||
@@ -974,8 +973,8 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               minDuration ||
               minVolume ||
               minSets
-                ? ar.tryClearingFilters
-                : ar.startFirstWorkoutMessage}
+                ? t('tryClearingFilters')
+                : t('startFirstWorkoutMessage')}
             </Text>
           </View>
         }
@@ -1063,7 +1062,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
           </View>
 
           <Text style={[styles.pageInfo, { color: colors.text, marginTop: 0, marginBottom: 0, textAlign: 'center' }]}>
-            {ar.sessionPaginationInfo
+            {t('sessionPaginationInfo')
               .replace('{page}', String(pagination.page))
               .replace('{totalPages}', String(pagination.totalPages))
               .replace('{total}', String(pagination.total))}
@@ -1089,7 +1088,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             style={[styles.sheetHeader, { borderBottomColor: colors.border }]}
           >
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {ar.filterSessionsTitle}
+              {t('filterSessionsTitle')}
             </Text>
             <TouchableOpacity
               onPress={closeFilterSheet}
@@ -1107,7 +1106,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             {/* Text Filters */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                {ar.textSearchLabel}
+                {t('textSearchLabel')}
               </Text>
               <View style={styles.textFilterContainer}>
                 <View
@@ -1122,7 +1121,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Ionicons name="body" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder={ar.bodyPartPlaceholder}
+                    placeholder={t('bodyPartPlaceholder')}
                     placeholderTextColor={colors.placeholder}
                     value={bodyPartFilter}
                     onChangeText={setBodyPartFilter}
@@ -1150,7 +1149,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Ionicons name="locate" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder={ar.targetAreaPlaceholder}
+                    placeholder={t('targetAreaPlaceholder')}
                     placeholderTextColor={colors.placeholder}
                     value={targetAreaFilter}
                     onChangeText={setTargetAreaFilter}
@@ -1178,7 +1177,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   <Ionicons name="barbell" size={18} color={colors.primary} />
                   <TextInput
                     style={[styles.textFilterField, { color: colors.text }]}
-                    placeholder={ar.workoutNamePlaceholder}
+                    placeholder={t('workoutNamePlaceholder')}
                     placeholderTextColor={colors.placeholder}
                     value={workoutNameFilter}
                     onChangeText={setWorkoutNameFilter}
@@ -1199,7 +1198,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             {/* Date Range */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                {ar.dateRangeLabel}
+                {t('dateRangeLabel')}
               </Text>
               <View style={styles.dateRangeContainer}>
                 <TouchableOpacity
@@ -1218,7 +1217,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                     color={colors.primary}
                   />
                   <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                    {startDate ? startDate.toLocaleDateString() : ar.startDatePlaceholder}
+                    {startDate ? startDate.toLocaleDateString() : t('startDatePlaceholder')}
                   </Text>
                   {startDate && (
                     <TouchableOpacity onPress={() => setStartDate(null)}>
@@ -1243,7 +1242,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                     color={colors.primary}
                   />
                   <Text style={[styles.dateButtonText, { color: colors.text }]}>
-                    {endDate ? endDate.toLocaleDateString() : ar.endDatePlaceholder}
+                    {endDate ? endDate.toLocaleDateString() : t('endDatePlaceholder')}
                   </Text>
                   {endDate && (
                     <TouchableOpacity onPress={() => setEndDate(null)}>
@@ -1257,7 +1256,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             {/* Min Duration */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                {ar.minDurationLabel}
+                {t('minDurationLabel')}
               </Text>
               <View
                 style={[
@@ -1278,7 +1277,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   keyboardType="numeric"
                   value={minDuration}
                   onChangeText={setMinDuration}
-                  placeholder={ar.minDurationPlaceholder}
+                  placeholder={t('minDurationPlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   onFocus={() =>
                     setTimeout(
@@ -1294,7 +1293,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 <Text
                   style={[styles.inputSuffix, { color: colors.subtleText }]}
                 >
-                  {ar.minuteAbbr}
+                  {t('minuteAbbr')}
                 </Text>
                 {minDuration !== "" && (
                   <TouchableOpacity onPress={() => setMinDuration("")}>
@@ -1311,7 +1310,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             {/* Min Volume */}
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                {ar.minVolumeLabel}
+                {t('minVolumeLabel')}
               </Text>
               <View
                 style={[
@@ -1328,7 +1327,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   keyboardType="numeric"
                   value={minVolume}
                   onChangeText={setMinVolume}
-                  placeholder={ar.minVolumePlaceholder}
+                  placeholder={t('minVolumePlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   onFocus={() =>
                     setTimeout(
@@ -1344,7 +1343,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 <Text
                   style={[styles.inputSuffix, { color: colors.subtleText }]}
                 >
-                  {ar.kg}
+                  {t('kg')}
                 </Text>
                 {minVolume !== "" && (
                   <TouchableOpacity onPress={() => setMinVolume("")}>
@@ -1359,7 +1358,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
             </View>
             <View style={styles.filterSection}>
               <Text style={[styles.filterLabel, { color: colors.text }]}>
-                {ar.minSetsLabel}
+                {t('minSetsLabel')}
               </Text>
               <View
                 style={[
@@ -1376,11 +1375,11 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   keyboardType="numeric"
                   value={minSets}
                   onChangeText={setMinSets}
-                  placeholder={ar.minSetsPlaceholder}
+                  placeholder={t('minSetsPlaceholder')}
                   placeholderTextColor={colors.placeholder}
                 />
                 <Text style={[styles.inputSuffix, { color: colors.subtleText }]}>
-                  {ar.sets}
+                  {t('sets')}
                 </Text>
                 {minSets !== "" && (
                   <TouchableOpacity onPress={() => setMinSets("")}>
@@ -1413,7 +1412,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               onPress={clearFilters}
             >
               <Text style={[styles.clearButtonText, { color: colors.text }]}>
-                {ar.clearAll}
+                {t('clearAll')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1443,7 +1442,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                   { color: "#FFFFFF", position: "relative" },
                 ]}
               >
-                {ar.applyFilters}
+                {t('applyFilters')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1472,17 +1471,17 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
               <Ionicons name="warning-outline" size={48} color="#ef4444" />
             </View>
             <Text style={[styles.deleteTitle, { color: colors.text }]}>
-              {ar.deleteSessionTitle}
+              {t('deleteSessionTitle')}
             </Text>
             <Text style={[styles.deleteMessage, { color: colors.subtleText }]}>
-              {ar.deleteSessionConfirmation}
+              {t('deleteSessionConfirmation')}
             </Text>
             {deletingSession && (
               <Text
                 style={[styles.deleteWorkoutName, { color: colors.primary }]}
               >
                 {deletingSession.workout?.name ||
-                  `${ar.workoutNumber}${deletingSession.workoutId}`}
+                  `${t('workoutNumber')}${deletingSession.workoutId}`}
               </Text>
             )}
             <View
@@ -1504,7 +1503,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                 onPress={closeDeleteSheet}
               >
                 <Text style={[styles.cancelDeleteText, { color: colors.text }]}>
-                  {ar.cancel}
+                  {t('cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1528,7 +1527,7 @@ export default function WorkoutHistoryScreen({ navigation }: any) {
                     { color: "#FFFFFF", position: "relative" },
                   ]}
                 >
-                  {ar.delete}
+                  {t('delete')}
                 </Text>
               </TouchableOpacity>
             </View>

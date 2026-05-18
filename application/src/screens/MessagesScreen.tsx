@@ -32,7 +32,7 @@ import { socketService } from '../services/socketService';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 type PresenceMap = Record<string, PresenceState>;
 
@@ -42,6 +42,7 @@ export default function MessagesScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { token, user } = useAuth();
   const keyboardHeight = useKeyboardHeight();
+  const { t } = useTranslation();
 
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,7 +139,7 @@ export default function MessagesScreen() {
         }
       }
     } catch (error: any) {
-      Alert.alert(ar.error, error?.message || ar.failedToLoadConversations);
+      Alert.alert(t('error'), error?.message || t('failedToLoadConversations'));
     } finally {
       setIsLoading(false);
     }
@@ -271,7 +272,7 @@ export default function MessagesScreen() {
         const response = await conversationService.searchUsers(token, query, 20);
         setSearchResults(response.data || []);
       } catch (error: any) {
-        Alert.alert(ar.error, error?.message || ar.failedToSearchUsers);
+        Alert.alert(t('error'), error?.message || t('failedToSearchUsers'));
       } finally {
         setIsSearching(false);
       }
@@ -295,7 +296,7 @@ export default function MessagesScreen() {
         );
         const data = response.data;
         if (!data) {
-          throw new Error(ar.conversationCreationFailed);
+          throw new Error(t('conversationCreationFailed'));
         }
 
         handleCloseNewChat();
@@ -328,7 +329,7 @@ export default function MessagesScreen() {
           participant,
         });
       } catch (error: any) {
-        Alert.alert(ar.error, error?.message || ar.unableToStartConversation);
+        Alert.alert(t('error'), error?.message || t('unableToStartConversation'));
       }
     },
     [navigation, normalizeParticipants, token],
@@ -354,8 +355,8 @@ export default function MessagesScreen() {
     const displayName = participant
       ? `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
         participant.username
-      : ar.unknown;
-    const lastMessage = item.lastMessage?.content || ar.noMessagesYet;
+      : t('unknown');
+    const lastMessage = item.lastMessage?.content || t('noMessagesYet');
     const lastTime = formatTime(
       item.lastMessage?.createdAt || item.conversation.updatedAt,
     );
@@ -465,8 +466,8 @@ export default function MessagesScreen() {
   };
 
   const emptyMessage = isLoading
-    ? ar.loadingConversations
-    : ar.startNewChatToSeeMessages;
+    ? t('loadingConversations')
+    : t('startNewChatToSeeMessages');
 
   // Bottom padding for the main list — respects safe area
   const listBottomPadding = Math.max(insets.bottom + 90, 120);
@@ -564,7 +565,7 @@ export default function MessagesScreen() {
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {ar.newMessage}
+              {t('newMessage')}
             </Text>
             <TouchableOpacity
               onPress={handleCloseNewChat}
@@ -588,7 +589,7 @@ export default function MessagesScreen() {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={ar.searchByUsername}
+              placeholder={t('searchByUsername')}
               placeholderTextColor={colors.placeholder}
               style={[styles.searchInput, { color: colors.text }]}
               autoCapitalize="none"
@@ -615,7 +616,7 @@ export default function MessagesScreen() {
                     { color: colors.subtleText },
                   ]}
                 >
-                  {ar.noUsersFound}
+                  {t('noUsersFound')}
                 </Text>
               ) : null
             }

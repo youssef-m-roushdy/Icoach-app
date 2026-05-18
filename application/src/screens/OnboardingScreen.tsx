@@ -45,7 +45,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width: W } = Dimensions.get('window');
 const TOTAL_STEPS = 5;
@@ -186,12 +186,11 @@ const DatePickerWheel = memo(
 
     return (
       <View style={{ width, height: containerHeight }}>
-        {/* Highlight bar — exactly one item tall, vertically centered */}
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            top: IH, // one item from top = center of 3-item window
+            top: IH,
             left: 6,
             right: 6,
             height: IH,
@@ -351,10 +350,12 @@ const WeightGauge = memo(
     value,
     onChange,
     height,
+    t,
   }: {
     value: number;
     onChange: (v: number) => void;
     height: number;
+    t: (key: string) => string;
   }) => {
     const { colors } = useTheme();
     const ref = React.useRef<ScrollView>(null);
@@ -388,17 +389,17 @@ const WeightGauge = memo(
     const bmi = height > 0 ? value / Math.pow(height / 100, 2) : 0;
     const bmiInfo =
       bmi < 18.5
-        ? { label: ar.underweight, color: C.warning }
+        ? { label: t('underweight'), color: C.warning }
         : bmi < 25
-        ? { label: ar.normal, color: C.success }
+        ? { label: t('normal'), color: C.success }
         : bmi < 30
-        ? { label: ar.overweight, color: C.warning }
-        : { label: ar.obese, color: C.error };
+        ? { label: t('overweight'), color: C.warning }
+        : { label: t('obese'), color: C.error };
 
     const cats = [
-      { label: ar.underweight, color: C.warning, active: bmi < 18.5 },
-      { label: ar.normal, color: C.success, active: bmi >= 18.5 && bmi < 25 },
-      { label: ar.overweight, color: C.warning, active: bmi >= 25 && bmi < 30 },
+      { label: t('underweight'), color: C.warning, active: bmi < 18.5 },
+      { label: t('normal'), color: C.success, active: bmi >= 18.5 && bmi < 25 },
+      { label: t('overweight'), color: C.warning, active: bmi >= 25 && bmi < 30 },
     ];
 
     const ticks = useMemo(
@@ -433,7 +434,7 @@ const WeightGauge = memo(
             {value.toFixed(1)}
           </Text>
           <Text style={[styles.weightUnit, { color: colors.textSecondary }]}>
-            {ar.kgUnit}
+            {t('kgUnit')}
           </Text>
         </View>
 
@@ -465,7 +466,7 @@ const WeightGauge = memo(
 
         <View style={[styles.bmiBox, { borderColor: bmiInfo.color }]}>
           <Text style={[styles.bmiBoxLbl, { color: colors.textSecondary }]}>
-            {ar.yourBmiIndicatesYouAre}
+            {t('yourBmiIndicatesYouAre')}
           </Text>
           <Text style={[styles.bmiBoxVal, { color: bmiInfo.color }]}>
             {bmiInfo.label}
@@ -488,10 +489,12 @@ const Step1Gender = memo(
     isActive,
     gender,
     setGender,
+    t,
   }: {
     isActive: boolean;
     gender: string;
     setGender: (g: 'male' | 'female') => void;
+    t: (key: string) => string;
   }) => {
     const { colors } = useTheme();
 
@@ -563,7 +566,7 @@ const Step1Gender = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          {ar.whatsYourGender}
+          {t('whatsYourGender')}
         </Animated.Text>
 
         <View style={styles.genderColumn}>
@@ -601,7 +604,7 @@ const Step1Gender = memo(
                   },
                 ]}
               >
-                {ar.male}
+                {t('male')}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -642,7 +645,7 @@ const Step1Gender = memo(
                   },
                 ]}
               >
-                {ar.female}
+                {t('female')}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -668,6 +671,7 @@ const Step2Birthday = memo(
     setBirthDay,
     setBirthMonth,
     setBirthYear,
+    t,
   }: any) => {
     const { colors } = useTheme();
 
@@ -703,12 +707,12 @@ const Step2Birthday = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          {ar.whensYourBirthday}
+          {t('whensYourBirthday')}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          {ar.customizeExperienceBasedOnAge}
+          {t('customizeExperienceBasedOnAge')}
         </Animated.Text>
         <Animated.View
           style={[
@@ -750,11 +754,13 @@ const Step3Height = memo(
     height,
     gender,
     onChange,
+    t,
   }: {
     isActive: boolean;
     height: number;
     gender: string;
     onChange: (v: number) => void;
+    t: (key: string) => string;
   }) => {
     const { colors } = useTheme();
 
@@ -798,7 +804,7 @@ const Step3Height = memo(
     return (
       <View style={[styles.stepInner, { flex: 1 }]}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          {ar.yourHeight}
+          {t('yourHeight')}
         </Animated.Text>
 
         <View style={styles.heightMain}>
@@ -829,7 +835,7 @@ const Step3Height = memo(
         >
           <Text style={styles.heightValNum}>{height}</Text>
           <Text style={[styles.heightValUnit, { color: colors.textSecondary }]}>
-            {ar.cmUnit}
+            {t('cmUnit')}
           </Text>
         </Animated.View>
       </View>
@@ -846,11 +852,13 @@ const Step4Weight = memo(
     weight,
     height,
     onChange,
+    t,
   }: {
     isActive: boolean;
     weight: number;
     height: number;
     onChange: (v: number) => void;
+    t: (key: string) => string;
   }) => {
     const { colors } = useTheme();
 
@@ -886,16 +894,16 @@ const Step4Weight = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          {ar.yourCurrentWeight}
+          {t('yourCurrentWeight')}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          {ar.useToTrackProgress}
+          {t('useToTrackProgress')}
         </Animated.Text>
 
         <Animated.View style={gaugeStyle}>
-          <WeightGauge value={weight} onChange={onChange} height={height} />
+          <WeightGauge value={weight} onChange={onChange} height={height} t={t} />
         </Animated.View>
       </View>
     );
@@ -906,28 +914,30 @@ const Step4Weight = memo(
 // STEP 5 — Goals
 // ═════════════════════════════════════════════════════════════════════════════
 const GOALS = [
-  { id: 'weight_loss', label: ar.weightLoss, icon: 'trending-down' },
-  { id: 'muscle_gain', label: ar.muscleGain, icon: 'fitness' },
-  { id: 'maintenance', label: ar.maintenance, icon: 'heart' },
+  { id: 'weight_loss', icon: 'trending-down' },
+  { id: 'muscle_gain', icon: 'fitness' },
+  { id: 'maintenance', icon: 'heart' },
 ] as const;
 
 const ACTIVITIES = [
-  { id: 'sedentary', label: ar.sedentary, desc: ar.sedentaryShortDesc },
-  { id: 'lightly_active', label: ar.light, desc: ar.lightlyActiveShortDesc },
-  { id: 'moderately_active', label: ar.moderate, desc: ar.moderatelyActiveShortDesc },
-  { id: 'very_active', label: ar.active, desc: ar.veryActiveShortDesc },
+  { id: 'sedentary' },
+  { id: 'lightly_active' },
+  { id: 'moderately_active' },
+  { id: 'very_active' },
 ] as const;
 
 const GoalItem = memo(
   ({
-    goal,
+    goalId,
+    label,
     isSelected,
     onPress,
     animO,
     animY,
     fillSV,
   }: {
-    goal: (typeof GOALS)[number];
+    goalId: string;
+    label: string;
     isSelected: boolean;
     onPress: () => void;
     animO: SharedValue<number>;
@@ -935,6 +945,12 @@ const GoalItem = memo(
     fillSV: SharedValue<number>;
   }) => {
     const { colors } = useTheme();
+    
+    const iconMap: Record<string, string> = {
+      weight_loss: 'trending-down',
+      muscle_gain: 'fitness',
+      maintenance: 'heart',
+    };
 
     const wrapStyle = useAnimatedStyle(() => ({
       opacity: animO.value,
@@ -955,12 +971,12 @@ const GoalItem = memo(
         >
           <Animated.View style={[styles.goalCard, cardStyle]}>
             <Ionicons
-              name={goal.icon as any}
+              name={iconMap[goalId] as any}
               size={28}
               color={isSelected ? '#FFF' : C.primary}
             />
             <Text style={[styles.goalText, { color: isSelected ? '#FFF' : colors.text }]}>
-              {goal.label}
+              {label}
             </Text>
           </Animated.View>
         </TouchableOpacity>
@@ -971,14 +987,18 @@ const GoalItem = memo(
 
 const ActivityItem = memo(
   ({
-    lvl,
+    lvlId,
+    label,
+    desc,
     isSelected,
     onPress,
     animO,
     animY,
     fillSV,
   }: {
-    lvl: (typeof ACTIVITIES)[number];
+    lvlId: string;
+    label: string;
+    desc: string;
     isSelected: boolean;
     onPress: () => void;
     animO: SharedValue<number>;
@@ -1006,7 +1026,7 @@ const ActivityItem = memo(
         >
           <Animated.View style={[styles.actCard, cardStyle]}>
             <Text style={[styles.actLabel, { color: isSelected ? '#FFF' : colors.text }]}>
-              {lvl.label}
+              {label}
             </Text>
             <Text
               style={[
@@ -1018,7 +1038,7 @@ const ActivityItem = memo(
                 },
               ]}
             >
-              {lvl.desc}
+              {desc}
             </Text>
           </Animated.View>
         </TouchableOpacity>
@@ -1034,14 +1054,37 @@ const Step5Goals = memo(
     activityLevel,
     setFitnessGoal,
     setActivityLevel,
+    t,
   }: {
     isActive: boolean;
     fitnessGoal: string;
     activityLevel: string;
     setFitnessGoal: (v: any) => void;
     setActivityLevel: (v: any) => void;
+    t: (key: string) => string;
   }) => {
     const { colors } = useTheme();
+
+    // Get translated labels
+    const goalLabels = {
+      weight_loss: t('weightLoss'),
+      muscle_gain: t('muscleGain'),
+      maintenance: t('maintenance'),
+    };
+
+    const activityLabels = {
+      sedentary: t('sedentary'),
+      lightly_active: t('lightlyActive'),
+      moderately_active: t('moderatelyActive'),
+      very_active: t('veryActive'),
+    };
+
+    const activityDescs = {
+      sedentary: t('sedentaryShortDesc'),
+      lightly_active: t('lightlyActiveShortDesc'),
+      moderately_active: t('moderatelyActiveShortDesc'),
+      very_active: t('veryActiveShortDesc'),
+    };
 
     const titleO = useSharedValue(0);
     const titleY = useSharedValue(30);
@@ -1186,19 +1229,20 @@ const Step5Goals = memo(
     return (
       <View style={styles.stepInner}>
         <Animated.Text style={[styles.stepTitle, { color: colors.text }, titleStyle]}>
-          {ar.fitnessGoals}
+          {t('fitnessGoals')}
         </Animated.Text>
         <Animated.Text
           style={[styles.stepSubtitle, { color: colors.textSecondary }, subtStyle]}
         >
-          {ar.whatDoYouWantToAchieve}
+          {t('whatDoYouWantToAchieve')}
         </Animated.Text>
 
         <View style={styles.goalsRow}>
           {GOALS.map((goal, i) => (
             <GoalItem
               key={goal.id}
-              goal={goal}
+              goalId={goal.id}
+              label={goalLabels[goal.id as keyof typeof goalLabels]}
               isSelected={fitnessGoal === goal.id}
               onPress={() => handleGoal(goal.id)}
               animO={goalOs[i]}
@@ -1209,14 +1253,16 @@ const Step5Goals = memo(
         </View>
 
         <Animated.Text style={[styles.sectionLabel, { color: colors.text }, lblStyle]}>
-          {ar.activityLevel}
+          {t('activityLevel')}
         </Animated.Text>
 
         <View style={styles.activityList}>
           {ACTIVITIES.map((lvl, i) => (
             <ActivityItem
               key={lvl.id}
-              lvl={lvl}
+              lvlId={lvl.id}
+              label={activityLabels[lvl.id as keyof typeof activityLabels]}
+              desc={activityDescs[lvl.id as keyof typeof activityDescs]}
               isSelected={activityLevel === lvl.id}
               onPress={() => handleActivity(lvl.id)}
               animO={actOs[i]}
@@ -1301,6 +1347,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
   const { user, token, updateUser } = useAuth();
+  const { t } = useTranslation();
 
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -1431,80 +1478,84 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-  if (!token) {
-    showErrorToast({
-      title: ar.authenticationError,
-      message: ar.authenticationTokenNotFound,
-    });
-    return;
-  }
+    if (!token) {
+      showErrorToast({
+        title: t('authenticationError'),
+        message: t('authenticationTokenNotFound'),
+      });
+      return;
+    }
 
-  setIsLoading(true);
+    setIsLoading(true);
 
-  try {
-    const dateOfBirth = `${birthYear}-${String(birthMonth + 1).padStart(2, '0')}-${String(
-      birthDay
-    ).padStart(2, '0')}`;
+    try {
+      const dateOfBirth = `${birthYear}-${String(birthMonth + 1).padStart(2, '0')}-${String(
+        birthDay
+      ).padStart(2, '0')}`;
 
-    const body: any = {
-      gender: gender || undefined,
-      dateOfBirth,
-      height,
-      weight,
-      fitnessGoal: fitnessGoal || undefined,
-      activityLevel: activityLevel || undefined,
-    };
+      const body: any = {
+        gender: gender || undefined,
+        dateOfBirth,
+        height,
+        weight,
+        fitnessGoal: fitnessGoal || undefined,
+        activityLevel: activityLevel || undefined,
+      };
 
-    Object.keys(body).forEach((k) => {
-      if (body[k] === undefined) delete body[k];
-    });
-
-    if (Object.keys(body).length > 0) {
-      const res = await userService.updateBodyInformation(body, token);
-
-      showSuccessToast({
-        title: ar.profileCompleted,
-        message: ar.onboardingCompleteWelcome,
+      Object.keys(body).forEach((k) => {
+        if (body[k] === undefined) delete body[k];
       });
 
-      if (res.data && user) {
-        setTimeout(() => {
-          updateUser({ ...user, ...res.data });
-        }, 900);
+      if (Object.keys(body).length > 0) {
+        const res = await userService.updateBodyInformation(body, token);
+
+        showSuccessToast({
+          title: t('profileCompleted'),
+          message: t('onboardingCompleteWelcome'),
+        });
+
+        if (res.data && user) {
+          setTimeout(() => {
+            updateUser({ ...user, ...res.data });
+          }, 900);
+        }
+      } else {
+        if (user) {
+          updateUser({ ...user, onboardingSkipped: true } as any);
+        }
       }
-    } else {
-      if (user) {
-        updateUser({ ...user, onboardingSkipped: true } as any);
-      }
+      
+      // Navigate to main app after completion
+      navigation.replace('MainDrawer');
+    } catch (error: unknown) {
+      void Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      ).catch(() => {});
+
+      showErrorToast({
+        title: t('updateFailed'),
+        message: getErrorMessage(error) || t('failedToUpdateProfile'),
+      });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error: unknown) {
-    void Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Error
-    ).catch(() => {});
+  }, [
+    token,
+    birthYear,
+    birthMonth,
+    birthDay,
+    gender,
+    height,
+    weight,
+    fitnessGoal,
+    activityLevel,
+    user,
+    updateUser,
+    navigation,
+    t,
+  ]);
 
-    showErrorToast({
-      title: ar.updateFailed,
-      message: getErrorMessage(error) || ar.failedToUpdateProfile,
-    });
-  } finally {
-    setIsLoading(false);
-  }
-}, [
-  token,
-  birthYear,
-  birthMonth,
-  birthDay,
-  gender,
-  height,
-  weight,
-  fitnessGoal,
-  activityLevel,
-  user,
-  updateUser,
-  navigation,
-]);
-
-const handleNext = useCallback(() => {
+  const handleNext = useCallback(() => {
     if (step < TOTAL_STEPS - 1) {
       goTo(step + 1);
     } else {
@@ -1513,12 +1564,17 @@ const handleNext = useCallback(() => {
   }, [step, goTo, handleSubmit]);
 
   const handleBack = useCallback(() => {
-  if (step > 0) {
-    goTo(step - 1);
-  }
-}, [step, goTo]);
+    if (step > 0) {
+      goTo(step - 1);
+    }
+  }, [step, goTo]);
 
-
+  const handleSkip = useCallback(() => {
+    if (user) {
+      updateUser({ ...user, onboardingSkipped: true } as any);
+      navigation.replace('MainDrawer');
+    }
+  }, [user, updateUser, navigation]);
 
   const isLastStep = step === TOTAL_STEPS - 1;
 
@@ -1552,20 +1608,16 @@ const handleNext = useCallback(() => {
             disabled={step === 0}
           >
             <Ionicons name="chevron-back" size={22} color={C.primary} />
-            <Text style={styles.backTxt}>{ar.back}</Text>
+            <Text style={styles.backTxt}>{t('back')}</Text>
           </TouchableOpacity>
         </Animated.View>
 
         <TouchableOpacity
-          onPress={() => {
-            if (user) {
-              updateUser({ ...user, onboardingSkipped: true } as any);
-            }
-          }}
+          onPress={handleSkip}
           style={styles.headerSide}
         >
           <Text style={[styles.skipTxt, { color: colors.textSecondary }]}>
-            {ar.skip}
+            {t('skip')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1588,7 +1640,9 @@ const handleNext = useCallback(() => {
         <ProgressDots current={step} />
         <View style={styles.stepCounter}>
           <Text style={[styles.stepCounterText, { color: colors.textSecondary }]}>
-            {ar.stepOfTotal.replace('{current}', String(step + 1)).replace('{total}', String(TOTAL_STEPS))}
+            {t('stepOfTotal')
+              .replace('{current}', String(step + 1))
+              .replace('{total}', String(TOTAL_STEPS))}
           </Text>
         </View>
 
@@ -1601,6 +1655,7 @@ const handleNext = useCallback(() => {
                   isActive={step === 0}
                   gender={gender}
                   setGender={setGender}
+                  t={t}
                 />
               </AnimatedSlide>
 
@@ -1617,6 +1672,7 @@ const handleNext = useCallback(() => {
                   setBirthDay={setBirthDay}
                   setBirthMonth={setBirthMonth}
                   setBirthYear={setBirthYear}
+                  t={t}
                 />
               </AnimatedSlide>
 
@@ -1626,6 +1682,7 @@ const handleNext = useCallback(() => {
                   height={height}
                   gender={gender}
                   onChange={setHeight}
+                  t={t}
                 />
               </AnimatedSlide>
 
@@ -1635,6 +1692,7 @@ const handleNext = useCallback(() => {
                   weight={weight}
                   height={height}
                   onChange={setWeight}
+                  t={t}
                 />
               </AnimatedSlide>
 
@@ -1645,6 +1703,7 @@ const handleNext = useCallback(() => {
                   activityLevel={activityLevel}
                   setFitnessGoal={setFitnessGoal}
                   setActivityLevel={setActivityLevel}
+                  t={t}
                 />
               </AnimatedSlide>
             </Animated.View>
@@ -1672,7 +1731,7 @@ const handleNext = useCallback(() => {
               ) : (
                 <View style={styles.btnContent}>
                   <Text style={styles.btnTxt}>
-                    {isLastStep ? ar.getStarted : ar.continue}
+                    {isLastStep ? t('getStarted') : t('continue')}
                   </Text>
                   {!isLastStep && (
                     <Ionicons
@@ -1693,13 +1752,12 @@ const handleNext = useCallback(() => {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Styles
+// Styles (unchanged from original)
 // ═════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  // ── Decorative Circles ──
   decorativeCircle1: {
     position: 'absolute',
     width: 300,
@@ -1759,7 +1817,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'right',
   },
-
   dots: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1779,7 +1836,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-
   railClip: {
     flex: 1,
     overflow: 'hidden',
@@ -1803,7 +1859,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 8,
   },
-
   stepTitle: {
     fontSize: 28,
     fontWeight: '800',
@@ -1818,8 +1873,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 16,
   },
-
-  // Gender
   genderColumn: {
     alignItems: 'center',
     marginTop: 36,
@@ -1841,8 +1894,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
   },
-
-  // Birthday
   datePicker: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1874,8 +1925,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
-
-  // Height
   heightMain: {
     flex: 1,
     flexDirection: 'row',
@@ -1930,8 +1979,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-
-  // Ruler
   rulerWrap: {
     height: 320,
     position: 'relative',
@@ -1963,8 +2010,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'right',
   },
-
-  // Weight
   weightWrap: {
     alignItems: 'center',
   },
@@ -2045,8 +2090,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
   },
-
-  // Goals
   goalsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -2088,8 +2131,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-
-  // Button
   btnWrap: {
     paddingHorizontal: 24,
     paddingTop: 12,

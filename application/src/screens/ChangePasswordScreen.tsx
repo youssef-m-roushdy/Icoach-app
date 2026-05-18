@@ -26,7 +26,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 type ChangePasswordNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -40,6 +40,7 @@ export default function ChangePasswordScreen() {
   const { systemBottomInset } = useSystemNavigation();
   const { token, logout } = useAuth();
   const isDarkMode = theme === 'dark';
+  const { t } = useTranslation();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -64,40 +65,40 @@ export default function ChangePasswordScreen() {
   const handleChangePassword = async () => {
     if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
       showErrorToast({
-        title: ar.missingFields,
-        message: ar.fillAllFields,
+        title: t('missingFields'),
+        message: t('fillAllFields'),
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
       showErrorToast({
-        title: ar.passwordMismatch,
-        message: ar.newPasswordsNoMatch,
+        title: t('passwordMismatch'),
+        message: t('newPasswordsNoMatch'),
       });
       return;
     }
 
     if (currentPassword === newPassword) {
       showErrorToast({
-        title: ar.invalidPassword,
-        message: ar.passwordMustDiffer,
+        title: t('invalidPassword'),
+        message: t('passwordMustDiffer'),
       });
       return;
     }
 
     if (!validatePassword(newPassword)) {
       showErrorToast({
-        title: ar.weakPassword,
-        message: ar.passwordCriteria,
+        title: t('weakPassword'),
+        message: t('passwordCriteria'),
       });
       return;
     }
 
     if (!token) {
       showErrorToast({
-        title: ar.authError,
-        message: ar.noToken,
+        title: t('authError'),
+        message: t('noToken'),
       });
       return;
     }
@@ -114,8 +115,8 @@ export default function ChangePasswordScreen() {
       console.log('✅ Password changed successfully:', response);
 
       showSuccessToast({
-        title: ar.changePasswordSuccess,
-        message: ar.passwordUpdatedSuccessfully,
+        title: t('changePasswordSuccess'),
+        message: t('passwordUpdatedSuccessfully'),
       });
 
       setTimeout(async () => {
@@ -132,11 +133,11 @@ export default function ChangePasswordScreen() {
         rawMessage.toLowerCase().includes('incorrect password') ||
         rawMessage.toLowerCase().includes('old password')
       ) {
-        displayMessage = ar.currentPasswordIncorrect;
+        displayMessage = t('currentPasswordIncorrect');
       }
 
       showErrorToast({
-        title: ar.changePasswordFailed,
+        title: t('changePasswordFailed'),
         message: displayMessage,
       });
     } finally {
@@ -161,9 +162,9 @@ export default function ChangePasswordScreen() {
       hasNumber,
     ].filter(Boolean).length;
 
-    if (strength <= 2) return { text: ar.passwordWeak, color: COLORS.error };
-    if (strength === 3) return { text: ar.passwordFair, color: '#f59e0b' };
-    return { text: ar.passwordStrong, color: COLORS.success };
+    if (strength <= 2) return { text: t('passwordWeak'), color: COLORS.error };
+    if (strength === 3) return { text: t('passwordFair'), color: '#f59e0b' };
+    return { text: t('passwordStrong'), color: COLORS.success };
   };
 
   const hasSpecialChar = (password: string): boolean => {
@@ -225,7 +226,7 @@ export default function ChangePasswordScreen() {
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>
-              {ar.back}
+              {t('back')}
             </Text>
           </TouchableOpacity>
 
@@ -256,16 +257,16 @@ export default function ChangePasswordScreen() {
             </View>
 
             <Text style={[styles.title, { color: colors.text }]}>
-              {ar.changePasswordTitle}
+              {t('changePasswordTitle')}
             </Text>
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              {ar.changePasswordDescription}
+              {t('changePasswordDescription')}
             </Text>
 
             {/* Current Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                {ar.currentPassword}
+                {t('currentPassword')}
               </Text>
               <View style={getInputWrapperStyle('currentPassword')}>
                 <MaterialIcons
@@ -275,7 +276,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.enterCurrentPassword}
+                  placeholder={t('enterCurrentPassword')}
                   placeholderTextColor={colors.textSecondary}
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
@@ -299,7 +300,7 @@ export default function ChangePasswordScreen() {
             {/* New Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                {ar.newPassword}
+                {t('newPassword')}
               </Text>
               <View style={getInputWrapperStyle('newPassword')}>
                 <MaterialIcons
@@ -309,7 +310,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.enterNewPassword}
+                  placeholder={t('enterNewPassword')}
                   placeholderTextColor={colors.textSecondary}
                   value={newPassword}
                   onChangeText={setNewPassword}
@@ -331,7 +332,7 @@ export default function ChangePasswordScreen() {
 
               {newPassword.length > 0 && (
                 <Text style={[styles.strengthText, { color: passwordStrength.color }]}>
-                  {ar.passwordStrength}: {passwordStrength.text}
+                  {t('passwordStrength')}: {passwordStrength.text}
                 </Text>
               )}
             </View>
@@ -339,7 +340,7 @@ export default function ChangePasswordScreen() {
             {/* Confirm Password */}
             <View style={styles.inputContainer}>
               <Text style={[styles.label, { color: colors.text }]}>
-                {ar.confirmNewPassword}
+                {t('confirmNewPassword')}
               </Text>
               <View style={getInputWrapperStyle('confirmPassword')}>
                 <MaterialIcons
@@ -349,7 +350,7 @@ export default function ChangePasswordScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.confirmPasswordPlaceholder}
+                  placeholder={t('confirmPasswordPlaceholder')}
                   placeholderTextColor={colors.textSecondary}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -371,7 +372,7 @@ export default function ChangePasswordScreen() {
 
             {confirmPassword.length > 0 && newPassword !== confirmPassword && (
               <Text style={[styles.errorText, { color: COLORS.error }]}>
-                {ar.passwordsDoNotMatch}
+                {t('passwordsDoNotMatch')}
               </Text>
             )}
           </View>
@@ -384,7 +385,7 @@ export default function ChangePasswordScreen() {
             ]}
           >
             <Text style={[styles.requirementsTitle, { color: colors.text }]}>
-              {ar.passwordRequirements}
+              {t('passwordRequirements')}
             </Text>
 
             <View style={styles.requirementItem}>
@@ -400,7 +401,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                {ar.minLength}
+                {t('minLength')}
               </Text>
             </View>
 
@@ -419,7 +420,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                {ar.oneUppercase}
+                {t('oneUppercase')}
               </Text>
             </View>
 
@@ -438,7 +439,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                {ar.oneLowercase}
+                {t('oneLowercase')}
               </Text>
             </View>
 
@@ -457,7 +458,7 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                {ar.oneNumber}
+                {t('oneNumber')}
               </Text>
             </View>
 
@@ -476,14 +477,14 @@ export default function ChangePasswordScreen() {
                 }
               />
               <Text style={[styles.requirementText, { color: colors.textSecondary }]}>
-                {ar.oneSpecial}
+                {t('oneSpecial')}
               </Text>
             </View>
 
             <View style={styles.noteContainer}>
               <MaterialIcons name="info" size={14} color={COLORS.primary} />
               <Text style={styles.noteText}>
-                {ar.specialCharNote}
+                {t('specialCharNote')}
               </Text>
             </View>
           </View>
@@ -504,7 +505,7 @@ export default function ChangePasswordScreen() {
               {isLoading ? (
                 <ActivityIndicator size="small" color={'#FFFFFF'} />
               ) : (
-                <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{ar.changePasswordTitle}</Text>
+                <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{t('changePasswordTitle')}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -515,7 +516,7 @@ export default function ChangePasswordScreen() {
             onPress={() => navigation.goBack()}
           >
             <Text style={[styles.cancelButtonText, { color: colors.text }]}>
-              {ar.cancel}
+              {t('cancel')}
             </Text>
           </TouchableOpacity>
         </View>

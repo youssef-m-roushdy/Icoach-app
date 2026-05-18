@@ -26,7 +26,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import SuccessModal from "../components/common/SuccessModal";
 import { showErrorToast, getErrorMessage } from "../utils/toast";
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from "react-i18next";
 
 interface SetData {
   id: string;
@@ -57,6 +57,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -82,7 +83,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
   const removeSet = (id: string) => {
     if (sets.length === 1) {
-      showErrorToast({ title: ar.cannotRemoveTitle, message: ar.cannotRemoveMessage });
+      showErrorToast({ title: t('cannotRemoveTitle'), message: t('cannotRemoveMessage') });
       return;
     }
     setSets((prev) => prev.filter((s) => s.id !== id));
@@ -105,20 +106,20 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
   const validateForm = (): boolean => {
     if (!duration || parseInt(duration) <= 0) {
-      showErrorToast({ title: ar.validationError, message: ar.validDurationRequired });
+      showErrorToast({ title: t('validationError'), message: t('validDurationRequired') });
       return false;
     }
     if (completedSets.length === 0) {
-      showErrorToast({ title: ar.validationError, message: ar.atLeastOneCompleteSetRequired });
+      showErrorToast({ title: t('validationError'), message: t('atLeastOneCompleteSetRequired') });
       return false;
     }
     for (const s of completedSets) {
       if (isNaN(parseInt(s.reps)) || parseInt(s.reps) <= 0) {
-        showErrorToast({ title: ar.validationError, message: ar.repsMustBePositive });
+        showErrorToast({ title: t('validationError'), message: t('repsMustBePositive') });
         return false;
       }
       if (isNaN(parseFloat(s.weight)) || parseFloat(s.weight) < 0) {
-        showErrorToast({ title: ar.validationError, message: ar.weightCannotBeNegative });
+        showErrorToast({ title: t('validationError'), message: t('weightCannotBeNegative') });
         return false;
       }
     }
@@ -151,7 +152,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
   const handleSubmit = async () => {
     if (!validateForm()) return;
     if (!token) {
-      showErrorToast({ title: ar.authenticationError, message: ar.youNeedToBeLoggedIn });
+      showErrorToast({ title: t('authenticationError'), message: t('youNeedToBeLoggedIn') });
       return;
     }
 
@@ -184,8 +185,8 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
     } catch (error: any) {
       console.error("Failed to save workout session:", error);
       showErrorToast({
-        title: ar.error,
-        message: getErrorMessage(error) || ar.failedToSaveWorkoutSession,
+        title: t('error'),
+        message: getErrorMessage(error) || t('failedToSaveWorkoutSession'),
       });
     } finally {
       setLoading(false);
@@ -238,7 +239,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.logWorkout}</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{t('logWorkout')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -256,7 +257,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
           {/* Duration */}
           <View style={[styles.inputCard, cardStyle]}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.durationMinutesRequired}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('durationMinutesRequired')}</Text>
             <View style={[styles.inputWrapper, { borderColor: colors.border }]}>
               <Ionicons name="time-outline" size={20} color={colors.primary} />
               <TextInput
@@ -264,7 +265,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                 keyboardType="numeric"
                 value={duration}
                 onChangeText={setDuration}
-                placeholder={ar.durationPlaceholder}
+                placeholder={t('durationPlaceholder')}
                 placeholderTextColor={colors.placeholder}
               />
             </View>
@@ -272,7 +273,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
           {/* Date & Time */}
           <View style={[styles.inputCard, cardStyle]}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.dateAndTime}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('dateAndTime')}</Text>
             <View style={styles.dateTimeRow}>
               <TouchableOpacity style={[styles.dateTimeButton, { borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
                 <Ionicons name="calendar-outline" size={20} color={colors.primary} />
@@ -294,7 +295,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
           {/* Sets */}
           <View style={[styles.inputCard, cardStyle]}>
             <View style={styles.setsHeader}>
-              <Text style={[styles.label, { color: colors.text }]}>{ar.setsRequired}</Text>
+              <Text style={[styles.label, { color: colors.text }]}>{t('setsRequired')}</Text>
               <TouchableOpacity onPress={addSet} style={[styles.addButton, { overflow: "hidden" }]} activeOpacity={0.8}>
                 <LinearGradient
                   colors={[colors.primary, (colors as any).secondary || colors.primary]}
@@ -303,7 +304,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                   style={StyleSheet.absoluteFillObject}
                 />
                 <Ionicons name="add" size={16} color="#fff" />
-                <Text style={styles.addButtonText}>{ar.addSet}</Text>
+                <Text style={styles.addButtonText}>{t('addSet')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -311,11 +312,11 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
               <View key={set.id} style={[styles.setCard, { borderColor: colors.border, backgroundColor: colors.background + "60" }]}>
                 <View style={styles.setHeaderRow}>
                   <Text style={[styles.setNumber, { color: colors.primary }]}>
-                    {ar.setNumberLabel.replace('{number}', String(index + 1))}
+                    {t('setNumberLabel').replace('{number}', String(index + 1))}
                   </Text>
                   <View style={styles.setHeaderActions}>
                     <View style={styles.completedRow}>
-                      <Text style={[styles.completedLabel, { color: colors.textSecondary }]}>{ar.doneLabel}</Text>
+                      <Text style={[styles.completedLabel, { color: colors.textSecondary }]}>{t('doneLabel')}</Text>
                       <Switch
                         value={set.is_completed}
                         onValueChange={(v) => updateSet(set.id, "is_completed", v)}
@@ -341,7 +342,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
                 <View style={styles.setInputs}>
                   <View style={[styles.setInputWrapper, { borderColor: colors.border }]}>
-                    <Text style={[styles.setInputLabel, { color: colors.textSecondary }]}>{ar.reps}</Text>
+                    <Text style={[styles.setInputLabel, { color: colors.textSecondary }]}>{t('reps')}</Text>
                     <TextInput
                       style={[styles.setInput, { color: colors.text }]}
                       placeholder="0"
@@ -352,7 +353,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                     />
                   </View>
                   <View style={[styles.setInputWrapper, { borderColor: colors.border }]}>
-                    <Text style={[styles.setInputLabel, { color: colors.textSecondary }]}>{ar.weightKgLabel}</Text>
+                    <Text style={[styles.setInputLabel, { color: colors.textSecondary }]}>{t('weightKgLabel')}</Text>
                     <TextInput
                       style={[styles.setInput, { color: colors.text }]}
                       placeholder="0"
@@ -370,7 +371,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                       <Ionicons name="timer-outline" size={18} color={colors.primary} />
                       <TextInput
                         style={[styles.advancedInput, { color: colors.text }]}
-                        placeholder={ar.restTimeSecondsPlaceholder}
+                        placeholder={t('restTimeSecondsPlaceholder')}
                         keyboardType="numeric"
                         value={set.rest_time_seconds}
                         onChangeText={(v) => updateSet(set.id, "rest_time_seconds", v)}
@@ -382,7 +383,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                       <Ionicons name="create-outline" size={18} color={colors.primary} />
                       <TextInput
                         style={[styles.advancedInput, { color: colors.text }]}
-                        placeholder={ar.setNotesOptionalPlaceholder}
+                        placeholder={t('setNotesOptionalPlaceholder')}
                         value={set.notes}
                         onChangeText={(v) => updateSet(set.id, "notes", v)}
                         placeholderTextColor={colors.placeholder}
@@ -395,7 +396,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                     >
                       <Ionicons name="calendar-outline" size={18} color={colors.primary} />
                       <Text style={[styles.advancedInputText, { color: colors.text }]}>
-                        {ar.completedAtPrefix}{formatTime(set.completed_at)}
+                        {t('completedAtPrefix')}{formatTime(set.completed_at)}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -403,7 +404,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
                 {set.reps && set.weight ? (
                   <Text style={[styles.setVolume, { color: colors.textSecondary }]}>
-                    {ar.volumeLabelWithKg.replace('{volume}', (parseFloat(set.weight) * parseInt(set.reps)).toFixed(1))}
+                    {t('volumeLabelWithKg').replace('{volume}', (parseFloat(set.weight) * parseInt(set.reps)).toFixed(1))}
                   </Text>
                 ) : null}
               </View>
@@ -412,7 +413,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
           {/* Session Notes */}
           <View style={[styles.inputCard, cardStyle]}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.sessionNotesOptional}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('sessionNotesOptional')}</Text>
             <View style={[styles.notesWrapper, { borderColor: colors.border }]}>
               <Ionicons name="document-text-outline" size={20} color={colors.primary} />
               <TextInput
@@ -421,7 +422,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                 numberOfLines={3}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder={ar.sessionNotesPlaceholder}
+                placeholder={t('sessionNotesPlaceholder')}
                 placeholderTextColor={colors.placeholder}
                 textAlignVertical="top"
                 onFocus={() =>
@@ -433,24 +434,24 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
           {/* Summary Card */}
           <View style={[styles.summaryCard, cardStyle, { borderWidth: 1 }]}>
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>{ar.sessionSummary}</Text>
+            <Text style={[styles.summaryTitle, { color: colors.text }]}>{t('sessionSummary')}</Text>
             <View style={styles.summaryRow}>
               <View style={styles.summaryItem}>
                 <Ionicons name="barbell-outline" size={24} color={colors.primary} />
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{totalVolume.toFixed(1)} {ar.kgUnit}</Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.totalVolumeLabel}</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{totalVolume.toFixed(1)} {t('kgUnit')}</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('totalVolumeLabel')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
                 <Ionicons name="timer" size={24} color={colors.primary} />
-                <Text style={[styles.summaryValue, { color: colors.text }]}>{duration || "0"} {ar.minuteAbbr}</Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.durationLabel}</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{duration || "0"} {t('minuteAbbr')}</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('durationLabel')}</Text>
               </View>
               <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
               <View style={styles.summaryItem}>
                 <Ionicons name="repeat" size={24} color={colors.primary} />
                 <Text style={[styles.summaryValue, { color: colors.text }]}>{completedSets.length}</Text>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.sets}</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('sets')}</Text>
               </View>
             </View>
           </View>
@@ -458,7 +459,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={[styles.cancelButton, { borderColor: colors.border }]} onPress={() => navigation.goBack()}>
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>{ar.cancel}</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading} activeOpacity={0.8}>
               <LinearGradient
@@ -473,7 +474,7 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
                 ) : (
                   <>
                     <Ionicons name="save-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.submitButtonText}>{ar.saveSession}</Text>
+                    <Text style={styles.submitButtonText}>{t('saveSession')}</Text>
                   </>
                 )}
               </View>
@@ -484,14 +485,14 @@ export default function WorkoutSessionScreen({ route, navigation }: any) {
 
       <SuccessModal
         visible={showSuccessModal}
-        title={ar.workoutSessionSavedTitle}
-        message={ar.workoutSessionSavedMessage}
-        primaryButtonText={ar.viewProgress}
+        title={t('workoutSessionSavedTitle')}
+        message={t('workoutSessionSavedMessage')}
+        primaryButtonText={t('viewProgress')}
         onPrimaryPress={() => {
           setShowSuccessModal(false);
           navigation.navigate("GymProgress");
         }}
-        secondaryButtonText={ar.done}
+        secondaryButtonText={t('done')}
         onSecondaryPress={() => {
           setShowSuccessModal(false);
           navigation.goBack();

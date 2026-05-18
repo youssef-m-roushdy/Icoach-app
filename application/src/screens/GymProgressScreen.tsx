@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { progressService } from '../services/progressService';
 import { ApiError } from '../services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -92,18 +92,6 @@ const calculateFitnessScore = (metrics: Metrics): number => {
 const calculatePointsPercentage = (current: number, max: number): number =>
   (current / max) * 100;
 
-const getMetricLabel = (key: MetricKey): string => {
-  const labels: Record<MetricKey, string> = {
-    strength: ar.strength,
-    endurance: ar.endurance,
-    consistency: ar.consistency,
-    volume: ar.volume,
-    progress: ar.progress,
-    habits: ar.habits,
-  };
-  return labels[key];
-};
-
 // ─────────────────────────────────────────────
 //  SPIDER RADAR CHART
 // ─────────────────────────────────────────────
@@ -113,6 +101,7 @@ interface HexRadarChartProps {
   primaryColor: string;
   gridColor: string;
   labelColor: string;
+  labels: Record<MetricKey, string>;
 }
 
 const HexRadarChart: React.FC<HexRadarChartProps> = ({
@@ -121,6 +110,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
   primaryColor,
   gridColor,
   labelColor,
+  labels,
 }) => {
   const animProgress = useRef(new Animated.Value(0)).current;
   const [animValue, setAnimValue] = useState(0);
@@ -268,7 +258,7 @@ const HexRadarChart: React.FC<HexRadarChartProps> = ({
               textAnchor={anchor}
               fontWeight="500"
             >
-              {getMetricLabel(key)}
+              {labels[key]}
             </SvgText>
             <SvgText
               x={x}
@@ -325,12 +315,13 @@ interface TrainingTabProps {
 
 const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const stats: Array<{ label: string; value: string | number }> = [
-    { label: ar.totalWorkouts, value: data.totalWorkouts },
-    { label: ar.weeklyAvg, value: data.weeklyAvg.toFixed(1) },
-    { label: ar.currentStreak, value: `${data.currentStreak}d` },
-    { label: ar.bestStreak, value: `${data.longestStreak}d` },
+    { label: t('totalWorkouts'), value: data.totalWorkouts },
+    { label: t('weeklyAvg'), value: data.weeklyAvg.toFixed(1) },
+    { label: t('currentStreak'), value: `${data.currentStreak}d` },
+    { label: t('bestStreak'), value: `${data.longestStreak}d` },
   ];
 
   return (
@@ -348,7 +339,7 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
       </View>
 
       <View style={[styles.pbSection, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
-        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>{ar.personalBests}</Text>
+        <Text style={[styles.sectionLabel, { color: colors.subtleText }]}>{t('personalBests')}</Text>
         {data.personalBests.length > 0 ? (
           data.personalBests.map((pb: PersonalBest, i: number) => (
             <View key={i} style={styles.pbRow}>
@@ -359,13 +350,13 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
           ))
         ) : (
           <Text style={[styles.emptyText, { color: colors.subtleText }]}>
-            {ar.noPersonalBestsYet}
+            {t('noPersonalBestsYet')}
           </Text>
         )}
       </View>
 
       <View style={[styles.volumeBar, { backgroundColor: colors.authInputBg ?? colors.statBg, borderColor: colors.authInputBorder ?? colors.cardBorder, borderWidth: 1 }]}>
-        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>{ar.totalVolumeLifted}</Text>
+        <Text style={[styles.volumeLabel, { color: colors.subtleText }]}>{t('totalVolumeLifted')}</Text>
         <Text style={[styles.volumeValue, { color: colors.primary }]}>
           {(data.totalVolume / 1000).toFixed(1)}k kg
         </Text>
@@ -379,10 +370,11 @@ const TrainingTab: React.FC<TrainingTabProps> = ({ data }) => {
 // ─────────────────────────────────────────────
 const LoadingScreen = () => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.loadingText, { color: colors.text }]}>{ar.loadingYourProgress}</Text>
+      <Text style={[styles.loadingText, { color: colors.text }]}>{t('loadingYourProgress')}</Text>
     </View>
   );
 };
@@ -392,6 +384,7 @@ const LoadingScreen = () => {
 // ─────────────────────────────────────────────
 const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => void }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
       <Text style={[styles.errorText, { color: colors.error }]}>⚠️</Text>
@@ -400,7 +393,7 @@ const ErrorScreen = ({ message, onRetry }: { message: string; onRetry: () => voi
         style={[styles.retryButton, { backgroundColor: colors.primary }]}
         onPress={onRetry}
       >
-        <Text style={styles.retryButtonText}>{ar.tryAgain}</Text>
+        <Text style={styles.retryButtonText}>{t('tryAgain')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -416,6 +409,19 @@ export default function GymProgressScreen() {
   const { systemBottomInset } = useSystemNavigation();
   const isThreeButtonNav = systemBottomInset > 24;
   const dynamicPaddingBottom = isThreeButtonNav ? 130 : 95;
+  const { t } = useTranslation();
+
+  const metricLabels = useMemo<Record<MetricKey, string>>(
+    () => ({
+      strength: t('strength'),
+      endurance: t('endurance'),
+      consistency: t('consistency'),
+      volume: t('volume'),
+      progress: t('progress'),
+      habits: t('habits'),
+    }),
+    [t]
+  );
 
   const [activeTab, setActiveTab] = useState<TabName>('fitness');
   const [progressData, setProgressData] = useState<UserData | null>(null);
@@ -431,7 +437,7 @@ export default function GymProgressScreen() {
       setError(null);
       
       if (!token) {
-        setError(ar.authenticationRequired);
+        setError(t('authenticationRequired'));
         setLoading(false);
         return;
       }
@@ -441,14 +447,14 @@ export default function GymProgressScreen() {
       
       // Check if response was successful and has data
       if (!response.success || !response.data) {
-        throw new Error(response.message || ar.failedToLoadProgressData);
+        throw new Error(response.message || t('failedToLoadProgressData'));
       }
 
       const dashboardData = response.data;
       
       // Convert string metrics to numbers with safe fallbacks
       const convertedData: UserData = {
-        name: dashboardData.name || ar.user,
+        name: dashboardData.name || t('user'),
         joinedDate: dashboardData.joinedDate || '',
         avatarUrl: dashboardData.avatarUrl || null,
         currentPoints: dashboardData.currentPoints || 0,
@@ -479,9 +485,9 @@ export default function GymProgressScreen() {
       
       // Handle different error types
       if (err.name === 'ApiError') {
-        setError(err.message || ar.failedToLoadProgressData);
+        setError(err.message || t('failedToLoadProgressData'));
       } else {
-        setError(err.message || ar.failedToLoadProgressData);
+        setError(err.message || t('failedToLoadProgressData'));
       }
     } finally {
       setLoading(false);
@@ -523,7 +529,7 @@ export default function GymProgressScreen() {
   }
 
   if (error || !progressData) {
-    return <ErrorScreen message={error || ar.noDataAvailable} onRetry={fetchProgressData} />;
+    return <ErrorScreen message={error || t('noDataAvailable')} onRetry={fetchProgressData} />;
   }
 
   const computedScore = calculateFitnessScore(progressData.metrics);
@@ -566,7 +572,7 @@ export default function GymProgressScreen() {
                 {progressData.name}
               </Text>
               <Text style={[styles.joinedText, { color: colors.subtleText }]}>
-                {ar.joined} {progressData.joinedDate}
+                {t('joined')} {progressData.joinedDate}
               </Text>
             </View>
           </View>
@@ -592,7 +598,7 @@ export default function GymProgressScreen() {
         >
           <View style={styles.pointsRow}>
             <Text style={[styles.pointsText, { color: colors.text }]}>
-              {progressData.currentPoints} / {progressData.maxPoints} {ar.points}
+              {progressData.currentPoints} / {progressData.maxPoints} {t('points')}
             </Text>
             <View style={styles.badgeContainer}>
               <View style={[styles.badgeIcon, { backgroundColor: colors.iconBg }]}>
@@ -632,7 +638,7 @@ export default function GymProgressScreen() {
           ]}
         >
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{ar.progress}</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{t('progress')}</Text>
             <View style={[styles.trendBadge, { backgroundColor: colors.iconBg }]}>
               <Text style={[styles.trendArrow, { color: colors.primary }]}>↗</Text>
             </View>
@@ -660,7 +666,7 @@ export default function GymProgressScreen() {
                     activeTab === tab && { color: colors.primary, fontWeight: '700' },
                   ]}
                 >
-                  {tab === 'fitness' ? ar.fitnessScore : ar.training}
+                  {tab === 'fitness' ? t('fitnessScore') : t('training')}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -669,7 +675,7 @@ export default function GymProgressScreen() {
           {activeTab === 'fitness' ? (
             <View style={styles.fitnessTabContent}>
               <Text style={[styles.fitnessScoreLabel, { color: colors.primary }]}>
-                {ar.fitnessScore}
+                {t('fitnessScore')}
               </Text>
               <AnimatedScore score={computedScore} color={colors.text} />
 
@@ -680,6 +686,7 @@ export default function GymProgressScreen() {
                   primaryColor={colors.primary}
                   gridColor={colors.cardBorder}
                   labelColor={colors.subtleText}
+                  labels={metricLabels}
                 />
               </View>
 
@@ -696,7 +703,7 @@ export default function GymProgressScreen() {
                       />
                     </View>
                     <Text style={[styles.breakdownItemLabel, { color: colors.subtleText }]}>
-                      {getMetricLabel(key).slice(0, 3)}
+                      {metricLabels[key].slice(0, 3)}
                     </Text>
                   </View>
                 ))}

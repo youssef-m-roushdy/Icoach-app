@@ -18,7 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -26,13 +26,6 @@ type WelcomeScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Welcome'
 >;
-
-const FEATURES = [
-  { icon: 'robot-outline' as const, label: ar.aiCoach },
-  { icon: 'food-apple-outline' as const, label: ar.nutrition },
-  { icon: 'dumbbell' as const, label: ar.workouts },
-  { icon: 'chart-line' as const, label: ar.progress },
-];
 
 // Icons can be positioned totally independent of each other now
 // Positive offsetX moves right, negative moves left
@@ -98,10 +91,18 @@ const ICON_SIZE = 42;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeScreenNavigationProp>();
+  const { t } = useTranslation();
   const { theme, colors, toggleTheme } = useTheme();
   const isLight = theme === 'light';
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
+
+  const features = [
+    { icon: 'robot-outline' as const, label: t('aiCoach') },
+    { icon: 'food-apple-outline' as const, label: t('nutrition') },
+    { icon: 'dumbbell' as const, label: t('workouts') },
+    { icon: 'chart-line' as const, label: t('progress') },
+  ];
 
   const handleGetStarted = () => {
     navigation.navigate('SignIn');
@@ -246,20 +247,20 @@ export default function WelcomeScreen() {
       >
         <View style={styles.titleBlock}>
           <Text style={[styles.welcomeLabel, { color: colors.textSecondary }]}>
-            {ar.welcome} {ar.to}
+            {t('welcome')} {t('to')}
           </Text>
           <Text style={[styles.appName, { color: colors.primary }]}>
-            {ar.appName}
+            {t('appName')}
           </Text>
           <Text style={[styles.subtitle, { color: colors.subtleText }]}>
-            {ar.subtitle}
+            {t('subtitle')}
           </Text>
         </View>
 
         <View style={styles.featuresRow}>
-          {FEATURES.map((f) => (
+          {features.map((f) => (
             <View
-              key={f.label}
+              key={f.icon}
               style={[
                 styles.featurePill,
                 {
@@ -285,13 +286,13 @@ export default function WelcomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.ctaGradient}
           >
-            <Text style={styles.ctaText}>{ar.getStarted}</Text>
+            <Text style={styles.ctaText}>{t('getStarted')}</Text>
             <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
           </LinearGradient>
         </TouchableOpacity>
 
         <Text style={[styles.termsText, { color: colors.subtleText }]}>
-          {ar.termsAndPrivacyNotice}
+          {t('termsAndPrivacyNotice')}
         </Text>
       </View>
 

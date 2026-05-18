@@ -24,7 +24,7 @@ import { socketService } from '../services/socketService';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 interface ChatThreadParams {
   conversationId: number;
@@ -51,6 +51,7 @@ export default function ChatThreadScreen() {
   const isFocused = useIsFocused();
   const { token, user } = useAuth();
   const keyboardHeight = useKeyboardHeight();
+  const { t } = useTranslation();
 
   const { conversationId, participant, lastReadAt } = (route.params || {}) as ChatThreadParams;
 
@@ -81,9 +82,9 @@ export default function ChatThreadScreen() {
   const isRestoringRef = useRef(false);
 
   const displayName = useMemo(() => {
-    if (!participant) return ar.chat;
+    if (!participant) return t('chat');
     return `${participant.firstName || ''} ${participant.lastName || ''}`.trim() || participant.username;
-  }, [participant]);
+  }, [participant, t]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -178,24 +179,24 @@ export default function ChatThreadScreen() {
   };
 
   const formatLastSeen = useCallback((timestamp?: string | null) => {
-    if (!timestamp) return ar.offline;
+    if (!timestamp) return t('offline');
     const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return ar.offline;
+    if (Number.isNaN(date.getTime())) return t('offline');
 
     const now = new Date();
     const isSameDay = now.toDateString() === date.toDateString();
     if (isSameDay) {
-      return ar.lastSeenAtTime.replace(
+      return t('lastSeenAtTime').replace(
         '{time}',
         date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       );
     }
 
-    return ar.lastSeenAtDate.replace(
+    return t('lastSeenAtDate').replace(
       '{date}',
       date.toLocaleDateString([], { month: 'short', day: 'numeric' })
     );
-  }, []);
+  }, [t]);
 
   const executeMarkRead = useCallback(async () => {
     if (!token || !conversationId || !isFocused) return;
@@ -593,7 +594,7 @@ export default function ChatThreadScreen() {
     );
   };
 
-  const showStatus = presence?.online ? ar.online : formatLastSeen(presence?.lastSeen || null);
+  const showStatus = presence?.online ? t('online') : formatLastSeen(presence?.lastSeen || null);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -667,7 +668,7 @@ export default function ChatThreadScreen() {
           <TextInput
             value={inputValue}
             onChangeText={setInputValue}
-            placeholder={ar.typeMessage}
+            placeholder={t('typeMessage')}
             placeholderTextColor={colors.placeholder}
             style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
             multiline

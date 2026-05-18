@@ -34,7 +34,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import type { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { workoutSessionSetService } from "../services/workoutSessionSetService";
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 // ── useKeyboardHeight ─────────────────────────────────────────────────────────
 function useKeyboardHeight() {
@@ -84,6 +84,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
+  const { t } = useTranslation();
 
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
@@ -142,15 +143,15 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         setSets(editableSets);
       } else {
         showErrorToast({
-          title: ar.error,
-          message: response.message || ar.failedToLoadSession,
+          title: t('error'),
+          message: response.message || t('failedToLoadSession'),
         });
       }
     } catch (error) {
       console.error("Failed to load session:", error);
       showErrorToast({
-        title: ar.error,
-        message: getErrorMessage(error) || ar.failedToLoadSession,
+        title: t('error'),
+        message: getErrorMessage(error) || t('failedToLoadSession'),
       });
     } finally {
       setLoading(false);
@@ -166,8 +167,8 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   const handleSaveSessionDetails = async () => {
     if (!duration || parseInt(duration) <= 0) {
       showErrorToast({
-        title: ar.validationError,
-        message: ar.durationMustBePositive,
+        title: t('validationError'),
+        message: t('durationMustBePositive'),
       });
       return;
     }
@@ -196,7 +197,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
       );
 
       if (response.success) {
-        showSuccessToast({ title: ar.success, message: ar.sessionDetailsUpdated });
+        showSuccessToast({ title: t('success'), message: t('sessionDetailsUpdated') });
       } else {
         // Rollback
         if (session) {
@@ -206,7 +207,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
             notes: previousNotes || null,
           });
         }
-        showErrorToast({ title: ar.error, message: response.message || ar.failedToUpdateSession });
+        showErrorToast({ title: t('error'), message: response.message || t('failedToUpdateSession') });
       }
     } catch (error) {
       // Rollback
@@ -218,7 +219,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         });
       }
       console.error("Failed to update session:", error);
-      showErrorToast({ title: ar.error, message: getErrorMessage(error) || ar.failedToUpdateSession });
+      showErrorToast({ title: t('error'), message: getErrorMessage(error) || t('failedToUpdateSession') });
     } finally {
       setSaving(false);
     }
@@ -260,7 +261,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
   const handleSaveSet = async () => {
     // Validate reps
     if (!setFormReps || parseInt(setFormReps) <= 0) {
-      showErrorToast({ title: ar.validationError, message: ar.repsMustBePositive });
+      showErrorToast({ title: t('validationError'), message: t('repsMustBePositive') });
       return;
     }
     
@@ -268,7 +269,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
     if (setFormWeight && setFormWeight.trim() !== "") {
       const weightValue = parseFloat(setFormWeight);
       if (isNaN(weightValue) || weightValue < 0) {
-        showErrorToast({ title: ar.validationError, message: ar.weightCannotBeNegative });
+        showErrorToast({ title: t('validationError'), message: t('weightCannotBeNegative') });
         return;
       }
     }
@@ -305,7 +306,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         );
         setSets(updatedSets);
         closeSetSheet();
-        showSuccessToast({ title: ar.success, message: ar.setUpdated });
+        showSuccessToast({ title: t('success'), message: t('setUpdated') });
 
         try {
           const response = await workoutSessionSetService.updateSet(
@@ -316,7 +317,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           );
           if (!response.success) {
             setSets(previousSets);
-            showErrorToast({ title: ar.error, message: response.message || ar.failedToUpdateSet });
+            showErrorToast({ title: t('error'), message: response.message || t('failedToUpdateSet') });
           }
         } catch (error) {
           setSets(previousSets);
@@ -328,15 +329,15 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         
         const response = await workoutSessionSetService.addSet(sessionId, setData, token!);
         if (response.success) {
-          showSuccessToast({ title: ar.success, message: ar.setAddedSuccessfully });
+          showSuccessToast({ title: t('success'), message: t('setAddedSuccessfully') });
           await loadSession(); // Only reload for add
         } else {
-          showErrorToast({ title: ar.error, message: response.message || ar.failedToAddSet });
+          showErrorToast({ title: t('error'), message: response.message || t('failedToAddSet') });
         }
       }
     } catch (error) {
       console.error("Failed to save set:", error);
-      showErrorToast({ title: ar.error, message: getErrorMessage(error) || ar.failedToSaveSet });
+      showErrorToast({ title: t('error'), message: getErrorMessage(error) || t('failedToSaveSet') });
     } finally {
       setSaving(false);
     }
@@ -362,7 +363,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
       const updatedSets = sets.filter((_, i) => i !== deletingSetIndex);
       setSets(updatedSets);
       closeDeleteSetSheet();
-      showSuccessToast({ title: ar.success, message: ar.setDeleted });
+      showSuccessToast({ title: t('success'), message: t('setDeleted') });
 
       try {
         const response = await workoutSessionSetService.deleteSet(
@@ -372,12 +373,12 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         );
         if (!response.success) {
           setSets(previousSets);
-          showErrorToast({ title: ar.error, message: response.message || ar.failedToDeleteSet });
+          showErrorToast({ title: t('error'), message: response.message || t('failedToDeleteSet') });
         }
       } catch (error) {
         setSets(previousSets);
         console.error("Failed to delete set:", error);
-        showErrorToast({ title: ar.error, message: getErrorMessage(error) || ar.failedToDeleteSet });
+        showErrorToast({ title: t('error'), message: getErrorMessage(error) || t('failedToDeleteSet') });
       }
     } else {
       // Remove unsaved set
@@ -467,7 +468,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.editSession}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('editSession')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -495,7 +496,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           ]}
         >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {session?.workout?.name || `${ar.workout} #${session?.workoutId}`}
+            {session?.workout?.name || `${t('workout')} #${session?.workoutId}`}
           </Text>
           {session?.workout && (
             <View style={styles.workoutMeta}>
@@ -517,10 +518,10 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{ar.sessionDetails}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('sessionDetails')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.durationMinutes}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('durationMinutes')}</Text>
             <TextInput
               style={[
                 styles.input,
@@ -533,13 +534,13 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
               keyboardType="numeric"
               value={duration}
               onChangeText={setDuration}
-              placeholder={ar.enterDuration}
+              placeholder={t('enterDuration')}
               placeholderTextColor={colors.placeholder}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.notes}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('notes')}</Text>
             <TextInput
               style={[
                 styles.input,
@@ -554,7 +555,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
               numberOfLines={3}
               value={notes}
               onChangeText={setNotes}
-              placeholder={ar.addNotes}
+              placeholder={t('addNotes')}
               placeholderTextColor={colors.placeholder}
               textAlignVertical="top"
             />
@@ -575,7 +576,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
             {saving ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.saveButtonText}>{ar.saveDetails}</Text>
+              <Text style={styles.saveButtonText}>{t('saveDetails')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -591,32 +592,32 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           ]}
         >
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>{ar.sets}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>{t('sets')}</Text>
             <TouchableOpacity
               style={[styles.addButton, { backgroundColor: colors.primary + "15" }]}
               onPress={openAddSetSheet}
             >
               <Ionicons name="add" size={20} color={colors.primary} />
-              <Text style={[styles.addButtonText, { color: colors.primary }]}>{ar.addSet}</Text>
+              <Text style={[styles.addButtonText, { color: colors.primary }]}>{t('addSet')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Sets Summary */}
           <View style={[styles.setsSummary, { backgroundColor: isDarkMode ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }]}>
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.totalSets}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('totalSets')}</Text>
               <Text style={[styles.summaryValue, { color: colors.text }]}>{sets.length}</Text>
             </View>
             <View style={[styles.summaryDivider, { backgroundColor: colors.authInputBorder || colors.border }]} />
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.completed}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('completed')}</Text>
               <Text style={[styles.summaryValue, { color: colors.text }]}>
                 {completedSets}/{sets.length}
               </Text>
             </View>
             <View style={[styles.summaryDivider, { backgroundColor: colors.authInputBorder || colors.border }]} />
             <View style={styles.summaryItem}>
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{ar.volume}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('volume')}</Text>
               <Text style={[styles.summaryValue, { color: colors.text }]}>{totalVolume} kg</Text>
             </View>
           </View>
@@ -630,14 +631,14 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
             <View style={styles.emptySets}>
               <Ionicons name="barbell-outline" size={48} color={colors.textSecondary} />
               <Text style={[styles.emptySetsText, { color: colors.textSecondary }]}>
-                {ar.noSetsAddedYet}
+                {t('noSetsAddedYet')}
               </Text>
               <TouchableOpacity
                 style={[styles.emptyAddButton, { borderColor: colors.primary }]}
                 onPress={openAddSetSheet}
               >
                 <Text style={[styles.emptyAddButtonText, { color: colors.primary }]}>
-                  {ar.addYourFirstSet}
+                  {t('addYourFirstSet')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -656,12 +657,12 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                 <View style={styles.setHeader}>
                   <View style={styles.setNumber}>
                     <Text style={[styles.setNumberText, { color: colors.text }]}>
-                      {ar.set} {index + 1}
+                      {t('set')} {index + 1}
                     </Text>
                     {set.isCompleted && (
                       <View style={[styles.completedBadge, { backgroundColor: colors.primary + "15" }]}>
                         <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-                        <Text style={[styles.completedBadgeText, { color: colors.primary }]}>{ar.completed}</Text>
+                        <Text style={[styles.completedBadgeText, { color: colors.primary }]}>{t('completed')}</Text>
                       </View>
                     )}
                   </View>
@@ -695,7 +696,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                   <View style={styles.setDetail}>
                     <Ionicons name="repeat" size={14} color={colors.primary} />
                     <Text style={[styles.setDetailText, { color: colors.text }]}>
-                      {set.reps} {ar.reps}
+                      {set.reps} {t('reps')}
                     </Text>
                   </View>
                   {set.weight && parseFloat(set.weight) > 0 && (
@@ -710,7 +711,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                     <View style={styles.setDetail}>
                       <Ionicons name="timer" size={14} color={colors.primary} />
                       <Text style={[styles.setDetailText, { color: colors.text }]}>
-                        {set.restTimeSeconds}s {ar.rest}
+                        {set.restTimeSeconds}s {t('rest')}
                       </Text>
                     </View>
                   )}
@@ -754,61 +755,61 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           showsVerticalScrollIndicator={true}
         >
           <Text style={[styles.sheetTitle, { color: colors.text }]}>
-            {editingSet ? ar.editSet : ar.addNewSet}
+            {editingSet ? t('editSet') : t('addNewSet')}
           </Text>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.repsRequired}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('repsRequired')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, color: colors.text }]}
               keyboardType="numeric"
               value={setFormReps}
               onChangeText={setSetFormReps}
-              placeholder={ar.repsPlaceholder}
+              placeholder={t('repsPlaceholder')}
               placeholderTextColor={colors.placeholder}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.weightOptional}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('weightOptional')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, color: colors.text }]}
               keyboardType="numeric"
               value={setFormWeight}
               onChangeText={setSetFormWeight}
-              placeholder={ar.weightPlaceholder}
+              placeholder={t('weightPlaceholder')}
               placeholderTextColor={colors.placeholder}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.restTimeSeconds}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('restTimeSeconds')}</Text>
             <TextInput
               style={[styles.input, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, color: colors.text }]}
               keyboardType="numeric"
               value={setFormRestTime}
               onChangeText={setSetFormRestTime}
-              placeholder={ar.restPlaceholder}
+              placeholder={t('restPlaceholder')}
               placeholderTextColor={colors.placeholder}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.notes}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('notes')}</Text>
             <TextInput
               style={[styles.input, styles.textArea, { borderColor: colors.authInputBorder || colors.border, backgroundColor: colors.authInputBg || colors.surface, color: colors.text }]}
               multiline
               numberOfLines={3}
               value={setFormNotes}
               onChangeText={setSetFormNotes}
-              placeholder={ar.notesPlaceholder}
+              placeholder={t('notesPlaceholder')}
               placeholderTextColor={colors.placeholder}
               textAlignVertical="top"
             />
           </View>
 
           <View style={styles.switchGroup}>
-            <Text style={[styles.label, { color: colors.text }]}>{ar.completed}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>{t('completed')}</Text>
             <Switch
               value={setFormCompleted}
               onValueChange={setSetFormCompleted}
@@ -826,7 +827,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
               ]}
               onPress={closeSetSheet}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.text }]}>{ar.cancel}</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.sheetButton, styles.saveSheetButton, { overflow: "hidden" }]}
@@ -844,7 +845,7 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
                 <Text style={styles.saveSheetButtonText}>
-                  {editingSet ? ar.update : ar.add}
+                  {editingSet ? t('update') : t('add')}
                 </Text>
               )}
             </TouchableOpacity>
@@ -865,9 +866,9 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
           <View style={styles.deleteIconContainer}>
             <Ionicons name="warning-outline" size={48} color="#ef4444" />
           </View>
-          <Text style={[styles.deleteTitle, { color: colors.text }]}>{ar.deleteSet}</Text>
+          <Text style={[styles.deleteTitle, { color: colors.text }]}>{t('deleteSet')}</Text>
           <Text style={[styles.deleteMessage, { color: colors.textSecondary }]}>
-            {ar.deleteSetConfirmation}
+            {t('deleteSetConfirmation')}
           </Text>
           <View style={styles.deleteButtons}>
             <TouchableOpacity
@@ -878,13 +879,13 @@ export default function EditWorkoutSessionScreen({ navigation, route }: EditWork
               ]}
               onPress={closeDeleteSetSheet}
             >
-              <Text style={[styles.cancelDeleteText, { color: colors.text }]}>{ar.cancel}</Text>
+              <Text style={[styles.cancelDeleteText, { color: colors.text }]}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.deleteButton, styles.confirmDeleteButton, { backgroundColor: "#ef4444" }]}
               onPress={handleDeleteSet}
             >
-              <Text style={styles.confirmDeleteText}>{ar.delete}</Text>
+              <Text style={styles.confirmDeleteText}>{t('delete')}</Text>
             </TouchableOpacity>
           </View>
         </BottomSheetView>

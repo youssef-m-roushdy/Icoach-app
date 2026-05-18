@@ -29,7 +29,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,6 +44,7 @@ export default function SignUpScreen() {
   const { login } = useAuth();
   const { systemBottomInset } = useSystemNavigation();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -72,28 +73,28 @@ export default function SignUpScreen() {
     if (password.length < 8) {
       return {
         isValid: false,
-        message: ar.passwordMinLengthError,
+        message: t('passwordMinLengthError'),
       };
     }
 
     if (!/[A-Z]/.test(password)) {
       return {
         isValid: false,
-        message: ar.passwordUppercaseError,
+        message: t('passwordUppercaseError'),
       };
     }
 
     if (!/[a-z]/.test(password)) {
       return {
         isValid: false,
-        message: ar.passwordLowercaseError,
+        message: t('passwordLowercaseError'),
       };
     }
 
     if (!/[0-9]/.test(password)) {
       return {
         isValid: false,
-        message: ar.passwordNumberError,
+        message: t('passwordNumberError'),
       };
     }
 
@@ -117,9 +118,9 @@ export default function SignUpScreen() {
       hasNumber,
     ].filter(Boolean).length;
 
-    if (strength <= 2) return { text: ar.passwordWeak, color: COLORS.error };
-    if (strength === 3) return { text: ar.passwordFair, color: '#f59e0b' };
-    return { text: ar.passwordStrong, color: COLORS.success };
+    if (strength <= 2) return { text: t('passwordWeak'), color: COLORS.error };
+    if (strength === 3) return { text: t('passwordFair'), color: '#f59e0b' };
+    return { text: t('passwordStrong'), color: COLORS.success };
   };
 
   const passwordStrength = getPasswordStrength(password);
@@ -135,16 +136,16 @@ export default function SignUpScreen() {
       !confirmPassword.trim()
     ) {
       showErrorToast({
-        title: ar.missingFields,
-        message: ar.fillAllFields,
+        title: t('missingFields'),
+        message: t('fillAllFields'),
       });
       return;
     }
 
     if (password !== confirmPassword) {
       showErrorToast({
-        title: ar.passwordMismatch,
-        message: ar.passwordsDoNotMatch,
+        title: t('passwordMismatch'),
+        message: t('passwordsDoNotMatch'),
       });
       return;
     }
@@ -152,9 +153,9 @@ export default function SignUpScreen() {
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
       showErrorToast({
-        title: ar.weakPassword,
+        title: t('weakPassword'),
         message:
-          passwordValidation.message || ar.chooseStrongerPassword,
+          passwordValidation.message || t('chooseStrongerPassword'),
       });
       return;
     }
@@ -163,8 +164,8 @@ export default function SignUpScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       showErrorToast({
-        title: ar.invalidEmailTitle,
-        message: ar.invalidEmailMessage,
+        title: t('invalidEmailTitle'),
+        message: t('invalidEmailMessage'),
       });
       return;
     }
@@ -173,8 +174,8 @@ export default function SignUpScreen() {
     const usernameRegex = /^[a-zA-Z0-9_-]{3,20}$/;
     if (!usernameRegex.test(username.trim())) {
       showErrorToast({
-        title: ar.invalidUsernameTitle,
-        message: ar.invalidUsernameMessage,
+        title: t('invalidUsernameTitle'),
+        message: t('invalidUsernameMessage'),
       });
       return;
     }
@@ -198,13 +199,13 @@ export default function SignUpScreen() {
         );
 
         showSuccessToast({
-          title: ar.accountCreatedTitle,
-          message: ar.accountCreatedMessage,
+          title: t('accountCreatedTitle'),
+          message: t('accountCreatedMessage'),
         });
       } else {
         showErrorToast({
-          title: ar.registrationFailedTitle,
-          message: ar.registrationFailedMessage,
+          title: t('registrationFailedTitle'),
+          message: t('registrationFailedMessage'),
         });
       }
     } catch (error: unknown) {
@@ -215,16 +216,16 @@ export default function SignUpScreen() {
         rawMessage.toLowerCase().includes('email already exists') ||
         rawMessage.toLowerCase().includes('email already registered')
       ) {
-        displayMessage = ar.emailAlreadyExists;
+        displayMessage = t('emailAlreadyExists');
       } else if (
         rawMessage.toLowerCase().includes('username already exists') ||
         rawMessage.toLowerCase().includes('username taken')
       ) {
-        displayMessage = ar.usernameAlreadyExists;
+        displayMessage = t('usernameAlreadyExists');
       }
 
       showErrorToast({
-        title: ar.registrationFailedTitle,
+        title: t('registrationFailedTitle'),
         message: displayMessage,
       });
     } finally {
@@ -300,16 +301,16 @@ export default function SignUpScreen() {
             ]}
           >
             <Text style={[styles.title, { color: colors.text }]}>
-              {ar.createAccountTitle}
+              {t('createAccountTitle')}
             </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {ar.joinCommunity}
+              {t('joinCommunity')}
             </Text>
 
             <View style={styles.nameContainer}>
               <View style={styles.nameInput}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  {ar.firstName}
+                  {t('firstName')}
                 </Text>
                 <View style={getInputWrapperStyle('firstName')}>
                   <MaterialIcons
@@ -319,7 +320,7 @@ export default function SignUpScreen() {
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder={ar.firstNamePlaceholder}
+                    placeholder={t('firstNamePlaceholder')}
                     placeholderTextColor={colors.placeholder}
                     value={firstName}
                     onChangeText={setFirstName}
@@ -332,7 +333,7 @@ export default function SignUpScreen() {
 
               <View style={styles.nameInput}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  {ar.lastName}
+                  {t('lastName')}
                 </Text>
                 <View style={getInputWrapperStyle('lastName')}>
                   <MaterialIcons
@@ -342,7 +343,7 @@ export default function SignUpScreen() {
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder={ar.lastNamePlaceholder}
+                    placeholder={t('lastNamePlaceholder')}
                     placeholderTextColor={colors.placeholder}
                     value={lastName}
                     onChangeText={setLastName}
@@ -356,7 +357,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                {ar.usernameLabel}
+                {t('usernameLabel')}
               </Text>
               <View style={getInputWrapperStyle('username')}>
                 <MaterialIcons
@@ -366,7 +367,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.usernamePlaceholder}
+                  placeholder={t('usernamePlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   value={username}
                   onChangeText={setUsername}
@@ -379,7 +380,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                {ar.emailLabel}
+                {t('emailLabel')}
               </Text>
               <View style={getInputWrapperStyle('email')}>
                 <MaterialIcons
@@ -389,7 +390,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.emailPlaceholder}
+                  placeholder={t('emailPlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   value={email}
                   onChangeText={setEmail}
@@ -404,7 +405,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                {ar.passwordLabel}
+                {t('passwordLabel')}
               </Text>
               <View style={getInputWrapperStyle('password')}>
                 <MaterialIcons
@@ -414,7 +415,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.createPasswordPlaceholder}
+                  placeholder={t('createPasswordPlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   value={password}
                   onChangeText={setPassword}
@@ -441,7 +442,7 @@ export default function SignUpScreen() {
                   <Text
                     style={[styles.strengthLabel, { color: colors.textSecondary }]}
                   >
-                    {ar.strengthLabel}:
+                    {t('strengthLabel')}:
                   </Text>
                   <Text
                     style={[styles.strengthText, { color: passwordStrength.color }]}
@@ -459,9 +460,9 @@ export default function SignUpScreen() {
                         styles.strengthFill,
                         {
                           width: `${
-                            passwordStrength.text === ar.passwordWeak
+                            passwordStrength.text === t('passwordWeak')
                               ? 33
-                              : passwordStrength.text === ar.passwordFair
+                              : passwordStrength.text === t('passwordFair')
                               ? 66
                               : 100
                           }%`,
@@ -476,7 +477,7 @@ export default function SignUpScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
-                {ar.confirmPasswordLabel}
+                {t('confirmPasswordLabel')}
               </Text>
               <View style={getInputWrapperStyle('confirmPassword')}>
                 <MaterialIcons
@@ -486,7 +487,7 @@ export default function SignUpScreen() {
                 />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
-                  placeholder={ar.confirmPasswordPlaceholder}
+                  placeholder={t('confirmPasswordPlaceholder')}
                   placeholderTextColor={colors.placeholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -512,7 +513,7 @@ export default function SignUpScreen() {
 
               {confirmPassword.length > 0 && password !== confirmPassword && (
                 <Text style={[styles.errorText, { color: COLORS.error }]}>
-                  {ar.passwordsDoNotMatch}
+                  {t('passwordsDoNotMatch')}
                 </Text>
               )}
             </View>
@@ -524,7 +525,7 @@ export default function SignUpScreen() {
               ]}
             >
               <Text style={[styles.requirementsTitle, { color: colors.text }]}>
-                {ar.passwordRequirements}
+                {t('passwordRequirements')}
               </Text>
 
               <View style={styles.requirementItem}>
@@ -542,7 +543,7 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  {ar.minLength}
+                  {t('minLength')}
                 </Text>
               </View>
 
@@ -563,7 +564,7 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  {ar.oneUppercase}
+                  {t('oneUppercase')}
                 </Text>
               </View>
 
@@ -584,7 +585,7 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  {ar.oneLowercase}
+                  {t('oneLowercase')}
                 </Text>
               </View>
 
@@ -605,7 +606,7 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  {ar.oneNumber}
+                  {t('oneNumber')}
                 </Text>
               </View>
 
@@ -626,14 +627,14 @@ export default function SignUpScreen() {
                 <Text
                   style={[styles.requirementText, { color: colors.textSecondary }]}
                 >
-                  {ar.oneSpecial}
+                  {t('oneSpecial')}
                 </Text>
               </View>
 
               <View style={styles.noteContainer}>
                 <MaterialIcons name="info" size={14} color={COLORS.primary} />
                 <Text style={styles.noteText}>
-                  {ar.specialCharNote}
+                  {t('specialCharNote')}
                 </Text>
               </View>
             </View>
@@ -654,7 +655,7 @@ export default function SignUpScreen() {
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                     >
-                      <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{ar.createAccount}</Text>
+                      <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{t('createAccount')}</Text>
                       <MaterialIcons name="arrow-forward" size={20} color="#FFFFFF" />
                     </LinearGradient>
                   </TouchableOpacity>
@@ -672,7 +673,7 @@ export default function SignUpScreen() {
                         { color: colors.textSecondary },
                       ]}
                     >
-                      {ar.orSignUpWith}
+                      {t('orSignUpWith')}
                     </Text>
                     <View
                       style={[
@@ -689,11 +690,11 @@ export default function SignUpScreen() {
 
             <View style={styles.loginLinkContainer}>
               <Text style={[styles.loginText, { color: colors.textSecondary }]}>
-                {ar.alreadyHaveAccount}
+                {t('alreadyHaveAccount')}
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                 <Text style={[styles.loginLink, { color: colors.primary }]}>
-                  {ar.logIn}
+                  {t('logIn')}
                 </Text>
               </TouchableOpacity>
             </View>

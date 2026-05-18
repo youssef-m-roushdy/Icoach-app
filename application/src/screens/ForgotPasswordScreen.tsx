@@ -27,7 +27,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 type ForgotPasswordNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -39,6 +39,7 @@ export default function ForgotPasswordScreen() {
   const { theme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,8 +52,8 @@ export default function ForgotPasswordScreen() {
   const handleSendResetLink = async () => {
     if (!email.trim()) {
       showErrorToast({
-        title: ar.missingEmail,
-        message: ar.pleaseEnterEmailAddress,
+        title: t('missingEmail'),
+        message: t('pleaseEnterEmailAddress'),
       });
       return;
     }
@@ -60,8 +61,8 @@ export default function ForgotPasswordScreen() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       showErrorToast({
-        title: ar.invalidEmail,
-        message: ar.pleaseEnterValidEmail,
+        title: t('invalidEmail'),
+        message: t('pleaseEnterValidEmail'),
       });
       return;
     }
@@ -78,14 +79,14 @@ export default function ForgotPasswordScreen() {
       setEmailSent(true);
 
       showSuccessToast({
-        title: ar.resetLinkSent,
-        message: ar.resetLinkSentMessage,
+        title: t('resetLinkSent'),
+        message: t('resetLinkSentMessage'),
       });
 
       if (response.data) {
         showInfoToast({
-          title: ar.developmentMode,
-          message: ar.resetTokenAvailableForTesting,
+          title: t('developmentMode'),
+          message: t('resetTokenAvailableForTesting'),
         });
       }
     } catch (error: unknown) {
@@ -97,13 +98,13 @@ export default function ForgotPasswordScreen() {
         setEmailSent(true);
 
         showSuccessToast({
-          title: ar.resetLinkSent,
-          message: ar.resetLinkSentMessage,
+          title: t('resetLinkSent'),
+          message: t('resetLinkSentMessage'),
         });
       } else {
         showErrorToast({
-          title: ar.requestFailed,
-          message: rawMessage || ar.failedToSendResetEmail,
+          title: t('requestFailed'),
+          message: rawMessage || t('failedToSendResetEmail'),
         });
       }
     } finally {
@@ -169,7 +170,7 @@ export default function ForgotPasswordScreen() {
           >
             <MaterialIcons name="arrow-back" size={24} color={colors.text} />
             <Text style={[styles.backButtonText, { color: colors.text }]}>
-              {ar.back}
+              {t('back')}
             </Text>
           </TouchableOpacity>
 
@@ -202,13 +203,13 @@ export default function ForgotPasswordScreen() {
               </View>
 
               <Text style={[styles.title, { color: colors.text }]}>
-                {emailSent ? ar.checkYourEmail : ar.forgotPassword}
+                {emailSent ? t('checkYourEmail') : t('forgotPassword')}
               </Text>
 
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {emailSent
-                  ? ar.passwordResetInstructionsSent
-                  : ar.enterEmailToResetPassword}
+                  ? t('passwordResetInstructionsSent')
+                  : t('enterEmailToResetPassword')}
               </Text>
             </View>
 
@@ -216,7 +217,7 @@ export default function ForgotPasswordScreen() {
               <>
                 <View style={styles.inputGroup}>
                   <Text style={[styles.inputLabel, { color: colors.text }]}>
-                    {ar.emailAddress}
+                    {t('emailAddress')}
                   </Text>
 
                   <View style={getInputWrapperStyle('email')}>
@@ -227,7 +228,7 @@ export default function ForgotPasswordScreen() {
                     />
                     <TextInput
                       style={[styles.input, { color: colors.text }]}
-                      placeholder={ar.enterYourEmailAddress}
+                      placeholder={t('enterYourEmailAddress')}
                       placeholderTextColor={isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
                       value={email}
                       onChangeText={setEmail}
@@ -246,7 +247,7 @@ export default function ForgotPasswordScreen() {
                   <Text
                     style={[styles.noteText, { color: colors.textSecondary }]}
                   >
-                    {ar.resetLinkNote}
+                    {t('resetLinkNote')}
                   </Text>
                 </View>
 
@@ -268,7 +269,7 @@ export default function ForgotPasswordScreen() {
                       color="#FFFFFF"
                     />
                   ) : (
-                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{ar.sendResetLink}</Text>
+                    <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{t('sendResetLink')}</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -282,11 +283,11 @@ export default function ForgotPasswordScreen() {
                   />
 
                   <Text style={[styles.successTitle, { color: colors.text }]}>
-                    {ar.emailSentSuccessfully}
+                    {t('emailSentSuccessfully')}
                   </Text>
 
                   <Text style={[styles.successText, { color: colors.textSecondary }]}>
-                    {ar.passwordResetInstructionsSentTo}{'\n'}
+                    {t('passwordResetInstructionsSentTo')}{'\n'}
                     <Text style={styles.emailHighlight}>{email}</Text>
                   </Text>
 
@@ -299,7 +300,7 @@ export default function ForgotPasswordScreen() {
                     <Text
                       style={[styles.instructionsTitle, { color: colors.text }]}
                     >
-                      {ar.whatToDoNext}
+                      {t('whatToDoNext')}
                     </Text>
 
                     <View style={styles.instructionItem}>
@@ -314,7 +315,7 @@ export default function ForgotPasswordScreen() {
                           { color: colors.textSecondary },
                         ]}
                       >
-                        {ar.checkYourEmailInbox}
+                        {t('checkYourEmailInbox')}
                       </Text>
                     </View>
 
@@ -330,7 +331,7 @@ export default function ForgotPasswordScreen() {
                           { color: colors.textSecondary },
                         ]}
                       >
-                        {ar.openPasswordResetEmail}
+                        {t('openPasswordResetEmail')}
                       </Text>
                     </View>
 
@@ -346,7 +347,7 @@ export default function ForgotPasswordScreen() {
                           { color: colors.textSecondary },
                         ]}
                       >
-                        {ar.clickResetLinkOrUseToken}
+                        {t('clickResetLinkOrUseToken')}
                       </Text>
                     </View>
 
@@ -362,7 +363,7 @@ export default function ForgotPasswordScreen() {
                           { color: colors.textSecondary },
                         ]}
                       >
-                        {ar.createNewSecurePassword}
+                        {t('createNewSecurePassword')}
                       </Text>
                     </View>
                   </View>
@@ -371,7 +372,7 @@ export default function ForgotPasswordScreen() {
                   {resetToken && (
                     <View style={styles.tokenContainer}>
                       <Text style={[styles.tokenLabel, { color: colors.text }]}>
-                        {ar.developmentTokenForTesting}
+                        {t('developmentTokenForTesting')}
                       </Text>
 
                       <TouchableOpacity
@@ -395,7 +396,7 @@ export default function ForgotPasswordScreen() {
                           })
                         }
                       >
-                        <Text style={styles.buttonText}>{ar.resetPasswordNow}</Text>
+                        <Text style={styles.buttonText}>{t('resetPasswordNow')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -415,7 +416,7 @@ export default function ForgotPasswordScreen() {
                         { color: colors.text },
                       ]}
                     >
-                      {ar.tryAnotherEmail}
+                      {t('tryAnotherEmail')}
                     </Text>
                   </TouchableOpacity>
 
@@ -436,7 +437,7 @@ export default function ForgotPasswordScreen() {
                           size={18}
                           color={COLORS.secondary}
                         />
-                        <Text style={styles.buttonText}>{ar.resendEmail}</Text>
+                        <Text style={styles.buttonText}>{t('resendEmail')}</Text>
                       </>
                     )}
                   </TouchableOpacity>

@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { foodService, Food, PaginationData } from '../services/foodService';
 import { showErrorToast, showInfoToast, getErrorMessage } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 export default function FoodItemsScreen() {
   const { token } = useAuth();
@@ -30,6 +30,7 @@ export default function FoodItemsScreen() {
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
   const isThreeButtonNav = systemBottomInset > 24;
+  const { t } = useTranslation();
 
   // ─── State ─────────────────────────────────────────────────────────────────
   const [foods, setFoods] = useState<Food[]>([]);
@@ -116,22 +117,22 @@ export default function FoodItemsScreen() {
           (searchQuery || minCalories || maxCalories || minProtein)
         ) {
           showInfoToast({
-            title: ar.noResultsTitle,
-            message: ar.noFoodsMatchSearchCriteria,
+            title: t('noResultsTitle'),
+            message: t('noFoodsMatchSearchCriteria'),
           });
         }
       } else {
         showErrorToast({
-          title: ar.loadFailedTitle,
-          message: response.message || ar.failedToLoadFoods,
+          title: t('loadFailedTitle'),
+          message: response.message || t('failedToLoadFoods'),
         });
         setFoods([]);
       }
     } catch (error: unknown) {
       console.error('Failed to load foods:', error);
       showErrorToast({
-        title: ar.loadFailedTitle,
-        message: getErrorMessage(error) || ar.failedToLoadFoods,
+        title: t('loadFailedTitle'),
+        message: getErrorMessage(error) || t('failedToLoadFoods'),
       });
       setFoods([]);
     } finally {
@@ -201,8 +202,8 @@ export default function FoodItemsScreen() {
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
 
     showInfoToast({
-      title: ar.searchClearedTitle,
-      message: ar.searchClearedMessage,
+      title: t('searchClearedTitle'),
+      message: t('searchClearedMessage'),
     });
   };
 
@@ -224,8 +225,8 @@ export default function FoodItemsScreen() {
     setShowFilters(false);
 
     showInfoToast({
-      title: ar.filtersClearedTitle,
-      message: ar.filtersClearedMessage,
+      title: t('filtersClearedTitle'),
+      message: t('filtersClearedMessage'),
     });
   };
 
@@ -336,19 +337,19 @@ export default function FoodItemsScreen() {
         <View style={styles.macrosContainer}>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
             <Text style={[styles.macroValue, { color: colors.primary }]}>{item.calories}</Text>
-            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{ar.kcal}</Text>
+            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('kcal')}</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
             <Text style={[styles.macroValue, { color: '#10B981' }]}>{item.protein}g</Text>
-            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{ar.protein}</Text>
+            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('protein')}</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
             <Text style={[styles.macroValue, { color: '#F59E0B' }]}>{item.carbohydrate}g</Text>
-            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{ar.carbs}</Text>
+            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('carbs')}</Text>
           </View>
           <View style={[styles.macroBadge, { backgroundColor: colors.background }]}>
             <Text style={[styles.macroValue, { color: '#EF4444' }]}>{item.fat}g</Text>
-            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{ar.fat}</Text>
+            <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{t('fat')}</Text>
           </View>
         </View>
 
@@ -356,7 +357,7 @@ export default function FoodItemsScreen() {
           <View style={styles.sugarInfo}>
             <Ionicons name="nutrition-outline" size={12} color={colors.textSecondary} />
             <Text style={[styles.sugarText, { color: colors.textSecondary }]}>
-              {ar.sugarWithValue.replace('{sugar}', item.sugar.toString())}
+              {t('sugarWithValue').replace('{sugar}', item.sugar.toString())}
             </Text>
           </View>
         )}
@@ -373,7 +374,7 @@ export default function FoodItemsScreen() {
         ]}
       >
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.primary, marginTop: 12 }}>{ar.loadingFoodDatabase}</Text>
+        <Text style={{ color: colors.primary, marginTop: 12 }}>{t('loadingFoodDatabase')}</Text>
       </View>
     );
   }
@@ -399,7 +400,7 @@ export default function FoodItemsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{ar.foodDatabase}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('foodDatabase')}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -420,7 +421,7 @@ export default function FoodItemsScreen() {
             {/* ✅ value={searchInput} — controlled by local state, NOT searchQuery */}
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder={ar.searchFoodsPlaceholder}
+              placeholder={t('searchFoodsPlaceholder')}
               placeholderTextColor={colors.textSecondary}
               value={searchInput}
               onChangeText={handleSearchChange}
@@ -455,7 +456,7 @@ export default function FoodItemsScreen() {
                 { color: showFilters ? colors.primary : colors.textSecondary },
               ]}
             >
-              {ar.filters}
+              {t('filters')}
             </Text>
             {hasActiveFilters ? (
               <View style={[styles.activeFilterDot, { backgroundColor: colors.primary }]} />
@@ -464,7 +465,7 @@ export default function FoodItemsScreen() {
 
           {hasActiveFilters ? (
             <TouchableOpacity onPress={clearAllFilters}>
-              <Text style={[styles.clearText, { color: '#EF4444' }]}>{ar.clearAll}</Text>
+              <Text style={[styles.clearText, { color: '#EF4444' }]}>{t('clearAll')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -483,7 +484,7 @@ export default function FoodItemsScreen() {
             <View style={styles.filterRow}>
               <View style={styles.filterItem}>
                 <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-                  {ar.minCaloriesLabel}
+                  {t('minCaloriesLabel')}
                 </Text>
                 <TextInput
                   style={[
@@ -503,7 +504,7 @@ export default function FoodItemsScreen() {
               </View>
               <View style={styles.filterItem}>
                 <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-                  {ar.maxCaloriesLabel}
+                  {t('maxCaloriesLabel')}
                 </Text>
                 <TextInput
                   style={[
@@ -525,7 +526,7 @@ export default function FoodItemsScreen() {
             <View style={styles.filterRow}>
               <View style={styles.filterItem}>
                 <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>
-                  {ar.minProteinGramsLabel}
+                  {t('minProteinGramsLabel')}
                 </Text>
                 <TextInput
                   style={[
@@ -547,7 +548,7 @@ export default function FoodItemsScreen() {
                 style={[styles.applyFilterButton, { backgroundColor: colors.primary }]}
                 onPress={applyFilters}
               >
-                <Text style={styles.applyFilterText}>{ar.applyFilters}</Text>
+                <Text style={styles.applyFilterText}>{t('applyFilters')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -575,12 +576,12 @@ export default function FoodItemsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="restaurant-outline" size={64} color={colors.primary} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
-              {hasActiveFilters ? ar.noFoodsMatchFilters : ar.noFoodsFound}
+              {hasActiveFilters ? t('noFoodsMatchFilters') : t('noFoodsFound')}
             </Text>
             {hasActiveFilters ? (
               <TouchableOpacity onPress={clearAllFilters}>
                 <Text style={[styles.clearFiltersLink, { color: colors.primary }]}>
-                  {ar.clearFiltersAndTryAgain}
+                  {t('clearFiltersAndTryAgain')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -680,7 +681,7 @@ export default function FoodItemsScreen() {
           </View>
 
           <Text style={[styles.pageInfo, { color: colors.text }]}>
-            {ar.paginationInfoFoods
+            {t('paginationInfoFoods')
               .replace('{page}', String(pagination.currentPage))
               .replace('{totalPages}', String(pagination.totalPages))
               .replace('{total}', String(pagination.totalItems))}

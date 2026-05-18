@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import type { RootStackParamList } from '../types/navigation';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 type AuthCallbackRouteProp = RouteProp<RootStackParamList, 'AuthCallback'>;
 
@@ -15,6 +15,7 @@ const AuthCallbackScreen: React.FC = () => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { setAuthState } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -51,7 +52,7 @@ const AuthCallbackScreen: React.FC = () => {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={[styles.text, { color: colors.textSecondary }]}>
-        {ar.completingAuth}
+        {t('completingAuth')}
       </Text>
     </View>
   );

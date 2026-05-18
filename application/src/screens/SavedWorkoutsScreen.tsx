@@ -27,7 +27,7 @@ import {
   getErrorMessage,
 } from '../utils/toast';
 import SuccessModal from '../components/common/SuccessModal';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -77,6 +77,7 @@ const SavedWorkoutsScreen = () => {
   const { token } = useAuth();
   const { theme, colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkoutItem[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -163,16 +164,16 @@ const SavedWorkoutsScreen = () => {
         });
       } else {
         showErrorToast({
-          title: ar.filtersErrorTitle,
-          message: response.message || ar.filtersErrorMessage,
+          title: t('filtersErrorTitle'),
+          message: response.message || t('filtersErrorMessage'),
         });
       }
     } catch (error: unknown) {
       console.error('Failed to load filters:', error);
 
       showErrorToast({
-        title: ar.filtersErrorTitle,
-        message: getErrorMessage(error) || ar.filtersErrorMessage,
+        title: t('filtersErrorTitle'),
+        message: getErrorMessage(error) || t('filtersErrorMessage'),
       });
     }
   };
@@ -226,14 +227,14 @@ const SavedWorkoutsScreen = () => {
           (selectedBodyPart || selectedLevel)
         ) {
           showInfoToast({
-            title: ar.noResultsTitle,
-            message: ar.noSavedWorkoutsMatch,
+            title: t('noResultsTitle'),
+            message: t('noSavedWorkoutsMatch'),
           });
         }
       } else {
         showErrorToast({
-          title: ar.loadFailedTitle,
-          message: result.message || ar.loadFailedMessage,
+          title: t('loadFailedTitle'),
+          message: result.message || t('loadFailedMessage'),
         });
 
         setSavedWorkouts([]);
@@ -243,8 +244,8 @@ const SavedWorkoutsScreen = () => {
       console.error('Failed to load workouts:', error);
 
       showErrorToast({
-        title: ar.loadFailedTitle,
-        message: getErrorMessage(error) || ar.loadFailedMessage,
+        title: t('loadFailedTitle'),
+        message: getErrorMessage(error) || t('loadFailedMessage'),
       });
 
       setSavedWorkouts([]);
@@ -301,21 +302,21 @@ const SavedWorkoutsScreen = () => {
         });
 
         showSuccessToast({
-          title: ar.workoutRemovedTitle,
-          message: ar.workoutRemovedMessage,
+          title: t('workoutRemovedTitle'),
+          message: t('workoutRemovedMessage'),
         });
       } else {
         showErrorToast({
-          title: ar.removeFailedTitle,
-          message: result.message || ar.removeFailedMessage,
+          title: t('removeFailedTitle'),
+          message: result.message || t('removeFailedMessage'),
         });
       }
     } catch (error: unknown) {
       console.error('Failed to delete workout:', error);
 
       showErrorToast({
-        title: ar.removeFailedTitle,
-        message: getErrorMessage(error) || ar.removeFailedMessage,
+        title: t('removeFailedTitle'),
+        message: getErrorMessage(error) || t('removeFailedMessage'),
       });
     } finally {
       setWorkoutToRemove(null);
@@ -328,8 +329,8 @@ const SavedWorkoutsScreen = () => {
     setPagination((prev) => ({ ...prev, page: 1 }));
 
     showInfoToast({
-      title: ar.filtersClearedTitle,
-      message: ar.filtersClearedMessage,
+      title: t('filtersClearedTitle'),
+      message: t('filtersClearedMessage'),
     });
   };
 
@@ -488,7 +489,7 @@ const SavedWorkoutsScreen = () => {
               style={StyleSheet.absoluteFillObject}
             />
             <Ionicons name="play" size={20} color="#FFFFFF" />
-            <Text style={styles.startButtonText}>{ar.startSession}</Text>
+            <Text style={styles.startButtonText}>{t('startSession')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -528,12 +529,12 @@ const SavedWorkoutsScreen = () => {
       >
         <View style={styles.filtersHeader}>
           <Text style={[styles.filtersTitle, { color: colors.text }]}>
-            {ar.filters}
+            {t('filters')}
           </Text>
 
           {(selectedBodyPart || selectedLevel) && (
             <TouchableOpacity onPress={clearFilters}>
-              <Text style={styles.clearText}>{ar.clearAll}</Text>
+              <Text style={styles.clearText}>{t('clearAll')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -563,7 +564,7 @@ const SavedWorkoutsScreen = () => {
                   { color: selectedBodyPart ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedBodyPart || ar.bodyPart}
+                {selectedBodyPart || t('bodyPart')}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -596,7 +597,7 @@ const SavedWorkoutsScreen = () => {
                   { color: selectedLevel ? '#FFFFFF' : colors.text, zIndex: 1 },
                 ]}
               >
-                {selectedLevel || ar.level}
+                {selectedLevel || t('level')}
               </Text>
               <Ionicons
                 name="chevron-down"
@@ -626,7 +627,7 @@ const SavedWorkoutsScreen = () => {
         >
           <View style={[styles.modalHeader, { borderBottomColor: colors.authInputBorder || colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {currentFilter === 'bodyPart' ? ar.selectBodyPart : ar.selectLevel}
+              {currentFilter === 'bodyPart' ? t('selectBodyPart') : t('selectLevel')}
             </Text>
           </View>
 
@@ -639,7 +640,7 @@ const SavedWorkoutsScreen = () => {
                 closeFilterSheet();
               }}
             >
-              <Text style={[styles.modalOptionText, { color: colors.text }]}>{ar.allFilterOption}</Text>
+              <Text style={[styles.modalOptionText, { color: colors.text }]}>{t('allFilterOption')}</Text>
             </TouchableOpacity>
 
             {currentFilter === 'bodyPart' &&
@@ -690,11 +691,11 @@ const SavedWorkoutsScreen = () => {
             <Ionicons name="fitness-outline" size={64} color={colors.primary} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
               {selectedBodyPart || selectedLevel
-                ? ar.noSavedWorkoutsMatch
-                : ar.noSavedWorkoutsFound}
+                ? t('noSavedWorkoutsMatch')
+                : t('noSavedWorkoutsFound')}
             </Text>
             <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
-              {ar.saveWorkoutsToSeeHere}
+              {t('saveWorkoutsToSeeHere')}
             </Text>
           </View>
         }
@@ -782,7 +783,7 @@ const SavedWorkoutsScreen = () => {
           </View>
 
           <Text style={[styles.pageInfo, { color: colors.text }]}>
-            {ar.paginationInfo
+            {t('paginationInfo')
               .replace('{page}', pagination.page.toString())
               .replace('{totalPages}', pagination.totalPages.toString())
               .replace('{total}', pagination.total.toString())}
@@ -793,14 +794,14 @@ const SavedWorkoutsScreen = () => {
       {/* Confirmation Modal for Deletion */}
       <SuccessModal
         visible={!!workoutToRemove}
-        title={ar.removeWorkoutTitle}
-        message={ar.removeWorkoutConfirmation.replace(
+        title={t('removeWorkoutTitle')}
+        message={t('removeWorkoutConfirmation').replace(
           '{name}',
           workoutToRemove?.name ?? ''
         )}
-        primaryButtonText={ar.remove}
+        primaryButtonText={t('remove')}
         onPrimaryPress={confirmDeleteWorkout}
-        secondaryButtonText={ar.cancel}
+        secondaryButtonText={t('cancel')}
         onSecondaryPress={() => setWorkoutToRemove(null)}
         iconName="trash-outline"
       />

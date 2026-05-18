@@ -50,7 +50,7 @@ import {
   voiceFeedback,
 } from '../services/aiFitnessEngine';
 import { useTheme } from '../context/ThemeContext';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -292,6 +292,7 @@ const areLandmarksValid = (landmarks: Landmark[]): boolean => {
 const LiveWorkoutScreen = () => {
   const navigation = useNavigation();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { hasPermission, requestPermission } = useCameraPermission();
   const devices = useCameraDevices();
@@ -306,9 +307,9 @@ const LiveWorkoutScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [result, setResult] = useState<ExerciseResult | null>(null);
-  const [feedback, setFeedback] = useState({ message: ar.selectAnExercise });
-  const [debugInfo, setDebugInfo] = useState<string>(ar.waitingForPose);
-  const [poseStatus, setPoseStatus] = useState<string>(ar.loadingModel);
+  const [feedback, setFeedback] = useState({ message: t('selectAnExercise') });
+  const [debugInfo, setDebugInfo] = useState<string>(t('waitingForPose'));
+  const [poseStatus, setPoseStatus] = useState<string>(t('loadingModel'));
 
   // Refs
   const trainerRef = useRef<ExerciseLogic | null>(null);
@@ -363,18 +364,18 @@ const LiveWorkoutScreen = () => {
     // Always update to show we're receiving frames
     if (!poseDetectedRef.current) {
       poseDetectedRef.current = true;
-      setPoseStatus(ar.poseModelActive);
+      setPoseStatus(t('poseModelActive'));
     }
 
     // Only process if workout is active
     if (!isActiveRef.current) {
-      setDebugInfo(ar.framesPressStart.replace('{count}', String(frameCountRef.current)));
+      setDebugInfo(t('framesPressStart').replace('{count}', String(frameCountRef.current)));
       return;
     }
 
     // SAFETY GUARD: Verify trainer is ready before calling analyze
     if (!trainerRef.current || typeof trainerRef.current.analyze !== 'function') {
-      setDebugInfo(ar.trainerNotReady.replace('{count}', String(frameCountRef.current)));
+      setDebugInfo(t('trainerNotReady').replace('{count}', String(frameCountRef.current)));
       return;
     }
 
@@ -406,7 +407,7 @@ const LiveWorkoutScreen = () => {
             analysisResult.exercise
           );
           setFeedback(fb);
-          setDebugInfo(ar.activeFrame.replace('{count}', String(frameCountRef.current)));
+          setDebugInfo(t('activeFrame').replace('{count}', String(frameCountRef.current)));
 
           // Voice feedback on change
           if (analysisResult.feedback_code !== lastFeedbackRef.current) {
@@ -419,14 +420,14 @@ const LiveWorkoutScreen = () => {
             );
           }
         } else {
-          setDebugInfo(ar.lowVisibilityShowFullBody.replace('{count}', String(frameCountRef.current)));
+          setDebugInfo(t('lowVisibilityShowFullBody').replace('{count}', String(frameCountRef.current)));
         }
       } else {
-        setDebugInfo(ar.noPoseInFrame.replace('{count}', String(frameCountRef.current)));
+        setDebugInfo(t('noPoseInFrame').replace('{count}', String(frameCountRef.current)));
       }
     } catch (error) {
       console.error('Analysis error:', error);
-      setDebugInfo(ar.error.replace('{message}', String(error)));
+      setDebugInfo(t('error').replace('{message}', String(error)));
     }
   }, []);
 
@@ -475,11 +476,11 @@ const LiveWorkoutScreen = () => {
     trainerRef.current = AIFitnessEngine.getTrainer(selectedExercise);
     trainerRef.current?.reset?.();
     setResult(null);
-    setFeedback({ message: ar.readyFor.replace('{exercise}', selectedExercise.replace('_', ' ')) });
+    setFeedback({ message: t('readyFor').replace('{exercise}', selectedExercise.replace('_', ' ')) });
     lastFeedbackRef.current = '';
     frameCountRef.current = 0;
     poseDetectedRef.current = false;
-    setPoseStatus(ar.loadingModel);
+    setPoseStatus(t('loadingModel'));
   }, [selectedExercise]);
 
   // Request camera permission on mount
@@ -524,13 +525,13 @@ const LiveWorkoutScreen = () => {
     if (isActive) {
       setIsActive(false);
       voiceFeedback.stop();
-      setFeedback({ message: ar.workoutPaused });
+      setFeedback({ message: t('workoutPaused') });
     } else {
       setIsActive(true);
       trainerRef.current?.reset?.();
       lastFeedbackRef.current = '';
       frameCountRef.current = 0;
-      setFeedback({ message: ar.getInPosition });
+      setFeedback({ message: t('getInPosition') });
     }
   }, [isActive]);
 
@@ -542,7 +543,7 @@ const LiveWorkoutScreen = () => {
     lastFeedbackRef.current = '';
     frameCountRef.current = 0;
     setResult(null);
-    setFeedback({ message: ar.readyFor.replace('{exercise}', selectedExercise.replace('_', ' ')) });
+    setFeedback({ message: t('readyFor').replace('{exercise}', selectedExercise.replace('_', ' ')) });
   }, [selectedExercise]);
 
   // Display values
@@ -602,7 +603,7 @@ const LiveWorkoutScreen = () => {
 
               <View style={styles.instructionsHeaderTextWrap}>
                 <Text style={[styles.instructionsTitle, { color: colors.text }]}>
-                  {ar.howToPlay}
+                  {t('howToPlay')}
                 </Text>
                 <Text
                   style={[styles.instructionsExerciseName, { color: colors.primary }]}
@@ -633,7 +634,7 @@ const LiveWorkoutScreen = () => {
                 <View style={styles.instructionsSectionHeader}>
                   <Ionicons name="warning" size={18} color={colors.primary} />
                   <Text style={[styles.instructionsSectionTitle, { color: colors.text }]}>
-                    {ar.instructions}
+                    {t('instructions')}
                   </Text>
                 </View>
                 <Text style={[styles.instructionsBodyText, { color: colors.text }]}>
@@ -659,7 +660,7 @@ const LiveWorkoutScreen = () => {
                   <Text
                     style={[styles.instructionsMiniLabel, { color: colors.text }]}
                   >
-                    {ar.phoneOrientation}
+                    {t('phoneOrientation')}
                   </Text>
                   <Text
                     style={[styles.instructionsMiniValue, { color: colors.primary }]}
@@ -685,7 +686,7 @@ const LiveWorkoutScreen = () => {
                   <Text
                     style={[styles.instructionsMiniLabel, { color: colors.text }]}
                   >
-                    {ar.bodyPosition}
+                    {t('bodyPosition')}
                   </Text>
                   <Text
                     style={[styles.instructionsMiniValue, { color: colors.primary }]}
@@ -703,7 +704,7 @@ const LiveWorkoutScreen = () => {
               ]}
               onPress={() => setShowInstructionsModal(false)}
             >
-              <Text style={styles.instructionsPrimaryButtonText}>{ar.gotIt}</Text>
+              <Text style={styles.instructionsPrimaryButtonText}>{t('gotIt')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -725,7 +726,7 @@ const LiveWorkoutScreen = () => {
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
           <Text style={[styles.modalTitle, { color: colors.text }]}>
-            {ar.selectExercise}
+            {t('selectExercise')}
           </Text>
 
           <View
@@ -747,7 +748,7 @@ const LiveWorkoutScreen = () => {
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={ar.searchExercise}
+              placeholder={t('searchExercise')}
               placeholderTextColor="#999"
               style={[styles.searchInput, { color: colors.text }]}
             />
@@ -766,7 +767,7 @@ const LiveWorkoutScreen = () => {
             ListEmptyComponent={
               <View style={styles.emptySearchContainer}>
                 <Text style={[styles.emptySearchText, { color: colors.text }]}>
-                  {ar.noExercisesFound}
+                  {t('noExercisesFound')}
                 </Text>
               </View>
             }
@@ -824,7 +825,7 @@ const LiveWorkoutScreen = () => {
               setSearchQuery('');
             }}
           >
-            <Text style={styles.closeButtonText}>{ar.close}</Text>
+            <Text style={styles.closeButtonText}>{t('close')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -849,7 +850,7 @@ const LiveWorkoutScreen = () => {
         <View style={styles.centerContent}>
           <Ionicons name="camera-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
-            {ar.cameraPermissionRequired}
+            {t('cameraPermissionRequired')}
           </Text>
           <TouchableOpacity
             style={[styles.permissionButton, { overflow: 'hidden' }]}
@@ -862,7 +863,7 @@ const LiveWorkoutScreen = () => {
               style={StyleSheet.absoluteFillObject}
             />
             <Text style={[styles.permissionButtonText, { position: 'relative' }]}>
-              {ar.grantPermission}
+              {t('grantPermission')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -888,7 +889,7 @@ const LiveWorkoutScreen = () => {
         <View style={styles.centerContent}>
           <Ionicons name="warning-outline" size={64} color={colors.text} />
           <Text style={[styles.permissionText, { color: colors.text }]}>
-            {ar.noCameraDeviceFound}
+            {t('noCameraDeviceFound')}
           </Text>
         </View>
       </View>
@@ -958,7 +959,7 @@ const LiveWorkoutScreen = () => {
                     { backgroundColor: colors.primary },
                   ]}
                 >
-                  <Text style={styles.tooltipText}>{ar.howToPlay}</Text>
+                  <Text style={styles.tooltipText}>{t('howToPlay')}</Text>
                   <View
                     style={[
                       styles.tooltipArrow,
@@ -982,13 +983,13 @@ const LiveWorkoutScreen = () => {
               {isTimerExercise ? `${timer}s` : reps}
             </Text>
             <Text style={styles.statLabel}>
-              {isTimerExercise ? ar.time : ar.reps.toUpperCase()}
+              {isTimerExercise ? t('time') : t('reps').toUpperCase()}
             </Text>
           </View>
 
           <View style={[styles.statBox, !isCorrect && styles.statBoxError]}>
             <Text style={styles.statValue}>{String(stage).toUpperCase()}</Text>
-            <Text style={styles.statLabel}>{ar.stage.toUpperCase()}</Text>
+            <Text style={styles.statLabel}>{t('stage').toUpperCase()}</Text>
           </View>
         </View>
 
@@ -1001,7 +1002,7 @@ const LiveWorkoutScreen = () => {
         >
           <Text style={styles.feedbackText}>{feedback.message}</Text>
           {isActive && (
-            <Text style={styles.audioHint}>{ar.voiceFeedbackEnabled}</Text>
+            <Text style={styles.audioHint}>{t('voiceFeedbackEnabled')}</Text>
           )}
         </View>
 
@@ -1035,7 +1036,7 @@ const LiveWorkoutScreen = () => {
             style={{ position: 'relative' }}
           />
           <Text style={[styles.actionButtonText, { position: 'relative' }]}>
-            {isActive ? ar.pause : ar.start}
+            {isActive ? t('pause') : t('start')}
           </Text>
         </TouchableOpacity>
 
@@ -1064,8 +1065,8 @@ const LiveWorkoutScreen = () => {
         >
           <Text style={styles.noticeText}>
             {isActive
-              ? ar.poseDetectionActiveFullBody
-              : ar.positionYourselfCamera}
+              ? t('poseDetectionActiveFullBody')
+              : t('positionYourselfCamera')}
           </Text>
         </View>
       </View>

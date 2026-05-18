@@ -24,7 +24,7 @@ import {
   showInfoToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 type EmailVerificationNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -38,6 +38,7 @@ export default function EmailVerificationScreen() {
   const { systemBottomInset } = useSystemNavigation();
   const { user, token, updateUser } = useAuth();
   const isDarkMode = theme === 'dark';
+  const { t } = useTranslation();
 
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -45,24 +46,24 @@ export default function EmailVerificationScreen() {
   const handleSendVerificationEmail = async () => {
     if (!token) {
       showErrorToast({
-        title: ar.authenticationError,
-        message: ar.noAuthenticationTokenFound,
+        title: t('authenticationError'),
+        message: t('noAuthenticationTokenFound'),
       });
       return;
     }
 
     if (!user?.email) {
       showErrorToast({
-        title: ar.missingEmail,
-        message: ar.noEmailFoundForUser,
+        title: t('missingEmail'),
+        message: t('noEmailFoundForUser'),
       });
       return;
     }
 
     if (user?.isEmailVerified) {
       showInfoToast({
-        title: ar.alreadyVerified,
-        message: ar.emailAlreadyVerified,
+        title: t('alreadyVerified'),
+        message: t('emailAlreadyVerified'),
       });
       return;
     }
@@ -76,15 +77,15 @@ export default function EmailVerificationScreen() {
       setEmailSent(true);
 
       showSuccessToast({
-        title: ar.verificationEmailSent,
-        message: ar.verificationEmailSentMessage,
+        title: t('verificationEmailSent'),
+        message: t('verificationEmailSentMessage'),
       });
     } catch (error: unknown) {
       console.error('❌ Resend Verification Error:', error);
 
       showErrorToast({
-        title: ar.sendFailed,
-        message: getErrorMessage(error) || ar.failedToResendVerificationEmail,
+        title: t('sendFailed'),
+        message: getErrorMessage(error) || t('failedToResendVerificationEmail'),
       });
     } finally {
       setIsLoading(false);
@@ -95,16 +96,16 @@ export default function EmailVerificationScreen() {
   const handleVerifyEmail = async (verifyToken: string) => {
     if (!token) {
       showErrorToast({
-        title: ar.authenticationError,
-        message: ar.noAuthenticationTokenFound,
+        title: t('authenticationError'),
+        message: t('noAuthenticationTokenFound'),
       });
       return;
     }
 
     if (!verifyToken.trim()) {
       showErrorToast({
-        title: ar.missingToken,
-        message: ar.verificationTokenRequired,
+        title: t('missingToken'),
+        message: t('verificationTokenRequired'),
       });
       return;
     }
@@ -123,8 +124,8 @@ export default function EmailVerificationScreen() {
       }
 
       showSuccessToast({
-        title: ar.emailVerified,
-        message: ar.emailVerifiedSuccessfully,
+        title: t('emailVerified'),
+        message: t('emailVerifiedSuccessfully'),
       });
 
       setTimeout(() => {
@@ -134,8 +135,8 @@ export default function EmailVerificationScreen() {
       console.error('❌ Email Verification Error:', error);
 
       showErrorToast({
-        title: ar.verificationFailed,
-        message: getErrorMessage(error) || ar.failedToVerifyEmail,
+        title: t('verificationFailed'),
+        message: getErrorMessage(error) || t('failedToVerifyEmail'),
       });
     } finally {
       setIsLoading(false);
@@ -193,16 +194,16 @@ export default function EmailVerificationScreen() {
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>
-          {user?.isEmailVerified ? ar.emailVerified : ar.verifyYourEmail}
+          {user?.isEmailVerified ? t('emailVerified') : t('verifyYourEmail')}
         </Text>
 
         {/* Description */}
         <Text style={[styles.description, { color: colors.textSecondary }]}>
           {user?.isEmailVerified
-            ? ar.emailAlreadyVerifiedDescription
+            ? t('emailAlreadyVerifiedDescription')
             : emailSent
-            ? ar.verificationEmailSentDescription
-            : ar.emailNotVerifiedDescription}
+            ? t('verificationEmailSentDescription')
+            : t('emailNotVerifiedDescription')}
         </Text>
 
         {/* Email Display */}
@@ -235,14 +236,14 @@ export default function EmailVerificationScreen() {
               size={20}
               color={COLORS.success}
             />
-            <Text style={styles.verifiedText}>{ar.emailVerified}</Text>
+            <Text style={styles.verifiedText}>{t('emailVerified')}</Text>
           </View>
         )}
 
         {/* Benefits */}
         <View style={styles.benefitsContainer}>
           <Text style={[styles.benefitsTitle, { color: colors.text }]}>
-            {ar.whyVerifyYourEmail}
+            {t('whyVerifyYourEmail')}
           </Text>
 
           <View style={styles.benefitItem}>
@@ -252,7 +253,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              {ar.benefitSecureAccount}
+              {t('benefitSecureAccount')}
             </Text>
           </View>
 
@@ -263,7 +264,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              {ar.benefitReceiveNotifications}
+              {t('benefitReceiveNotifications')}
             </Text>
           </View>
 
@@ -274,7 +275,7 @@ export default function EmailVerificationScreen() {
               color={COLORS.primary}
             />
             <Text style={[styles.benefitText, { color: colors.textSecondary }]}>
-              {ar.benefitAccessPremium}
+              {t('benefitAccessPremium')}
             </Text>
           </View>
         </View>
@@ -301,8 +302,8 @@ export default function EmailVerificationScreen() {
                   <MaterialIcons name="send" size={20} color={'#FFFFFF'} />
                   <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>
                     {emailSent
-                      ? ar.resendVerificationEmail
-                      : ar.sendVerificationEmail}
+                      ? t('resendVerificationEmail')
+                      : t('sendVerificationEmail')}
                   </Text>
                 </>
               )}
@@ -310,7 +311,7 @@ export default function EmailVerificationScreen() {
             </TouchableOpacity>
 
             <Text style={[styles.helpText, { color: colors.textSecondary }]}>
-              {ar.didNotReceiveEmail}
+              {t('didNotReceiveEmail')}
             </Text>
           </>
         )}
@@ -331,7 +332,7 @@ export default function EmailVerificationScreen() {
               },
             ]}
           >
-            {user?.isEmailVerified ? ar.continue : ar.backToProfile}
+            {user?.isEmailVerified ? t('continue') : t('backToProfile')}
           </Text>
         </TouchableOpacity>
       </View>

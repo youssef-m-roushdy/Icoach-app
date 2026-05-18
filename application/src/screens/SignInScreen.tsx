@@ -28,7 +28,7 @@ import {
   showErrorToast,
   getErrorMessage,
 } from '../utils/toast';
-import ar from '../../i18n/locales/ar.json';
+import { useTranslation } from 'react-i18next';
 
 const { width, height } = Dimensions.get('window');
 
@@ -43,6 +43,7 @@ export default function SignInScreen() {
   const { login } = useAuth();
   const { systemBottomInset } = useSystemNavigation();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -55,8 +56,8 @@ export default function SignInScreen() {
   const handleLogin = async () => {
     if (!emailOrUsername.trim() || !password.trim()) {
       showErrorToast({
-        title: ar.missingFields,
-        message: ar.fillAllFields,
+        title: t('missingFields'),
+        message: t('fillAllFields'),
       });
       return;
     }
@@ -77,13 +78,13 @@ export default function SignInScreen() {
         );
 
         showSuccessToast({
-          title: ar.loginSuccessTitle,
-          message: ar.loginSuccessMessage,
+          title: t('loginSuccessTitle'),
+          message: t('loginSuccessMessage'),
         });
       } else {
         showErrorToast({
-          title: ar.loginFailedTitle,
-          message: ar.loginFailedMessage,
+          title: t('loginFailedTitle'),
+          message: t('loginFailedMessage'),
         });
       }
     } catch (error: unknown) {
@@ -95,13 +96,13 @@ export default function SignInScreen() {
         rawMessage.toLowerCase().includes('incorrect password') ||
         rawMessage.toLowerCase().includes('user not found')
       ) {
-        displayMessage = ar.invalidCredentials;
+        displayMessage = t('invalidCredentials');
       } else if (rawMessage.toLowerCase().includes('email not verified')) {
-        displayMessage = ar.emailNotVerified;
+        displayMessage = t('emailNotVerified');
       }
 
       showErrorToast({
-        title: ar.loginFailedTitle,
+        title: t('loginFailedTitle'),
         message: displayMessage,
       });
     } finally {
@@ -179,10 +180,10 @@ export default function SignInScreen() {
           >
             <View style={styles.headerContainer}>
               <Text style={[styles.welcomeText, { color: colors.text }]}>
-                {ar.welcomeBack}
+                {t('welcomeBack')}
               </Text>
               <Text style={[styles.subtitleText, { color: colors.textSecondary }]}>
-                {ar.signInSubtitle}
+                {t('signInSubtitle')}
               </Text>
             </View>
 
@@ -190,7 +191,7 @@ export default function SignInScreen() {
               {/* Email/Username Field */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  {ar.emailOrUsername}
+                  {t('emailOrUsername')}
                 </Text>
                 <View style={getInputWrapperStyle('emailOrUsername')}>
                   <Feather
@@ -200,7 +201,7 @@ export default function SignInScreen() {
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder={ar.enterEmailOrUsername}
+                    placeholder={t('enterEmailOrUsername')}
                     placeholderTextColor={isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
                     value={emailOrUsername}
                     onChangeText={setEmailOrUsername}
@@ -217,14 +218,14 @@ export default function SignInScreen() {
               <View style={styles.inputGroup}>
                 <View style={styles.passwordHeader}>
                   <Text style={[styles.inputLabel, { color: colors.text }]}>
-                    {ar.passwordLabel}
+                    {t('passwordLabel')}
                   </Text>
                   <TouchableOpacity
                     style={styles.forgotButton}
                     onPress={() => navigation.navigate('ForgotPassword')}
                   >
                     <Text style={[styles.forgotText, { color: colors.primary }]}>
-                      {ar.forgotPasswordQuestion}
+                      {t('forgotPasswordQuestion')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -237,7 +238,7 @@ export default function SignInScreen() {
                   />
                   <TextInput
                     style={[styles.input, { color: colors.text }]}
-                    placeholder={ar.enterPassword}
+                    placeholder={t('enterPassword')}
                     placeholderTextColor={isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)'}
                     value={password}
                     onChangeText={setPassword}
@@ -265,7 +266,7 @@ export default function SignInScreen() {
                 <TouchableOpacity style={styles.rememberMe}>
                   <View style={[styles.checkbox, { borderColor: isDarkMode ? 'rgba(255, 215, 0, 0.6)' : 'rgba(197, 152, 27, 0.5)' }]} />
                   <Text style={[styles.rememberText, { color: colors.textSecondary }]}>
-                    {ar.rememberMe}
+                    {t('rememberMe')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -287,7 +288,7 @@ export default function SignInScreen() {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                       >
-                        <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{ar.logIn}</Text>
+                        <Text style={[styles.signInButtonText, { color: '#FFFFFF' }]}>{t('logIn')}</Text>
                         <Feather name="arrow-right" size={20} color="#FFFFFF" />
                       </LinearGradient>
                     </TouchableOpacity>
@@ -295,7 +296,7 @@ export default function SignInScreen() {
                     <View style={styles.divider}>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
                       <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
-                        {ar.orContinueWith}
+                        {t('orContinueWith')}
                       </Text>
                       <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
                     </View>
@@ -309,11 +310,11 @@ export default function SignInScreen() {
             {/* Sign Up Link */}
             <View style={styles.signUpContainer}>
               <Text style={[styles.signUpText, { color: colors.textSecondary }]}>
-                {ar.newToICoach}
+                {t('newToICoach')}
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
                 <Text style={[styles.signUpLink, { color: colors.primary }]}>
-                  {ar.createAccount}
+                  {t('createAccount')}
                 </Text>
               </TouchableOpacity>
             </View>
