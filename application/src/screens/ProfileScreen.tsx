@@ -36,6 +36,7 @@ import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScro
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SuccessModal from '../components/common/SuccessModal';
+import { LanguageSelector } from '../components/common/LanguageSelector';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -56,7 +57,7 @@ export default function ProfileScreen() {
   const imageOptionsSheetRef = React.useRef<BottomSheetModal>(null);
   const settingsSheetRef = React.useRef<BottomSheetModal>(null);
   const imageOptionsSnapPoints = React.useMemo(() => ['30%'], []);
-  const settingsSnapPoints = React.useMemo(() => ['65%', '85%'], []);
+  const settingsSnapPoints = React.useMemo(() => ['75%', '90%'], []);
 
   const modalSheetBg = theme === 'dark' ? '#1C1C1E' : '#FFFFFF';
   
@@ -382,7 +383,7 @@ export default function ProfileScreen() {
     );
   };
 
-  // Settings Modal with Professional Theme Switcher
+  // Settings Modal with Theme Switcher and Language Selector
   const renderSettingsModal = () => {
     return (
       <BottomSheetModal
@@ -427,6 +428,22 @@ export default function ProfileScreen() {
           <View style={styles.settingsGroup}>
             <Text style={[styles.settingsGroupTitle, { color: colors.primary }]}>{t('preferences')}</Text>
             
+            {/* Language Selector */}
+            <View style={styles.languageSelectorContainer}>
+              <View style={styles.languageSelectorHeader}>
+                <View style={[styles.settingsIconContainer, { backgroundColor: colors.iconBg }]}>
+                  <Feather name="globe" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.languageSelectorTextContainer}>
+                  <Text style={[styles.settingsItemText, { color: colors.text }]}>{t('language') || 'Language'}</Text>
+                  <Text style={[styles.languageSelectorSubtext, { color: colors.textSecondary }]}>
+                    {t('selectPreferredLanguage') || 'Choose your preferred language'}
+                  </Text>
+                </View>
+                <LanguageSelector />
+              </View>
+            </View>
+
             {/* Professional Theme Switcher */}
             <View style={styles.themeSwitcherContainer}>
               <View style={styles.themeSwitcherHeader}>
@@ -1292,6 +1309,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: COLORS.error + '10',
     justifyContent: 'center',
+  },
+  // Language Selector Styles
+  languageSelectorContainer: {
+    marginBottom: 8,
+  },
+  languageSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  languageSelectorTextContainer: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  languageSelectorSubtext: {
+    fontSize: 12,
+    marginTop: 2,
   },
   // Professional Theme Switcher Styles
   themeSwitcherContainer: {

@@ -728,5 +728,28 @@
   "editStepGoalSubtitle": "حدد هدف الخطوات اليومي (1,000 - 50,000)",
   "editWaterGoalSubtitle": "حدد هدف الماء اليومي باللتر (0.5 - 10.0)",
   "targetAreaFilterLabel": "المنطقة المستهدفة",
-  "equipmentFilterLabel": "المعدات"
+  "equipmentFilterLabel": "المعدات",
+   "signInWithGoogle": "تسجيل الدخول باستخدام Google",
+  "signUpWithGoogle": "التسجيل باستخدام Google",
+  "serverAuthenticationFailed": "فشل مصادقة الخادم. يرجى المحاولة مرة أخرى.",
+  "welcomeGoogleUser": "مرحبًا، {name}!",
+  "welcomeBackGoogleUser": "مرحبًا بعودتك، {name}!",
+  "signUpSuccess": "تم التسجيل بنجاح",
+  "googleSignInFailed": "فشل تسجيل الدخول باستخدام Google. يرجى المحاولة مرة أخرى.",
+  "signInCancelled": "تم إلغاء تسجيل الدخول",
+  "signInInProgress": "تسجيل الدخول قيد التنفيذ بالفعل",
+  "playServicesNotAvailable": "خدمات Google Play غير متوفرة",
+  "signUpFailed": "فشل التسجيل",
+  
+  "main": "الرئيسية",
+  "social": "اجتماعي",
+  "settings": "الإعدادات",
+  
+  "myProfile": "ملفي الشخصي",
+  "myProgress": "تقدمي",
+  "helpAndSupport": "المساعدة والدعم",
+  
+  "dailyActivityDetails": "نشاط الخطوات",
+  "verifyEmail": "تأكيد البريد الإلكتروني"
+  
   }

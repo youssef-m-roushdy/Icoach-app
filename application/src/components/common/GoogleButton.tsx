@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context';
 import { COLORS, SIZES } from '../../constants';
 import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from 'react-i18next';
 import { AntDesign } from '@expo/vector-icons';
 import {
   showSuccessToast,
@@ -34,9 +35,10 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
   const navigation = useNavigation();
   const { setAuthState } = useAuth();
   const { theme, colors } = useTheme();
+  const { t } = useTranslation();
   const isDarkMode = theme === 'dark';
 
-  const buttonText = mode === 'signup' ? 'Sign up with Google' : 'Sign in with Google';
+  const buttonText = mode === 'signup' ? t('signUpWithGoogle') : t('signInWithGoogle');
 
   // Configure Google Sign-In once when component mounts
   useEffect(() => {
@@ -97,7 +99,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
         const data = await serverResponse.json();
 
         if (!serverResponse.ok || !data.success) {
-          throw new Error(data.message || 'Server authentication failed');
+          throw new Error(data.message || t('serverAuthenticationFailed'));
         }
 
         // Store tokens locally
@@ -113,26 +115,30 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
           data.data.refreshToken
         );
 
+        const welcomeMessage = mode === 'signup' 
+          ? t('welcomeGoogleUser').replace('{name}', data.data.user.firstName || data.data.user.username)
+          : t('welcomeBackGoogleUser').replace('{name}', data.data.user.firstName || data.data.user.username);
+
         showSuccessToast({
-          title: 'Login Successful',
-          message: `Welcome back, ${data.data.user.firstName || data.data.user.username}!`,
+          title: mode === 'signup' ? t('signUpSuccess') : t('loginSuccessTitle'),
+          message: welcomeMessage,
         });
       }
     } catch (error: any) {
       console.error('❌ Google login error:', error);
 
-      let errorMessage = 'Failed to sign in with Google. Please try again.';
+      let errorMessage = t('googleSignInFailed');
 
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.SIGN_IN_CANCELLED:
-            errorMessage = 'Sign-in was cancelled';
+            errorMessage = t('signInCancelled');
             break;
           case statusCodes.IN_PROGRESS:
-            errorMessage = 'Sign-in is already in progress';
+            errorMessage = t('signInInProgress');
             break;
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-            errorMessage = 'Google Play Services not available';
+            errorMessage = t('playServicesNotAvailable');
             break;
           default:
             errorMessage = error.message || errorMessage;
@@ -140,7 +146,7 @@ export const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin' }) =
       }
 
       showErrorToast({
-        title: 'Login Failed',
+        title: mode === 'signup' ? t('signUpFailed') : t('loginFailedTitle'),
         message: getErrorMessage(error) || errorMessage,
       });
     } finally {

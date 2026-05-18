@@ -9,6 +9,7 @@ import { useColorScheme, Image, Platform, AppState } from 'react-native';
 import { useAuth } from '../context';
 import { useTheme } from '../context/ThemeContext';
 import { useSystemNavigation } from '../context/SystemNavigationContext';
+import { useTranslation } from 'react-i18next';
 
 // Screen imports
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -181,6 +182,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   const [profilePressed, setProfilePressed] = useState(false);
   const [menuPressed, setMenuPressed] = useState(false);
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   return (
     <View style={[
@@ -261,6 +263,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { systemBottomInset } = useSystemNavigation();
+  const { t } = useTranslation();
 
   const threeButtonInset = Math.max(40, 0);
   const geastureSwapInset = Math.max(0, 5);
@@ -271,6 +274,18 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   if (currentOptions.tabBarStyle?.display === 'none') {
     return null;
   }
+
+  // Tab labels with translations
+  const getTabLabel = (routeName: string): string => {
+    switch (routeName) {
+      case 'Home': return t('home');
+      case 'Workouts': return t('workouts');
+      case 'Progress': return t('progress');
+      case 'Nutrition': return t('nutrition');
+      case 'Profile': return t('profile');
+      default: return routeName;
+    }
+  };
 
   return (
     <View style={[
@@ -289,12 +304,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       ]}>
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
-          const label = options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-              ? options.title
-              : route.name;
-
           const isFocused = state.index === index;
 
           const onPress = () => {
@@ -361,7 +370,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                   marginTop: -2,
                 }
               ]}>
-                {label}
+                {getTabLabel(route.name)}
               </Text>
             </TouchableOpacity>
           );
@@ -374,6 +383,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 // Bottom Tab Navigator (Floating Navigation)
 function BottomTabNavigator() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -387,27 +397,27 @@ function BottomTabNavigator() {
         <Tab.Screen
           name="Home"
           component={HomeScreen}
-          options={{ tabBarLabel: 'Home' }}
+          options={{ tabBarLabel: t('home') }}
         />
         <Tab.Screen
           name="Workouts"
           component={WorkoutsScreen}
-          options={{ tabBarLabel: 'Workouts' }}
+          options={{ tabBarLabel: t('workouts') }}
         />
         <Tab.Screen
           name="Progress"
           component={GymProgressScreen}
-          options={{ tabBarLabel: 'Progress' }}
+          options={{ tabBarLabel: t('progress') }}
         />
         <Tab.Screen
           name="Nutrition"
           component={FoodsScreen}
-          options={{ tabBarLabel: 'Nutrition' }}
+          options={{ tabBarLabel: t('nutrition') }}
         />
         <Tab.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ tabBarLabel: 'Profile' }}
+          options={{ tabBarLabel: t('profile') }}
         />
       </Tab.Navigator>
     </View>
@@ -424,6 +434,7 @@ interface DrawerMenuProps {
 function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
   const { logout, user } = useAuth();
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -493,7 +504,7 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
     }
     if (user?.firstName) return user.firstName;
     if (user?.username) return user.username;
-    return 'User';
+    return t('user');
   };
 
   const getUserInitials = () => {
@@ -507,32 +518,32 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
 
   const menuSections = [
     {
-      title: 'MAIN',
+      title: t('main'),
       items: [
-        { icon: 'home', label: 'Home', screen: 'MainTabs' as const, params: { screen: 'Home' } },
-        { icon: 'person', label: 'My Profile', screen: 'Profile' as const },
-        { icon: 'restaurant', label: 'Nutrition', screen: 'MainTabs' as const, params: { screen: 'Nutrition' } },
-        { icon: 'fitness-center', label: 'Workouts', screen: 'MainTabs' as const, params: { screen: 'Workouts' } },
-        { icon: 'bookmark', label: 'Saved Workouts', screen: 'SavedWorkouts' as const },
-        { icon: 'history', label: 'Workout History', screen: 'WorkoutHistory' as const },
-        { icon: 'trending-up', label: 'My Progress', screen: 'MainTabs' as const, params: { screen: 'Progress' } },
-        { icon: 'videocam', label: 'AI Coach', screen: 'LiveWorkout' as const },
-        { icon: 'chat', label: 'AI Coach', screen: 'Chatbot' as const },
-        { icon: 'notifications', label: 'Notifications', screen: 'Notifications' as const },
+        { icon: 'home', label: t('home'), screen: 'MainTabs' as const, params: { screen: 'Home' } },
+        { icon: 'person', label: t('myProfile'), screen: 'Profile' as const },
+        { icon: 'restaurant', label: t('nutrition'), screen: 'MainTabs' as const, params: { screen: 'Nutrition' } },
+        { icon: 'fitness-center', label: t('workouts'), screen: 'MainTabs' as const, params: { screen: 'Workouts' } },
+        { icon: 'bookmark', label: t('savedWorkouts'), screen: 'SavedWorkouts' as const },
+        { icon: 'history', label: t('workoutHistory'), screen: 'WorkoutHistory' as const },
+        { icon: 'trending-up', label: t('myProgress'), screen: 'MainTabs' as const, params: { screen: 'Progress' } },
+        { icon: 'videocam', label: t('aiCoachCamera'), screen: 'LiveWorkout' as const },
+        { icon: 'chat', label: t('aiCoachChat'), screen: 'Chatbot' as const },
+        { icon: 'notifications', label: t('notifications'), screen: 'Notifications' as const },
       ]
     },
     {
-      title: 'SOCIAL',
+      title: t('social'),
       items: [
-        { icon: 'message', label: 'Messages', screen: 'Messages' as const },
+        { icon: 'message', label: t('messages'), screen: 'Messages' as const },
       ]
     },
     {
-      title: 'SETTINGS',
+      title: t('settings'),
       items: [
-        { icon: 'settings', label: 'Settings', screen: 'EditProfile' as const },
-        { icon: 'help', label: 'Help & Support', screen: 'Messages' as const },
-        { icon: 'info', label: 'About', screen: 'Messages' as const },
+        { icon: 'settings', label: t('settings'), screen: 'EditProfile' as const },
+        { icon: 'help', label: t('helpAndSupport'), screen: 'Messages' as const },
+        { icon: 'info', label: t('about'), screen: 'Messages' as const },
       ]
     }
   ];
@@ -635,7 +646,7 @@ function DrawerMenu({ visible, onClose, navigation }: DrawerMenuProps) {
             <View style={[styles.logoutIconContainer, { backgroundColor: '#ef444408' }]}>
               <MaterialIcons name="logout" size={22} color="#ef4444" />
             </View>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -651,6 +662,7 @@ export const AppNavigator: React.FC = () => {
   const isDark = colorScheme === 'dark';
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigationRef, setNavigationRef] = useState<any>(null);
+  const { t } = useTranslation();
   usePushNotifications();
 
   useEffect(() => {
@@ -679,12 +691,12 @@ export const AppNavigator: React.FC = () => {
         const senderName =
           [sender?.firstName, sender?.lastName].filter(Boolean).join(' ') ||
           sender?.username ||
-          'New message';
+          t('newMessage');
 
         await Notifications.scheduleNotificationAsync({
           content: {
             title: senderName,
-            body: payload.message.content || 'New message',
+            body: payload.message.content || t('newMessage'),
             sound: 'default',
             data: {
               type: 'chat',
@@ -712,7 +724,7 @@ export const AppNavigator: React.FC = () => {
     return () => {
       socketService.setEventHandlers({ onMessageNew: undefined });
     };
-  }, [isAuthenticated, navigationRef, user?.id]);
+  }, [isAuthenticated, navigationRef, user?.id, t]);
 
   useEffect(() => {
     if (!navigationRef) return;
@@ -727,17 +739,12 @@ export const AppNavigator: React.FC = () => {
         const conversationId = Number(data.conversationId);
         if (Number.isNaN(conversationId)) return;
 
-        // The Expo push payload from socketService does not include participant
-        // data (we only send conversationId + type). Navigate to ChatThread when
-        // participant is present (e.g. future enrichment), otherwise fall back to
-        // the Messages list so the user can tap into the right thread.
         if (data?.participant) {
           navigationRef.navigate('ChatThread', {
             conversationId,
             participant: data.participant,
           });
         } else {
-          // Safe fallback: takes the user to their message list
           navigationRef.navigate('Messages');
         }
       }
@@ -832,7 +839,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Water Intake"
+                      title={t('waterIntakeDetails')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -848,7 +855,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Step Activity"
+                      title={t('dailyActivityDetails')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -864,7 +871,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Saved Workouts"
+                      title={t('savedWorkouts')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -880,7 +887,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Workout History"
+                      title={t('workoutHistory')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -900,7 +907,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Food Database"
+                      title={t('foodDatabase')}
                       onProfilePress={() => { }}
                       onMenuPress={() => { }}
                       colors={colors}
@@ -925,7 +932,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="AI Coach"
+                      title={t('aiCoach')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -941,7 +948,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Messages"
+                      title={t('messages')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -959,7 +966,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Edit Profile"
+                      title={t('editProfile')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -975,7 +982,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Edit Body Info"
+                      title={t('editBodyInfo')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -991,7 +998,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Change Password"
+                      title={t('changePassword')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -1012,7 +1019,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Verify Email"
+                      title={t('verifyEmail')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -1028,7 +1035,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="AI Coach"
+                      title={t('aiCoach')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}
@@ -1044,7 +1051,7 @@ export const AppNavigator: React.FC = () => {
                 options={({ navigation }) => ({
                   header: () => (
                     <CustomHeader
-                      title="Notifications"
+                      title={t('notifications')}
                       onProfilePress={() => {}}
                       onMenuPress={() => {}}
                       colors={colors}

@@ -728,5 +728,27 @@
   "editStepGoalSubtitle": "Set your daily step goal (1,000 - 50,000)",
   "editWaterGoalSubtitle": "Set your daily water goal in liters (0.5 - 10.0)",
   "targetAreaFilterLabel": "Target Area",
-  "equipmentFilterLabel": "Equipment"
+  "equipmentFilterLabel": "Equipment",
+  "signInWithGoogle": "Sign in with Google",
+  "signUpWithGoogle": "Sign up with Google",
+  "serverAuthenticationFailed": "Server authentication failed. Please try again.",
+  "welcomeGoogleUser": "Welcome, {name}!",
+  "welcomeBackGoogleUser": "Welcome back, {name}!",
+  "signUpSuccess": "Sign Up Successful",
+  "googleSignInFailed": "Failed to sign in with Google. Please try again.",
+  "signInCancelled": "Sign-in was cancelled",
+  "signInInProgress": "Sign-in is already in progress",
+  "playServicesNotAvailable": "Google Play Services not available",
+  "signUpFailed": "Sign Up Failed",
+  
+  "main": "MAIN",
+  "social": "SOCIAL",
+  "settings": "SETTINGS",
+  
+  "myProfile": "My Profile",
+  "myProgress": "My Progress",
+  "helpAndSupport": "Help & Support",
+  
+  "dailyActivityDetails": "Step Activity",
+  "verifyEmail": "Verify Email"
 }
