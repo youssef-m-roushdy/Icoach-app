@@ -210,6 +210,7 @@ interface DateInputProps {
 
 const DateInput: React.FC<DateInputProps> = ({ value, onChange }) => {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     if (value) {
