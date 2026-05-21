@@ -222,6 +222,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('❌ No refresh token available in storage');
         const allKeys = await AsyncStorage.getAllKeys();
         console.log('🔑 Stored keys:', allKeys);
+        await logout();
         return null;
       }
 
@@ -246,6 +247,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       console.warn('⚠️ Refresh response did not contain a valid access token');
+      await logout();
       return null;
     } catch (error) {
       console.error('❌ Token refresh failed:', error);

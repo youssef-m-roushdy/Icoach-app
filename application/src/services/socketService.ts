@@ -1,6 +1,6 @@
 // application/src/services/socketService.ts
 import { io, Socket } from 'socket.io-client';
-import { API_BASE_URL } from './api';
+import { API_BASE_URL, getGlobalRefreshTokenFunction } from './api';
 
 // Extract the base URL from API_BASE_URL (remove /api path)
 export const GATEWAY_URL = API_BASE_URL.replace(/\/api$/, '').replace(/\/api\/v1$/, '');
@@ -68,6 +68,69 @@ class SocketService {
   private messageStatusListeners = new Set<(data: MessageStatusPayload) => void>();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
+  private refreshPromise: Promise<string | null> | null = null;
+
+  private isAuthTokenError(error: Error): boolean {
+    const message = (error?.message || '').toLowerCase();
+    return message.includes('authentication token');
+  }
+
+  private updateSocketAuth(token: string): void {
+    this.authToken = token;
+
+    if (!this.socket) return;
+
+    this.socket.auth = { token };
+    const existingHeaders = this.socket.io.opts.extraHeaders || {};
+    this.socket.io.opts.extraHeaders = {
+      ...existingHeaders,
+      Authorization: `Bearer ${token}`,
+      'X-Client-Type': 'mobile-app',
+    };
+  }
+
+  private async refreshAuthToken(): Promise<string | null> {
+    const refreshFn = getGlobalRefreshTokenFunction();
+    if (!refreshFn) return null;
+
+    if (!this.refreshPromise) {
+      this.refreshPromise = (async () => {
+        try {
+          return await refreshFn();
+        } catch (refreshError) {
+          console.error('❌ [GATEWAY SOCKET] Token refresh failed:', refreshError);
+          return null;
+        }
+      })().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+
+    return this.refreshPromise;
+  }
+
+  private async handleAuthError(error: Error): Promise<void> {
+    if (this.refreshPromise) return;
+
+    const refreshFn = getGlobalRefreshTokenFunction();
+    if (!refreshFn) {
+      console.error('❌ [GATEWAY SOCKET] Connection error:', error.message);
+      return;
+    }
+
+    console.warn('⚠️ [GATEWAY SOCKET] Invalid access token, attempting refresh...');
+    const newToken = await this.refreshAuthToken();
+
+    if (newToken) {
+      console.log('✅ [GATEWAY SOCKET] Token refreshed, reconnecting socket...');
+      this.updateSocketAuth(newToken);
+      this.reconnectAttempts = 0;
+      this.socket?.connect();
+      return;
+    }
+
+    console.warn('⚠️ [GATEWAY SOCKET] Token refresh failed; socket will remain disconnected');
+  }
 
   /**
    * Connect to the Socket.IO server THROUGH API GATEWAY
@@ -228,6 +291,11 @@ class SocketService {
 
     // Connection error
     this.socket.on('connect_error', (error: Error) => {
+      if (this.isAuthTokenError(error)) {
+        void this.handleAuthError(error);
+        return;
+      }
+
       console.error('❌ [GATEWAY SOCKET] Connection error:', error.message);
       this.reconnectAttempts++;
 

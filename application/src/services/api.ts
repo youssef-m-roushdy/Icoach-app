@@ -25,6 +25,8 @@ export const setGlobalRefreshTokenFunction = (
   globalRefreshTokenFunction = fn;
 };
 
+export const getGlobalRefreshTokenFunction = () => globalRefreshTokenFunction;
+
 // ===============================
 // API Error class
 // ===============================
