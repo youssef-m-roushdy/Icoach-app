@@ -63,7 +63,6 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "expo-dev-client": "~6.0.17",
     "@types/react": "~19.1.0",
     "@types/react-native-vector-icons": "^6.4.18",
     "babel-preset-expo": "^54.0.7",
