@@ -1,0 +1,88 @@
+# =========================
+# Compiled output
+# =========================
+/dist
+/tmp
+/out-tsc
+/bazel-out
+
+# =========================
+# Node
+# =========================
+/node_modules
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Environment files (IMPORTANT)
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Angular cache
+# =========================
+/.angular/cache
+/.angular
+.sass-cache/
+
+# =========================
+# Coverage & test reports
+# =========================
+/coverage
+/test-results
+/karma-results
+
+# =========================
+# IDEs and editors
+# =========================
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# =========================
+# VS Code
+# =========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+.history/*
+
+# =========================
+# Logs & runtime
+# =========================
+*.log
+connect.lock
+libpeerconnection.log
+testem.log
+
+# =========================
+# Misc
+# =========================
+/typings
+__screenshots__/
+
+# =========================
+# System files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Build artifacts (extra safety)
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Angular standalone artifacts
+# =========================
+.angular/
