@@ -1,0 +1,32 @@
+<div class="dashboard">
+  <app-page-header
+    title="Dashboard"
+    [breadcrumbs]="[{ label: 'Dashboard' }]">
+  </app-page-header>
+
+  @if (isLoading()) {
+    <div class="stats-grid skeleton-grid">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="skeleton-card"></div>
+      }
+    </div>
+  } @else {
+    <div class="stats-grid">
+      <app-stats-card label="Total Users" [value]="stats().totalUsers" icon="group" color="blue" sub="Registered accounts"></app-stats-card>
+      <app-stats-card label="Active Users" [value]="stats().activeUsers" icon="person_check" color="emerald" sub="Last 30 days"></app-stats-card>
+      <app-stats-card label="Total Foods" [value]="stats().totalFoods" icon="restaurant" color="amber" sub="In database"></app-stats-card>
+      <app-stats-card label="Total Workouts" [value]="stats().totalWorkouts" icon="fitness_center" color="rose" sub="Exercises"></app-stats-card>
+    </div>
+  }
+
+  <div class="dashboard__info">
+    <div class="info-card">
+      <h3>Quick Access</h3>
+      <p>Use the sidebar to navigate between Users, Foods, and Workouts management sections. All CRUD operations are available from their respective list views.</p>
+    </div>
+    <div class="info-card info-card--accent">
+      <h3>API Gateway</h3>
+      <p>All requests are routed through the Ocelot gateway. JWT tokens are refreshed automatically on 401 responses.</p>
+    </div>
+  </div>
+</div>

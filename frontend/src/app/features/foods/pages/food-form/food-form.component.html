@@ -1,0 +1,74 @@
+<div class="food-form-page">
+  <app-page-header [title]="isEdit() ? 'Edit Food' : 'Add Food'"
+    [breadcrumbs]="[{label:'Dashboard',link:'/dashboard'},{label:'Foods',link:'/foods'},{label:isEdit()?'Edit':'Add'}]">
+    <a mat-button routerLink="/foods"><mat-icon>arrow_back</mat-icon> Back</a>
+  </app-page-header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="food-form">
+    <div class="form-section">
+      <h3>Basic Information</h3>
+      <div class="form-row">
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Food Name</mat-label>
+          <input matInput formControlName="name" placeholder="e.g. Grilled Chicken Breast">
+          @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+            <mat-error>Name is required</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Category</mat-label>
+          <mat-select formControlName="category">
+            @for (cat of categories; track cat) {
+              <mat-option [value]="cat">{{ cat }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Nutrition (per serving)</h3>
+      <div class="nutrition-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Calories (kcal)</mat-label>
+          <input matInput type="number" formControlName="calories">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Protein (g)</mat-label>
+          <input matInput type="number" formControlName="protein">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Carbs (g)</mat-label>
+          <input matInput type="number" formControlName="carbs">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Fat (g)</mat-label>
+          <input matInput type="number" formControlName="fat">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Fiber (g)</mat-label>
+          <input matInput type="number" formControlName="fiber">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Serving Size</mat-label>
+          <input matInput type="number" formControlName="servingSize">
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Food Image</h3>
+      <app-file-upload accept="image/*" hint="PNG, JPG up to 5MB" (fileSelected)="onImageSelected($event)"></app-file-upload>
+      @if (uploadProgress() > 0 && uploadProgress() < 100) {
+        <div class="progress-bar"><div class="progress-bar__fill" [style.width.%]="uploadProgress()"></div></div>
+      }
+    </div>
+
+    <div class="form-actions">
+      <a mat-button routerLink="/foods">Cancel</a>
+      <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || isSubmitting()">
+        @if (isSubmitting()) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ isEdit() ? 'Update Food' : 'Create Food' }} }
+      </button>
+    </div>
+  </form>
+</div>

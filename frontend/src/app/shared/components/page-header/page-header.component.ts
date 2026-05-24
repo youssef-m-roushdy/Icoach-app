@@ -1,14 +1,13 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
 
 export interface Breadcrumb { label: string; link?: string; }
 
 @Component({
   selector: 'app-page-header',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule],
+  imports: [CommonModule, RouterModule],
   template: `
     <div class="page-header">
       <div class="page-header__main">
@@ -21,7 +20,7 @@ export interface Breadcrumb { label: string; link?: string; }
               } @else {
                 <span [class.active]="last">{{ crumb.label }}</span>
               }
-              @if (!last) { <mat-icon class="sep">chevron_right</mat-icon> }
+              @if (!last) { <span class="sep">/</span> }
             }
           </nav>
         }
@@ -38,7 +37,7 @@ export interface Breadcrumb { label: string; link?: string; }
     .page-header__breadcrumbs a { color: var(--accent); text-decoration: none; font-size: 0.8rem; }
     .page-header__breadcrumbs span { font-size: 0.8rem; color: var(--text-muted); }
     .page-header__breadcrumbs span.active { color: var(--text-secondary); }
-    .sep { font-size: 14px !important; color: var(--text-muted); }
+    .sep { font-size: 0.8rem; color: var(--text-muted); margin: 0 4px; }
     .page-header__actions { display: flex; gap: 10px; align-items: center; }
   `]
 })

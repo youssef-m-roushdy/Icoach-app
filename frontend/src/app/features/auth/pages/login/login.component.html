@@ -1,0 +1,52 @@
+<div class="login-page">
+  <div class="login-bg">
+    <div class="login-bg__orb login-bg__orb--1"></div>
+    <div class="login-bg__orb login-bg__orb--2"></div>
+    <div class="login-bg__grid"></div>
+  </div>
+
+  <div class="login-card">
+    <div class="login-card__brand">
+      <div class="brand-icon">
+        <span>iC</span>
+      </div>
+      <h1>iCoach Admin</h1>
+      <p>Sign in to your dashboard</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" placeholder="admin@icoach.app">
+        <mat-icon matPrefix>mail_outline</mat-icon>
+        @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+          <mat-error>Email is required</mat-error>
+        } @else if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+          <mat-error>Invalid email</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Password</mat-label>
+        <input matInput [type]="hidePassword() ? 'password' : 'text'" formControlName="password">
+        <mat-icon matPrefix>lock_outline</mat-icon>
+        <button type="button" mat-icon-button matSuffix (click)="hidePassword.set(!hidePassword())">
+          <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+        @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+          <mat-error>Password is required</mat-error>
+        } @else if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
+          <mat-error>Minimum 6 characters</mat-error>
+        }
+      </mat-form-field>
+
+      <button mat-flat-button type="submit" class="login-btn" [disabled]="form.invalid || isLoading()">
+        @if (isLoading()) {
+          <mat-spinner diameter="20"></mat-spinner>
+        } @else {
+          Sign In
+        }
+      </button>
+    </form>
+  </div>
+</div>

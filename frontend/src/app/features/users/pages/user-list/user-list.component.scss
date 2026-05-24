@@ -1,0 +1,4 @@
+.user-list { animation: fadeIn 0.3s ease-out; }
+.actions-cell { display: flex; gap: 4px; }
+.delete-btn { color: #f43f5e; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

@@ -4,7 +4,7 @@ import { Observable, tap } from 'rxjs';
 import { ApiService } from '../services/api.service';
 import { StorageService } from '../services/storage.service';
 import { ApiResponse } from '../models/api-response.interface';
-import { LoginDto, LoginResponse } from './auth.interfaces';
+import { LoginDto, LoginResponse } from '../models/auth.interfaces';
 
 const TOKEN_KEY = 'icoach_access_token';
 const USER_KEY = 'icoach_user';

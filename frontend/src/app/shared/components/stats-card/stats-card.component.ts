@@ -1,15 +1,14 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-stats-card',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule],
   template: `
     <div class="stats-card" [class]="'stats-card--' + color">
       <div class="stats-card__icon">
-        <mat-icon>{{ icon }}</mat-icon>
+        <span>{{ icon.slice(0, 1).toUpperCase() }}</span>
       </div>
       <div class="stats-card__body">
         <span class="stats-card__value">{{ value | number }}</span>
@@ -38,7 +37,7 @@ import { MatIconModule } from '@angular/material/icon';
     .stats-card__icon {
       width: 52px; height: 52px; border-radius: 14px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; flex-shrink: 0;
+      font-size: 1rem; font-weight: 700; flex-shrink: 0;
     }
     .stats-card--emerald .stats-card__icon { background: rgba(16,185,129,0.15); color: #10b981; }
     .stats-card--blue .stats-card__icon { background: rgba(59,130,246,0.15); color: #3b82f6; }
