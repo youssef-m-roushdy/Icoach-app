@@ -608,4 +608,58 @@ export class UserController {
       next(error);
     }
   }
+
+  /**
+   * Create a new user by admin (admin only)
+   * Admin can choose the role for the new user
+   */
+  static async createUserByAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, password, username, firstName, lastName, role } = req.body;
+      
+      // Validate required fields
+      if (!email || !password || !username) {
+        throw new AppError('Email, password, and username are required', 400);
+      }
+      
+      // Validate role if provided
+      const allowedRoles = ['user', 'admin', 'moderator', 'trainer']; // Add your allowed roles
+      const userRole = role || 'user';
+      
+      if (!allowedRoles.includes(userRole)) {
+        throw new AppError(`Invalid role. Allowed roles: ${allowedRoles.join(', ')}`, 400);
+      }
+      
+      // Create user with the specified role
+      const userData = {
+        email,
+        password,
+        username,
+        firstName,
+        lastName,
+        role: userRole,
+        isEmailVerified: true, // Admin-created users are pre-verified
+      };
+      
+      const user = await UserService.createUser(userData);
+      
+      // Optional: Send welcome email to the new user
+      try {
+        await EmailService.sendWelcomeEmail(email, firstName || username);
+      } catch (emailError) {
+        console.warn('Failed to send welcome email:', emailError);
+        // Don't fail the user creation if email fails
+      }
+      
+      res.status(201).json({
+        success: true,
+        message: `User created successfully with role: ${userRole}`,
+        data: {
+          user,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

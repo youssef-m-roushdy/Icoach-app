@@ -1,10 +1,10 @@
 <div class="user-form-page">
   <app-page-header 
-    title="Edit User" 
+    [title]="pageTitle()" 
     [breadcrumbs]="[
       {label:'Dashboard', link:'/dashboard'},
       {label:'Users', link:'/users'},
-      {label:'Edit User'}
+      {label: pageTitle()}
     ]">
     <div class="header-actions">
       <a mat-button class="back-btn" routerLink="/users">
@@ -15,10 +15,10 @@
   </app-page-header>
 
   @if (isLoadingUser()) {
-    <div class="loading-state">
+    <div class="loading-container">
       <div class="loading-card">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p>Loading user profile...</p>
+        <div class="loading-spinner"></div>
+        <p>Loading user data...</p>
       </div>
     </div>
   } @else {
@@ -34,7 +34,7 @@
               </div>
               <div>
                 <h2>Personal Information</h2>
-                <p>Update user's basic details and contact information</p>
+                <p>{{ isEdit() ? 'Update user\'s basic details and contact information' : 'Enter basic information for the new user' }}</p>
               </div>
             </div>
           </div>
@@ -44,7 +44,7 @@
               <div class="form-field">
                 <label class="field-label">
                   <mat-icon>badge</mat-icon>
-                  <span>First Name</span>
+                  <span>First Name <span class="required">*</span></span>
                 </label>
                 <input 
                   matInput 
@@ -55,7 +55,7 @@
                 @if (form.get('firstName')?.invalid && form.get('firstName')?.touched) {
                   <div class="field-error">
                     <mat-icon>error</mat-icon>
-                    <span>First name is required</span>
+                    <span>{{ getErrorMessage('firstName') }}</span>
                   </div>
                 }
               </div>
@@ -63,7 +63,7 @@
               <div class="form-field">
                 <label class="field-label">
                   <mat-icon>badge</mat-icon>
-                  <span>Last Name</span>
+                  <span>Last Name <span class="required">*</span></span>
                 </label>
                 <input 
                   matInput 
@@ -74,7 +74,7 @@
                 @if (form.get('lastName')?.invalid && form.get('lastName')?.touched) {
                   <div class="field-error">
                     <mat-icon>error</mat-icon>
-                    <span>Last name is required</span>
+                    <span>{{ getErrorMessage('lastName') }}</span>
                   </div>
                 }
               </div>
@@ -82,7 +82,7 @@
               <div class="form-field">
                 <label class="field-label">
                   <mat-icon>account_circle</mat-icon>
-                  <span>Username</span>
+                  <span>Username <span class="required">*</span></span>
                 </label>
                 <input 
                   matInput 
@@ -93,7 +93,7 @@
                 @if (form.get('username')?.invalid && form.get('username')?.touched) {
                   <div class="field-error">
                     <mat-icon>error</mat-icon>
-                    <span>Username is required</span>
+                    <span>{{ getErrorMessage('username') }}</span>
                   </div>
                 }
               </div>
@@ -101,7 +101,7 @@
               <div class="form-field">
                 <label class="field-label">
                   <mat-icon>email</mat-icon>
-                  <span>Email Address</span>
+                  <span>Email Address <span class="required">*</span></span>
                 </label>
                 <input 
                   matInput 
@@ -113,67 +113,110 @@
                 @if (form.get('email')?.invalid && form.get('email')?.touched) {
                   <div class="field-error">
                     <mat-icon>error</mat-icon>
-                    <span>Valid email is required</span>
+                    <span>{{ getErrorMessage('email') }}</span>
                   </div>
                 }
               </div>
 
-              <div class="form-field">
-                <label class="field-label">
-                  <mat-icon>phone</mat-icon>
-                  <span>Phone Number</span>
-                </label>
-                <input 
-                  matInput 
-                  formControlName="phone" 
-                  placeholder="+1 234 567 8900"
-                  class="modern-input">
-              </div>
-
-              <div class="form-field">
-                <label class="field-label">
-                  <mat-icon>cake</mat-icon>
-                  <span>Date of Birth</span>
-                </label>
-                <input 
-                  matInput 
-                  type="date" 
-                  formControlName="dateOfBirth"
-                  class="modern-input">
-              </div>
-
-              <div class="form-field">
-                <label class="field-label">
-                  <mat-icon>wc</mat-icon>
-                  <span>Gender</span>
-                </label>
-                <div class="gender-options">
-                  <label class="gender-option" [class.active]="form.get('gender')?.value === 'male'">
-                    <input type="radio" formControlName="gender" value="male">
-                    <span>Male</span>
+              <!-- Password Field - Only show in CREATE mode -->
+              @if (!isEdit()) {
+                <div class="form-field">
+                  <label class="field-label">
+                    <mat-icon>lock</mat-icon>
+                    <span>Password <span class="required">*</span></span>
                   </label>
-                  <label class="gender-option" [class.active]="form.get('gender')?.value === 'female'">
-                    <input type="radio" formControlName="gender" value="female">
-                    <span>Female</span>
-                  </label>
-                  <label class="gender-option" [class.active]="form.get('gender')?.value === 'other'">
-                    <input type="radio" formControlName="gender" value="other">
-                    <span>Other</span>
-                  </label>
+                  <input 
+                    matInput 
+                    type="password" 
+                    formControlName="password" 
+                    placeholder="Enter secure password"
+                    class="modern-input"
+                    [class.error]="form.get('password')?.invalid && form.get('password')?.touched">
+                  @if (form.get('password')?.invalid && form.get('password')?.touched) {
+                    <div class="field-error">
+                      <mat-icon>error</mat-icon>
+                      <span>{{ getErrorMessage('password') }}</span>
+                    </div>
+                  }
                 </div>
-              </div>
+              }
 
-              <div class="form-field full-width">
-                <label class="field-label">
-                  <mat-icon>description</mat-icon>
-                  <span>Bio</span>
-                </label>
-                <textarea 
-                  formControlName="bio" 
-                  rows="4" 
-                  placeholder="Write a short bio about the user..."
-                  class="modern-textarea"></textarea>
-              </div>
+              <!-- Password Field - Only show in EDIT mode with optional -->
+              @if (isEdit()) {
+                <div class="form-field">
+                  <label class="field-label">
+                    <mat-icon>lock_reset</mat-icon>
+                    <span>New Password</span>
+                  </label>
+                  <input 
+                    matInput 
+                    type="password" 
+                    formControlName="password" 
+                    placeholder="Leave empty to keep current password"
+                    class="modern-input">
+                  <small class="field-hint">Only fill if you want to change the password</small>
+                </div>
+              }
+
+              <!-- Extra fields - Only show in EDIT mode -->
+              @if (isEdit()) {
+                <div class="form-field">
+                  <label class="field-label">
+                    <mat-icon>phone</mat-icon>
+                    <span>Phone Number</span>
+                  </label>
+                  <input 
+                    matInput 
+                    formControlName="phone" 
+                    placeholder="+1 234 567 8900"
+                    class="modern-input">
+                </div>
+
+                <div class="form-field">
+                  <label class="field-label">
+                    <mat-icon>cake</mat-icon>
+                    <span>Date of Birth</span>
+                  </label>
+                  <input 
+                    matInput 
+                    type="date" 
+                    formControlName="dateOfBirth"
+                    class="modern-input">
+                </div>
+
+                <div class="form-field">
+                  <label class="field-label">
+                    <mat-icon>wc</mat-icon>
+                    <span>Gender</span>
+                  </label>
+                  <div class="gender-options">
+                    <label class="gender-option" [class.active]="form.get('gender')?.value === 'male'">
+                      <input type="radio" formControlName="gender" value="male">
+                      <span>Male</span>
+                    </label>
+                    <label class="gender-option" [class.active]="form.get('gender')?.value === 'female'">
+                      <input type="radio" formControlName="gender" value="female">
+                      <span>Female</span>
+                    </label>
+                    <label class="gender-option" [class.active]="form.get('gender')?.value === 'other'">
+                      <input type="radio" formControlName="gender" value="other">
+                      <span>Other</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-field full-width">
+                  <label class="field-label">
+                    <mat-icon>description</mat-icon>
+                    <span>Bio</span>
+                  </label>
+                  <textarea 
+                    formControlName="bio" 
+                    rows="4" 
+                    placeholder="Write a short bio about the user..."
+                    class="modern-textarea"></textarea>
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -208,15 +251,15 @@
                   </div>
                 </div>
 
-                <div class="role-card" [class.selected]="form.get('role')?.value === 'coach'" (click)="form.get('role')?.setValue('coach')">
+                <div class="role-card" [class.selected]="form.get('role')?.value === 'trainer'" (click)="form.get('role')?.setValue('trainer')">
                   <div class="role-icon">
                     <mat-icon>fitness_center</mat-icon>
                   </div>
                   <div class="role-info">
-                    <h4>Coach</h4>
+                    <h4>Trainer</h4>
                     <p>Create workouts and manage clients</p>
                   </div>
-                  <div class="role-check" *ngIf="form.get('role')?.value === 'coach'">
+                  <div class="role-check" *ngIf="form.get('role')?.value === 'trainer'">
                     <mat-icon>check_circle</mat-icon>
                   </div>
                 </div>
@@ -236,62 +279,64 @@
               </div>
             </div>
 
-            <div class="status-toggles">
-              <div class="status-card">
-                <div class="status-info">
-                  <div class="status-icon verified">
-                    <mat-icon>verified_user</mat-icon>
+            <!-- Status Toggles - Only show in EDIT mode -->
+            @if (isEdit()) {
+              <div class="status-toggles">
+                <div class="status-card">
+                  <div class="status-info">
+                    <div class="status-icon verified">
+                      <mat-icon>verified_user</mat-icon>
+                    </div>
+                    <div class="status-text">
+                      <h4>Email Verification</h4>
+                      <p>User's email address has been confirmed</p>
+                    </div>
                   </div>
-                  <div class="status-text">
-                    <h4>Email Verification</h4>
-                    <p>User's email address has been confirmed</p>
-                  </div>
+                  <label class="custom-toggle-wrapper">
+                    <input type="checkbox" formControlName="isEmailVerified" class="toggle-input">
+                    <span class="toggle-track">
+                      <span class="toggle-thumb"></span>
+                    </span>
+                  </label>
                 </div>
-                <label class="custom-toggle-wrapper">
-                  <input type="checkbox" formControlName="isEmailVerified" class="toggle-input">
-                  <span class="toggle-track">
-                    <span class="toggle-thumb"></span>
-                  </span>
-                </label>
-              </div>
 
-              <div class="status-card">
-                <div class="status-info">
-                  <div class="status-icon active">
-                    <mat-icon>check_circle</mat-icon>
+                <div class="status-card">
+                  <div class="status-info">
+                    <div class="status-icon active">
+                      <mat-icon>check_circle</mat-icon>
+                    </div>
+                    <div class="status-text">
+                      <h4>Account Status</h4>
+                      <p>User can access the platform</p>
+                    </div>
                   </div>
-                  <div class="status-text">
-                    <h4>Account Status</h4>
-                    <p>User can access the platform</p>
-                  </div>
+                  <label class="custom-toggle-wrapper">
+                    <input type="checkbox" formControlName="isActive" class="toggle-input">
+                    <span class="toggle-track">
+                      <span class="toggle-thumb"></span>
+                    </span>
+                  </label>
                 </div>
-                <label class="custom-toggle-wrapper">
-                  <input type="checkbox" formControlName="isActive" class="toggle-input">
-                  <span class="toggle-track">
-                    <span class="toggle-thumb"></span>
-                  </span>
-                </label>
               </div>
-            </div>
+            }
           </div>
         </div>
 
         <!-- Form Actions -->
         <div class="form-actions">
-          <button type="button" class="btn-secondary" routerLink="/users">
-            <mat-icon>close</mat-icon>
+          <button type="button" class="btn-cancel" routerLink="/users">
             Cancel
           </button>
           <button 
             type="submit" 
-            class="btn-primary" 
+            class="btn-save" 
             [disabled]="form.invalid || isSubmitting()">
             @if (isSubmitting()) {
-              <mat-spinner diameter="20"></mat-spinner>
-              <span>Saving...</span>
+              <div class="spinner"></div>
+              <span>{{ isEdit() ? 'Saving...' : 'Creating...' }}</span>
             } @else {
-              <mat-icon>save</mat-icon>
-              <span>Save Changes</span>
+              <mat-icon>{{ isEdit() ? 'edit' : 'add' }}</mat-icon>
+              <span>{{ isEdit() ? 'Update User' : 'Create User' }}</span>
             }
           </button>
         </div>

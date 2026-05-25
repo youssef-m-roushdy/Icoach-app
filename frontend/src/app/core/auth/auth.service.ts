@@ -1,4 +1,5 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { ApiService } from '../services/api.service';
@@ -12,11 +13,19 @@ const USER_KEY = 'icoach_user';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private api = inject(ApiService);
+  private http = inject(HttpClient);
   private storage = inject(StorageService);
   private router = inject(Router);
 
-  private _currentUser = signal<LoginResponse['user'] | null>(this.storage.getItem(USER_KEY));
-  private _accessToken = signal<string | null>(this.storage.getItem(TOKEN_KEY));
+  // Base URL must match your ApiService — adjust if different
+  private readonly baseUrl = '/api';
+
+  private _currentUser = signal<LoginResponse['user'] | null>(
+    this.storage.getItem(USER_KEY)
+  );
+  private _accessToken = signal<string | null>(
+    this.storage.getItem(TOKEN_KEY)
+  );
 
   currentUser = this._currentUser.asReadonly();
   isAuthenticated = computed(() => !!this._accessToken());
@@ -24,7 +33,7 @@ export class AuthService {
 
   login(dto: LoginDto): Observable<ApiResponse<LoginResponse>> {
     return this.api.post<LoginResponse>('/v1/users/login', dto).pipe(
-      tap(res => {
+      tap((res) => {
         if (res.success && res.data) {
           this._accessToken.set(res.data.accessToken);
           this._currentUser.set(res.data.user);
@@ -41,15 +50,31 @@ export class AuthService {
     );
   }
 
+  /**
+   * Refresh the access token.
+   *
+   * IMPORTANT: This MUST use withCredentials: true so the browser includes
+   * the HTTP-only refreshToken cookie in the request. Without it, the server
+   * receives no cookie and immediately returns 401.
+   *
+   * We call HttpClient directly here (bypassing ApiService) to guarantee
+   * withCredentials is set, regardless of how ApiService is configured.
+   */
   refreshToken(): Observable<ApiResponse<{ accessToken: string }>> {
-    return this.api.post<{ accessToken: string }>('/v1/users/refresh-token', {}).pipe(
-      tap(res => {
-        if (res.success && res.data?.accessToken) {
-          this._accessToken.set(res.data.accessToken);
-          this.storage.setItem(TOKEN_KEY, res.data.accessToken);
-        }
-      })
-    );
+    return this.http
+      .post<ApiResponse<{ accessToken: string }>>(
+        `${this.baseUrl}/v1/users/refresh-token`,
+        {},
+        { withCredentials: true }
+      )
+      .pipe(
+        tap((res) => {
+          if (res.success && res.data?.accessToken) {
+            this._accessToken.set(res.data.accessToken);
+            this.storage.setItem(TOKEN_KEY, res.data.accessToken);
+          }
+        })
+      );
   }
 
   getAccessToken(): string | null {

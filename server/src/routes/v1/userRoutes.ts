@@ -19,6 +19,7 @@ import {
   validatePagination,
   validateResendVerification,
   validateUserSearch,
+  validateAdminCreateUser
 } from '../../middleware/validations/index.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { uploadProfilePicture, handleMulterError } from '../../middleware/upload.js';
@@ -1188,6 +1189,119 @@ router.get('/:id',
   validateIdParam,
   authorizeOwnerOrAdmin,
   asyncHandler(UserController.getUserById)
+);
+
+/**
+ * @swagger
+ * /api/v1/users/admin/create:
+ *   post:
+ *     tags:
+ *       - Admin - User Management
+ *     summary: Create a new user (Admin only)
+ *     description: Admin can create a new user and assign a specific role (user, admin, moderator, trainer)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - username
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: "newuser@example.com"
+ *               username:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 30
+ *                 pattern: "^[a-z0-9_]+$"
+ *                 description: Unique username (lowercase letters, numbers, underscores)
+ *                 example: "newuser123"
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 description: Password (optional - if not provided, temporary password will be generated)
+ *                 example: "SecurePass123!"
+ *               firstName:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: User's first name
+ *                 example: "John"
+ *               lastName:
+ *                 type: string
+ *                 maxLength: 50
+ *                 description: User's last name
+ *                 example: "Doe"
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin, moderator, trainer]
+ *                 default: user
+ *                 description: Role to assign to the new user
+ *                 example: "moderator"
+ *           example:
+ *             email: "newuser@example.com"
+ *             username: "newuser123"
+ *             password: "SecurePass123!"
+ *             firstName: "John"
+ *             lastName: "Doe"
+ *             role: "moderator"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         user:
+ *                           $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Email or username already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post('/admin/create',
+  authenticate,
+  authorize('admin'),
+  validateAdminCreateUser,
+  asyncHandler(UserController.createUserByAdmin)
 );
 
 /**

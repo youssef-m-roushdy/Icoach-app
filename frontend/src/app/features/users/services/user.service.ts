@@ -4,6 +4,15 @@ import { ApiService } from '../../../core/services/api.service';
 import { ApiResponse, PaginatedResponse } from '../../../core/models/api-response.interface';
 import { User, UpdateUserDto } from '../../../core/models/user.interface';
 
+export interface CreateUserByAdminDto {
+  email: string;
+  username: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: 'user' | 'admin' | 'moderator' | 'trainer';
+}
+
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private api = inject(ApiService);
@@ -27,25 +36,8 @@ export class UserService {
   getProfile(): Observable<ApiResponse<User>> {
     return this.api.get<User>('/v1/users/profile');
   }
-
-  updateProfile(dto: UpdateUserDto): Observable<ApiResponse<User>> {
-    return this.api.put<User>('/v1/users/profile', dto);
-  }
-
-  // Admin only methods
-  activateUser(id: number | string): Observable<ApiResponse<User>> {
-    return this.api.patch<User>(`/v1/users/${id}/activate`, {});
-  }
-
-  deactivateUser(id: number | string): Observable<ApiResponse<User>> {
-    return this.api.patch<User>(`/v1/users/${id}/deactivate`, {});
-  }
-
-  verifyUser(id: number | string): Observable<ApiResponse<User>> {
-    return this.api.patch<User>(`/v1/users/${id}/verify`, {});
-  }
-
-  changeUserRole(id: number | string, role: string): Observable<ApiResponse<User>> {
-    return this.api.patch<User>(`/v1/users/${id}/role`, { role });
+  
+  createUserByAdmin(dto: CreateUserByAdminDto): Observable<ApiResponse<{ user: User }>> {
+    return this.api.post<{ user: User }>('/v1/users/admin/create', dto);
   }
 }

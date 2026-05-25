@@ -14,6 +14,7 @@ export {
   validateTokenParam,
   validatePagination,
   validateUserSearch,
+  validateAdminCreateUser
 } from './userValidation.js';
 
 // Workout validations

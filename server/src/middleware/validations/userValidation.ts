@@ -64,6 +64,58 @@ export const validateUserLogin = [
 ];
 
 /**
+ * Admin Create User Validation
+ * Admin can create a user and assign a role
+ */
+export const validateAdminCreateUser = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+
+  body('username')
+    .customSanitizer((value) => {
+      return value
+        .toLowerCase()
+        .trim()
+        .replace(/[.\-\s]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    })
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be between 3 and 30 characters')
+    .matches(/^[a-z0-9_]+$/)
+    .withMessage('Username can only contain lowercase letters, numbers, and underscores'),
+
+  body('password')
+    .optional()
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+
+  body('firstName')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('First name must be between 1 and 50 characters'),
+
+  body('lastName')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Last name must be between 1 and 50 characters'),
+
+  body('role')
+    .optional()
+    .isIn(['user', 'admin', 'moderator', 'trainer'])
+    .withMessage('Role must be one of: user, admin, moderator, trainer'),
+
+  handleValidationErrors,
+];
+
+/**
  * Profile Update Validation
  */
 export const validateProfileUpdate = [

@@ -1,165 +1,377 @@
 <div class="workout-form-page">
   <app-page-header 
-    [title]="isEdit() ? 'Edit Workout' : 'Add Workout'"
+    [title]="isEdit() ? 'Edit Workout' : 'Add New Workout'"
     [breadcrumbs]="[
       {label:'Dashboard', link:'/dashboard'},
       {label:'Workouts', link:'/workouts'},
-      {label: isEdit() ? 'Edit' : 'Add'}
+      {label: isEdit() ? 'Edit Workout' : 'Add Workout'}
     ]">
-    <a mat-button routerLink="/workouts" class="back-btn">
-      <mat-icon>arrow_back</mat-icon> 
-      Back to Workouts
-    </a>
+    <div class="header-actions">
+      <a mat-button class="back-btn" routerLink="/workouts">
+        <mat-icon>arrow_back</mat-icon> 
+        Back to Workouts
+      </a>
+    </div>
   </app-page-header>
 
   @if (isLoading()) {
     <div class="loading-container">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Loading workout data...</p>
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p>Loading workout data...</p>
+      </div>
     </div>
   } @else {
     <div class="form-container">
       <form [formGroup]="form" (ngSubmit)="submit()" class="workout-form">
-        <!-- Basic Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>fitness_center</mat-icon>
-            <h3>Workout Details</h3>
+        
+        <!-- Workout Details Card -->
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="icon-wrapper">
+                <mat-icon>fitness_center</mat-icon>
+              </div>
+              <div>
+                <h2>Workout Details</h2>
+                <p>Enter the exercise information and specifications</p>
+              </div>
+            </div>
           </div>
           
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Workout Name</mat-label>
-            <input matInput formControlName="name" placeholder="e.g., Incline Barbell Press">
-            <mat-icon matPrefix>title</mat-icon>
-            @if (form.get('name')?.invalid && form.get('name')?.touched) {
-              <mat-error>
-                <mat-icon>error_outline</mat-icon>
-                {{ getErrorMessage('name') }}
-              </mat-error>
-            }
-          </mat-form-field>
+          <div class="card-body">
+            <div class="form-grid">
 
-          <div class="form-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Body Part</mat-label>
-              <mat-select formControlName="body_part">
-                @for (part of bodyParts; track part) {
-                  <mat-option [value]="part">{{ part | titlecase }}</mat-option>
+              <!-- Workout Name -->
+              <div class="form-field full-width">
+                <label class="field-label">
+                  <mat-icon>edit</mat-icon>
+                  <span>Workout Name</span>
+                </label>
+                <input 
+                  type="text"
+                  formControlName="name" 
+                  placeholder="e.g., Incline Barbell Press"
+                  class="modern-input"
+                  [class.error]="form.get('name')?.invalid && form.get('name')?.touched">
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('name') }}</span>
+                  </div>
                 }
-              </mat-select>
-              <mat-icon matPrefix>accessibility</mat-icon>
-              @if (form.get('body_part')?.invalid && form.get('body_part')?.touched) {
-                <mat-error>{{ getErrorMessage('body_part') }}</mat-error>
-              }
-            </mat-form-field>
+              </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Target Area</mat-label>
-              <input matInput formControlName="target_area" placeholder="e.g., upper chest">
-              <mat-icon matPrefix>target</mat-icon>
-              @if (form.get('target_area')?.invalid && form.get('target_area')?.touched) {
-                <mat-error>{{ getErrorMessage('target_area') }}</mat-error>
-              }
-            </mat-form-field>
+              <!-- Body Part - Custom Select -->
+              <div class="form-field">
+                <label class="field-label">
+                  <mat-icon>accessibility</mat-icon>
+                  <span>Body Part</span>
+                </label>
+
+                <div class="custom-select-wrapper" (clickOutside)="isBodyPartOpen = false">
+                  <select class="modern-select" formControlName="body_part" style="display:none"></select>
+
+                  <div
+                    class="select-trigger"
+                    [class.open]="isBodyPartOpen"
+                    [class.error]="form.get('body_part')?.invalid && form.get('body_part')?.touched"
+                    (click)="isBodyPartOpen = !isBodyPartOpen">
+                    <span class="select-trigger-text" [class.placeholder]="!form.get('body_part')?.value">
+                      {{ getSelectedBodyPartLabel() || 'Select body part' }}
+                    </span>
+                    <span class="select-trigger-icon">
+                      <mat-icon>expand_more</mat-icon>
+                    </span>
+                  </div>
+
+                  @if (isBodyPartOpen) {
+                    <div class="select-dropdown">
+                      <div class="select-search">
+                        <mat-icon>search</mat-icon>
+                        <input
+                          type="text"
+                          placeholder="Search body parts..."
+                          [(ngModel)]="bodyPartSearch"
+                          [ngModelOptions]="{standalone: true}"
+                          (click)="$event.stopPropagation()">
+                      </div>
+                      <div class="select-options">
+                        @for (part of filteredBodyParts; track part.value) {
+                          <div
+                            class="select-option"
+                            [class.selected]="form.get('body_part')?.value === part.value"
+                            (click)="selectBodyPart(part.value)">
+                            <span class="option-icon">{{ part.icon }}</span>
+                            <span>{{ part.label }}</span>
+                            @if (form.get('body_part')?.value === part.value) {
+                              <span class="option-check">
+                                <mat-icon>check</mat-icon>
+                              </span>
+                            }
+                          </div>
+                        } @empty {
+                          <div class="select-empty">No body parts found</div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                @if (form.get('body_part')?.invalid && form.get('body_part')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('body_part') }}</span>
+                  </div>
+                }
+              </div>
+
+              <!-- Target Area -->
+              <div class="form-field">
+                <label class="field-label">
+                  <mat-icon>my_location</mat-icon>
+                  <span>Target Area</span>
+                </label>
+                <input 
+                  type="text"
+                  formControlName="target_area" 
+                  placeholder="e.g., Upper chest"
+                  class="modern-input"
+                  [class.error]="form.get('target_area')?.invalid && form.get('target_area')?.touched">
+                @if (form.get('target_area')?.invalid && form.get('target_area')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('target_area') }}</span>
+                  </div>
+                }
+              </div>
+
+              <!-- Equipment - Custom Select -->
+              <div class="form-field">
+                <label class="field-label">
+                  <mat-icon>build</mat-icon>
+                  <span>Equipment</span>
+                </label>
+
+                <div class="custom-select-wrapper" (clickOutside)="isEquipmentOpen = false">
+                  <select class="modern-select" formControlName="equipment" style="display:none"></select>
+
+                  <div
+                    class="select-trigger"
+                    [class.open]="isEquipmentOpen"
+                    [class.error]="form.get('equipment')?.invalid && form.get('equipment')?.touched"
+                    (click)="isEquipmentOpen = !isEquipmentOpen">
+                    <span class="select-trigger-text" [class.placeholder]="!form.get('equipment')?.value">
+                      {{ getSelectedEquipmentLabel() || 'Select equipment' }}
+                    </span>
+                    <span class="select-trigger-icon">
+                      <mat-icon>expand_more</mat-icon>
+                    </span>
+                  </div>
+
+                  @if (isEquipmentOpen) {
+                    <div class="select-dropdown">
+                      <div class="select-search">
+                        <mat-icon>search</mat-icon>
+                        <input
+                          type="text"
+                          placeholder="Search equipment..."
+                          [(ngModel)]="equipmentSearch"
+                          [ngModelOptions]="{standalone: true}"
+                          (click)="$event.stopPropagation()">
+                      </div>
+                      <div class="select-options">
+                        @for (eq of filteredEquipment; track eq.value) {
+                          <div
+                            class="select-option"
+                            [class.selected]="form.get('equipment')?.value === eq.value"
+                            (click)="selectEquipment(eq.value)">
+                            <span class="option-icon">{{ eq.icon }}</span>
+                            <span>{{ eq.label }}</span>
+                            @if (form.get('equipment')?.value === eq.value) {
+                              <span class="option-check">
+                                <mat-icon>check</mat-icon>
+                              </span>
+                            }
+                          </div>
+                        } @empty {
+                          <div class="select-empty">No equipment found</div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                @if (form.get('equipment')?.invalid && form.get('equipment')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('equipment') }}</span>
+                  </div>
+                }
+              </div>
+
+              <!-- Level - Custom Select -->
+              <div class="form-field">
+                <label class="field-label">
+                  <mat-icon>trending_up</mat-icon>
+                  <span>Difficulty Level</span>
+                </label>
+
+                <div class="custom-select-wrapper" (clickOutside)="isLevelOpen = false">
+                  <select class="modern-select" formControlName="level" style="display:none"></select>
+
+                  <div
+                    class="select-trigger"
+                    [class.open]="isLevelOpen"
+                    [class.error]="form.get('level')?.invalid && form.get('level')?.touched"
+                    (click)="isLevelOpen = !isLevelOpen">
+                    <span class="select-trigger-text" [class.placeholder]="!form.get('level')?.value">
+                      @if (form.get('level')?.value) {
+                        <span class="level-badge" [style.background]="getLevelColor(form.get('level')?.value)">
+                          {{ getSelectedLevelLabel() }}
+                        </span>
+                      } @else {
+                        Select difficulty level
+                      }
+                    </span>
+                    <span class="select-trigger-icon">
+                      <mat-icon>expand_more</mat-icon>
+                    </span>
+                  </div>
+
+                  @if (isLevelOpen) {
+                    <div class="select-dropdown">
+                      <div class="select-options">
+                        @for (level of levelOptions; track level.value) {
+                          <div
+                            class="select-option"
+                            [class.selected]="form.get('level')?.value === level.value"
+                            (click)="selectLevel(level.value)">
+                            <span class="option-icon" [style.background]="level.color + '20'" [style.color]="level.color">
+                              <mat-icon>circle</mat-icon>
+                            </span>
+                            <span>{{ level.label }}</span>
+                            @if (form.get('level')?.value === level.value) {
+                              <span class="option-check">
+                                <mat-icon>check</mat-icon>
+                              </span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                @if (form.get('level')?.invalid && form.get('level')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('level') }}</span>
+                  </div>
+                }
+              </div>
+
+              <!-- Description -->
+              <div class="form-field full-width">
+                <label class="field-label">
+                  <mat-icon>description</mat-icon>
+                  <span>Description</span>
+                  <small class="field-hint">(Optional)</small>
+                </label>
+                <textarea 
+                  formControlName="description" 
+                  rows="4" 
+                  placeholder="Describe the exercise technique, tips, and benefits..."
+                  class="modern-input modern-textarea"
+                  [class.error]="form.get('description')?.invalid && form.get('description')?.touched"></textarea>
+                @if (form.get('description')?.invalid && form.get('description')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('description') }}</span>
+                  </div>
+                }
+                <div class="character-count">
+                  {{ form.get('description')?.value?.length || 0 }}/1000
+                </div>
+              </div>
+
+            </div>
           </div>
-
-          <div class="form-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Equipment</mat-label>
-              <mat-select formControlName="equipment">
-                @for (eq of equipmentOptions; track eq) {
-                  <mat-option [value]="eq">{{ eq | titlecase }}</mat-option>
-                }
-              </mat-select>
-              <mat-icon matPrefix>build</mat-icon>
-              @if (form.get('equipment')?.invalid && form.get('equipment')?.touched) {
-                <mat-error>{{ getErrorMessage('equipment') }}</mat-error>
-              }
-            </mat-form-field>
-
-            <mat-form-field appearance="outline">
-              <mat-label>Level</mat-label>
-              <mat-select formControlName="level">
-                @for (level of levelOptions; track level) {
-                  <mat-option [value]="level">{{ level | titlecase }}</mat-option>
-                }
-              </mat-select>
-              <mat-icon matPrefix>trending_up</mat-icon>
-              @if (form.get('level')?.invalid && form.get('level')?.touched) {
-                <mat-error>{{ getErrorMessage('level') }}</mat-error>
-              }
-            </mat-form-field>
-          </div>
-
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Description</mat-label>
-            <textarea 
-              matInput 
-              formControlName="description" 
-              rows="4" 
-              placeholder="Describe the exercise technique, tips, and benefits...">
-            </textarea>
-            <mat-icon matPrefix>description</mat-icon>
-          </mat-form-field>
         </div>
 
-        <!-- GIF Upload Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>animation</mat-icon>
-            <h3>Exercise GIF / Image</h3>
+        <!-- Exercise Media Card -->
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="icon-wrapper">
+                <mat-icon>animation</mat-icon>
+              </div>
+              <div>
+                <h2>Exercise Media</h2>
+                <p>Upload a GIF or image demonstrating the exercise</p>
+              </div>
+            </div>
           </div>
           
-          <app-file-upload 
-            accept="image/gif,image/*" 
-            hint="GIF or image up to 10MB" 
-            (fileSelected)="onGifSelected($event)">
-          </app-file-upload>
-          
-          @if (existingGif()) {
-            <div class="gif-preview">
-              <img [src]="existingGif()" alt="Workout preview">
-              <button type="button" class="remove-gif" (click)="removeGif()">
-                <mat-icon>close</mat-icon>
-              </button>
+          <div class="card-body">
+            <div class="upload-area" (click)="fileInput.click()">
+              <input 
+                type="file" 
+                #fileInput 
+                (change)="onGifFileSelected($event)" 
+                accept="image/gif,image/*" 
+                style="display: none">
+              
+              @if (!gifPreview() && !existingGif()) {
+                <div class="upload-placeholder">
+                  <mat-icon>cloud_upload</mat-icon>
+                  <span>Click to upload exercise GIF</span>
+                  <small>GIF, PNG, JPG, WEBP up to 10MB</small>
+                </div>
+              }
+              
+              @if (gifPreview() || existingGif()) {
+                <div class="image-preview-container">
+                  <img [src]="gifPreview() || existingGif()" alt="Exercise preview">
+                  <button type="button" class="remove-image" (click)="removeGif(); $event.stopPropagation()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                  <div class="media-badge" [class.is-gif]="isGifFile()">
+                    <mat-icon>{{ isGifFile() ? 'gif' : 'image' }}</mat-icon>
+                    <span>{{ isGifFile() ? 'GIF' : 'Image' }}</span>
+                  </div>
+                </div>
+              }
             </div>
-          }
-          
-          @if (uploadProgress() > 0 && uploadProgress() < 100) {
-            <div class="progress-bar">
-              <div class="progress-bar__fill" [style.width.%]="uploadProgress()"></div>
-              <span class="progress-text">{{ uploadProgress() }}%</span>
-            </div>
-          }
+            
+            @if (uploadProgress() > 0 && uploadProgress() < 100) {
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="uploadProgress()"></div>
+                <span class="progress-text">{{ uploadProgress() }}%</span>
+              </div>
+            }
+          </div>
         </div>
 
         <!-- Form Actions -->
         <div class="form-actions">
-          <button type="button" mat-button class="reset-btn" (click)="resetForm()">
-            <mat-icon>refresh</mat-icon>
-            Reset
-          </button>
-          <button type="button" mat-button class="cancel-btn" routerLink="/workouts">
-            <mat-icon>close</mat-icon>
+          <button type="button" class="btn-cancel" routerLink="/workouts">
             Cancel
           </button>
           <button 
-            mat-flat-button 
             type="submit" 
-            class="submit-btn" 
+            class="btn-save" 
             [disabled]="form.invalid || isSubmitting()">
             @if (isSubmitting()) {
-              <mat-spinner diameter="20"></mat-spinner>
-              <span>{{ isEdit() ? 'Updating...' : 'Creating...' }}</span>
-            }
-            @if (!isSubmitting()) {
+              <div class="spinner"></div>
+              <span>{{ isEdit() ? 'Saving...' : 'Creating...' }}</span>
+            } @else {
               <mat-icon>{{ isEdit() ? 'edit' : 'add' }}</mat-icon>
-            }
-            @if (!isSubmitting()) {
               <span>{{ isEdit() ? 'Update Workout' : 'Create Workout' }}</span>
             }
           </button>
         </div>
+
       </form>
     </div>
   }

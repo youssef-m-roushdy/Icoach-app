@@ -80,6 +80,7 @@ export class FoodFormComponent implements OnInit, OnDestroy {
     'Dairy', 'Beverages', 'Snacks', 'Grains', 'Legumes', 'Nuts & Seeds', 'Herbs & Spices'
   ];
 
+  // FIXED: Removed Validators.required from category since it's a dummy field
   form: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
     calories: [0, [Validators.required, Validators.min(0), Validators.max(2000)]],
@@ -88,7 +89,7 @@ export class FoodFormComponent implements OnInit, OnDestroy {
     fat: [0, [Validators.required, Validators.min(0), Validators.max(200)]],
     fiber: [0, [Validators.min(0), Validators.max(100)]],
     sugar: [0, [Validators.min(0), Validators.max(100)]],
-    category: ['', Validators.required],
+    category: [''], // No validators - optional field
   });
 
   // Custom category select
@@ -223,7 +224,9 @@ export class FoodFormComponent implements OnInit, OnDestroy {
     const formValue = this.form.value;
     const formData = new FormData();
     
+    // Exclude category from submission since it's dummy
     Object.keys(formValue).forEach(key => {
+      if (key === 'category') return; // Skip category field
       const value = formValue[key];
       if (value !== null && value !== undefined) {
         formData.append(key, value.toString());
@@ -262,8 +265,6 @@ export class FoodFormComponent implements OnInit, OnDestroy {
           }
         },
         error: (error: HttpErrorResponse) => {
-          // The error interceptor automatically shows the toaster with the full details.
-          // We only need to reset our form state.
           this.isSubmitting.set(false);
           this.uploadProgress.set(0);
         },
