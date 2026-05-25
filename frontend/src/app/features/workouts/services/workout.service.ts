@@ -16,12 +16,14 @@ export class WorkoutService {
     return this.api.get<Workout>(`/v1/workouts/${id}`);
   }
 
-  createWorkout(dto: CreateWorkoutDto): Observable<any> {
-    return this.api.upload<Workout>('/v1/workouts', this.toFormData(dto), 'POST');
+  createWorkout(payload: CreateWorkoutDto | FormData): Observable<any> {
+    const fd = payload instanceof FormData ? payload : this.toFormData(payload);
+    return this.api.upload<Workout>('/v1/workouts', fd, 'POST');
   }
 
-  updateWorkout(id: number | string, dto: UpdateWorkoutDto): Observable<any> {
-    return this.api.upload<Workout>(`/v1/workouts/${id}`, this.toFormData(dto), 'PUT');
+  updateWorkout(id: number | string, payload: UpdateWorkoutDto | FormData): Observable<any> {
+    const fd = payload instanceof FormData ? payload : this.toFormData(payload);
+    return this.api.upload<Workout>(`/v1/workouts/${id}`, fd, 'PUT');
   }
 
   deleteWorkout(id: number | string): Observable<ApiResponse<any>> {

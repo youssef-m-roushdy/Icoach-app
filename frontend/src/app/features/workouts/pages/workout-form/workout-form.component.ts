@@ -143,7 +143,7 @@ export class WorkoutFormComponent implements OnInit, OnDestroy {
 
     // Append gif if selected
     if (this.selectedGif()) {
-      formData.append('gif_link', this.selectedGif() as File);
+      formData.append('gif', this.selectedGif() as File);
     }
 
     const request = this.isEdit()
@@ -177,7 +177,12 @@ export class WorkoutFormComponent implements OnInit, OnDestroy {
           }
         },
         error: (error: HttpErrorResponse) => {
-          const errorMessage = error.error?.message || error.message || 'Operation failed';
+          let errorMessage = error.error?.message || error.message || 'Operation failed';
+          if (error.error?.errors && Array.isArray(error.error.errors)) {
+            errorMessage = error.error.errors.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+          } else if (error.error?.error?.details) {
+            errorMessage = error.error.error.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+          }
           this.notif.error(errorMessage);
           this.isSubmitting.set(false);
           this.uploadProgress.set(0);

@@ -80,6 +80,7 @@ export const errorHandler = (
       message: error.message,
       stack: error.stack,
       statusCode,
+      details,
       url: req.url,
       method: req.method,
       ip: req.ip,
