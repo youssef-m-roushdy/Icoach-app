@@ -153,3 +153,48 @@ h1, h2, h3, h4, h5, h6 {
     background: var(--accent-color);
   }
 }
+
+// ==========================================
+// Angular Material Overrides
+// ==========================================
+
+/* تصميم نافذة التأكيد ليتناسب مع ألوان الموقع (Dark & Light) */
+.custom-dark-dialog {
+  /* تعديل خلفية المربع الكبير بحيث يأخذ لون كروت الموقع */
+  .mdc-dialog__surface, .mat-mdc-dialog-surface {
+    background-color: var(--card-bg) !important;
+    border-radius: var(--radius-md) !important; 
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow-lg) !important;
+    padding: var(--spacing-lg) !important;
+    overflow: hidden !important; /* <--- السطر ده اللي هيخفي السكرول بار */
+  }
+
+  /* تنسيق عنوان النافذة */
+  .mat-mdc-dialog-title, h2[mat-dialog-title] {
+    color: var(--text-primary) !important;
+    font-family: 'Syne', sans-serif !important;
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+    margin-bottom: var(--spacing-sm) !important;
+    padding: 0 !important;
+  }
+
+  /* تنسيق النص الداخلي */
+  .mat-mdc-dialog-content {
+    color: var(--text-secondary) !important;
+    font-family: 'Manrope', sans-serif !important;
+  }
+
+  /* تنسيق زرار الحذف (الأحمر) ليأخذ متغير الخطر الخاص بالموقع */
+  .mat-mdc-button.mat-warn, .mat-mdc-raised-button.mat-warn, .mat-mdc-unelevated-button.mat-warn {
+    background-color: var(--error) !important;
+    color: #ffffff !important;
+    border-radius: var(--radius-sm) !important;
+  }
+
+  /* تنسيق زرار الإلغاء */
+  .cancel-btn {
+    color: var(--text-primary) !important;
+  }
+}

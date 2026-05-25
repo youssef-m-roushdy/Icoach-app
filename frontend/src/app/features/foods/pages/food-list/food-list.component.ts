@@ -133,13 +133,13 @@ export class FoodListComponent implements OnInit, OnDestroy {
   private searchSubject = new Subject<string>();
 
   columns: TableColumn<Food>[] = [
-    { key: 'pic',          label: '',         type: 'image',   width: '80px' },
-    { key: 'name',         label: 'Name',     sortable: true,  width: '200px' },
-    { key: 'calories',     label: 'Calories', sortable: true,  formatter: (v: number) => `${v} kcal` },
-    { key: 'protein',      label: 'Protein',                   formatter: (v: number) => `${v}g` },
-    { key: 'carbohydrate', label: 'Carbs',                     formatter: (v: number) => `${v}g` },
-    { key: 'fat',          label: 'Fat',                       formatter: (v: number) => `${v}g` },
-    { key: 'actions',      label: 'Actions',  type: 'actions', width: '100px' },
+    { key: 'pic',          label: '',        type: 'image',   width: '80px' },
+    { key: 'name',         label: 'Name',    sortable: true,  width: '200px' },
+    { key: 'calories',     label: 'Calories',sortable: true,  formatter: (v: number) => `${v} kcal` },
+    { key: 'protein',      label: 'Protein',                  formatter: (v: number) => `${v}g` },
+    { key: 'carbohydrate', label: 'Carbs',                    formatter: (v: number) => `${v}g` },
+    { key: 'fat',          label: 'Fat',                      formatter: (v: number) => `${v}g` },
+    { key: 'actions',      label: 'Actions', type: 'actions', width: '100px' },
   ];
 
   ngOnInit(): void {
@@ -219,6 +219,8 @@ export class FoodListComponent implements OnInit, OnDestroy {
 
   deleteFood(food: Food): void {
     const ref = this.dialog.open(ConfirmDialogComponent, {
+      width: '400px',
+      panelClass: 'custom-dark-dialog', // التعديل الرئيسي هنا
       data: {
         title:       'Delete Food',
         message:     `Are you sure you want to delete "${food.name}"?`,

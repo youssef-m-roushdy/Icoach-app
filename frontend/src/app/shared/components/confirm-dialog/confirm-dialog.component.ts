@@ -16,23 +16,50 @@ export interface ConfirmDialogData {
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule],
   template: `
-    <div class="confirm-dialog">
-      <h2 mat-dialog-title>{{ data.title }}</h2>
-      <mat-dialog-content>
-        <p>{{ data.message }}</p>
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button [mat-dialog-close]="false">{{ data.cancelText || 'Cancel' }}</button>
-        <button mat-flat-button [color]="data.danger ? 'warn' : 'primary'" [mat-dialog-close]="true">
-          {{ data.confirmText || 'Confirm' }}
-        </button>
-      </mat-dialog-actions>
-    </div>
+    <h2 mat-dialog-title>{{ data.title }}</h2>
+    
+    <mat-dialog-content>
+      <p>{{ data.message }}</p>
+    </mat-dialog-content>
+    
+    <mat-dialog-actions align="end">
+      <button mat-button [mat-dialog-close]="false">
+        {{ data.cancelText || 'Cancel' }}
+      </button>
+      <button mat-flat-button [color]="data.danger ? 'warn' : 'primary'" [mat-dialog-close]="true">
+        {{ data.confirmText || 'Confirm' }}
+      </button>
+    </mat-dialog-actions>
   `,
   styles: [`
-    .confirm-dialog { min-width: 320px; }
-    mat-dialog-content p { color: var(--text-secondary); margin: 0; }
-    mat-dialog-actions { padding: 16px 0 0; gap: 8px; }
+    :host {
+      display: block;
+      min-width: 380px;
+    }
+    mat-dialog-content {
+      margin: 16px 0;
+    }
+    p {
+      color: #a0a0a0; /* لون رمادي مريح للعين */
+      font-size: 1rem;
+      margin: 0;
+    }
+    mat-dialog-actions {
+      margin-bottom: -8px;
+    }
+    /* تنسيق زرار الإلغاء */
+    .cancel-btn {
+      color: #ffffff;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+    /* تنسيق زرار الحذف */
+    .confirm-btn {
+      border-radius: 8px;
+      min-width: 100px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
   `]
 })
 export class ConfirmDialogComponent {
