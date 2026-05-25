@@ -50,4 +50,15 @@ export class ApiService {
     const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     return `${base}${path}`;
   }
+
+  formatError(error: any): string {
+    if (!error) return 'Operation failed';
+    let errorMessage = error.error?.message || error.message || 'Operation failed';
+    if (error.error?.errors && Array.isArray(error.error.errors)) {
+      errorMessage = error.error.errors.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+    } else if (error.error?.error?.details) {
+      errorMessage = error.error.error.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+    }
+    return errorMessage;
+  }
 }

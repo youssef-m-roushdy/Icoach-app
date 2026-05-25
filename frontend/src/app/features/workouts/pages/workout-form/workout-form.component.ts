@@ -177,13 +177,8 @@ export class WorkoutFormComponent implements OnInit, OnDestroy {
           }
         },
         error: (error: HttpErrorResponse) => {
-          let errorMessage = error.error?.message || error.message || 'Operation failed';
-          if (error.error?.errors && Array.isArray(error.error.errors)) {
-            errorMessage = error.error.errors.map((d: any) => `${d.field}: ${d.message}`).join(', ');
-          } else if (error.error?.error?.details) {
-            errorMessage = error.error.error.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
-          }
-          this.notif.error(errorMessage);
+          // The error interceptor automatically shows the toaster with the full details.
+          // We only need to reset our form state.
           this.isSubmitting.set(false);
           this.uploadProgress.set(0);
         },
