@@ -6,222 +6,387 @@
       {label:'Foods', link:'/foods'},
       {label: isEdit() ? 'Edit Food' : 'Add Food'}
     ]">
-    <button mat-button routerLink="/foods" class="back-btn">
-      <mat-icon>arrow_back</mat-icon> 
-      Back to Foods
-    </button>
+    <div class="header-actions">
+      <a mat-button class="back-btn" routerLink="/foods">
+        <mat-icon>arrow_back</mat-icon> 
+        Back to Foods
+      </a>
+    </div>
   </app-page-header>
 
   @if (isLoading()) {
     <div class="loading-container">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Loading food data...</p>
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p>Loading food data...</p>
+      </div>
     </div>
   } @else {
     <div class="form-container">
       <form [formGroup]="form" (ngSubmit)="submit()" class="food-form">
-        <!-- Basic Information Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>restaurant_menu</mat-icon>
-            <h3>Basic Information</h3>
+        
+        <!-- Basic Information Card -->
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="icon-wrapper">
+                <mat-icon>restaurant_menu</mat-icon>
+              </div>
+              <div>
+                <h2>Basic Information</h2>
+                <p>Enter the basic details of the food item</p>
+              </div>
+            </div>
           </div>
           
-          <div class="form-row">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Food Name</mat-label>
-              <input matInput formControlName="name" placeholder="e.g., Grilled Chicken Breast">
-              <mat-icon matPrefix>fastfood</mat-icon>
-              @if (form.get('name')?.invalid && form.get('name')?.touched) {
-                <mat-error>
-                  <mat-icon>error_outline</mat-icon>
-                  {{ getErrorMessage('name') }}
-                </mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Category</mat-label>
-              <mat-select formControlName="category">
-                @for (cat of categories; track cat) {
-                  <mat-option [value]="cat">{{ cat }}</mat-option>
+          <div class="card-body">
+            <div class="form-grid">
+
+              <div class="form-field full-width">
+                <label class="field-label">
+                  <mat-icon>fastfood</mat-icon>
+                  <span>Food Name</span>
+                </label>
+                <input 
+                  matInput 
+                  formControlName="name" 
+                  placeholder="e.g., Grilled Chicken Breast"
+                  class="modern-input"
+                  [class.error]="form.get('name')?.invalid && form.get('name')?.touched">
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('name') }}</span>
+                  </div>
                 }
-              </mat-select>
-              <mat-icon matPrefix>category</mat-icon>
-              @if (form.get('category')?.invalid && form.get('category')?.touched) {
-                <mat-error>{{ getErrorMessage('category') }}</mat-error>
-              }
-            </mat-form-field>
+              </div>
+
+              <!-- Custom Category Select -->
+              <div class="form-field">
+                <label class="field-label">
+                  <mat-icon>category</mat-icon>
+                  <span>Category</span>
+                </label>
+
+                <div class="custom-select-wrapper" (clickOutside)="isCategoryOpen = false">
+
+                  <!-- Hidden native select for form binding -->
+                  <select class="modern-select" formControlName="category" style="display:none"></select>
+
+                  <!-- Trigger -->
+                  <div
+                    class="select-trigger"
+                    [class.open]="isCategoryOpen"
+                    [class.error]="form.get('category')?.invalid && form.get('category')?.touched"
+                    (click)="isCategoryOpen = !isCategoryOpen">
+                    <span class="select-trigger-text" [class.placeholder]="!form.get('category')?.value">
+                      {{ getSelectedCategoryLabel() || 'Select category' }}
+                    </span>
+                    <span class="select-trigger-icon">
+                      <mat-icon>expand_more</mat-icon>
+                    </span>
+                  </div>
+
+                  <!-- Dropdown -->
+                  @if (isCategoryOpen) {
+                    <div class="select-dropdown">
+                      <div class="select-search">
+                        <mat-icon>search</mat-icon>
+                        <input
+                          type="text"
+                          placeholder="Search categories..."
+                          [(ngModel)]="categorySearch"
+                          [ngModelOptions]="{standalone: true}"
+                          (click)="$event.stopPropagation()">
+                      </div>
+                      <div class="select-options">
+                        @for (cat of filteredCategories; track cat.value) {
+                          <div
+                            class="select-option"
+                            [class.selected]="form.get('category')?.value === cat.value"
+                            (click)="selectCategory(cat.value)">
+                            <span class="option-icon">{{ cat.emoji }}</span>
+                            <span>{{ cat.label }}</span>
+                            @if (form.get('category')?.value === cat.value) {
+                              <span class="option-check">
+                                <mat-icon>check</mat-icon>
+                              </span>
+                            }
+                          </div>
+                        } @empty {
+                          <div class="select-empty">No categories found</div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                </div>
+
+                @if (form.get('category')?.invalid && form.get('category')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>Category is required</span>
+                  </div>
+                }
+              </div>
+
+            </div>
           </div>
         </div>
 
-        <!-- Nutrition Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>monitor_heart</mat-icon>
-            <h3>Nutrition Facts</h3>
-          </div>
-          
-          <!-- Calorie Info Card -->
-          <div class="calorie-info" [class.warning]="isCalorieWarning()">
-            <div class="calorie-stats">
-              <div class="stat">
-                <span class="label">Calories from macros:</span>
-                <span class="value">{{ getNutritionTotal() }} kcal</span>
+        <!-- Nutrition Facts Card -->
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="icon-wrapper">
+                <mat-icon>monitor_heart</mat-icon>
               </div>
-              <div class="stat">
-                <span class="label">Entered calories:</span>
-                <span class="value">{{ form.get('calories')?.value || 0 }} kcal</span>
-              </div>
-              <div class="stat difference">
-                <span class="label">Difference:</span>
-                <span class="value" [class.warning]="isCalorieWarning()">
-                  {{ getCalorieDifference() }} kcal
-                </span>
+              <div>
+                <h2>Nutrition Facts</h2>
+                <p>Enter the nutritional information per serving</p>
               </div>
             </div>
-            @if (isCalorieWarning()) {
-              <div class="warning-message">
-                <mat-icon>warning</mat-icon>
-                Calorie mismatch detected. Total from macros differs from entered calories by more than 50kcal.
+          </div>
+          
+          <div class="card-body">
+            <!-- Calorie Warning -->
+            <div class="calorie-warning" [class.show]="isCalorieWarning()">
+              <mat-icon>warning</mat-icon>
+              <div class="warning-content">
+                <strong>Calorie Mismatch Detected</strong>
+                <span>Total from macros ({{ getNutritionTotal() }} kcal) differs from entered calories ({{ form.get('calories')?.value || 0 }} kcal) by {{ getCalorieDifference() }} kcal</span>
+              </div>
+            </div>
+
+            <div class="nutrition-grid">
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>local_fire_department</mat-icon>
+                  <span>Calories (kcal)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    formControlName="calories" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('calories', 1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('calories', -1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                @if (form.get('calories')?.invalid && form.get('calories')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('calories') }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>fitness_center</mat-icon>
+                  <span>Protein (g)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    formControlName="protein" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('protein', 0.1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('protein', -0.1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                @if (form.get('protein')?.invalid && form.get('protein')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('protein') }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>grass</mat-icon>
+                  <span>Carbohydrates (g)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    formControlName="carbohydrate" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('carbohydrate', 0.1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('carbohydrate', -0.1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                @if (form.get('carbohydrate')?.invalid && form.get('carbohydrate')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('carbohydrate') }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>oil_barrel</mat-icon>
+                  <span>Fat (g)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    formControlName="fat" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('fat', 0.1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('fat', -0.1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+                @if (form.get('fat')?.invalid && form.get('fat')?.touched) {
+                  <div class="field-error">
+                    <mat-icon>error</mat-icon>
+                    <span>{{ getErrorMessage('fat') }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>kitchen</mat-icon>
+                  <span>Fiber (g)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    formControlName="fiber" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('fiber', 0.1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('fiber', -0.1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="nutrition-item">
+                <label class="field-label">
+                  <mat-icon>science</mat-icon>
+                  <span>Sugar (g)</span>
+                </label>
+                <div class="number-input-wrapper">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    formControlName="sugar" 
+                    class="modern-input"
+                    placeholder="0">
+                  <div class="number-controls">
+                    <button type="button" (click)="stepInput('sugar', 0.1)">
+                      <mat-icon>keyboard_arrow_up</mat-icon>
+                    </button>
+                    <button type="button" (click)="stepInput('sugar', -0.1)">
+                      <mat-icon>keyboard_arrow_down</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Food Image Card -->
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="icon-wrapper">
+                <mat-icon>image</mat-icon>
+              </div>
+              <div>
+                <h2>Food Image</h2>
+                <p>Upload a picture of the food item</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="upload-area" (click)="fileInput.click()">
+              <input type="file" #fileInput (change)="onImageSelected($event)" accept="image/*" style="display: none">
+              @if (!imagePreview() && !existingImage()) {
+                <div class="upload-placeholder">
+                  <mat-icon>cloud_upload</mat-icon>
+                  <span>Click to upload image</span>
+                  <small>PNG, JPG, WEBP up to 5MB</small>
+                </div>
+              }
+              @if (imagePreview() || existingImage()) {
+                <div class="image-preview-container">
+                  <img [src]="imagePreview() || existingImage()" alt="Food preview">
+                  <button type="button" class="remove-image" (click)="removeImage(); $event.stopPropagation()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+            
+            @if (uploadProgress() > 0 && uploadProgress() < 100) {
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="uploadProgress()"></div>
+                <span class="progress-text">{{ uploadProgress() }}%</span>
               </div>
             }
           </div>
-
-          <div class="nutrition-grid">
-            <mat-form-field appearance="outline">
-              <mat-label>Calories (kcal)</mat-label>
-              <input matInput type="number" formControlName="calories" step="1">
-              <mat-icon matPrefix>local_fire_department</mat-icon>
-              @if (form.get('calories')?.invalid && form.get('calories')?.touched) {
-                <mat-error>{{ getErrorMessage('calories') }}</mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Protein (g)</mat-label>
-              <input matInput type="number" formControlName="protein" step="0.1">
-              <mat-icon matPrefix>fitness_center</mat-icon>
-              @if (form.get('protein')?.invalid && form.get('protein')?.touched) {
-                <mat-error>{{ getErrorMessage('protein') }}</mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Carbs (g)</mat-label>
-              <input matInput type="number" formControlName="carbs" step="0.1">
-              <mat-icon matPrefix>grass</mat-icon>
-              @if (form.get('carbs')?.invalid && form.get('carbs')?.touched) {
-                <mat-error>{{ getErrorMessage('carbs') }}</mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Fat (g)</mat-label>
-              <input matInput type="number" formControlName="fat" step="0.1">
-              <mat-icon matPrefix>oil_barrel</mat-icon>
-              @if (form.get('fat')?.invalid && form.get('fat')?.touched) {
-                <mat-error>{{ getErrorMessage('fat') }}</mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Fiber (g)</mat-label>
-              <input matInput type="number" formControlName="fiber" step="0.1">
-              <mat-icon matPrefix>kitchen</mat-icon>
-              @if (form.get('fiber')?.invalid && form.get('fiber')?.touched) {
-                <mat-error>{{ getErrorMessage('fiber') }}</mat-error>
-              }
-            </mat-form-field>
-          </div>
-        </div>
-
-        <!-- Serving Information -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>straighten</mat-icon>
-            <h3>Serving Information</h3>
-          </div>
-          
-          <div class="form-row">
-            <mat-form-field appearance="outline">
-              <mat-label>Serving Size</mat-label>
-              <input matInput type="number" formControlName="servingSize" step="1">
-              <mat-icon matPrefix>scale</mat-icon>
-              @if (form.get('servingSize')?.invalid && form.get('servingSize')?.touched) {
-                <mat-error>{{ getErrorMessage('servingSize') }}</mat-error>
-              }
-            </mat-form-field>
-            
-            <mat-form-field appearance="outline">
-              <mat-label>Serving Unit</mat-label>
-              <mat-select formControlName="servingUnit">
-                @for (unit of servingUnits; track unit) {
-                  <mat-option [value]="unit">{{ unit }}</mat-option>
-                }
-              </mat-select>
-              <mat-icon matPrefix>straighten</mat-icon>
-            </mat-form-field>
-          </div>
-        </div>
-
-        <!-- Image Upload Section -->
-        <div class="form-section">
-          <div class="section-header">
-            <mat-icon>image</mat-icon>
-            <h3>Food Image</h3>
-          </div>
-          
-          <app-file-upload 
-            accept="image/*" 
-            hint="PNG, JPG, WEBP up to 5MB" 
-            (fileSelected)="onImageSelected($event)">
-          </app-file-upload>
-          
-          @if (imagePreview() || existingImage()) {
-            <div class="image-preview">
-              <img [src]="imagePreview() || existingImage()" alt="Food preview">
-              <button type="button" class="remove-image" (click)="removeImage()">
-                <mat-icon>close</mat-icon>
-              </button>
-            </div>
-          }
-          
-          @if (uploadProgress() > 0 && uploadProgress() < 100) {
-            <div class="progress-bar">
-              <div class="progress-bar__fill" [style.width.%]="uploadProgress()"></div>
-              <span class="progress-text">{{ uploadProgress() }}%</span>
-            </div>
-          }
         </div>
 
         <!-- Form Actions -->
         <div class="form-actions">
-          <button type="button" mat-button class="reset-btn" (click)="resetForm()">
-            <mat-icon>refresh</mat-icon>
-            Reset
-          </button>
-          <button type="button" mat-button class="cancel-btn" routerLink="/foods">
-            <mat-icon>close</mat-icon>
+          <button type="button" class="btn-cancel" routerLink="/foods">
             Cancel
           </button>
           <button 
-            mat-flat-button 
             type="submit" 
-            class="submit-btn" 
+            class="btn-save" 
             [disabled]="form.invalid || isSubmitting()">
             @if (isSubmitting()) {
-              <mat-spinner diameter="20"></mat-spinner>
-              <span>{{ isEdit() ? 'Updating...' : 'Creating...' }}</span>
-            }
-            @if (!isSubmitting()) {
+              <div class="spinner"></div>
+              <span>{{ isEdit() ? 'Saving...' : 'Creating...' }}</span>
+            } @else {
               <mat-icon>{{ isEdit() ? 'edit' : 'add' }}</mat-icon>
-            }
-            @if (!isSubmitting()) {
               <span>{{ isEdit() ? 'Update Food' : 'Create Food' }}</span>
             }
           </button>
         </div>
+
       </form>
     </div>
   }

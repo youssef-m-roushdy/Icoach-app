@@ -1,0 +1,234 @@
+<div class="food-detail-page">
+  <app-page-header
+    title="Food Details"
+    [breadcrumbs]="[
+      {label:'Dashboard', link:'/dashboard'},
+      {label:'Foods', link:'/foods'},
+      {label: (food()?.name || 'Detail')}
+    ]">
+    <div class="header-actions">
+      <a mat-button class="back-btn" routerLink="/foods">
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </a>
+    </div>
+  </app-page-header>
+
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p>Loading food details...</p>
+      </div>
+    </div>
+  } @else if (food()) {
+    <div class="food-container">
+      <!-- Hero Section -->
+      <div class="hero-section">
+        <div class="hero-media">
+          <img
+            [src]="food()!.pic || placeholderImage"
+            [alt]="food()!.name"
+            (error)="onImageError($event)">
+        </div>
+        <div class="hero-body">
+          <div class="hero-meta">
+            <div class="hero-header">
+              <h1>{{ food()!.name }}</h1>
+              <div class="hero-badges">
+                <span class="category-badge" [class]="'badge--' + getCategoryClass(food()!.category)">
+                  {{ food()!.category || 'Uncategorized' }}
+                </span>
+                <span class="calories-badge">
+                  <mat-icon>local_fire_department</mat-icon>
+                  {{ food()!.calories }} kcal
+                </span>
+              </div>
+            </div>
+            <div class="macro-stats">
+              <div class="macro-item">
+                <span class="macro-value">{{ food()!.protein }}g</span>
+                <span class="macro-label">Protein</span>
+              </div>
+              <div class="macro-divider"></div>
+              <div class="macro-item">
+                <span class="macro-value">{{ food()!.carbohydrate }}g</span>
+                <span class="macro-label">Carbs</span>
+              </div>
+              <div class="macro-divider"></div>
+              <div class="macro-item">
+                <span class="macro-value">{{ food()!.fat }}g</span>
+                <span class="macro-label">Fat</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-edit" (click)="editFood()">
+              <mat-icon>edit</mat-icon>
+              Edit Food
+            </button>
+            <button class="btn-delete" (click)="deleteFood()">
+              <mat-icon>delete</mat-icon>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Grid -->
+      <div class="main-grid">
+        <!-- Left Column -->
+        <div class="left-column">
+          <p class="col-label">Nutrition Analysis</p>
+
+          <!-- Macro Breakdown Card -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>pie_chart</mat-icon>
+              </div>
+              <h3>Macro Breakdown</h3>
+            </div>
+            <div class="section-body">
+              <div class="macro-bars">
+                <div class="macro-row">
+                  <div class="macro-info">
+                    <span class="macro-name protein">Protein</span>
+                    <span class="macro-amount">{{ food()!.protein }}g</span>
+                  </div>
+                  <div class="bar">
+                    <span class="bar-fill protein" [style.width.%]="macroBreakdown().proteinPct"></span>
+                  </div>
+                  <span class="macro-percent">{{ macroBreakdown().proteinPct }}%</span>
+                </div>
+                <div class="macro-row">
+                  <div class="macro-info">
+                    <span class="macro-name carbs">Carbs</span>
+                    <span class="macro-amount">{{ food()!.carbohydrate }}g</span>
+                  </div>
+                  <div class="bar">
+                    <span class="bar-fill carbs" [style.width.%]="macroBreakdown().carbsPct"></span>
+                  </div>
+                  <span class="macro-percent">{{ macroBreakdown().carbsPct }}%</span>
+                </div>
+                <div class="macro-row">
+                  <div class="macro-info">
+                    <span class="macro-name fat">Fat</span>
+                    <span class="macro-amount">{{ food()!.fat }}g</span>
+                  </div>
+                  <div class="bar">
+                    <span class="bar-fill fat" [style.width.%]="macroBreakdown().fatPct"></span>
+                  </div>
+                  <span class="macro-percent">{{ macroBreakdown().fatPct }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calorie Info Card -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>bolt</mat-icon>
+              </div>
+              <h3>Calorie Information</h3>
+            </div>
+            <div class="section-body">
+              <div class="calorie-stats">
+                <div class="calorie-item">
+                  <span class="calorie-value">{{ food()!.calories }}</span>
+                  <span class="calorie-label">Total Calories</span>
+                </div>
+                <div class="calorie-divider"></div>
+                <div class="calorie-item">
+                  <span class="calorie-value">{{ macroBreakdown().totalCalories }}</span>
+                  <span class="calorie-label">Calories from Macros</span>
+                </div>
+                <div class="calorie-divider"></div>
+                <div class="calorie-item">
+                  <span class="calorie-value" [class.warning]="macroBreakdown().calorieDiff !== 0">
+                    {{ macroBreakdown().calorieDiff > 0 ? '+' : '' }}{{ macroBreakdown().calorieDiff }}
+                  </span>
+                  <span class="calorie-label">Difference</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Nutrition -->
+          @if (food()!.sugar) {
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-icon">
+                  <mat-icon>science</mat-icon>
+                </div>
+                <h3>Additional Nutrition</h3>
+              </div>
+              <div class="section-body">
+                <div class="extra-grid">
+                  <div class="extra-item">
+                    <span class="extra-value">{{ food()!.sugar }}g</span>
+                    <span class="extra-label">Sugar</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-column">
+          <p class="col-label">Food Information</p>
+
+          <!-- Metadata Card -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>info</mat-icon>
+              </div>
+              <h3>Food Metadata</h3>
+            </div>
+            <div class="section-body">
+              <div class="info-list">
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>tag</mat-icon>
+                    Food ID
+                  </span>
+                  <span class="info-value">#{{ food()!.id }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>category</mat-icon>
+                    Category
+                  </span>
+                  <span class="info-value">{{ food()!.category || 'Uncategorized' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>calendar_today</mat-icon>
+                    Created
+                  </span>
+                  <span class="info-value">{{ food()!.createdAt | date: 'medium' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>update</mat-icon>
+                    Last Updated
+                  </span>
+                  <span class="info-value">{{ food()!.updatedAt | date: 'medium' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <mat-icon>restaurant</mat-icon>
+      <p>Food not found</p>
+      <a mat-button routerLink="/foods" class="back-link">Back to Foods</a>
+    </div>
+  }
+</div>
