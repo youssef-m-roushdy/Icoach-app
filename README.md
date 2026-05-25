@@ -72,7 +72,7 @@
 - **User-to-User Messaging** - Real-time direct chat with online/offline presence indicators
 - **User Search** - Search for other users to start conversations
 - **Read Receipts** - Track message read status in conversations
-- **Notifications** - In-app notification system
+- **Notifications** - Push notifications (Expo + FCM) and in-app notification center
 - **Multi-language** - i18n support with 7 languages
 - **Offline Support** - AsyncStorage for data persistence
 - **Deep Linking** - OAuth callback handling
@@ -120,12 +120,14 @@
 - **Messaging API** - Send, receive, and paginate messages within conversations
 - **Presence API** - Online/offline user presence tracking with last-seen timestamps
 - **Read Receipts API** - Mark conversations as read with timestamp tracking
+- **Notification Tokens API** - Register Expo/FCM push tokens per device
+- **Push Notifications** - Expo Push + Firebase Admin delivery for chat messages
 - **Socket.IO** - Real-time WebSocket communication for messaging, presence, and live updates
 - **Image Management** - Cloudinary integration for avatars and media
 - **Email Service** - Nodemailer for verification and notifications
 - **Metrics Calculation** - BMI, caloric needs, and fitness metrics service
 - **API Documentation** - Interactive Swagger/OpenAPI docs
-- **Database Migrations** - Sequelize migrations and seeders (28 migrations)
+- **Database Migrations** - Sequelize migrations and seeders (30 migrations)
 - **Docker Support** - Containerized deployment with docker-compose
 - **Error Handling** - Centralized error handling with custom error classes
 
@@ -361,6 +363,7 @@ Icoach-app/
 │   │   │   ├── api.ts                     # Backend API client
 │   │   │   ├── chatService.ts             # AI chatbot service
 │   │   │   ├── conversationService.ts     # User messaging & presence
+│   │   │   ├── notificationService.ts     # Push notification tokens
 │   │   │   ├── socketService.ts           # Socket.IO client
 │   │   │   ├── progressService.ts         # Progress tracking
 │   │   │   ├── dailyActiveService.ts      # Daily activity service
@@ -380,6 +383,7 @@ Icoach-app/
 │   │   ├── hooks/                       # Custom React hooks
 │   │   │   ├── useForm.ts                 # Form state management
 │   │   │   ├── useKeyboardHeight.ts       # Keyboard height tracking
+│   │   │   ├── usePushNotifications.ts    # Expo/FCM registration
 │   │   │   ├── useStepCounter.ts          # Step counter hook
 │   │   │   └── useWaterIntake.ts          # Water intake hook
 │   │   ├── utils/                       # Helper functions & validators
@@ -415,6 +419,7 @@ Icoach-app/
 │   │   │   ├── waterIntakeController.ts
 │   │   │   ├── chatHistoryController.ts
 │   │   │   ├── conversationController.ts
+│   │   │   ├── notificationController.ts
 │   │   │   ├── presenceController.ts
 │   │   │   └── viewController.ts
 │   │   ├── routes/                      # API endpoints
@@ -431,6 +436,7 @@ Icoach-app/
 │   │   │   │   ├── waterIntakeRoutes.ts
 │   │   │   │   ├── chatHistoryRoutes.ts
 │   │   │   │   ├── conversationRoutes.ts
+│   │   │   │   ├── notificationRoutes.ts
 │   │   │   │   └── presenceRoutes.ts
 │   │   │   └── web/                       # Web routes
 │   │   ├── models/                      # Database models (Sequelize)
@@ -447,6 +453,7 @@ Icoach-app/
 │   │   │       ├── ChatConversation.ts    # User-to-user conversations
 │   │   │       ├── ChatParticipant.ts     # Conversation participants
 │   │   │       ├── ChatMessage.ts         # User chat messages
+│   │   │       ├── ExpoToken.ts           # Push notification tokens
 │   │   │       ├── UserMetrics.ts         # Body metrics history
 │   │   │       ├── PersonalBest.ts        # Personal best records
 │   │   │       ├── FitnessPlan.ts         # Fitness plans
@@ -461,7 +468,7 @@ Icoach-app/
 │   │   │   └── metricsCalculationService.ts  # BMI, caloric needs
 │   │   ├── middleware/                  # Auth, validation, error handling
 │   │   ├── config/                      # Database & JWT configuration
-│   │   ├── migrations/                  # Database migrations (28 files)
+│   │   ├── migrations/                  # Database migrations (30 files)
 │   │   ├── seeders/                     # Database seeders
 │   │   ├── types/                       # TypeScript definitions
 │   │   ├── utils/                       # Helper utilities
@@ -537,6 +544,7 @@ graph TB
         ActivityModule[Activity Tracking<br/>- Steps<br/>- Water Intake]
         ChatModule[AI Chatbot<br/>- RAG Coaching]
         MessagingModule[User Messaging<br/>- Direct Chat<br/>- Presence<br/>- Read Receipts]
+        NotificationModule[Notifications<br/>- In-app Center<br/>- Push Tokens]
         SocketClient[Socket.IO Client<br/>- Real-time Updates]
         Storage[Local Storage<br/>- AsyncStorage<br/>- Offline Data]
     end
@@ -587,6 +595,11 @@ graph TB
             ConversationDB[(PostgreSQL<br/>Conversations<br/>Messages<br/>Participants)]
             PresenceTracker[Presence Tracker<br/>Online/Offline]
         end
+
+        subgraph "🔔 Notification Service"
+            ExpoTokensDB[(PostgreSQL<br/>Expo Tokens)]
+            PushLogic[Push Delivery<br/>Expo + FCM]
+        end
         
         ImageService[Image Service<br/>Cloudinary]
         EmailService[Email Service<br/>Nodemailer]
@@ -607,6 +620,8 @@ graph TB
     Cloudinary[Cloudinary<br/>Image Storage]
     OAuthProviders[Google OAuth]
     GroqAPI[Groq API<br/>LLM Provider]
+    ExpoPush[Expo Push<br/>Service]
+    Firebase[Firebase<br/>Cloud Messaging]
     
     %% Connections
     User --> UI
@@ -617,6 +632,7 @@ graph TB
     UI --> ProfileModule
     UI --> ActivityModule
     UI --> ChatModule
+    UI --> NotificationModule
     SocketClient --> SocketServer
     AdminUI --> AdminAuth
     AdminUI --> AdminModules
@@ -630,6 +646,7 @@ graph TB
     ProfileModule --> Gateway
     ActivityModule --> Gateway
     ChatModule --> Gateway
+    NotificationModule --> Gateway
     AdminAuth --> Gateway
     AdminModules --> Gateway
     
@@ -644,6 +661,7 @@ graph TB
     API --> ChatDB
     API --> ConversationDB
     API --> PresenceTracker
+    API --> ExpoTokensDB
     API --> ImageService
     API --> EmailService
     API --> MetricsService
@@ -654,6 +672,10 @@ graph TB
     NutritionLogic --> NutritionDB
     UserLogic --> UserDB
     ImageService --> Cloudinary
+    SocketServer --> PushLogic
+    PushLogic --> ExpoTokensDB
+    PushLogic --> ExpoPush
+    PushLogic --> Firebase
     
     AI_API --> FoodRecognition
     AI_API --> RAGChat
@@ -672,14 +694,14 @@ graph TB
     classDef user fill:#fce4ec,stroke:#c2185b,stroke-width:2px
     classDef db fill:#e0f2f1,stroke:#00695c,stroke-width:2px
     
-    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,MessagingModule,SocketClient,Storage mobile
+    class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,MessagingModule,NotificationModule,SocketClient,Storage mobile
     class AdminUI,AdminAuth,AdminModules,AdminStorage,AdminCookies admin
     class Gateway gateway
-    class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService,PresenceTracker backend
+    class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService,PresenceTracker,PushLogic backend
     class AI_API,FoodRecognition,RAGChat,ToolExecutor ai
-    class Cloudinary,OAuthProviders,GroqAPI external
+    class Cloudinary,OAuthProviders,GroqAPI,ExpoPush,Firebase external
     class User,Admin user
-    class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,ConversationDB,RedisCache,VectorDB,AIRedis db
+    class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,ConversationDB,ExpoTokensDB,RedisCache,VectorDB,AIRedis db
 ```
 
 ### 🔄 Authentication Flow (Simplified)
@@ -800,6 +822,9 @@ npm install
 # Create environment file
 cp .env.example .env
 # Edit .env with your database credentials and API keys
+# Optional (push notifications): set Firebase Admin credentials
+# - FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
+# - Or add firebase-service-account.json in the server root
 
 # Run migrations
 npx sequelize-cli db:migrate
@@ -969,6 +994,8 @@ Detailed documentation for each component:
 | **Expo** | Development toolchain |
 | **React Navigation** | Navigation & routing |
 | **Socket.IO Client** | Real-time communication |
+| **Expo Notifications** | Push notification handling |
+| **Firebase Messaging** | FCM token registration (Android) |
 | **i18next** | Internationalization |
 | **AsyncStorage** | Local data persistence |
 | **React Context API** | State management |
@@ -986,6 +1013,8 @@ Detailed documentation for each component:
 | **PostgreSQL** | Primary database |
 | **Sequelize** | PostgreSQL ORM |
 | **Socket.IO** | Real-time WebSocket server |
+| **Expo Server SDK** | Expo push delivery |
+| **Firebase Admin** | FCM push delivery |
 | **Passport.js** | Authentication |
 | **JWT** | Token-based auth |
 | **Cloudinary** | Image hosting |
@@ -1125,6 +1154,14 @@ Detailed documentation for each component:
 |--------|----------|-------------|
 | GET | `/` | Get online status for specified user IDs |
 
+### Notifications (`/api/v1/notifications`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/expo-tokens` | Register or update push token |
+| GET | `/expo-tokens` | List current user's tokens |
+| PUT | `/expo-tokens/:expoPushToken` | Update token device type |
+| DELETE | `/expo-tokens/:expoPushToken` | Remove a push token |
+
 ### Foods (`/api/v1/foods`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1179,6 +1216,9 @@ Detailed documentation for each component:
 - `chat_conversations` - Direct messaging conversations (supports group flag)
 - `chat_participants` - Conversation membership with roles (admin/member) and read tracking
 - `chat_messages` - Individual chat messages with edit tracking
+
+#### Notifications
+- `expo_tokens` - Push notification tokens by user/device (Expo + FCM)
 
 #### Medical & Safety
 - `injuries` - Injury catalog
@@ -1336,6 +1376,8 @@ docker run -p 8000:8000 icoach-ai:latest
 - [x] User-to-user direct messaging with presence tracking
 - [x] Read receipts and conversation management
 - [x] User search for starting conversations
+- [x] Push notifications (Expo + FCM) for new messages, workout reminders, and activity goals
+- [x] In-app notification center with read/unread status
 - [x] Dark/Light theme support
 - [x] Edge-to-edge UI (Android)
 - [x] Medical notes & injury tracking
@@ -1358,6 +1400,9 @@ docker run -p 8000:8000 icoach-ai:latest
 - [ ] Coach/Trainer accounts
 - [ ] Barcode scanner for foods
 - [ ] Custom meal plans
+- [ ] Scheduled workout reminders
+- [ ] Goal achievement celebrations
+- [ ] Weekly progress reports via push notifications
 
 ---
 
