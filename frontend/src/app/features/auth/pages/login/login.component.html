@@ -1,52 +1,197 @@
-<div class="login-page">
-  <div class="login-bg">
-    <div class="login-bg__orb login-bg__orb--1"></div>
-    <div class="login-bg__orb login-bg__orb--2"></div>
-    <div class="login-bg__grid"></div>
+<div class="login-wrapper">
+  <!-- Animated Gradient Background -->
+  <div class="gradient-background">
+    <div class="gradient-overlay"></div>
+    <div class="decorative-circle circle-1"></div>
+    <div class="decorative-circle circle-2"></div>
+    <div class="decorative-circle circle-3"></div>
+    <div class="grid-pattern"></div>
   </div>
 
-  <div class="login-card">
-    <div class="login-card__brand">
-      <div class="brand-icon">
-        <span>iC</span>
+  <!-- Login Card -->
+  <div class="login-container">
+    <div class="login-card">
+      <!-- Brand Section -->
+      <div class="brand-section">
+        <div class="logo-wrapper">
+          <div class="logo-icon">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect width="48" height="48" rx="14" fill="url(#logoGradient)"/>
+              <path d="M24 10L10 20L24 30L38 20L24 10Z" fill="white" fill-opacity="0.9"/>
+              <path d="M10 28L24 38L38 28" stroke="white" stroke-width="2" fill="none"/>
+              <circle cx="24" cy="28" r="3" fill="white"/>
+              <defs>
+                <linearGradient id="logoGradient" x1="0" y1="0" x2="48" y2="48">
+                  <stop stop-color="var(--accent-color)"/>
+                  <stop offset="1" stop-color="var(--accent-dark)"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <h1>iCoach <span>Admin</span></h1>
+          </div>
+        </div>
+        
+        <div class="welcome-section">
+          <h2>Welcome back</h2>
+          <p>Sign in to manage your fitness platform</p>
+        </div>
+
+        <!-- Feature List -->
+        <div class="features-list">
+          <div class="feature">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M3 9L12 3L21 9L12 15L3 9Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M5 13V19L12 23L19 19V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="feature-content">
+              <strong>Dashboard Analytics</strong>
+              <span>Real-time insights & metrics</span>
+            </div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="feature-content">
+              <strong>User Management</strong>
+              <span>Full control & permissions</span>
+            </div>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 19.5L9 14.5M20 4.5L15 9.5M14 5L5 14M19 20L10 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="18" cy="6" r="2" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="6" cy="18" r="2" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="feature-content">
+              <strong>Content Library</strong>
+              <span>Foods, workouts & more</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <h1>iCoach Admin</h1>
-      <p>Sign in to your dashboard</p>
+
+      <!-- Form Section -->
+      <div class="form-section">
+        <div class="form-header">
+          <h3>Sign in</h3>
+          <p>Enter your credentials to access dashboard</p>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+          <!-- Email Field -->
+          <div class="form-group">
+            <label class="form-label">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M3 8L12 13L21 8M5 18H19C20.1046 18 21 17.1046 21 16V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V16C3 17.1046 3.89543 18 5 18Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Email address
+            </label>
+            <input 
+              type="email" 
+              formControlName="email" 
+              class="form-input"
+              [class.error]="form.get('email')?.invalid && form.get('email')?.touched"
+              placeholder="admin@icoach.app">
+            @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+              <div class="error-message">
+                Email is required
+              </div>
+            }
+            @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+              <div class="error-message">
+                Please enter a valid email
+              </div>
+            }
+          </div>
+
+          <!-- Password Field -->
+          <div class="form-group">
+            <label class="form-label">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="5" y="11" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 11V8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              Password
+            </label>
+            <div class="password-wrapper">
+              <input 
+                [type]="hidePassword() ? 'password' : 'text'" 
+                formControlName="password" 
+                class="form-input"
+                [class.error]="form.get('password')?.invalid && form.get('password')?.touched"
+                placeholder="Enter your password">
+              <button type="button" class="password-toggle" (click)="hidePassword.set(!hidePassword())">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  @if (hidePassword()) {
+                    <path d="M2 2L22 22M6.71277 6.7226C3.66477 9.7956 2 12 2 12C2 12 5.63636 19 12 19C14.0506 19 15.9023 18.4604 17.4585 17.6438M9.87868 9.87868C9.33588 10.4215 9 11.1715 9 12C9 13.6569 10.3431 15 12 15C12.8285 15 13.5785 14.6641 14.1213 14.1213" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  } @else {
+                    <path d="M2 12C2 12 5.63636 5 12 5C18.3636 5 22 12 22 12C22 12 18.3636 19 12 19C5.63636 19 2 12 2 12Z" stroke="currentColor" stroke-width="1.5"/>
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/>
+                  }
+                </svg>
+              </button>
+            </div>
+            @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+              <div class="error-message">
+                Password is required
+              </div>
+            }
+            @if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
+              <div class="error-message">
+                Password must be at least 6 characters
+              </div>
+            }
+          </div>
+
+          <!-- Form Options -->
+          <div class="form-options">
+            <label class="checkbox">
+              <input type="checkbox" class="checkbox-input">
+              <span class="checkbox-custom"></span>
+              <span class="checkbox-label">Remember me</span>
+            </label>
+            <a href="#" class="forgot-link">Forgot password?</a>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="submit-btn" [disabled]="form.invalid || isLoading()">
+            @if (isLoading()) {
+              <div class="spinner"></div>
+              <span>Signing in...</span>
+            } @else {
+              <span>Sign in</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            }
+          </button>
+        </form>
+
+        <!-- Demo Credentials -->
+        <div class="demo-section">
+          <p>Demo Credentials</p>
+          <div class="demo-codes">
+            <code>admin@icoach.app</code>
+            <span>•</span>
+            <code>admin123</code>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="form-footer">
+          <p>© 2024 iCoach Platform. All rights reserved.</p>
+        </div>
+      </div>
     </div>
-
-    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Email</mat-label>
-        <input matInput type="email" formControlName="email" placeholder="admin@icoach.app">
-        <mat-icon matPrefix>mail_outline</mat-icon>
-        @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
-          <mat-error>Email is required</mat-error>
-        } @else if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
-          <mat-error>Invalid email</mat-error>
-        }
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Password</mat-label>
-        <input matInput [type]="hidePassword() ? 'password' : 'text'" formControlName="password">
-        <mat-icon matPrefix>lock_outline</mat-icon>
-        <button type="button" mat-icon-button matSuffix (click)="hidePassword.set(!hidePassword())">
-          <mat-icon>{{ hidePassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-        </button>
-        @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
-          <mat-error>Password is required</mat-error>
-        } @else if (form.get('password')?.hasError('minlength') && form.get('password')?.touched) {
-          <mat-error>Minimum 6 characters</mat-error>
-        }
-      </mat-form-field>
-
-      <button mat-flat-button type="submit" class="login-btn" [disabled]="form.invalid || isLoading()">
-        @if (isLoading()) {
-          <mat-spinner diameter="20"></mat-spinner>
-        } @else {
-          Sign In
-        }
-      </button>
-    </form>
   </div>
 </div>

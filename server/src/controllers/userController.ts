@@ -5,6 +5,18 @@ import { AppError } from '../utils/errors.js';
 import { cookieConfig } from '../config/jwt.js';
 import EmailService from '../services/emailService.js';
 
+const refreshCookieOptions = {
+  ...cookieConfig,
+  path: '/',
+};
+
+const refreshCookieClearOptions = {
+  httpOnly: cookieConfig.httpOnly,
+  secure: cookieConfig.secure,
+  sameSite: cookieConfig.sameSite,
+  path: '/',
+};
+
 export class UserController {
   /**
    * Register a new user
@@ -19,12 +31,7 @@ export class UserController {
       const refreshToken = UserService.generateRefreshToken(user.id);
       
       // Set refresh token as HTTP-only cookie (for web clients)
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: cookieConfig.maxAge,
-      });
+      res.cookie('refreshToken', refreshToken, refreshCookieOptions);
       
       res.status(201).json({
         success: true,
@@ -49,12 +56,7 @@ export class UserController {
       const result = await UserService.authenticateUser(emailOrUsername, password);
       
       // Set refresh token as HTTP-only cookie (for web clients)
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: cookieConfig.maxAge,
-      });
+      res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
       res.status(200).json({
         success: true,
@@ -85,12 +87,7 @@ export class UserController {
       const result = await UserService.refreshAccessToken(refreshToken);
       
       // Set new refresh token cookie (for web clients)
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: cookieConfig.maxAge,
-      });
+      res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
       res.status(200).json({
         success: true,
@@ -110,7 +107,7 @@ export class UserController {
    */
   static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      res.clearCookie('refreshToken');
+      res.clearCookie('refreshToken', refreshCookieClearOptions);
       
       res.status(200).json({
         success: true,

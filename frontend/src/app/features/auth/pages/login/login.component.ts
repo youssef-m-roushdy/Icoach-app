@@ -13,9 +13,17 @@ import { NotificationService } from '../../../../core/services/notification.serv
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatInputModule, MatFormFieldModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule
+  ],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss',
+  styleUrls: ['./login.component.scss'],
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
@@ -32,16 +40,28 @@ export class LoginComponent {
   });
 
   submit(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    
     this.isLoading.set(true);
     const { email, password } = this.form.value;
-    this.auth.login({ email: email!, password: password! }).subscribe({
-      next: () => {
-        this.notif.success('Welcome back!');
-        this.router.navigate(['/dashboard']);
+
+    this.auth.login({ emailOrUsername: email!, password: password! }).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.notif.success('Welcome back!');
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.notif.error(response.message || 'Login failed');
+          this.isLoading.set(false);
+        }
       },
-      error: (err) => {
-        this.notif.error(err.error?.message || 'Login failed');
+      error: (error) => {
+        console.error('Login error:', error);
+        const errorMessage = error.error?.message || error.message || 'Login failed. Please check your credentials.';
+        this.notif.error(errorMessage);
         this.isLoading.set(false);
       },
     });

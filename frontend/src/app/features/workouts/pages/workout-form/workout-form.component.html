@@ -1,66 +1,163 @@
 <div class="workout-form-page">
-  <app-page-header [title]="isEdit() ? 'Edit Workout' : 'Add Workout'"
-    [breadcrumbs]="[{label:'Dashboard',link:'/dashboard'},{label:'Workouts',link:'/workouts'},{label:isEdit()?'Edit':'Add'}]">
-    <a mat-button routerLink="/workouts"><mat-icon>arrow_back</mat-icon> Back</a>
+  <app-page-header 
+    [title]="isEdit() ? 'Edit Workout' : 'Add Workout'"
+    [breadcrumbs]="[
+      {label:'Dashboard', link:'/dashboard'},
+      {label:'Workouts', link:'/workouts'},
+      {label: isEdit() ? 'Edit' : 'Add'}
+    ]">
+    <a mat-button routerLink="/workouts" class="back-btn">
+      <mat-icon>arrow_back</mat-icon> 
+      Back to Workouts
+    </a>
   </app-page-header>
 
-  <form [formGroup]="form" (ngSubmit)="submit()" class="workout-form">
-    <div class="form-section">
-      <h3>Workout Details</h3>
-      <mat-form-field appearance="outline" class="full">
-        <mat-label>Workout Name</mat-label>
-        <input matInput formControlName="name" placeholder="e.g. Barbell Bench Press">
-        @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
-          <mat-error>Name is required</mat-error>
-        }
-      </mat-form-field>
-      <mat-form-field appearance="outline" class="full">
-        <mat-label>Description</mat-label>
-        <textarea matInput formControlName="description" rows="3" placeholder="Describe the exercise..."></textarea>
-      </mat-form-field>
-      <div class="form-grid">
-        <mat-form-field appearance="outline">
-          <mat-label>Category</mat-label>
-          <mat-select formControlName="category">
-            @for (c of categories; track c) { <mat-option [value]="c">{{ c | titlecase }}</mat-option> }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Body Part</mat-label>
-          <mat-select formControlName="bodyPart">
-            @for (b of bodyParts; track b) { <mat-option [value]="b">{{ b | titlecase }}</mat-option> }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Difficulty</mat-label>
-          <mat-select formControlName="difficulty">
-            @for (d of difficulties; track d) { <mat-option [value]="d">{{ d | titlecase }}</mat-option> }
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Duration (min)</mat-label>
-          <input matInput type="number" formControlName="duration">
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Calories burned</mat-label>
-          <input matInput type="number" formControlName="calories">
-        </mat-form-field>
-      </div>
+  @if (isLoading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading workout data...</p>
     </div>
+  } @else {
+    <div class="form-container">
+      <form [formGroup]="form" (ngSubmit)="submit()" class="workout-form">
+        <!-- Basic Information Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>fitness_center</mat-icon>
+            <h3>Workout Details</h3>
+          </div>
+          
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Workout Name</mat-label>
+            <input matInput formControlName="name" placeholder="e.g., Incline Barbell Press">
+            <mat-icon matPrefix>title</mat-icon>
+            @if (form.get('name')?.invalid && form.get('name')?.touched) {
+              <mat-error>
+                <mat-icon>error_outline</mat-icon>
+                {{ getErrorMessage('name') }}
+              </mat-error>
+            }
+          </mat-form-field>
 
-    <div class="form-section">
-      <h3>Exercise GIF</h3>
-      <app-file-upload accept="image/gif,image/*" hint="GIF or image up to 10MB" (fileSelected)="onGifSelected($event)"></app-file-upload>
-      @if (uploadProgress() > 0 && uploadProgress() < 100) {
-        <div class="progress-bar"><div class="progress-bar__fill" [style.width.%]="uploadProgress()"></div></div>
-      }
-    </div>
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Body Part</mat-label>
+              <mat-select formControlName="body_part">
+                @for (part of bodyParts; track part) {
+                  <mat-option [value]="part">{{ part | titlecase }}</mat-option>
+                }
+              </mat-select>
+              <mat-icon matPrefix>accessibility</mat-icon>
+              @if (form.get('body_part')?.invalid && form.get('body_part')?.touched) {
+                <mat-error>{{ getErrorMessage('body_part') }}</mat-error>
+              }
+            </mat-form-field>
 
-    <div class="form-actions">
-      <a mat-button routerLink="/workouts">Cancel</a>
-      <button mat-flat-button type="submit" color="primary" [disabled]="form.invalid || isSubmitting()">
-        @if (isSubmitting()) { <mat-spinner diameter="18"></mat-spinner> } @else { {{ isEdit() ? 'Update Workout' : 'Create Workout' }} }
-      </button>
+            <mat-form-field appearance="outline">
+              <mat-label>Target Area</mat-label>
+              <input matInput formControlName="target_area" placeholder="e.g., upper chest">
+              <mat-icon matPrefix>target</mat-icon>
+              @if (form.get('target_area')?.invalid && form.get('target_area')?.touched) {
+                <mat-error>{{ getErrorMessage('target_area') }}</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Equipment</mat-label>
+              <mat-select formControlName="equipment">
+                @for (eq of equipmentOptions; track eq) {
+                  <mat-option [value]="eq">{{ eq | titlecase }}</mat-option>
+                }
+              </mat-select>
+              <mat-icon matPrefix>build</mat-icon>
+              @if (form.get('equipment')?.invalid && form.get('equipment')?.touched) {
+                <mat-error>{{ getErrorMessage('equipment') }}</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Level</mat-label>
+              <mat-select formControlName="level">
+                @for (level of levelOptions; track level) {
+                  <mat-option [value]="level">{{ level | titlecase }}</mat-option>
+                }
+              </mat-select>
+              <mat-icon matPrefix>trending_up</mat-icon>
+              @if (form.get('level')?.invalid && form.get('level')?.touched) {
+                <mat-error>{{ getErrorMessage('level') }}</mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <textarea 
+              matInput 
+              formControlName="description" 
+              rows="4" 
+              placeholder="Describe the exercise technique, tips, and benefits...">
+            </textarea>
+            <mat-icon matPrefix>description</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <!-- GIF Upload Section -->
+        <div class="form-section">
+          <div class="section-header">
+            <mat-icon>animation</mat-icon>
+            <h3>Exercise GIF / Image</h3>
+          </div>
+          
+          <app-file-upload 
+            accept="image/gif,image/*" 
+            hint="GIF or image up to 10MB" 
+            (fileSelected)="onGifSelected($event)">
+          </app-file-upload>
+          
+          @if (existingGif()) {
+            <div class="gif-preview">
+              <img [src]="existingGif()" alt="Workout preview">
+              <button type="button" class="remove-gif" (click)="removeGif()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+          
+          @if (uploadProgress() > 0 && uploadProgress() < 100) {
+            <div class="progress-bar">
+              <div class="progress-bar__fill" [style.width.%]="uploadProgress()"></div>
+              <span class="progress-text">{{ uploadProgress() }}%</span>
+            </div>
+          }
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="button" mat-button class="reset-btn" (click)="resetForm()">
+            <mat-icon>refresh</mat-icon>
+            Reset
+          </button>
+          <button type="button" mat-button class="cancel-btn" routerLink="/workouts">
+            <mat-icon>close</mat-icon>
+            Cancel
+          </button>
+          <button 
+            mat-flat-button 
+            type="submit" 
+            class="submit-btn" 
+            [disabled]="form.invalid || isSubmitting()">
+            @if (isSubmitting()) {
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>{{ isEdit() ? 'Updating...' : 'Creating...' }}</span>
+            } @else {
+              <mat-icon>{{ isEdit() ? 'edit' : 'add' }}</mat-icon>
+              <span>{{ isEdit() ? 'Update Workout' : 'Create Workout' }}</span>
+            }
+          </button>
+        </div>
+      </form>
     </div>
-  </form>
+  }
 </div>

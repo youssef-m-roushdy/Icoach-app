@@ -1,1 +1,149 @@
-/* You can add global styles to this file, and also import other style files */
+// ==========================================
+// Global Theme Variables & Styles
+// ==========================================
+
+// Dark Theme (Default) - Clean Dark Theme
+:root {
+  // Background colors - Clean dark, no red tint
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --card-bg: #1a1a1a;
+  --card-bg-hover: #222222;
+  --surface-bg: rgba(255, 255, 255, 0.03);
+  
+  // Border colors
+  --border: rgba(245, 197, 39, 0.15);
+  --border-light: rgba(245, 197, 39, 0.08);
+  --border-accent: rgba(245, 197, 39, 0.3);
+  
+  // Text colors
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #707070;
+  --text-muted: #707070;
+  --text-inverse: #000000;
+  
+  // Accent colors - Gold
+  --accent-color: #f5c527ff;
+  --accent-rgb: 245, 197, 39;
+  --accent-dark: #d4a81e;
+  --accent-light: rgba(245, 197, 39, 0.1);
+  
+  // Status colors
+  --success: #10b981;
+  --success-rgb: 16, 185, 129;
+  --success-light: rgba(16, 185, 129, 0.1);
+  --warning: #f59e0b;
+  --warning-rgb: 245, 158, 11;
+  --warning-light: rgba(245, 158, 11, 0.1);
+  --error: #ef4444;
+  --error-rgb: 239, 68, 68;
+  --error-light: rgba(239, 68, 68, 0.1);
+  --info: #3b82f6;
+  --info-rgb: 59, 130, 246;
+  --info-light: rgba(59, 130, 246, 0.1);
+  
+  // Shadows
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-accent: 0 4px 16px rgba(245, 197, 39, 0.15);
+  
+  // Transitions
+  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  // Border radius
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+  
+  // Spacing
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+}
+
+// Light Theme - Clean Light Theme
+[data-theme="light"] {
+  // Background colors - Clean light, no red
+  --bg-primary: #fafaf9;
+  --bg-secondary: #f5f5f4;
+  --card-bg: #ffffff;
+  --card-bg-hover: #fafaf9;
+  --surface-bg: rgba(0, 0, 0, 0.02);
+  
+  // Border colors
+  --border: rgba(212, 175, 55, 0.2);
+  --border-light: rgba(212, 175, 55, 0.1);
+  --border-accent: rgba(212, 175, 55, 0.4);
+  
+  // Text colors
+  --text-primary: #292524;
+  --text-secondary: #78716c;
+  --text-tertiary: #a8a29e;
+  --text-muted: #a8a29e;
+  --text-inverse: #ffffff;
+  
+  // Accent colors - Gold
+  --accent-color: #d4af37;
+  --accent-rgb: 212, 175, 55;
+  --accent-dark: #b8942e;
+  --accent-light: rgba(212, 175, 55, 0.1);
+  
+  // Shadows
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.1);
+  --shadow-accent: 0 4px 16px rgba(212, 175, 55, 0.15);
+}
+
+// Global body styles
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color var(--transition-base), color var(--transition-base);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+// Selection color
+::selection {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+  
+  &:hover {
+    background: var(--accent-color);
+  }
+}

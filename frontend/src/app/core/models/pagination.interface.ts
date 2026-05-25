@@ -10,7 +10,10 @@ export interface TableColumn<T = any> {
   key: string;
   label: string;
   sortable?: boolean;
-  type?: 'text' | 'number' | 'date' | 'badge' | 'image' | 'actions';
+  type?: 'text' | 'number' | 'date' | 'badge' | 'image' | 'actions' | 'status';
   formatter?: (value: any, row: T) => string;
   badgeClass?: (value: any) => string;
+  width?: string;
+  icon?: string;
+  truncate?: boolean;
 }

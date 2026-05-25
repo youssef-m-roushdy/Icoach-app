@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
-  private show(message: string, type: 'success' | 'error' | 'info'): void {
+  private show(message: string, type: 'success' | 'error' | 'info' | 'warning'): void {
     if (typeof document === 'undefined') {
       console[type === 'error' ? 'error' : 'log'](message);
       return;
@@ -13,6 +13,7 @@ export class NotificationService {
       success: { bg: '#0f766e', border: '#14b8a6' },
       error: { bg: '#7f1d1d', border: '#ef4444' },
       info: { bg: '#1e3a8a', border: '#3b82f6' },
+      warning: { bg: '#78350f', border: '#f59e0b' },
     }[type];
 
     toast.textContent = message;
@@ -33,7 +34,10 @@ export class NotificationService {
     toast.style.pointerEvents = 'none';
 
     document.body.appendChild(toast);
-    window.setTimeout(() => toast.remove(), type === 'error' ? 5000 : 3500);
+    
+    // Warning stays longer (4 seconds)
+    const duration = type === 'error' ? 5000 : type === 'warning' ? 4000 : 3500;
+    window.setTimeout(() => toast.remove(), duration);
   }
 
   success(message: string): void {
@@ -46,5 +50,9 @@ export class NotificationService {
 
   info(message: string): void {
     this.show(message, 'info');
+  }
+
+  warning(message: string): void {
+    this.show(message, 'warning');
   }
 }

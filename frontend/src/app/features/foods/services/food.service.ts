@@ -2,22 +2,37 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { HttpEventType } from '@angular/common/http';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse, PaginatedResponse } from '../../../core/models/api-response.interface';
+import { ApiResponse } from '../../../core/models/api-response.interface';
 import { Food, CreateFoodDto, UpdateFoodDto } from '../../../core/models/food.interface';
+
+// Define the actual API response structure from your backend
+export interface FoodListResponse {
+  success: boolean;
+  message: string;
+  data: Food[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
 
 @Injectable({ providedIn: 'root' })
 export class FoodService {
   private api = inject(ApiService);
 
-  getFoods(params?: Record<string, any>): Observable<ApiResponse<PaginatedResponse<Food>>> {
-    return this.api.get<PaginatedResponse<Food>>('/v1/foods', params);
+  getFoods(params?: Record<string, any>): Observable<ApiResponse<FoodListResponse>> {
+    return this.api.get<FoodListResponse>('/v1/foods', params);
   }
 
   searchFoods(query: string): Observable<ApiResponse<Food[]>> {
     return this.api.get<Food[]>('/v1/foods/search', { q: query });
   }
 
-  getFoodById(id: string): Observable<ApiResponse<Food>> {
+  getFoodById(id: number | string): Observable<ApiResponse<Food>> {
     return this.api.get<Food>(`/v1/foods/${id}`);
   }
 
@@ -26,12 +41,12 @@ export class FoodService {
     return this.api.upload<Food>('/v1/foods', fd, 'POST');
   }
 
-  updateFood(id: string, dto: UpdateFoodDto): Observable<any> {
+  updateFood(id: number | string, dto: UpdateFoodDto): Observable<any> {
     const fd = this.toFormData(dto);
     return this.api.upload<Food>(`/v1/foods/${id}`, fd, 'PUT');
   }
 
-  deleteFood(id: string): Observable<ApiResponse<any>> {
+  deleteFood(id: number | string): Observable<ApiResponse<any>> {
     return this.api.delete<any>(`/v1/foods/${id}`);
   }
 

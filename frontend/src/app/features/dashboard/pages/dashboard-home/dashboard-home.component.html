@@ -1,32 +1,205 @@
 <div class="dashboard">
+  <!-- Page Header -->
   <app-page-header
     title="Dashboard"
     [breadcrumbs]="[{ label: 'Dashboard' }]">
   </app-page-header>
 
+  <!-- Loading State: Skeleton Cards -->
   @if (isLoading()) {
-    <div class="stats-grid skeleton-grid">
+    <div class="stats-grid">
       @for (i of [1,2,3,4]; track i) {
         <div class="skeleton-card"></div>
       }
     </div>
   } @else {
+    <!-- Statistics Cards Grid -->
     <div class="stats-grid">
-      <app-stats-card label="Total Users" [value]="stats().totalUsers" icon="group" color="blue" sub="Registered accounts"></app-stats-card>
-      <app-stats-card label="Active Users" [value]="stats().activeUsers" icon="person_check" color="emerald" sub="Last 30 days"></app-stats-card>
-      <app-stats-card label="Total Foods" [value]="stats().totalFoods" icon="restaurant" color="amber" sub="In database"></app-stats-card>
-      <app-stats-card label="Total Workouts" [value]="stats().totalWorkouts" icon="fitness_center" color="rose" sub="Exercises"></app-stats-card>
+      <app-stats-card 
+        label="Total Users" 
+        [value]="stats().totalUsers" 
+        icon="group" 
+        color="blue" 
+        sub="Registered accounts">
+      </app-stats-card>
+      
+      <app-stats-card 
+        label="Active Users" 
+        [value]="stats().activeUsers" 
+        icon="person_check" 
+        color="emerald" 
+        [sub]="activeRate() + '% activation rate'">
+      </app-stats-card>
+      
+      <app-stats-card 
+        label="Total Foods" 
+        [value]="stats().totalFoods" 
+        icon="restaurant" 
+        color="amber" 
+        sub="In database">
+      </app-stats-card>
+      
+      <app-stats-card 
+        label="Total Workouts" 
+        [value]="stats().totalWorkouts" 
+        icon="fitness_center" 
+        color="rose" 
+        sub="Exercises">
+      </app-stats-card>
+    </div>
+
+    <!-- Trend Indicators Row -->
+    <div class="trends-row">
+      <!-- Users Trend -->
+      <div class="trend-item" [class.trend-up]="usersTrend() > 0" [class.trend-down]="usersTrend() < 0">
+        <span class="material-icons">
+          @if (usersTrend() > 0) {
+            trending_up
+          } @else if (usersTrend() < 0) {
+            trending_down
+          } @else {
+            trending_flat
+          }
+        </span>
+        <span class="trend-value">
+          @if (usersTrend() > 0) { + }
+          {{ usersTrend() }}%
+        </span>
+        <span class="trend-label">Users vs last month</span>
+      </div>
+
+      <!-- Foods Trend -->
+      <div class="trend-item" [class.trend-up]="foodsTrend() > 0" [class.trend-down]="foodsTrend() < 0">
+        <span class="material-icons">
+          @if (foodsTrend() > 0) {
+            trending_up
+          } @else if (foodsTrend() < 0) {
+            trending_down
+          } @else {
+            trending_flat
+          }
+        </span>
+        <span class="trend-value">
+          @if (foodsTrend() > 0) { + }
+          {{ foodsTrend() }}
+        </span>
+        <span class="trend-label">New foods this week</span>
+      </div>
+
+      <!-- Workouts Trend -->
+      <div class="trend-item" [class.trend-up]="workoutsTrend() > 0" [class.trend-down]="workoutsTrend() < 0">
+        <span class="material-icons">
+          @if (workoutsTrend() > 0) {
+            trending_up
+          } @else if (workoutsTrend() < 0) {
+            trending_down
+          } @else {
+            trending_flat
+          }
+        </span>
+        <span class="trend-value">
+          @if (workoutsTrend() > 0) { + }
+          {{ workoutsTrend() }}
+        </span>
+        <span class="trend-label">Workouts vs yesterday</span>
+      </div>
+
+      <!-- Activation Rate Trend -->
+      <div class="trend-item trend-neutral">
+        <span class="material-icons">timeline</span>
+        <span class="trend-value">{{ activeRate() }}%</span>
+        <span class="trend-label">User activation rate</span>
+      </div>
     </div>
   }
 
-  <div class="dashboard__info">
+  <!-- Two Column Layout: Quick Actions & System Status -->
+  <div class="dashboard__sections">
+    <!-- Quick Actions Card -->
+    <div class="card quick-actions">
+      <div class="card__header">
+        <h2>Quick Actions</h2>
+        <span class="badge">Shortcuts</span>
+      </div>
+      
+      <div class="actions-grid">
+        @for (action of quickActions; track action.label) {
+          <a [routerLink]="action.route" class="action-item">
+            <div class="action-icon">
+              <span class="material-icons">{{ action.icon }}</span>
+            </div>
+            <div class="action-content">
+              <div class="action-label">{{ action.label }}</div>
+              <div class="action-desc">{{ action.description }}</div>
+            </div>
+          </a>
+        }
+      </div>
+    </div>
+
+    <!-- System Status Card -->
+    <div class="card system-status">
+      <div class="card__header">
+        <h2>System Status</h2>
+        <span class="badge">Live</span>
+      </div>
+      
+      <div class="status-grid">
+        <!-- API Gateway Status -->
+        <div class="status-item">
+          <div class="status-info">
+            <span 
+              class="status-indicator" 
+              [class.status-indicator--operational]="systemStatus().apiGateway === 'operational'"
+              [class.status-indicator--degraded]="systemStatus().apiGateway === 'degraded'"
+              [class.status-indicator--down]="systemStatus().apiGateway === 'down'">
+            </span>
+            <span class="status-label">API Gateway</span>
+          </div>
+          <span class="status-text">{{ systemStatus().apiGateway }}</span>
+        </div>
+        
+        <!-- Database Status -->
+        <div class="status-item">
+          <div class="status-info">
+            <span 
+              class="status-indicator" 
+              [class.status-indicator--operational]="systemStatus().database === 'operational'"
+              [class.status-indicator--degraded]="systemStatus().database === 'degraded'"
+              [class.status-indicator--down]="systemStatus().database === 'down'">
+            </span>
+            <span class="status-label">Database</span>
+          </div>
+          <span class="status-text">{{ systemStatus().database }}</span>
+        </div>
+      </div>
+      
+      <!-- Last Updated Timestamp -->
+      <div class="last-checked">
+        <span class="material-icons">schedule</span>
+        Last updated: {{ lastUpdatedFormatted() }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Information Cards Section -->
+  <div class="info-cards">
+    <!-- Getting Started Card -->
     <div class="info-card">
-      <h3>Quick Access</h3>
+      <h3>
+        <span class="material-icons">explore</span>
+        Getting Started
+      </h3>
       <p>Use the sidebar to navigate between Users, Foods, and Workouts management sections. All CRUD operations are available from their respective list views.</p>
     </div>
+    
+    <!-- API Configuration Card -->
     <div class="info-card info-card--accent">
-      <h3>API Gateway</h3>
-      <p>All requests are routed through the Ocelot gateway. JWT tokens are refreshed automatically on 401 responses.</p>
+      <h3>
+        <span class="material-icons">api</span>
+        API Configuration
+      </h3>
+      <p>All requests are routed through the Ocelot gateway. JWT tokens are refreshed automatically on 401 responses to ensure seamless user experience.</p>
     </div>
   </div>
 </div>
