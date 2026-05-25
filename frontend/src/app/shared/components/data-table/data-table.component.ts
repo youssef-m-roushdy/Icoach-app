@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ContentChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatSortModule, Sort } from '@angular/material/sort';
@@ -94,7 +94,7 @@ import { TableColumn } from '../../../core/models/pagination.interface';
                 }
                 @else if (col.type === 'actions') {
                   <div class="action-buttons">
-                    <ng-content select="[row-actions]" [ngTemplateOutletContext]="{ $implicit: row }"></ng-content>
+                    <ng-container *ngTemplateOutlet="rowActionsTpl; context: { $implicit: row }"></ng-container>
                   </div>
                 }
                 @else if (col.type === 'status') {
@@ -518,6 +518,7 @@ import { TableColumn } from '../../../core/models/pagination.interface';
   `]
 })
 export class DataTableComponent {
+  @ContentChild('rowActions', { read: TemplateRef }) rowActionsTpl?: TemplateRef<any>;
   @Input() columns: TableColumn[] = [];
   @Input() rows: any[] = [];
   @Input() total = 0;

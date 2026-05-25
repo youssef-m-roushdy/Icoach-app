@@ -1,22 +1,40 @@
-<div class="user-list">
-  <app-page-header title="Users" [breadcrumbs]="[{label:'Dashboard',link:'/dashboard'},{label:'Users'}]">
+<div class="user-list-page">
+  <app-page-header 
+    title="Users" 
+    [breadcrumbs]="[
+      {label:'Dashboard', link:'/dashboard'},
+      {label:'Users'}
+    ]">
+    <a mat-flat-button class="add-btn" routerLink="/users/create">
+      <mat-icon>add</mat-icon> 
+      Add User
+    </a>
   </app-page-header>
 
-  <app-data-table
-    [columns]="columns"
-    [rows]="users()"
-    [total]="total()"
-    [loading]="isLoading()"
-    (searchChange)="onSearch($event)"
-    (pageChange)="onPage($event)"
-    (sortChange)="onSort($event)">
-    <div toolbar-actions></div>
-    <ng-template #rowTpl let-row>
-      <div class="actions-cell" row-actions>
-        <a mat-icon-button [routerLink]="['/users', row.id]" matTooltip="View"><mat-icon>visibility</mat-icon></a>
-        <a mat-icon-button [routerLink]="['/users', row.id, 'edit']" matTooltip="Edit"><mat-icon>edit</mat-icon></a>
-        <button mat-icon-button (click)="deleteUser(row)" class="delete-btn" matTooltip="Delete"><mat-icon>delete_outline</mat-icon></button>
-      </div>
-    </ng-template>
-  </app-data-table>
+  <div class="table-wrapper">
+    <app-data-table
+      [columns]="columns"
+      [rows]="users()"
+      [total]="total()"
+      [loading]="isLoading()"
+      [pageSize]="limit()"
+      [pageIndex]="page() - 1"
+      (searchChange)="onSearch($event)"
+      (pageChange)="onPage($event)"
+      (sortChange)="onSort($event)">
+        <ng-template #rowActions let-user>
+          <div class="action-buttons">
+            <button mat-icon-button matTooltip="View User" (click)="viewUser(user)">
+              <mat-icon>visibility</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Edit User" (click)="editUser(user)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button matTooltip="Delete User" (click)="deleteUser(user)" class="delete-btn">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </ng-template>
+    </app-data-table>
+  </div>
 </div>

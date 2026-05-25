@@ -151,8 +151,11 @@
             @if (isSubmitting()) {
               <mat-spinner diameter="20"></mat-spinner>
               <span>{{ isEdit() ? 'Updating...' : 'Creating...' }}</span>
-            } @else {
+            }
+            @if (!isSubmitting()) {
               <mat-icon>{{ isEdit() ? 'edit' : 'add' }}</mat-icon>
+            }
+            @if (!isSubmitting()) {
               <span>{{ isEdit() ? 'Update Workout' : 'Create Workout' }}</span>
             }
           </button>

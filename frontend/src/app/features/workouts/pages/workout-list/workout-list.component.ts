@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule } from '@angular/forms';
 import { Sort } from '@angular/material/sort';
 import { debounceTime, distinctUntilChanged, Subject, takeUntil } from 'rxjs';
@@ -28,6 +29,7 @@ import { TableColumn } from '../../../../core/models/pagination.interface';
     MatDialogModule, 
     MatSelectModule, 
     MatFormFieldModule, 
+    MatTooltipModule,
     FormsModule, 
     DataTableComponent, 
     PageHeaderComponent
@@ -57,17 +59,19 @@ import { TableColumn } from '../../../../core/models/pagination.interface';
           (searchChange)="onSearch($event)"
           (pageChange)="onPage($event)"
           (sortChange)="onSort($event)">
-          <div *rowActions="let workout" class="action-buttons">
-            <button mat-icon-button matTooltip="View" (click)="viewWorkout(workout)">
-              <mat-icon>visibility</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Edit" (click)="editWorkout(workout)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Delete" (click)="deleteWorkout(workout)">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
+          <ng-template #rowActions let-workout>
+            <div class="action-buttons">
+              <button mat-icon-button matTooltip="View" (click)="viewWorkout(workout)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Edit" (click)="editWorkout(workout)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Delete" (click)="deleteWorkout(workout)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </ng-template>
         </app-data-table>
       </div>
     </div>

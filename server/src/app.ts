@@ -63,6 +63,7 @@ app.use(helmet({
 // CORS configuration (only for API routes)
 const corsOptions = {
   origin: process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:4200',
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8081',

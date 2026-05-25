@@ -12,7 +12,7 @@ export interface Breadcrumb { label: string; link?: string; }
     <div class="page-header">
       <div class="page-header__main">
         <h1 class="page-header__title">{{ title }}</h1>
-        @if (breadcrumbs?.length) {
+        @if (breadcrumbs.length) {
           <nav class="page-header__breadcrumbs">
             @for (crumb of breadcrumbs; track crumb.label; let last = $last) {
               @if (crumb.link && !last) {

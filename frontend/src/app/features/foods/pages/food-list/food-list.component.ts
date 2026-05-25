@@ -53,17 +53,19 @@ import { TableColumn } from '../../../../core/models/pagination.interface';
           (searchChange)="onSearch($event)"
           (pageChange)="onPage($event)"
           (sortChange)="onSort($event)">
-          <div *rowActions="let food" class="action-buttons">
-            <button mat-icon-button matTooltip="View" (click)="viewFood(food)">
-              <mat-icon>visibility</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Edit" (click)="editFood(food)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Delete" (click)="deleteFood(food)">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
+          <ng-template #rowActions let-food>
+            <div class="action-buttons">
+              <button mat-icon-button matTooltip="View" (click)="viewFood(food)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Edit" (click)="editFood(food)">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Delete" (click)="deleteFood(food)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </ng-template>
         </app-data-table>
       </div>
     </div>

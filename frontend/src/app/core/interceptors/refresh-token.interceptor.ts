@@ -1,16 +1,18 @@
 import { HttpInterceptorFn, HttpErrorResponse, HttpHandlerFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { BehaviorSubject, catchError, filter, switchMap, take, throwError } from 'rxjs';
+import { ReplaySubject, catchError, switchMap, take, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 
 let isRefreshing = false;
-const refreshSubject = new BehaviorSubject<string | null>(null);
+let refreshSubject = new ReplaySubject<string>(1);
 
 export const refreshTokenInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401 && !req.url.includes('refresh-token') && !req.url.includes('login')) {
+      const isAuthEndpoint = req.url.includes('refresh-token') || req.url.includes('login');
+      const shouldRefresh = err.status === 401 || err.status === 403;
+      if (shouldRefresh && !isAuthEndpoint) {
         return handle401(req, next, auth);
       }
       return throwError(() => err);
@@ -21,23 +23,30 @@ export const refreshTokenInterceptor: HttpInterceptorFn = (req, next) => {
 function handle401(req: HttpRequest<unknown>, next: HttpHandlerFn, auth: AuthService) {
   if (!isRefreshing) {
     isRefreshing = true;
-    refreshSubject.next(null);
+    refreshSubject = new ReplaySubject<string>(1);
     return auth.refreshToken().pipe(
       switchMap(res => {
+        const token = res.data?.accessToken;
+        if (!token) {
+          isRefreshing = false;
+          auth.clearSession();
+          return throwError(() => new Error('Missing access token from refresh response'));
+        }
         isRefreshing = false;
-        refreshSubject.next(res.data.accessToken);
-        const cloned = req.clone({ setHeaders: { Authorization: `Bearer ${res.data.accessToken}` } });
+        refreshSubject.next(token);
+        refreshSubject.complete();
+        const cloned = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
         return next(cloned);
       }),
       catchError(err => {
         isRefreshing = false;
+        refreshSubject.error(err);
         auth.clearSession();
         return throwError(() => err);
       })
     );
   }
   return refreshSubject.pipe(
-    filter(t => t !== null),
     take(1),
     switchMap(token => {
       const cloned = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });

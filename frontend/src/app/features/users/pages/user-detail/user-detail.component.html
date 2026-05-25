@@ -1,0 +1,268 @@
+<div class="user-detail-page">
+  <app-page-header
+    title="User Profile"
+    [breadcrumbs]="[
+      {label:'Dashboard', link:'/dashboard'},
+      {label:'Users', link:'/users'},
+      {label: getDisplayName()}
+    ]">
+    <div class="header-actions">
+      <a mat-button class="back-btn" routerLink="/users">
+        <mat-icon>arrow_back</mat-icon>
+        Back
+      </a>
+    </div>
+  </app-page-header>
+
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="loading-card">
+        <div class="loading-spinner"></div>
+        <p>Loading profile...</p>
+      </div>
+    </div>
+
+  } @else if (user()) {
+    <div class="profile-container">
+
+      <!-- ── Hero ──────────────────────────────────── -->
+      <div class="hero-section">
+        <div class="hero-banner"></div>
+        <div class="hero-body">
+
+          <div class="hero-avatar">
+            @if (user()!.avatar) {
+              <img [src]="user()!.avatar" [alt]="getDisplayName()">
+            } @else if (initials()) {
+              <div class="avatar-placeholder">
+                <span>{{ initials() }}</span>
+              </div>
+            } @else {
+              <div class="avatar-anon">
+                <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="48" cy="38" r="20" fill="rgba(255,255,255,0.35)"/>
+                  <ellipse cx="48" cy="82" rx="30" ry="20" fill="rgba(255,255,255,0.35)"/>
+                </svg>
+              </div>
+            }
+          </div>
+
+          <div class="hero-meta">
+            <h1>{{ getFullName() }}</h1>
+            <p class="username">@{{ user()!.username }}</p>
+            <p class="email">{{ user()!.email }}</p>
+            <div class="status-badges">
+              @if (user()!.isEmailVerified) {
+                <span class="status-badge verified">
+                  <mat-icon>verified</mat-icon>
+                  Verified
+                </span>
+              }
+              @if (user()!.isActive) {
+                <span class="status-badge active">
+                  <mat-icon>check_circle</mat-icon>
+                  Active
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <a class="btn-edit" [routerLink]="['/users/edit', user()!.id]">
+              <mat-icon>edit</mat-icon>
+              Edit Profile
+            </a>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Main Grid ──────────────────────────────── -->
+      <div class="main-grid">
+
+        <!-- Left Column -->
+        <div class="left-column">
+          <p class="col-label">Profile Details</p>
+
+          <!-- Personal Info -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>person_outline</mat-icon>
+              </div>
+              <h3>Personal Information</h3>
+            </div>
+            <div class="section-body">
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>badge</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Full Name</span>
+                    <span class="stat-value">{{ getFullName() }}</span>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>account_circle</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Username</span>
+                    <span class="stat-value">{{ user()!.username }}</span>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>email</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Email</span>
+                    <span class="stat-value">{{ user()!.email }}</span>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>phone</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Phone</span>
+                    <span class="stat-value">{{ user()!.phone || 'Not provided' }}</span>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>cake</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Date of Birth</span>
+                    <span class="stat-value">{{ user()!.dateOfBirth ? (user()!.dateOfBirth | date) : 'Not provided' }}</span>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon"><mat-icon>wc</mat-icon></div>
+                  <div class="stat-info">
+                    <span class="stat-label">Gender</span>
+                    <span class="stat-value">{{ formatGender(user()!.gender) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bio -->
+          @if (user()!.bio) {
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-icon">
+                  <mat-icon>description</mat-icon>
+                </div>
+                <h3>About</h3>
+              </div>
+              <div class="section-body">
+                <p class="bio-text">{{ user()!.bio }}</p>
+              </div>
+            </div>
+          }
+
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-column">
+          <p class="col-label">Stats & Account</p>
+
+          <!-- Physical Statistics -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>fitness_center</mat-icon>
+              </div>
+              <h3>Physical Statistics</h3>
+            </div>
+            <div class="section-body">
+              <div class="phys-grid">
+                <div class="phys-item">
+                  <span class="phys-value">{{ user()!.height ? (user()!.height | number:'1.0-1') : '—' }}</span>
+                  <span class="phys-label">Height (cm)</span>
+                </div>
+                <div class="phys-item">
+                  <span class="phys-value">{{ user()!.weight ? (user()!.weight | number:'1.0-1') : '—' }}</span>
+                  <span class="phys-label">Weight (kg)</span>
+                </div>
+                <div class="phys-item">
+                  <span class="phys-value">{{ user()!.bmi ? (user()!.bmi | number:'1.0-1') : '—' }}</span>
+                  <span class="phys-label">BMI</span>
+                </div>
+
+                <div class="phys-row-item">
+                  <span class="phys-row-label">Body Fat</span>
+                  <span class="phys-row-value">{{ user()!.bodyFatPercentage ? user()!.bodyFatPercentage + '%' : '—' }}</span>
+                </div>
+                <div class="phys-row-item">
+                  <span class="phys-row-label">Fitness Goal</span>
+                  <span class="phys-row-value">{{ formatFitnessGoal(user()!.fitnessGoal) }}</span>
+                </div>
+                <div class="phys-row-item">
+                  <span class="phys-row-label">Activity Level</span>
+                  <span class="phys-row-value">{{ formatActivityLevel(user()!.activityLevel) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Information -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon">
+                <mat-icon>admin_panel_settings</mat-icon>
+              </div>
+              <h3>Account Information</h3>
+            </div>
+            <div class="section-body">
+              <div class="info-list">
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>tag</mat-icon>
+                    User ID
+                  </span>
+                  <span class="info-value">#{{ user()!.id }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>verified_user</mat-icon>
+                    Role
+                  </span>
+                  <span class="info-value role-badge" [class]="'role-' + (user()!.role || 'user')">
+                    {{ (user()!.role || 'user') | titlecase }}
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>calendar_today</mat-icon>
+                    Member Since
+                  </span>
+                  <span class="info-value">{{ user()!.createdAt | date: 'MMM d, yyyy' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>update</mat-icon>
+                    Last Updated
+                  </span>
+                  <span class="info-value">{{ user()!.updatedAt | date: 'MMM d, yyyy' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">
+                    <mat-icon>login</mat-icon>
+                    Last Login
+                  </span>
+                  <span class="info-value">
+                    {{ user()!.lastLogin ? (user()!.lastLogin | date: 'MMM d, yyyy, h:mm a') : 'Never' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  } @else {
+    <div class="empty-state">
+      <mat-icon>person_off</mat-icon>
+      <p>User not found</p>
+      <a mat-button routerLink="/users" class="back-link">Back to Users</a>
+    </div>
+  }
+</div>

@@ -1,4 +1,57 @@
-.user-list { animation: fadeIn 0.3s ease-out; }
-.actions-cell { display: flex; gap: 4px; }
-.delete-btn { color: #f43f5e; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.user-list-page {
+  animation: fadeIn 0.3s ease-out;
+  padding: 24px;
+  
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+}
+
+.add-btn {
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-dark)) !important;
+  color: white !important;
+  border-radius: 12px !important;
+  padding: 0 20px !important;
+  height: 40px !important;
+  
+  mat-icon {
+    color: white;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-accent);
+  }
+}
+
+.table-wrapper {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.delete-btn {
+  color: var(--error) !important;
+  
+  &:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

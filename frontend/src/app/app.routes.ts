@@ -11,11 +11,11 @@ import { UserFormComponent } from './features/users/pages/user-form/user-form.co
 import { UserDetailComponent } from './features/users/pages/user-detail/user-detail.component';
 import { FoodListComponent } from './features/foods/pages/food-list/food-list.component';
 import { FoodFormComponent } from './features/foods/pages/food-form/food-form.component';
-// import { FoodDetailComponent } from './features/foods/pages/food-detail/food-detail.component';
+import { FoodDetailComponent } from './features/foods/pages/food-detail/food-detail.component';
 import { WorkoutListComponent } from './features/workouts/pages/workout-list/workout-list.component';
 import { WorkoutFormComponent } from './features/workouts/pages/workout-form/workout-form.component';
-// import { WorkoutDetailComponent } from './features/workouts/pages/workout-detail/workout-detail.component';
-// import { ProfileSettingsComponent } from './features/profile/pages/profile-settings/profile-settings.component';
+import { WorkoutDetailComponent } from './features/workouts/pages/workout-detail/workout-detail.component';
+import { ProfileSettingsComponent } from './features/profile/pages/profile-settings/profile-settings.component';
 
 export const routes: Routes = [
   {
@@ -38,12 +38,12 @@ export const routes: Routes = [
       { path: 'foods', component: FoodListComponent },
       { path: 'foods/create', component: FoodFormComponent },
       { path: 'foods/edit/:id', component: FoodFormComponent },
-    //   { path: 'foods/:id', component: FoodDetailComponent },
+      { path: 'foods/:id', component: FoodDetailComponent },
       { path: 'workouts', component: WorkoutListComponent },
       { path: 'workouts/create', component: WorkoutFormComponent },
       { path: 'workouts/edit/:id', component: WorkoutFormComponent },
-    //   { path: 'workouts/:id', component: WorkoutDetailComponent },
-    //   { path: 'profile', component: ProfileSettingsComponent },
+      { path: 'workouts/:id', component: WorkoutDetailComponent },
+      { path: 'profile', component: ProfileSettingsComponent },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },
