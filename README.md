@@ -16,7 +16,7 @@
 [![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-**A full-stack fitness and nutrition microservices platform with mobile app, API gateway, backend services, and AI-powered food recognition & coaching**
+**A full-stack fitness and nutrition microservices platform with mobile app, admin dashboard, API gateway, backend services, and AI-powered food recognition & coaching**
 
 [Features](#-key-features) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Tech Stack](#-technology-stack)
 
@@ -41,6 +41,7 @@
 - **📈 Gym Progress Dashboard** - Track personal bests, metrics history, and workout statistics
 - **🔌 Real-Time Communication** - Socket.IO powered live updates, messaging, and notifications
 - **🚀 API Gateway** - Ocelot-based gateway with rate limiting, caching, and security headers
+- **🧭 Admin Dashboard** - Web admin panel for managing users, workouts, foods, and platform data
 - **🌍 Multi-language Support** - Available in English, Arabic, French, German, Spanish, Italian, and Icelandic
 - **🔐 Secure Authentication** - OAuth integration with Google, JWT access & refresh tokens
 - **📱 Cross-Platform** - iOS, Android, and Web support through React Native
@@ -76,6 +77,14 @@
 - **Offline Support** - AsyncStorage for data persistence
 - **Deep Linking** - OAuth callback handling
 - **Edge-to-Edge UI** - Android system navigation bar management
+
+### 🧭 Admin Dashboard (Web)
+- **Angular + Material UI** - Responsive admin interface with modern components
+- **Secure Auth** - JWT access tokens with HttpOnly refresh cookies
+- **User Management** - Search, view, and manage users and roles
+- **Workout Catalog** - Create, edit, and maintain workouts
+- **Food Catalog** - Manage foods, macros, and calories
+- **Shared UI** - Data tables, file uploads, confirm dialogs, and role directives
 
 ### 🚀 API Gateway
 - **Ocelot Routing** - Unified entry point for all microservices on port 8080
@@ -157,6 +166,149 @@ Icoach-app/
 │   ├── Dockerfile                       # Container configuration
 │   ├── docker-compose.yml               # Gateway container setup
 │   └── GATEWAY_TESTING_CHECKLIST.md     # Testing documentation
+│
+├── 🧭 frontend/                         # Angular Admin Dashboard
+│   ├── .editorconfig
+│   ├── .gitignore
+│   ├── .prettierrc
+│   ├── angular.json
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── tsconfig.spec.json
+│   ├── public/
+│   │   └── favicon.ico
+│   ├── src/
+│   │   ├── index.html
+│   │   ├── main.ts
+│   │   ├── styles.scss
+│   │   ├── environments/
+│   │   │   ├── environment.ts
+│   │   │   └── environment.prod.ts
+│   │   └── app/
+│   │       ├── app.config.ts
+│   │       ├── app.html
+│   │       ├── app.routes.ts
+│   │       ├── app.scss
+│   │       ├── app.ts
+│   │       ├── core/
+│   │       │   ├── auth/
+│   │       │   │   ├── auth.guard.ts
+│   │       │   │   ├── auth.service.ts
+│   │       │   │   └── role.guard.ts
+│   │       │   ├── interceptors/
+│   │       │   │   ├── auth.interceptor.ts
+│   │       │   │   ├── error.interceptor.ts
+│   │       │   │   └── refresh-token.interceptor.ts
+│   │       │   ├── models/
+│   │       │   │   ├── api-response.interface.ts
+│   │       │   │   ├── auth.interfaces.ts
+│   │       │   │   ├── food.interface.ts
+│   │       │   │   ├── pagination.interface.ts
+│   │       │   │   ├── user.interface.ts
+│   │       │   │   └── workout.interface.ts
+│   │       │   └── services/
+│   │       │       ├── api.service.ts
+│   │       │       ├── notification.service.ts
+│   │       │       └── storage.service.ts
+│   │       ├── features/
+│   │       │   ├── auth/
+│   │       │   │   └── pages/
+│   │       │   │       └── login/
+│   │       │   │           ├── login.component.html
+│   │       │   │           ├── login.component.scss
+│   │       │   │           └── login.component.ts
+│   │       │   ├── dashboard/
+│   │       │   │   └── pages/
+│   │       │   │       └── dashboard-home/
+│   │       │   │           ├── dashboard-home.component.html
+│   │       │   │           ├── dashboard-home.component.scss
+│   │       │   │           └── dashboard-home.component.ts
+│   │       │   ├── foods/
+│   │       │   │   ├── foods.routes.ts
+│   │       │   │   ├── pages/
+│   │       │   │   │   ├── food-detail/
+│   │       │   │   │   │   ├── food-detail.component.html
+│   │       │   │   │   │   ├── food-detail.component.scss
+│   │       │   │   │   │   └── food-detail.component.ts
+│   │       │   │   │   ├── food-form/
+│   │       │   │   │   │   ├── food-form.component.html
+│   │       │   │   │   │   ├── food-form.component.scss
+│   │       │   │   │   │   └── food-form.component.ts
+│   │       │   │   │   └── food-list/
+│   │       │   │   │       └── food-list.component.ts
+│   │       │   │   └── services/
+│   │       │   │       └── food.service.ts
+│   │       │   ├── profile/
+│   │       │   │   ├── pages/
+│   │       │   │   │   └── profile-settings/
+│   │       │   │   │       └── profile-settings.component.ts
+│   │       │   │   └── profile.routes.ts
+│   │       │   ├── users/
+│   │       │   │   ├── pages/
+│   │       │   │   │   ├── user-detail/
+│   │       │   │   │   │   ├── user-detail.component.html
+│   │       │   │   │   │   ├── user-detail.component.scss
+│   │       │   │   │   │   └── user-detail.component.ts
+│   │       │   │   │   ├── user-form/
+│   │       │   │   │   │   ├── user-form.component.html
+│   │       │   │   │   │   ├── user-form.component.scss
+│   │       │   │   │   │   └── user-form.component.ts
+│   │       │   │   │   └── user-list/
+│   │       │   │   │       ├── user-list.component.html
+│   │       │   │   │       ├── user-list.component.scss
+│   │       │   │   │       └── user-list.component.ts
+│   │       │   │   ├── services/
+│   │       │   │   │   └── user.service.ts
+│   │       │   │   └── users.routes.ts
+│   │       │   └── workouts/
+│   │       │       ├── pages/
+│   │       │       │   ├── workout-detail/
+│   │       │       │   │   └── workout-detail.component.ts
+│   │       │       │   ├── workout-form/
+│   │       │       │   │   ├── workout-form.component.html
+│   │       │       │   │   ├── workout-form.component.scss
+│   │       │       │   │   └── workout-form.component.ts
+│   │       │       │   └── workout-list/
+│   │       │       │       └── workout-list.component.ts
+│   │       │       ├── services/
+│   │       │       │   └── workout.service.ts
+│   │       │       └── workouts.routes.ts
+│   │       ├── layouts/
+│   │       │   ├── admin-layout/
+│   │       │   │   ├── admin-layout.component.ts
+│   │       │   │   └── components/
+│   │       │   │       ├── header/
+│   │       │   │       │   └── header.component.ts
+│   │       │   │       └── sidebar/
+│   │       │   │           └── sidebar.component.ts
+│   │       │   └── auth-layout/
+│   │       │       └── auth-layout.component.ts
+│   │       └── shared/
+│   │           ├── components/
+│   │           │   ├── confirm-dialog/
+│   │           │   │   └── confirm-dialog.component.ts
+│   │           │   ├── data-table/
+│   │           │   │   └── data-table.component.ts
+│   │           │   ├── file-upload/
+│   │           │   │   └── file-upload.component.ts
+│   │           │   ├── page-header/
+│   │           │   │   └── page-header.component.ts
+│   │           │   ├── stats-card/
+│   │           │   │   └── stats-card.component.ts
+│   │           │   └── theme/
+│   │           │       └── base-theme.component.ts
+│   │           ├── constants/
+│   │           │   └── colors.constants.ts
+│   │           ├── directives/
+│   │           │   └── has-role.directive.ts
+│   │           ├── pipes/
+│   │           │   ├── file-size.pipe.ts
+│   │           │   └── truncate.pipe.ts
+│   │           └── services/
+│   │               └── theme.service.ts
+│   └── README.md                         # Admin dashboard docs
 │
 ├── 📱 application/                      # React Native Mobile App (Expo)
 │   ├── App.tsx                          # Application entry point
@@ -373,6 +525,7 @@ Icoach-app/
 graph TB
     %% User Layer
     User([👤 User])
+    Admin([🧑‍💼 Admin])
     
     %% Mobile App
     subgraph "📱 Mobile App (React Native)"
@@ -386,6 +539,15 @@ graph TB
         MessagingModule[User Messaging<br/>- Direct Chat<br/>- Presence<br/>- Read Receipts]
         SocketClient[Socket.IO Client<br/>- Real-time Updates]
         Storage[Local Storage<br/>- AsyncStorage<br/>- Offline Data]
+    end
+
+    %% Admin Dashboard
+    subgraph "🧭 Admin Dashboard (Angular)"
+        AdminUI[Admin UI]
+        AdminAuth[Authentication<br/>- Login<br/>- Token Refresh]
+        AdminModules[Admin Modules<br/>- Users<br/>- Workouts<br/>- Foods]
+        AdminStorage[Browser Storage<br/>- Access Token]
+        AdminCookies[HttpOnly Cookies<br/>- Refresh Token]
     end
     
     %% API Gateway
@@ -448,6 +610,7 @@ graph TB
     
     %% Connections
     User --> UI
+    Admin --> AdminUI
     UI --> AuthModule
     UI --> WorkoutModule
     UI --> NutritionModule
@@ -455,6 +618,10 @@ graph TB
     UI --> ActivityModule
     UI --> ChatModule
     SocketClient --> SocketServer
+    AdminUI --> AdminAuth
+    AdminUI --> AdminModules
+    AdminAuth --> AdminStorage
+    AdminAuth --> AdminCookies
     
     AuthModule --> Gateway
     WorkoutModule --> Gateway
@@ -463,6 +630,8 @@ graph TB
     ProfileModule --> Gateway
     ActivityModule --> Gateway
     ChatModule --> Gateway
+    AdminAuth --> Gateway
+    AdminModules --> Gateway
     
     Gateway --> RedisCache
     Gateway --> API
@@ -495,6 +664,7 @@ graph TB
     
     %% Styling
     classDef mobile fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef admin fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px
     classDef gateway fill:#fff8e1,stroke:#f57f17,stroke-width:2px
     classDef backend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef ai fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
@@ -503,11 +673,12 @@ graph TB
     classDef db fill:#e0f2f1,stroke:#00695c,stroke-width:2px
     
     class UI,AuthModule,WorkoutModule,NutritionModule,ProfileModule,ActivityModule,ChatModule,MessagingModule,SocketClient,Storage mobile
+    class AdminUI,AdminAuth,AdminModules,AdminStorage,AdminCookies admin
     class Gateway gateway
     class API,SocketServer,JWT,OAuth,WorkoutLogic,NutritionLogic,UserLogic,ImageService,EmailService,MetricsService,PresenceTracker backend
     class AI_API,FoodRecognition,RAGChat,ToolExecutor ai
     class Cloudinary,OAuthProviders,GroqAPI external
-    class User user
+    class User,Admin user
     class AuthDB,WorkoutDB,NutritionDB,UserDB,ChatDB,ConversationDB,RedisCache,VectorDB,AIRedis db
 ```
 
@@ -522,6 +693,8 @@ sequenceDiagram
     participant GW as API Gateway :8080
     participant API as Backend API :5000
     participant Google as Google OAuth
+    participant AdminApp as Admin Dashboard (Web)
+    participant Browser as Browser Storage/Cookies
     
     %% Normal Login Flow
     User->>App: Enter credentials
@@ -566,6 +739,28 @@ sequenceDiagram
     GW->>API: Forward request
     API-->>GW: Success response
     GW-->>App: Success response
+
+    %% Admin Web Flow (HttpOnly Refresh Cookie)
+    AdminApp->>GW: POST /api/v1/users/login
+    GW->>API: Forward request
+    API-->>GW: {accessToken} + Set-Cookie(refreshToken)
+    GW-->>AdminApp: Response
+    AdminApp->>Browser: Store access token (memory/localStorage)
+    Browser-->>AdminApp: refreshToken cookie stored
+
+    AdminApp->>GW: Request with expired token
+    GW->>API: Forward request
+    API-->>GW: 401 Token expired
+    GW-->>AdminApp: 401 Token expired
+    AdminApp->>GW: POST /api/v1/users/refresh-token (cookie sent)
+    GW->>API: Forward request
+    API-->>GW: {new accessToken} + Set-Cookie(refreshToken)
+    GW-->>AdminApp: Response
+    AdminApp->>Browser: Update access token
+    AdminApp->>GW: Retry original request
+    GW->>API: Forward request
+    API-->>GW: Success response
+    GW-->>AdminApp: Success response
 ```
 
 ---
@@ -678,6 +873,20 @@ npm start
 
 Scan the QR code with **Expo Go** app (iOS/Android) or press `w` for web.
 
+#### 6️⃣ Setup Admin Dashboard (Web)
+
+```bash
+cd ../frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+ng serve
+```
+
+Admin dashboard will be running at `http://localhost:4200`
+
 ### 🐳 Option 2: Docker Setup
 
 #### API Gateway
@@ -710,6 +919,9 @@ Detailed documentation for each component:
 ### 🚀 API Gateway
 - [Testing Checklist](./ApiGateway/GATEWAY_TESTING_CHECKLIST.md)
 
+### 🧭 Admin Dashboard
+- [Admin Dashboard Guide](./frontend/README.md)
+
 ### 📱 Mobile Application
 - [Quick Start Guide](./application/QUICKSTART.md)
 - [Architecture & Structure](./application/STRUCTURE.md)
@@ -738,6 +950,16 @@ Detailed documentation for each component:
 | **Redis (StackExchange)** | Distributed caching & rate limiting |
 | **Kestrel** | High-performance web server |
 | **Docker** | Containerized deployment |
+
+### Admin Dashboard (Web)
+| Technology | Purpose |
+|------------|---------|
+| **Angular** | SPA framework |
+| **Angular Material** | UI component library |
+| **RxJS** | Reactive data flow |
+| **Chart.js** | Data visualization |
+| **ng2-charts** | Angular chart integration |
+| **SCSS** | Styling and theming |
 
 ### Mobile Application
 | Technology | Purpose |
@@ -1117,6 +1339,7 @@ docker run -p 8000:8000 icoach-ai:latest
 - [x] Dark/Light theme support
 - [x] Edge-to-edge UI (Android)
 - [x] Medical notes & injury tracking
+- [x] Admin dashboard (web)
 
 ### In Progress 🔄
 - [ ] More exercise models (currently: jumping jacks)
