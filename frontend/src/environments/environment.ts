@@ -1,7 +1,7 @@
 export const environment = { 
   production: false, 
   env: 'development', 
-  apiUrl: 'https://unpleased-endanger-boaster.ngrok-free.dev/api', 
+  apiUrl: 'http://localhost:8080/api', 
   enableLogging: true, 
   enableDevTools: true, 
 }; 

@@ -17,9 +17,6 @@ export class AuthService {
   private storage = inject(StorageService);
   private router = inject(Router);
 
-  // Base URL must match your ApiService — adjust if different
-  private readonly baseUrl = '/api';
-
   private _currentUser = signal<LoginResponse['user'] | null>(
     this.storage.getItem(USER_KEY)
   );
@@ -61,9 +58,10 @@ export class AuthService {
    * withCredentials is set, regardless of how ApiService is configured.
    */
   refreshToken(): Observable<ApiResponse<{ accessToken: string }>> {
+    const baseUrl = this.api.baseUrl.replace(/\/$/, '');
     return this.http
       .post<ApiResponse<{ accessToken: string }>>(
-        `${this.baseUrl}/v1/users/refresh-token`,
+        `${baseUrl}/v1/users/refresh-token`,
         {},
         { withCredentials: true }
       )
