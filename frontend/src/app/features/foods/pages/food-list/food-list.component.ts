@@ -135,7 +135,6 @@ export class FoodListComponent implements OnInit, OnDestroy {
   columns: TableColumn<Food>[] = [
     { key: 'pic',          label: '',         type: 'image',   width: '80px' },
     { key: 'name',         label: 'Name',     sortable: true,  width: '200px' },
-    { key: 'category',     label: 'Category', type: 'badge',   sortable: true, badgeClass: (v: string) => this.getCategoryClass(v) },
     { key: 'calories',     label: 'Calories', sortable: true,  formatter: (v: number) => `${v} kcal` },
     { key: 'protein',      label: 'Protein',                   formatter: (v: number) => `${v}g` },
     { key: 'carbohydrate', label: 'Carbs',                     formatter: (v: number) => `${v}g` },
@@ -157,20 +156,6 @@ export class FoodListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  private getCategoryClass(category: string): string {
-    const map: Record<string, string> = {
-      'Protein':       'active',
-      'Carbohydrates': 'info',
-      'Fats':          'warning',
-      'Vegetables':    'success',
-      'Fruits':        'success',
-      'Dairy':         'info',
-      'Beverages':     'default',
-      'Snacks':        'warning',
-    };
-    return map[category] ?? 'default';
   }
 
   loadFoods(): void {

@@ -231,7 +231,7 @@ export class FoodFormComponent implements OnInit, OnDestroy {
     });
 
     if (this.selectedImage()) {
-      formData.append('pic', this.selectedImage() as File);
+      formData.append('foodImage', this.selectedImage() as File);
     }
 
     const request = this.isEdit()

@@ -36,9 +36,6 @@
             <div class="hero-header">
               <h1>{{ food()!.name }}</h1>
               <div class="hero-badges">
-                <span class="category-badge" [class]="'badge--' + getCategoryClass(food()!.category)">
-                  {{ food()!.category || 'Uncategorized' }}
-                </span>
                 <span class="calories-badge">
                   <mat-icon>local_fire_department</mat-icon>
                   {{ food()!.calories }} kcal
@@ -196,13 +193,6 @@
                     Food ID
                   </span>
                   <span class="info-value">#{{ food()!.id }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">
-                    <mat-icon>category</mat-icon>
-                    Category
-                  </span>
-                  <span class="info-value">{{ food()!.category || 'Uncategorized' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">

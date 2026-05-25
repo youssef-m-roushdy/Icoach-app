@@ -135,18 +135,4 @@ export class FoodDetailComponent implements OnInit, OnDestroy {
     const img = event.target as HTMLImageElement;
     img.src = this.placeholderImage;
   }
-
-  getCategoryClass(category?: string): string {
-    const map: Record<string, string> = {
-      'Protein': 'active',
-      'Carbohydrates': 'info',
-      'Fats': 'warning',
-      'Vegetables': 'success',
-      'Fruits': 'success',
-      'Dairy': 'info',
-      'Beverages': 'default',
-      'Snacks': 'warning',
-    };
-    return map[category ?? ''] ?? 'default';
-  }
 }

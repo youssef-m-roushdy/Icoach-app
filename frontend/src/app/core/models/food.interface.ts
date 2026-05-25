@@ -1,3 +1,4 @@
+// food.interface.ts
 export interface Food {
   id: number;
   name: string;
@@ -6,7 +7,6 @@ export interface Food {
   carbohydrate: number;
   fat: number;
   sugar?: number;
-  category?: string;
   pic?: string;
   createdAt: string;
   updatedAt: string;
@@ -19,13 +19,10 @@ export interface CreateFoodDto {
   carbohydrate: number;
   fat: number;
   sugar?: number;
-  category?: string;
-  pic?: File;
 }
 
 export type UpdateFoodDto = Partial<CreateFoodDto>;
 
-// ✅ Matches your API pagination object
 export interface PaginationMeta {
   currentPage: number;
   totalPages: number;
@@ -35,7 +32,6 @@ export interface PaginationMeta {
   hasPreviousPage: boolean;
 }
 
-// ✅ Matches your API response: { success, message, data: [...], pagination: {} }
 export interface FoodListResponse {
   success: boolean;
   message: string;
@@ -43,7 +39,6 @@ export interface FoodListResponse {
   pagination: PaginationMeta;
 }
 
-// ✅ Single food response: { success, message, data: { ...food } }
 export interface FoodResponse {
   success: boolean;
   message: string;

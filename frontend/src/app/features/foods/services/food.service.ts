@@ -29,20 +29,20 @@ export class FoodService {
   }
 
   searchFoods(query: string): Observable<ApiResponse<Food[]>> {
-    return this.api.get<Food[]>('/v1/foods/search', { q: query });
+    return this.api.get<Food[]>('/v1/foods/search', { query });
   }
 
   getFoodById(id: number | string): Observable<ApiResponse<Food>> {
     return this.api.get<Food>(`/v1/foods/${id}`);
   }
 
-  createFood(dto: CreateFoodDto): Observable<any> {
-    const fd = this.toFormData(dto);
+  createFood(payload: CreateFoodDto | FormData): Observable<any> {
+    const fd = payload instanceof FormData ? payload : this.toFormData(payload);
     return this.api.upload<Food>('/v1/foods', fd, 'POST');
   }
 
-  updateFood(id: number | string, dto: UpdateFoodDto): Observable<any> {
-    const fd = this.toFormData(dto);
+  updateFood(id: number | string, payload: UpdateFoodDto | FormData): Observable<any> {
+    const fd = payload instanceof FormData ? payload : this.toFormData(payload);
     return this.api.upload<Food>(`/v1/foods/${id}`, fd, 'PUT');
   }
 
