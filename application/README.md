@@ -255,6 +255,15 @@ npm install expo@54.0.23
 
 ---
 
+## Install The Body Detection Model
+```bash
+New-Item -ItemType Directory -Force -Path "android\app\src\main\assets"
+Invoke-WebRequest -Uri "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task" -OutFile "android\app\src\main\assets\pose_landmarker_lite.task"
+
+# Check it exists
+dir android\app\src\main\assets\
+```
+
 ## 🚀 Start Developing
 
 ```bash
