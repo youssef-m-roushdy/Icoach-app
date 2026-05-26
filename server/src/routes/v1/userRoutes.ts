@@ -1097,6 +1097,11 @@ router.delete('/profile/avatar',
  *         schema:
  *           type: boolean
  *         description: Filter by email verification status
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *         description: Filter by active status
  *     responses:
  *       200:
  *         description: Users retrieved successfully
@@ -1412,11 +1417,11 @@ router.put('/:id',
 
 /**
  * @swagger
- * /api/v1/users/{id}:
- *   delete:
+ * /api/v1/users/{id}/deactivate:
+ *   patch:
  *     tags:
  *       - Admin - User Management
- *     summary: Delete user by ID (Admin only)
+ *     summary: Deactivate user by ID (Admin only)
  *     description: Soft delete a user by setting isActive to false. This preserves data while deactivating the account.
  *     security:
  *       - bearerAuth: []
@@ -1429,7 +1434,7 @@ router.put('/:id',
  *         description: User ID
  *     responses:
  *       200:
- *         description: User deleted successfully
+ *         description: User deactivated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -1459,11 +1464,67 @@ router.put('/:id',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id', 
+router.patch('/:id/deactivate', 
   authenticate,
   authorize('admin'),
   validateIdParam,
-  asyncHandler(UserController.deleteUser)
+  asyncHandler(UserController.deactivateUser)
+);
+
+/**
+ * @swagger
+ * /api/v1/users/{id}/activate:
+ *   patch:
+ *     tags:
+ *       - Admin - User Management
+ *     summary: Activate user by ID (Admin only)
+ *     description: Restore a deactivated user account by setting isActive to true.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User activated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - Admin access required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.patch('/:id/activate', 
+  authenticate,
+  authorize('admin'),
+  validateIdParam,
+  asyncHandler(UserController.activateUser)
 );
 
 export default router;

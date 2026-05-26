@@ -308,6 +308,11 @@ export const validatePagination = [
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
 
+  query('isActive')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('isActive must be a boolean string (true or false)'),
+
   handleValidationErrors,
 ];
 

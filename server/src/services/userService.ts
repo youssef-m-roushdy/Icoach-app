@@ -147,15 +147,27 @@ export class UserService {
   }
 
   /**
-   * Delete user (soft delete by setting isActive to false)
+   * Deactivate user (soft delete by setting isActive to false)
    */
-  static async deleteUser(id: number): Promise<void> {
+  static async deactivateUser(id: number): Promise<void> {
     const user = await User.findByPk(id);
     if (!user) {
       throw new NotFoundError('User not found');
     }
 
     await user.update({ isActive: false });
+  }
+
+  /**
+   * Activate user (set isActive to true)
+   */
+  static async activateUser(id: number): Promise<void> {
+    const user = await User.findByPk(id);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    await user.update({ isActive: true });
   }
 
   /**
@@ -218,11 +230,12 @@ export class UserService {
     };
   }> {
     const offset = (page - 1) * limit;
-    const whereClause: any = { isActive: true };
+    const whereClause: any = {};
 
     // Apply filters
     if (filters.role) whereClause.role = filters.role;
     if (filters.isEmailVerified !== undefined) whereClause.isEmailVerified = filters.isEmailVerified;
+    if (filters.isActive !== undefined) whereClause.isActive = filters.isActive;
 
     const { count, rows } = await User.findAndCountAll({
       where: whereClause,

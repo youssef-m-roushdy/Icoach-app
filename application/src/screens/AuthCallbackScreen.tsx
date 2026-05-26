@@ -25,11 +25,7 @@ const AuthCallbackScreen: React.FC = () => {
         if (token && user) {
           const userData = typeof user === 'string' ? JSON.parse(user) : user;
           await setAuthState(token, userData, refreshToken);
-          
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' as never }],
-          });
+          // The conditional rendering in AppNavigator will automatically handle the navigation switch
         } else {
           navigation.reset({
             index: 0,

@@ -380,6 +380,8 @@ export class UserController {
         role: req.query.role as string,
         isEmailVerified: req.query.isEmailVerified === 'true' ? true : 
                         req.query.isEmailVerified === 'false' ? false : undefined,
+        isActive: req.query.isActive === 'true' ? true :
+                  req.query.isActive === 'false' ? false : undefined,
       };
       
       const result = await UserService.getAllUsers(page, limit, filters);
@@ -444,19 +446,39 @@ export class UserController {
   }
 
   /**
-   * Delete user by ID (admin only)
+   * Deactivate user by ID (admin only)
    */
-  static async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async deactivateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       if (!id) {
         throw new AppError('User ID is required', 400);
       }
-      await UserService.deleteUser(parseInt(id));
+      await UserService.deactivateUser(parseInt(id));
       
       res.status(200).json({
         success: true,
-        message: 'User deleted successfully',
+        message: 'User deactivated successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Activate user by ID (admin only)
+   */
+  static async activateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!id) {
+        throw new AppError('User ID is required', 400);
+      }
+      await UserService.activateUser(parseInt(id));
+      
+      res.status(200).json({
+        success: true,
+        message: 'User activated successfully',
       });
     } catch (error) {
       next(error);

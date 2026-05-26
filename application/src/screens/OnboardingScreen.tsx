@@ -1524,9 +1524,8 @@ export default function OnboardingScreen() {
           updateUser({ ...user, onboardingSkipped: true } as any);
         }
       }
-      
-      // Navigate to main app after completion
-      navigation.replace('MainDrawer');
+      // Conditional rendering in AppNavigator handles the navigation to MainTabs automatically 
+      // once updateUser is called and needsOnboarding becomes false.
     } catch (error: unknown) {
       void Haptics.notificationAsync(
         Haptics.NotificationFeedbackType.Error
@@ -1572,9 +1571,9 @@ export default function OnboardingScreen() {
   const handleSkip = useCallback(() => {
     if (user) {
       updateUser({ ...user, onboardingSkipped: true } as any);
-      navigation.replace('MainDrawer');
+      // Let conditional rendering switch the stack
     }
-  }, [user, updateUser, navigation]);
+  }, [user, updateUser]);
 
   const isLastStep = step === TOTAL_STEPS - 1;
 
