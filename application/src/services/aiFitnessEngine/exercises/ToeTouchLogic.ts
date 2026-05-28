@@ -16,16 +16,12 @@ const LANDMARK_INDICES = {
   RIGHT_FOOT_INDEX: 32,
 } as const;
 
+// 🚀 التعديلات الهندسية في الـ Thresholds
 const THRESHOLDS = {
-  TOUCH_DISTANCE: 0.22,
-  BACK_ANGLE_WARNING: 155,
-  BACK_CHEAT_ANGLE: 145,
-  KNEE_ANGLE_WARNING: 150,
-  MIN_LEG_LIFT: -0.15,
-  COOLDOWN_FRAMES: 5,
-
-  // If the shoulder moved forward by more than 4% of frame width ahead of the hip → cheating
-  SHOULDER_FORWARD_LIMIT: 0.04,
+  TOUCH_RATIO: 0.85,     // مسافة التلامس نسبةً لطول الجذع (عشان تشتغل صح مهما الكاميرا بعدت)
+  BACK_MIN_ANGLE: 145,   // أقل زاوية لاستقامة الظهر (تسمح بميل بسيط وتمنع الانحناء الشديد)
+  KNEE_MIN_ANGLE: 145,   // أقل زاوية لاستقامة الركبة للرجل المرفوعة
+  COOLDOWN_FRAMES: 10,   // زودناها شوية لمنع العد المزدوج السريع
 } as const;
 
 function calculateAngle(a: Landmark, b: Landmark, c: Landmark): number {
@@ -55,6 +51,7 @@ export class ToeTouchLogic implements ExerciseLogic {
 
   private getDistance(a: Landmark, b: Landmark): number {
     if (!a || !b) return 100;
+    // Euclidean Distance
     return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
   }
 
@@ -91,95 +88,86 @@ export class ToeTouchLogic implements ExerciseLogic {
       };
     }
 
-    const bodyCenterX = (lHip.x + rHip.x) / 2;
+    // 1. حساب طول الجذع (المرجع الديناميكي لقياس المسافات)
+    const midShoulderX = (lSh.x + rSh.x) / 2;
+    const midShoulderY = (lSh.y + rSh.y) / 2;
+    const midHipX = (lHip.x + rHip.x) / 2;
+    const midHipY = (lHip.y + rHip.y) / 2;
+    const torsoLength = Math.sqrt(Math.pow(midShoulderX - midHipX, 2) + Math.pow(midShoulderY - midHipY, 2));
+    const dynamicTouchDist = torsoLength * THRESHOLDS.TOUCH_RATIO;
 
+    // 2. حساب مسافات التلامس الصح (Cross-body)
     const distRightHandToLeftFoot = this.getDistance(rw, lFoot);
     const distLeftHandToRightFoot = this.getDistance(lw, rFoot);
 
-    const backAngleLeft  = calculateAngle(lSh, lHip, lKnee);
-    const backAngleRight = calculateAngle(rSh, rHip, rKnee);
-    const avgBackAngle   = (backAngleLeft + backAngleRight) / 2;
+    // 3. حساب مسافات التلامس الغلط (Same-side cheating)
+    const distRightHandToRightFoot = this.getDistance(rw, rFoot);
+    const distLeftHandToLeftFoot = this.getDistance(lw, lFoot);
 
-    // ✅ Additional check: did the shoulder move forward ahead of the hip?
-    const avgShoulderX = (lSh.x + rSh.x) / 2;
-    const avgHipX      = (lHip.x + rHip.x) / 2;
-    const shoulderForward = avgHipX - avgShoulderX > THRESHOLDS.SHOULDER_FORWARD_LIMIT;
+    // 4. حساب زوايا الظهر (كل رجل على حدة)
+    const backAngleLeftStanding  = calculateAngle(lSh, lHip, lKnee); // لو الرجل الشمال هي اللي عالأرض
+    const backAngleRightStanding = calculateAngle(rSh, rHip, rKnee); // لو الرجل اليمين هي اللي عالأرض
 
-    const backWarning = avgBackAngle < THRESHOLDS.BACK_ANGLE_WARNING;
-
-    // Large angle (clear bending) or shoulder moved forward = cheating
-    const backCheat = avgBackAngle < THRESHOLDS.BACK_CHEAT_ANGLE || shoulderForward;
-
+    // 5. حساب زوايا الركبة (عشان نضمن إن الرجل المرفوعة مفرودة)
     const kneeAngleLeft  = calculateAngle(lHip, lKnee, lFoot);
     const kneeAngleRight = calculateAngle(rHip, rKnee, rFoot);
 
-    const leftKneeWarning  = kneeAngleLeft  < THRESHOLDS.KNEE_ANGLE_WARNING;
-    const rightKneeWarning = kneeAngleRight < THRESHOLDS.KNEE_ANGLE_WARNING;
-    const legLiftedWarningLeft  = lFoot.y < lHip.y - THRESHOLDS.MIN_LEG_LIFT;
-    const legLiftedWarningRight = rFoot.y < rHip.y - THRESHOLDS.MIN_LEG_LIFT;
-
     if (this.state === 'waiting') {
-      this.feedback_code = 'KICK_AND_TOUCH';
-      this.is_correct = true;
+      const isRightToLeftTouch = distRightHandToLeftFoot < dynamicTouchDist;
+      const isLeftToRightTouch = distLeftHandToRightFoot < dynamicTouchDist;
+      const isCheatingRight = distRightHandToRightFoot < dynamicTouchDist;
+      const isCheatingLeft  = distLeftHandToLeftFoot < dynamicTouchDist;
 
-      const rightHandLeftFootTouch = distRightHandToLeftFoot < THRESHOLDS.TOUCH_DISTANCE;
-      const leftHandRightFootTouch = distLeftHandToRightFoot < THRESHOLDS.TOUCH_DISTANCE;
-      const rightHandOpposite = rw.x < bodyCenterX + 0.1;
-      const leftHandOpposite  = lw.x > bodyCenterX - 0.1;
-
-      if (rightHandLeftFootTouch && rightHandOpposite) {
-        if (backCheat) {
-          this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
-          this.is_correct = false;
-        } else {
-          this.reps++;
-          this.state = 'cooldown';
-          this.cooldownTimer = 0;
-          this.activeSide = 'right_hand_left_leg';
-          this.feedback_code = 'GOOD_REP';
-          this.is_correct = true;
-        }
-      } else if (leftHandRightFootTouch && leftHandOpposite) {
-        if (backCheat) {
-          this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
-          this.is_correct = false;
-        } else {
-          this.reps++;
-          this.state = 'cooldown';
-          this.cooldownTimer = 0;
-          this.activeSide = 'left_hand_right_leg';
-          this.feedback_code = 'GOOD_REP';
-          this.is_correct = true;
-        }
-      } else {
-        if (backWarning) {
-          this.feedback_code = 'STRAIGHTEN_BACK' as FeedbackSignal;
-          this.is_correct = false;
-        } else if (
-          (rightHandLeftFootTouch && !rightHandOpposite) ||
-          (leftHandRightFootTouch && !leftHandOpposite)
-        ) {
+      // لو بيحاول يلمس أي حاجة
+      if (isRightToLeftTouch || isLeftToRightTouch || isCheatingRight || isCheatingLeft) {
+        
+        // منع الغش لو بيلمس الرجل بنفس الإيد
+        if ((isRightToLeftTouch && isCheatingLeft) || (isLeftToRightTouch && isCheatingRight) || isCheatingRight || isCheatingLeft) {
           this.feedback_code = 'OPPOSITE_HAND' as FeedbackSignal;
           this.is_correct = false;
-        } else if (rightHandLeftFootTouch || leftHandRightFootTouch) {
-          if (
-            (rightHandLeftFootTouch && !legLiftedWarningLeft) ||
-            (leftHandRightFootTouch && !legLiftedWarningRight)
-          ) {
-            this.feedback_code = 'KICK_HIGHER';
-            this.is_correct = false;
-          } else if (
-            (rightHandLeftFootTouch && rightKneeWarning) ||
-            (leftHandRightFootTouch && leftKneeWarning)
-          ) {
+        } 
+        // تحليل حركة (إيد يمين -> رجل شمال)
+        else if (isRightToLeftTouch) {
+          // الرجل الشمال هي اللي مرفوعة، واليمين عالأرض
+          if (kneeAngleLeft < THRESHOLDS.KNEE_MIN_ANGLE) {
             this.feedback_code = 'STRAIGHTEN_LEG' as FeedbackSignal;
             this.is_correct = false;
+          } else if (backAngleRightStanding < THRESHOLDS.BACK_MIN_ANGLE) {
+            this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
+            this.is_correct = false;
           } else {
-            this.feedback_code = 'KICK_AND_TOUCH';
+            // كل الشروط اتحققت
+            this.reps++;
+            this.state = 'cooldown';
+            this.cooldownTimer = 0;
+            this.activeSide = 'right_hand_left_leg';
+            this.feedback_code = 'GOOD_REP';
+            this.is_correct = true;
           }
-        } else {
-          this.feedback_code = 'KICK_AND_TOUCH';
+        } 
+        // تحليل حركة (إيد شمال -> رجل يمين)
+        else if (isLeftToRightTouch) {
+          // الرجل اليمين هي اللي مرفوعة، والشمال عالأرض
+          if (kneeAngleRight < THRESHOLDS.KNEE_MIN_ANGLE) {
+            this.feedback_code = 'STRAIGHTEN_LEG' as FeedbackSignal;
+            this.is_correct = false;
+          } else if (backAngleLeftStanding < THRESHOLDS.BACK_MIN_ANGLE) {
+            this.feedback_code = 'ERR_KEEP_TORSO_STRAIGHT' as FeedbackSignal;
+            this.is_correct = false;
+          } else {
+            // كل الشروط اتحققت
+            this.reps++;
+            this.state = 'cooldown';
+            this.cooldownTimer = 0;
+            this.activeSide = 'left_hand_right_leg';
+            this.feedback_code = 'GOOD_REP';
+            this.is_correct = true;
+          }
         }
+      } else {
+        // لسه ملمسش
+        this.feedback_code = 'KICK_AND_TOUCH';
+        this.is_correct = true;
       }
     } else if (this.state === 'cooldown') {
       this.cooldownTimer++;

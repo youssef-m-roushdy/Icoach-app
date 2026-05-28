@@ -40,7 +40,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
   private feedbackCode: FeedbackSignal = 'START_POSITION';
   private lastFeedbackTime: number = 0;
   private currentFeedbackPriority: FeedbackPriority = FeedbackPriority.LOW;
-  private readonly STICKY_FEEDBACK_MS = 1000; // قللناها لثانية عشان تلحق تشوف التغييرات
+  private readonly STICKY_FEEDBACK_MS = 1000;
 
   // ONNX Model state
   private model: any = null;
@@ -49,8 +49,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
   private lastArmClass: string | null = null;
   private lastProb: number = 0;
 
-  // Smoothing tools (EMA) - 🔥 Tuned for SPEED (Higher Alpha = Less Lag)
-  // زدنا الألفا لتكون أسرع استجابة
+  // Smoothing tools (EMA) - tuned for responsive yet stable feedback
   private emaAnkleDist: EMA = new EMA(0.8);
   private emaShoulderDist: EMA = new EMA(0.7);
   private emaHipDist: EMA = new EMA(0.8);
@@ -59,31 +58,34 @@ export class JumpingJacksLogic implements ExerciseLogic {
 
   // Anti-Cheat & Timing
   private lastRepTime: number = 0;
-  // 🔥 Cooldown أسرع (150ms) للسماح بمزيد من العدات السريعة
   private readonly REP_COOLDOWN_MS = 150;
 
   // Confirmation Counters
   private openUpFrames: number = 0;
   private closedDownFrames: number = 0;
-  // 🔥 خفضنا لـ1 فريم لعد أسرع
+  // خفضنا التأكيد لإطار واحد لتجنب تفويت العدات السريعة
   private readonly CONFIRM_FRAMES = 1;
 
-  // --- THRESHOLDS (MODIFIED TO PREVENT FALSE COUNTS) ---
-  // Leg Thresholds (Normalized)
-  // خففنا الشروط للإغلاق لمنع الصرامة الزائدة
-  private readonly LEGS_OPEN_ENTRY = 1.25; // خفض قليلاً لتسهيل الفتح
+  // --- THRESHOLDS (BALANCED TO CATCH REAL REPS WITHOUT FALSE TRIGGERS) ---
+  // Leg Distance Thresholds (Normalized)
+  private readonly LEGS_OPEN_ENTRY = 1.2;   // كان 1.25 - أقل صرامة
   private readonly LEGS_OPEN_EXIT = 1.15;
-  private readonly LEGS_CLOSED_ENTRY = 1.20; // زيادة للسماح بإغلاق غير كامل
-  private readonly LEGS_CLOSED_EXIT = 1.30;
+  private readonly LEGS_CLOSED_ENTRY = 1.2;
+  private readonly LEGS_CLOSED_EXIT = 1.3;
 
   // Arm Thresholds (Degrees)
-  // خففنا الشروط للخفض لمنع الصرامة
-  private readonly ARMS_UP_ENTRY = 135; // خفض لتسهيل الرفع
+  private readonly ARMS_UP_ENTRY = 135;
   private readonly ARMS_UP_EXIT = 120;
-  private readonly ARMS_DOWN_ENTRY = 110; // زيادة للسماح بخفض غير كامل
+  private readonly ARMS_DOWN_ENTRY = 110;
   private readonly ARMS_DOWN_EXIT = 125;
 
-  private readonly STRICT_ARM_PROB = 0.60; // خفضنا لتسهيل
+  // ✅ Hip Angle Thresholds – Relaxed to accommodate natural movement ranges
+  // During opening, angle drops below 160° for most users
+  // During closing, angle goes above 165° (natural stance)
+  private readonly LEGS_OPEN_HIP_ANGLE = 160;   // كان 150
+  private readonly LEGS_CLOSED_HIP_ANGLE = 165; // كان 170
+
+  private readonly STRICT_ARM_PROB = 0.6;
 
   constructor() {
     this.loadModel();
@@ -109,7 +111,6 @@ export class JumpingJacksLogic implements ExerciseLogic {
     const now = Date.now();
     const timeSinceLast = now - this.lastFeedbackTime;
 
-    // ✅ التعديل الأول: الأولويات العالية جدًا (زي الأرقام) تكسر التثبيت فورًا وتتنطق في ساعتها
     if (
       priority >= FeedbackPriority.CRITICAL ||
       priority > this.currentFeedbackPriority ||
@@ -173,7 +174,7 @@ export class JumpingJacksLogic implements ExerciseLogic {
     }
     const probSmooth = this.emaProb.update(this.lastProb);
 
-    // ✅ شروط صارمة: لازم الأيدي والأرجل يكونوا في الوضع المطلوب معاً
+    // Arm state
     const armsUp =
       avgShoulderAngle >=
       (this.stage === 'down' ? this.ARMS_UP_ENTRY : this.ARMS_UP_EXIT);
@@ -188,30 +189,33 @@ export class JumpingJacksLogic implements ExerciseLogic {
     const shoulderDist = this.emaShoulderDist.update(Math.abs(lSh[0] - rSh[0]));
     const baseDist = Math.max(hipDist, shoulderDist * 0.9);
 
+    // Leg state with relaxed hip angle conditions
     const legsOpen =
       ankleDist >
-      baseDist * (this.stage === 'down' ? this.LEGS_OPEN_ENTRY : this.LEGS_OPEN_EXIT);
+        baseDist *
+          (this.stage === 'down' ? this.LEGS_OPEN_ENTRY : this.LEGS_OPEN_EXIT) &&
+      angLHip < this.LEGS_OPEN_HIP_ANGLE &&
+      angRHip < this.LEGS_OPEN_HIP_ANGLE;
 
     const legsClosed =
       ankleDist <
-      baseDist * (this.stage === 'up' ? this.LEGS_CLOSED_ENTRY : this.LEGS_CLOSED_EXIT);
+        baseDist *
+          (this.stage === 'up' ? this.LEGS_CLOSED_ENTRY : this.LEGS_CLOSED_EXIT) &&
+      angLHip > this.LEGS_CLOSED_HIP_ANGLE &&
+      angRHip > this.LEGS_CLOSED_HIP_ANGLE;
 
-    // 5. State Machine Logic - ✅ التعديل الأساسي هنا
-    // لازم يكون الأرجل مفتوحة والأيدي مرفوعة معاً
+    // 5. State Machine – Both arms and legs must match
     const isPoseUp = legsOpen && armsUp;
-    // لازم يكون الأرجل مقفولة والأيدي مخفضة معاً
     const isPoseDown = legsClosed && armsDown;
 
     this.openUpFrames = isPoseUp ? this.openUpFrames + 1 : 0;
     this.closedDownFrames = isPoseDown ? this.closedDownFrames + 1 : 0;
 
     if (this.stage === 'down') {
-      // ✅ لازم يرفع ايديه ويفتح رجليه معاً عشان يتحول لمرحلة "up"
       if (this.openUpFrames >= this.CONFIRM_FRAMES) {
         this.stage = 'up';
         this.updateFeedback('CMD_JUMP_CLOSE', FeedbackPriority.MEDIUM);
       } else {
-        // Form Feedback
         if (!legsOpen && !armsUp) {
           this.updateFeedback('CMD_OPEN_LEGS_AND_RAISE_ARMS', FeedbackPriority.LOW);
         } else if (!legsOpen) {
@@ -221,17 +225,14 @@ export class JumpingJacksLogic implements ExerciseLogic {
         }
       }
     } else if (this.stage === 'up') {
-      // ✅ لازم يقفل رجليه ويخفض ايديه معاً عشان يعد العدة
       if (this.closedDownFrames >= this.CONFIRM_FRAMES) {
         if (now - this.lastRepTime > this.REP_COOLDOWN_MS) {
           this.counter++;
           this.lastRepTime = now;
           this.stage = 'down';
-          // ✅ التعديل التاني: نبعت كود العدة بدل REP_SUCCESS
           this.updateFeedback(`COUNT_${this.counter}` as FeedbackSignal, FeedbackPriority.CRITICAL);
         }
       } else {
-        // Form Feedback
         if (!legsClosed && !armsDown) {
           this.updateFeedback('CMD_CLOSE_LEGS_AND_LOWER_ARMS', FeedbackPriority.LOW);
         } else if (!legsClosed) {
@@ -277,7 +278,6 @@ export class JumpingJacksLogic implements ExerciseLogic {
 
   forceRep(): void {
     this.counter++;
-    // ✅ التعديل التالت: تحديث العدة لو اتعملت بشكل يدوي
     this.updateFeedback(`COUNT_${this.counter}` as FeedbackSignal, FeedbackPriority.CRITICAL);
   }
 }
