@@ -23,7 +23,7 @@ import { HeaderComponent } from './components/header/header.component';
     .admin-layout {
       display: flex;
       min-height: 100vh;
-      background: var(--bg);
+      background: var(--bg-primary);
     }
     .admin-layout__main {
       flex: 1;

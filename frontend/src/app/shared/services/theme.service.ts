@@ -40,6 +40,11 @@ export class ThemeService {
       // Apply theme to document
       this.applyThemeToDocument();
       
+      // Enable theme transitions after initial paint to prevent flash
+      requestAnimationFrame(() => {
+        document.body.classList.add('theme-ready');
+      });
+      
       // Listen for system theme changes
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (!localStorage.getItem(this.THEME_KEY)) {

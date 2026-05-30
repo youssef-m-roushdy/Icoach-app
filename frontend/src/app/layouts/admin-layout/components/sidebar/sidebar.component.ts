@@ -352,20 +352,9 @@ interface NavItem {
       }
     }
     
-    /* Active route indicator */
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-    
+    /* Active route indicator - no entrance animation to prevent flash on reload */
     .nav-item--active {
-      animation: slideIn 0.3s ease;
+      /* Active state is handled by background, color, and ::before indicator above */
     }
   `]
 })
