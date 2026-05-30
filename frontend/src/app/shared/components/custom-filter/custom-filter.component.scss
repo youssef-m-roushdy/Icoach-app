@@ -1,0 +1,282 @@
+// ── Wrapper ───────────────────────────────────────────────────────────────────
+
+.cf-wrapper {
+  position: relative;
+  display: inline-block;
+  min-width: 150px;
+}
+
+// ── Trigger pill ──────────────────────────────────────────────────────────────
+
+.cf-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 12px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  // open state
+  .cf-open & {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  // has a value selected
+  .cf-active & {
+    border-color: var(--accent-color);
+    background: var(--accent-light);
+  }
+
+  &:hover:not(.cf-open .cf-trigger) {
+    border-color: var(--accent-color);
+  }
+}
+
+.cf-trigger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cf-icon {
+  font-size: 17px !important;
+  width: 17px !important;
+  height: 17px !important;
+  color: var(--text-secondary) !important;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+
+  .cf-active & { color: var(--accent-color) !important; }
+  .cf-open &   { color: var(--accent-color) !important; }
+}
+
+.cf-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  line-height: 1;
+  gap: 2px;
+}
+
+.cf-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: color 0.2s ease;
+
+  .cf-active & { color: var(--accent-color); }
+  .cf-open &   { color: var(--accent-color); }
+}
+
+.cf-value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  .cf-active & { color: var(--accent-color); }
+}
+
+.cf-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cf-value-icon {
+  font-size: 13px !important;
+  width: 13px !important;
+  height: 13px !important;
+  color: var(--accent-color) !important;
+}
+
+// ── Right side (clear + chevron) ──────────────────────────────────────────────
+
+.cf-trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.cf-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-color);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  padding: 0;
+
+  mat-icon {
+    font-size: 12px !important;
+    width: 12px !important;
+    height: 12px !important;
+    color: #fff !important;
+  }
+
+  &:hover {
+    background: var(--error, #ef4444);
+    transform: scale(1.1);
+  }
+}
+
+.cf-chevron {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--text-secondary) !important;
+  transition: transform 0.2s ease, color 0.2s ease;
+
+  &.cf-rotated { transform: rotate(180deg); }
+  .cf-open &   { color: var(--accent-color) !important; }
+}
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+
+.cf-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  background: var(--card-bg);
+  border: 1.5px solid var(--accent-color);
+  border-radius: 14px;
+  overflow: hidden;
+  z-index: 300;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  animation: cfDrop 0.15s ease;
+}
+
+@keyframes cfDrop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+.cf-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+
+  mat-icon {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+    color: var(--text-tertiary) !important;
+    flex-shrink: 0;
+  }
+
+  input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    min-width: 0;
+
+    &::placeholder { color: var(--text-tertiary); }
+  }
+}
+
+// ── Options list ──────────────────────────────────────────────────────────────
+
+.cf-options {
+  padding: 5px;
+  max-height: 220px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar       { width: 3px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+}
+
+.cf-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 0.855rem;
+  color: var(--text-primary);
+  transition: background 0.13s ease, color 0.13s ease;
+
+  &:hover {
+    background: var(--accent-light);
+    color: var(--accent-color);
+
+    .cf-opt-icon { color: var(--accent-color) !important; }
+  }
+
+  &.cf-selected {
+    background: var(--accent-light);
+    color: var(--accent-color);
+    font-weight: 600;
+
+    .cf-opt-icon { color: var(--accent-color) !important; }
+  }
+}
+
+.cf-opt-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cf-opt-icon {
+  font-size: 15px !important;
+  width: 15px !important;
+  height: 15px !important;
+  color: var(--text-secondary) !important;
+  transition: color 0.13s ease;
+}
+
+.cf-opt-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.cf-opt-check {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--accent-color) !important;
+  margin-left: auto;
+}
+
+.cf-empty {
+  padding: 14px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}

@@ -1,0 +1,148 @@
+<div class="ci-field" [class.ci-disabled]="_disabled()">
+
+  @if (label) {
+    <label class="ci-label">
+      @if (icon) { <mat-icon>{{ icon }}</mat-icon> }
+      <span>{{ label }}</span>
+    </label>
+  }
+
+  <!-- ── TEXT / EMAIL / PASSWORD ──────────────────────────────────────── -->
+  @if (type === 'text' || type === 'email' || type === 'password') {
+    <div class="ci-input-wrapper" [class.ci-focused]="isFocused()">
+      <input
+        [type]="inputType"
+        class="ci-input"
+        [placeholder]="placeholder"
+        [value]="_value()"
+        [disabled]="_disabled()"
+        [readonly]="readonly"
+        (input)="onInputChange($event)"
+        (focus)="onFocus()"
+        (blur)="onBlur()">
+
+      @if (type === 'password') {
+        <button type="button" class="ci-suffix-btn" (click)="togglePassword()">
+          <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+      }
+
+      @if (loading) {
+        <div class="ci-suffix-btn">
+          <mat-spinner diameter="16" />
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── NUMBER ───────────────────────────────────────────────────────── -->
+  @if (type === 'number') {
+    <div class="ci-input-wrapper ci-number" [class.ci-focused]="isFocused()">
+      <input
+        type="number"
+        class="ci-input"
+        [placeholder]="placeholder"
+        [value]="_value()"
+        [disabled]="_disabled()"
+        [readonly]="readonly"
+        [step]="step"
+        [attr.min]="min"
+        [attr.max]="max"
+        (input)="onInputChange($event)"
+        (focus)="onFocus()"
+        (blur)="onBlur()">
+      <div class="ci-steppers">
+        <button type="button" (click)="step_(step)"  [disabled]="_disabled()">
+          <mat-icon>keyboard_arrow_up</mat-icon>
+        </button>
+        <button type="button" (click)="step_(-step)" [disabled]="_disabled()">
+          <mat-icon>keyboard_arrow_down</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── TEXTAREA ──────────────────────────────────────────────────────── -->
+  @if (type === 'textarea') {
+    <textarea
+      class="ci-input ci-textarea"
+      [placeholder]="placeholder"
+      [rows]="rows"
+      [disabled]="_disabled()"
+      [readonly]="readonly"
+      (input)="onInputChange($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()">{{ _value() }}</textarea>
+  }
+
+  <!-- ── SELECT ────────────────────────────────────────────────────────── -->
+  @if (type === 'select') {
+    <div class="ci-select-wrapper">
+
+      <div class="ci-select-trigger"
+           [class.ci-open]="isOpen()"
+           [class.ci-has-value]="selectedOption()"
+           (click)="toggleDropdown()">
+        <span class="ci-select-value">
+          @if (selectedOption()) {
+            @if (selectedOption()!.emoji) {
+              <span class="ci-option-emoji">{{ selectedOption()!.emoji }}</span>
+            }
+            @if (selectedOption()!.icon) {
+              <mat-icon class="ci-option-icon-sm">{{ selectedOption()!.icon }}</mat-icon>
+            }
+            {{ selectedOption()!.label }}
+          } @else {
+            <span class="ci-placeholder">{{ placeholder || 'Select an option' }}</span>
+          }
+        </span>
+        <mat-icon class="ci-chevron" [class.ci-rotated]="isOpen()">expand_more</mat-icon>
+      </div>
+
+      @if (isOpen()) {
+        <div class="ci-dropdown">
+
+          @if (searchable) {
+            <div class="ci-dropdown-search">
+              <mat-icon>search</mat-icon>
+              <input
+                type="text"
+                placeholder="Search..."
+                [value]="search()"
+                (input)="search.set($any($event.target).value)"
+                (click)="$event.stopPropagation()">
+            </div>
+          }
+
+          <div class="ci-dropdown-list">
+            @for (opt of filteredOptions(); track opt.value) {
+              <div class="ci-option"
+                   [class.ci-selected]="opt.value === _value()"
+                   (click)="selectOption(opt)">
+                @if (opt.emoji) {
+                  <span class="ci-option-emoji-wrap">{{ opt.emoji }}</span>
+                }
+                @if (opt.icon) {
+                  <mat-icon class="ci-option-icon-sm">{{ opt.icon }}</mat-icon>
+                }
+                <span>{{ opt.label }}</span>
+                @if (opt.value === _value()) {
+                  <mat-icon class="ci-option-check">check</mat-icon>
+                }
+              </div>
+            } @empty {
+              <div class="ci-empty">No options found</div>
+            }
+          </div>
+
+        </div>
+      }
+
+    </div>
+  }
+
+  @if (hint) {
+    <span class="ci-hint">{{ hint }}</span>
+  }
+
+</div>

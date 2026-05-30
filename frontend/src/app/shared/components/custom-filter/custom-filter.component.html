@@ -1,0 +1,83 @@
+<div class="cf-wrapper" [class.cf-open]="isOpen()" [class.cf-active]="hasValue()">
+
+  <!-- Trigger pill -->
+  <div class="cf-trigger" (click)="toggle()">
+
+    <div class="cf-trigger-left">
+      @if (icon) {
+        <mat-icon class="cf-icon">{{ icon }}</mat-icon>
+      }
+      <div class="cf-text">
+        <span class="cf-label">{{ label }}</span>
+        @if (selectedOption()) {
+          <span class="cf-value">
+            @if (selectedOption()!.dot) {
+              <span class="cf-dot" [style.background]="selectedOption()!.dot"></span>
+            }
+            @if (selectedOption()!.icon) {
+              <mat-icon class="cf-value-icon">{{ selectedOption()!.icon }}</mat-icon>
+            }
+            {{ selectedOption()!.label }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="cf-trigger-right">
+      @if (hasValue()) {
+        <button class="cf-clear" (click)="clear($event)" title="Clear filter">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+      <mat-icon class="cf-chevron" [class.cf-rotated]="isOpen()">expand_more</mat-icon>
+    </div>
+
+  </div>
+
+  <!-- Dropdown -->
+  @if (isOpen()) {
+    <div class="cf-dropdown">
+
+      @if (searchable) {
+        <div class="cf-search">
+          <mat-icon>search</mat-icon>
+          <input
+            type="text"
+            placeholder="Search..."
+            [value]="search()"
+            (input)="search.set($any($event.target).value)"
+            (click)="$event.stopPropagation()"
+            autofocus>
+        </div>
+      }
+
+      <div class="cf-options">
+        @for (opt of filteredOptions(); track opt.value) {
+          <div
+            class="cf-option"
+            [class.cf-selected]="String(opt.value) === String(_value())"
+            (click)="select(opt)">
+
+            @if (opt.dot) {
+              <span class="cf-opt-dot" [style.background]="opt.dot"></span>
+            }
+            @if (opt.icon) {
+              <mat-icon class="cf-opt-icon">{{ opt.icon }}</mat-icon>
+            }
+
+            <span class="cf-opt-label">{{ opt.label }}</span>
+
+            @if (String(opt.value) === String(_value())) {
+              <mat-icon class="cf-opt-check">check</mat-icon>
+            }
+
+          </div>
+        } @empty {
+          <div class="cf-empty">No options found</div>
+        }
+      </div>
+
+    </div>
+  }
+
+</div>

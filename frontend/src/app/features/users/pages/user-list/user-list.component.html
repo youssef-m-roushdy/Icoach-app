@@ -1,16 +1,54 @@
 <div class="user-list-page">
-  <app-page-header 
-    title="Users" 
+  <app-page-header
+    title="Users"
     [breadcrumbs]="[
-      {label:'Dashboard', link:'/dashboard'},
-      {label:'Users'}
+      { label: 'Dashboard', link: '/dashboard' },
+      { label: 'Users' }
     ]">
     <a mat-flat-button class="add-btn" routerLink="/users/create">
-      <mat-icon>add</mat-icon> 
+      <mat-icon>add</mat-icon>
       Add User
     </a>
   </app-page-header>
 
+  <!-- ── Filters ─────────────────────────────────────────────────────────── -->
+<div class="filters-bar">
+  <div class="filters-group">
+
+    <app-custom-filter
+      label="Role"
+      icon="manage_accounts"
+      [options]="roleOptions"
+      [value]="roleFilter.value"
+      (valueChange)="roleFilter.setValue($event); onFilterChange()"/>
+
+    <app-custom-filter
+      label="Email Status"
+      icon="mark_email_read"
+      [options]="emailStatusOptions"
+      [value]="emailVerifiedFilter.value"
+      (valueChange)="emailVerifiedFilter.setValue($event); onFilterChange()"/>
+
+    <app-custom-filter
+      label="Active Status"
+      icon="toggle_on"
+      [options]="activeStatusOptions"
+      [value]="isActiveFilter.value"
+      (valueChange)="isActiveFilter.setValue($event); onFilterChange()"/>
+
+  </div>
+
+  <button
+    class="clear-btn"
+    [class.has-filters]="hasActiveFilters()"
+    [disabled]="!hasActiveFilters()"
+    (click)="clearFilters()">
+    <mat-icon>filter_alt_off</mat-icon>
+    Clear All
+  </button>
+</div>
+
+  <!-- ── Table ───────────────────────────────────────────────────────────── -->
   <div class="table-wrapper">
     <app-data-table
       [columns]="columns"
@@ -22,19 +60,47 @@
       (searchChange)="onSearch($event)"
       (pageChange)="onPage($event)"
       (sortChange)="onSort($event)">
-        <ng-template #rowActions let-user>
-          <div class="action-buttons">
-            <button mat-icon-button matTooltip="View User" (click)="viewUser(user)">
-              <mat-icon>visibility</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Edit User" (click)="editUser(user)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button matTooltip="Delete User" (click)="deleteUser(user)" class="delete-btn">
-              <mat-icon>delete_outline</mat-icon>
-            </button>
-          </div>
-        </ng-template>
+
+      <!-- Status toggle projected into the 'custom' column type -->
+      <ng-template #statusCell let-user>
+        <div class="status-toggle-wrapper" [class.is-toggling]="togglingUsers.has(user.id)">
+          <button
+            class="toggle-track"
+            [class.is-active]="user.isActive"
+            role="switch"
+            [attr.aria-checked]="user.isActive"
+            [attr.aria-label]="user.isActive ? 'Deactivate user' : 'Activate user'"
+            [disabled]="togglingUsers.has(user.id)"
+            [matTooltip]="user.isActive ? 'Click to deactivate' : 'Click to activate'"
+            (click)="toggleUserStatus(user)">
+            <span class="toggle-thumb">
+              @if (togglingUsers.has(user.id)) {
+                <mat-spinner diameter="10" />
+              } @else {
+                <mat-icon>{{ user.isActive ? 'check' : 'close' }}</mat-icon>
+              }
+            </span>
+          </button>
+          <span class="status-label"
+                [class.is-active]="user.isActive"
+                [class.is-inactive]="!user.isActive">
+            {{ user.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </ng-template>
+
+      <!-- Row action buttons -->
+      <ng-template #rowActions let-user>
+        <div class="action-buttons">
+          <button mat-icon-button matTooltip="View User" (click)="viewUser(user)">
+            <mat-icon>visibility</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Edit User" (click)="editUser(user)">
+            <mat-icon>edit</mat-icon>
+          </button>
+        </div>
+      </ng-template>
+
     </app-data-table>
   </div>
 </div>

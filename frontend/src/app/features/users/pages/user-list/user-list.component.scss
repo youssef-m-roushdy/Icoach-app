@@ -1,11 +1,15 @@
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 .user-list-page {
   animation: fadeIn 0.3s ease-out;
   padding: 24px;
-  
+
   @media (max-width: 768px) {
     padding: 16px;
   }
 }
+
+// ── Add button ────────────────────────────────────────────────────────────────
 
 .add-btn {
   background: linear-gradient(135deg, var(--accent-color), var(--accent-dark)) !important;
@@ -13,37 +17,265 @@
   border-radius: 12px !important;
   padding: 0 20px !important;
   height: 40px !important;
-  
-  mat-icon {
-    color: white;
-  }
-  
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  mat-icon { color: white; }
+
   &:hover {
     transform: translateY(-1px);
     box-shadow: var(--shadow-accent);
   }
 }
 
+// ── Filters bar ───────────────────────────────────────────────────────────────
+
+.filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.filters-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+// Custom select pill — matches your card/border design language
+.filter-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 42px;
+  padding: 0 36px 0 38px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-width: 155px;
+
+  &:hover {
+    border-color: var(--accent-color);
+  }
+
+  &:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+}
+
+.filter-select-label {
+  position: absolute;
+  top: -9px;
+  left: 36px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--card-bg);
+  padding: 0 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.filter-select-icon {
+  position: absolute;
+  left: 10px;
+  font-size: 17px;
+  width: 17px;
+  height: 17px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  transition: color 0.2s ease;
+
+  .filter-select-wrapper:focus-within & {
+    color: var(--accent-color);
+  }
+}
+
+.filter-chevron {
+  position: absolute;
+  right: 8px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.filter-select {
+  // Full stretch over the wrapper, completely invisible native select
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+// Reflect selected value as visible text inside the pill
+.filter-select-wrapper::after {
+  content: attr(data-value);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+// ── Clear button ──────────────────────────────────────────────────────────────
+
+.clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+
+  mat-icon {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
+  }
+
+  &.has-filters {
+    color: var(--error, #ef4444);
+    border-color: var(--error, #ef4444);
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.06);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+// ── Table wrapper ─────────────────────────────────────────────────────────────
+
 .table-wrapper {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  margin-top: 24px;
+  margin-top: 20px;
 }
+
+// ── Action buttons ────────────────────────────────────────────────────────────
 
 .action-buttons {
   display: flex;
   gap: 4px;
 }
 
-.delete-btn {
-  color: var(--error) !important;
-  
-  &:hover {
-    background: rgba(239, 68, 68, 0.1) !important;
+// ── Status toggle ─────────────────────────────────────────────────────────────
+
+.status-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s ease;
+
+  &.is-toggling {
+    opacity: 0.5;
+    pointer-events: none;
   }
 }
+
+.toggle-track {
+  // Reset all native button chrome
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+
+  // Toggle pill
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background: #d1d5db;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+  }
+
+  &.is-active {
+    background: #22c55e;
+
+    .toggle-thumb {
+      transform: translateX(20px);
+      color: #22c55e;
+    }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.toggle-thumb {
+  position: absolute;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  transition: transform 0.25s ease, color 0.25s ease;
+
+  mat-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+  }
+
+  ::ng-deep mat-spinner circle {
+    stroke: #9ca3af;
+  }
+}
+
+.status-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  transition: color 0.25s ease;
+
+  &.is-active   { color: #16a34a; }
+  &.is-inactive { color: #9ca3af; }
+}
+
+// ── Fade-in animation ─────────────────────────────────────────────────────────
 
 @keyframes fadeIn {
   from {

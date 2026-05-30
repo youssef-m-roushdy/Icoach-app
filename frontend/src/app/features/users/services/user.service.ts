@@ -29,8 +29,12 @@ export class UserService {
     return this.api.put<User>(`/v1/users/${id}`, dto);
   }
 
-  deleteUser(id: number | string): Observable<ApiResponse<any>> {
-    return this.api.delete<any>(`/v1/users/${id}`);
+  deactivateUser(id: number | string): Observable<ApiResponse<any>> {
+    return this.api.patch<any>(`/v1/users/${id}/deactivate`, null);
+  }
+
+  activateUser(id: number | string): Observable<ApiResponse<any>> {
+    return this.api.patch<any>(`/v1/users/${id}/activate`, null);
   }
 
   getProfile(): Observable<ApiResponse<User>> {
