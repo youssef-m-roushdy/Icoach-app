@@ -28,91 +28,8 @@ import { TableColumn } from '../../../../core/models/pagination.interface';
     DataTableComponent,
     PageHeaderComponent
   ],
-  template: `
-    <div class="food-list-page">
-      <app-page-header
-        title="Foods"
-        [breadcrumbs]="[
-          {label:'Dashboard', link:'/dashboard'},
-          {label:'Foods'}
-        ]">
-        <a mat-flat-button class="add-btn" routerLink="/foods/create">
-          <mat-icon>add</mat-icon>
-          Add Food
-        </a>
-      </app-page-header>
-
-      <div class="table-wrapper">
-        <app-data-table
-          [columns]="columns"
-          [rows]="foods()"
-          [total]="total()"
-          [loading]="isLoading()"
-          [pageSize]="limit()"
-          [pageIndex]="page() - 1"
-          (searchChange)="onSearch($event)"
-          (pageChange)="onPage($event)"
-          (sortChange)="onSort($event)">
-          <ng-template #rowActions let-food>
-            <div class="action-buttons">
-              <button mat-icon-button matTooltip="View" (click)="viewFood(food)">
-                <mat-icon>visibility</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Edit" (click)="editFood(food)">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Delete" (click)="deleteFood(food)">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </div>
-          </ng-template>
-        </app-data-table>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .food-list-page {
-      animation: fadeIn 0.3s ease-out;
-      padding: 24px;
-
-      @media (max-width: 768px) {
-        padding: 16px;
-      }
-    }
-
-    .add-btn {
-      background: linear-gradient(135deg, var(--accent-color), var(--accent-dark)) !important;
-      color: white !important;
-      border-radius: 12px !important;
-      padding: 0 20px !important;
-      height: 40px !important;
-
-      mat-icon { color: white; }
-
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-accent);
-      }
-    }
-
-    .table-wrapper {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      overflow: hidden;
-      margin-top: 24px;
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 4px;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  `]
+  templateUrl: './food-list.component.html',
+  styleUrls: ['./food-list.component.scss']
 })
 export class FoodListComponent implements OnInit, OnDestroy {
   private foodService = inject(FoodService);
@@ -133,13 +50,19 @@ export class FoodListComponent implements OnInit, OnDestroy {
   private searchSubject = new Subject<string>();
 
   columns: TableColumn<Food>[] = [
-    { key: 'pic',          label: '',        type: 'image',   width: '80px' },
-    { key: 'name',         label: 'Name',    sortable: true,  width: '200px' },
-    { key: 'calories',     label: 'Calories',sortable: true,  formatter: (v: number) => `${v} kcal` },
-    { key: 'protein',      label: 'Protein',                  formatter: (v: number) => `${v}g` },
-    { key: 'carbohydrate', label: 'Carbs',                    formatter: (v: number) => `${v}g` },
-    { key: 'fat',          label: 'Fat',                      formatter: (v: number) => `${v}g` },
-    { key: 'actions',      label: 'Actions', type: 'actions', width: '100px' },
+    { key: 'pic', label: '', type: 'image', width: '80px' },
+    { 
+      key: 'name', 
+      label: 'Name', 
+      sortable: true, 
+      width: '200px',
+      formatter: (value: string) => this.formatFoodName(value)
+    },
+    { key: 'calories', label: 'Calories', sortable: true, formatter: (v: number) => `${v} kcal` },
+    { key: 'protein', label: 'Protein', formatter: (v: number) => `${v}g` },
+    { key: 'carbohydrate', label: 'Carbs', formatter: (v: number) => `${v}g` },
+    { key: 'fat', label: 'Fat', formatter: (v: number) => `${v}g` },
+    { key: 'actions', label: 'Actions', type: 'actions', width: '100px' },
   ];
 
   ngOnInit(): void {
@@ -158,17 +81,27 @@ export class FoodListComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  formatFoodName(name: string): string {
+    if (!name) return '';
+    
+    // Split by underscore and capitalize each word
+    return name
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   loadFoods(): void {
     this.isLoading.set(true);
 
     const params: Record<string, any> = {
-      page:  this.page(),
+      page: this.page(),
       limit: this.limit(),
     };
 
-    if (this.searchQuery()) params['search']    = this.searchQuery();
-    if (this.sortField())   params['sortBy']    = this.sortField();
-    if (this.sortField())   params['sortOrder'] = this.sortOrder();
+    if (this.searchQuery()) params['search'] = this.searchQuery();
+    if (this.sortField()) params['sortBy'] = this.sortField();
+    if (this.sortField()) params['sortOrder'] = this.sortOrder();
 
     this.foodService.getFoods(params).subscribe({
       next: (apiResponse: any) => {
@@ -220,13 +153,13 @@ export class FoodListComponent implements OnInit, OnDestroy {
   deleteFood(food: Food): void {
     const ref = this.dialog.open(ConfirmDialogComponent, {
       width: '400px',
-      panelClass: 'custom-dark-dialog', // التعديل الرئيسي هنا
+      panelClass: 'custom-dark-dialog',
       data: {
-        title:       'Delete Food',
-        message:     `Are you sure you want to delete "${food.name}"?`,
+        title: 'Delete Food',
+        message: `Are you sure you want to delete "${food.name}"?`,
         confirmText: 'Delete',
-        cancelText:  'Cancel',
-        danger:      true,
+        cancelText: 'Cancel',
+        danger: true,
       }
     });
 

@@ -1,0 +1,40 @@
+<div class="food-list-page">
+  <app-page-header
+    title="Foods"
+    [breadcrumbs]="[
+      {label:'Dashboard', link:'/dashboard'},
+      {label:'Foods'}
+    ]">
+    <a mat-flat-button class="add-btn" routerLink="/foods/create">
+      <mat-icon>add</mat-icon>
+      Add Food
+    </a>
+  </app-page-header>
+
+  <div class="table-wrapper">
+    <app-data-table
+      [columns]="columns"
+      [rows]="foods()"
+      [total]="total()"
+      [loading]="isLoading()"
+      [pageSize]="limit()"
+      [pageIndex]="page() - 1"
+      (searchChange)="onSearch($event)"
+      (pageChange)="onPage($event)"
+      (sortChange)="onSort($event)">
+      <ng-template #rowActions let-food>
+        <div class="action-buttons">
+          <button mat-icon-button matTooltip="View" (click)="viewFood(food)">
+            <mat-icon>visibility</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Edit" (click)="editFood(food)">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button mat-icon-button matTooltip="Delete" (click)="deleteFood(food)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </ng-template>
+    </app-data-table>
+  </div>
+</div>
