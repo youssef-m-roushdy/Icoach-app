@@ -165,3 +165,41 @@ export {
   validateGetUserInjuryStatistics,
   validateGetAggravatingWorkouts,
 } from './userInjuryValidation.js';
+
+export {
+  validateCreateAllergen,
+  validateUpdateAllergen,
+  validateAllergenQuery,
+  validateGetAllergenById,
+  validateDeleteAllergen,
+  validateSearchAllergens,
+  validateGetAllergensByCategory,
+  validateGetFoodsByAllergen,
+  validateGetAllergensByFood,
+  validateCheckFoodAllergensForUser,
+  validateBulkCreateAllergens,
+} from './allergenValidation.js';
+
+export {
+  validateCreateFoodAllergen,
+  validateUpdateFoodAllergen,
+  validateFoodAllergenQuery,
+  validateGetFoodAllergenById,
+  validateDeleteFoodAllergen,
+  validateBulkCreateFoodAllergens,
+  validateGetRelationshipsByFood,
+  validateGetRelationshipsByAllergen,
+  validateToggleContains,
+} from './foodAllergenValidation.js';
+
+export {
+  validateCreateUserAllergy,
+  validateUpdateUserAllergy,
+  validateDeleteUserAllergy,
+  validateGetUserAllergyById,
+  validateCheckUserAllergy,
+  validateBulkCreateUserAllergies,
+  validateGetUserAllergies,
+  validateGetUserAllergyStatistics,
+  validateGetFoodsWithUserAllergens,
+} from './userAllergyValidation.js';
