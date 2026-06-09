@@ -475,10 +475,16 @@ Icoach-app/
 │   │   └── views/                       # Server-side EJS views
 │   ├── data/                            # Seed data
 │   │   ├── workouts_data.csv              # 270+ exercises
-│   │   └── food_nutrition_data.json       # Food nutrition data
+│   │   ├── food_nutrition_data.json       # Food nutrition data (99 items with IDs)
+│   │   ├── allergens.json                 # Allergen data
+│   │   ├── food_allergens.json            # Food allergen mappings
+│   │   ├── injuries.json                  # Injury catalog
+│   │   ├── workout_injuries.json          # Workout-injury mappings
+│   │   └── daily_facts.json               # Daily fitness facts
 │   ├── config/                          # Configuration files
 │   ├── uploads/                         # Local file uploads
-│   └── logs/                            # Application logs
+│   ├── logs/                            # Application logs
+│   └── package.json                     # Node.js dependencies
 │
 ├── 🤖 AI/                               # Python AI Service (FastAPI)
 │   ├── main.py                          # FastAPI application entry
