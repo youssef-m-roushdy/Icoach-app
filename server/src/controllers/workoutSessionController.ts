@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { WorkoutSession, Workout, WorkoutSessionSet } from '../models/sql/index.js';
 import { Op, Sequelize } from 'sequelize';
 import { MetricsCalculationService } from '../services/metricsCalculationService.js';
+import { PersonalBestService } from '../services/personalBestService.js';
 import { UserMetrics } from '../models/sql/index.js';
 import { AppError, NotFoundError } from '../utils/errors.js';
 
@@ -215,7 +216,7 @@ export const createWorkoutSession = async (
       duration,
       completedAt,
       notes,
-      sets, // Array of { reps, weight, completed_at, rest_time_seconds, notes }
+      sets, // Array of { reps, weight, is_completed, completed_at, rest_time_seconds, notes }
     } = req.body;
 
     // Verify workout exists
@@ -239,8 +240,8 @@ export const createWorkoutSession = async (
     });
 
     // Create sets
-    const setRecords = await WorkoutSessionSet.bulkCreate(
-      sets.map((set, index) => ({
+    await WorkoutSessionSet.bulkCreate(
+      sets.map((set: any, index: number) => ({
         sessionId: workoutSession.id,
         setNumber: index + 1,
         reps: set.reps,
@@ -252,7 +253,7 @@ export const createWorkoutSession = async (
       }))
     );
 
-    // Recalculate session totals
+    // Recalculate session totals (totalVolume, maxWeight, totalSets, totalReps)
     await workoutSession.recalculateTotals();
 
     // Fetch created session with all details
@@ -271,10 +272,13 @@ export const createWorkoutSession = async (
       ],
     });
 
-    // Update user metrics in the background
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // ✅ Check and upsert personal best for this workout (fire-and-forget)
+    PersonalBestService.checkAndUpsertPersonalBest(user.id, workoutSession.id, workoutId)
+      .catch(error => console.error('Failed to check personal best:', error));
+
+    // Update user metrics in the background (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(201).json({
       success: true,
@@ -317,6 +321,9 @@ export const updateWorkoutSession = async (
       throw new NotFoundError('Workout session not found');
     }
 
+    // Resolve effective workoutId (new one or existing)
+    const effectiveWorkoutId = workoutId || workoutSession.workoutId;
+
     // If workoutId is being updated, verify new workout exists
     if (workoutId && workoutId !== workoutSession.workoutId) {
       const workout = await Workout.findByPk(workoutId);
@@ -327,7 +334,7 @@ export const updateWorkoutSession = async (
 
     // Update session basic info
     await workoutSession.update({
-      workoutId: workoutId || workoutSession.workoutId,
+      workoutId: effectiveWorkoutId,
       duration: duration || workoutSession.duration,
       completedAt: completedAt || workoutSession.completedAt,
       notes: notes !== undefined ? notes : workoutSession.notes,
@@ -342,7 +349,7 @@ export const updateWorkoutSession = async (
 
       // Create new sets
       await WorkoutSessionSet.bulkCreate(
-        sets.map((set, index) => ({
+        sets.map((set: any, index: number) => ({
           sessionId: workoutSession.id,
           setNumber: index + 1,
           reps: set.reps,
@@ -356,6 +363,10 @@ export const updateWorkoutSession = async (
 
       // Recalculate session totals
       await workoutSession.recalculateTotals();
+
+      // ✅ Sets changed — check for new personal best (fire-and-forget)
+      PersonalBestService.checkAndUpsertPersonalBest(user.id, workoutSession.id, effectiveWorkoutId)
+        .catch(error => console.error('Failed to check personal best:', error));
     }
 
     // Fetch updated session with all details
@@ -374,10 +385,9 @@ export const updateWorkoutSession = async (
       ],
     });
 
-    // Update user metrics in the background
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // Update user metrics in the background (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(200).json({
       success: true,
@@ -418,7 +428,7 @@ export const addSetToWorkoutSession = async (
     const nextSetNumber = await WorkoutSessionSet.getNextSetNumber(workoutSession.id);
 
     // Create new set
-    const newSet = await WorkoutSessionSet.create({
+    await WorkoutSessionSet.create({
       sessionId: workoutSession.id,
       setNumber: nextSetNumber,
       reps,
@@ -448,10 +458,13 @@ export const addSetToWorkoutSession = async (
       ],
     });
 
-    // Update user metrics
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // ✅ New set added — check for new personal best (fire-and-forget)
+    PersonalBestService.checkAndUpsertPersonalBest(user.id, workoutSession.id, workoutSession.workoutId)
+      .catch(error => console.error('Failed to check personal best:', error));
+
+    // Update user metrics (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(201).json({
       success: true,
@@ -528,10 +541,13 @@ export const updateWorkoutSessionSet = async (
       ],
     });
 
-    // Update user metrics
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // ✅ Set changed (weight/reps may have changed) — check for new personal best (fire-and-forget)
+    PersonalBestService.checkAndUpsertPersonalBest(user.id, workoutSession.id, workoutSession.workoutId)
+      .catch(error => console.error('Failed to check personal best:', error));
+
+    // Update user metrics (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(200).json({
       success: true,
@@ -578,6 +594,9 @@ export const deleteWorkoutSessionSet = async (
       throw new NotFoundError('Set not found');
     }
 
+    // Capture workoutId before destroy (needed for PB recalculation below)
+    const workoutId = workoutSession.workoutId;
+
     await set.destroy();
 
     // Renumber remaining sets
@@ -612,10 +631,14 @@ export const deleteWorkoutSessionSet = async (
       ],
     });
 
-    // Update user metrics
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // ✅ A set was removed — the previous PB may no longer be valid.
+    // Recalculate from scratch across all sessions for this workout (fire-and-forget)
+    PersonalBestService.recalculatePersonalBest(user.id, workoutId)
+      .catch(error => console.error('Failed to recalculate personal best:', error));
+
+    // Update user metrics (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(200).json({
       success: true,
@@ -651,13 +674,20 @@ export const deleteWorkoutSession = async (
       throw new NotFoundError('Workout session not found');
     }
 
+    // Capture workoutId before destroy (needed for PB recalculation below)
+    const workoutId = workoutSession.workoutId;
+
     // Sets will be automatically deleted due to CASCADE
     await workoutSession.destroy();
 
-    // Update user metrics in the background
-    MetricsCalculationService.updateUserMetrics(user.id).catch(error => {
-      console.error('Failed to update user metrics:', error);
-    });
+    // ✅ Entire session deleted — the previous PB may no longer be valid.
+    // Recalculate from scratch across remaining sessions for this workout (fire-and-forget)
+    PersonalBestService.recalculatePersonalBest(user.id, workoutId)
+      .catch(error => console.error('Failed to recalculate personal best:', error));
+
+    // Update user metrics in the background (fire-and-forget)
+    MetricsCalculationService.updateUserMetrics(user.id)
+      .catch(error => console.error('Failed to update user metrics:', error));
 
     res.status(200).json({
       success: true,
@@ -710,7 +740,7 @@ export const getWorkoutSessionStats = async (
     const totalVolume = sessions.reduce((sum, s) => sum + Number(s.totalVolume), 0);
     const totalSets = sessions.reduce((sum, s) => sum + (s.totalSets || 0), 0);
     const totalReps = sessions.reduce((sum, s) => sum + (s.totalReps || 0), 0);
-    
+
     // Find max weight across all sessions
     const maxWeight = (() => {
       const weights = sessions
@@ -724,7 +754,7 @@ export const getWorkoutSessionStats = async (
       if (!session.completedAt) return acc;
 
       const date = new Date(session.completedAt).toISOString().substring(0, 10);
-      
+
       if (!acc[date]) {
         acc[date] = {
           date,
@@ -743,7 +773,7 @@ export const getWorkoutSessionStats = async (
       return acc;
     }, {});
 
-    // Workout type distribution - FIXED: Include Workout association
+    // Workout type distribution
     const workoutTypes = await WorkoutSession.findAll({
       where: {
         userId: user.id,
@@ -755,13 +785,12 @@ export const getWorkoutSessionStats = async (
           model: Workout,
           as: 'workout',
           attributes: ['id', 'name', 'body_part'],
-          required: true, // Only include sessions with valid workout
+          required: true,
         },
       ],
     });
 
     const typeDistribution = workoutTypes.reduce((acc: Record<string, any>, session) => {
-      // Access the included workout through the association
       const workout = (session as any).workout;
       if (workout) {
         const key = workout.body_part || 'Other';
@@ -799,7 +828,7 @@ export const getWorkoutSessionStats = async (
 
 /**
  * PATCH - Update only notes and duration for a workout session
- * This is a lightweight update that doesn't affect sets or totals
+ * Lightweight update — does not affect sets, totals, or personal bests
  */
 export const patchWorkoutSessionDetails = async (
   req: Request,
@@ -837,10 +866,7 @@ export const patchWorkoutSessionDetails = async (
     }
 
     // Build update object with only provided fields
-    const updateData: Partial<{
-      notes: string | null;
-      duration: number;
-    }> = {};
+    const updateData: Partial<{ notes: string | null; duration: number }> = {};
 
     if (notes !== undefined) {
       updateData.notes = notes;
@@ -850,7 +876,7 @@ export const patchWorkoutSessionDetails = async (
       updateData.duration = parseInt(duration, 10);
     }
 
-    // Perform the lightweight update
+    // Lightweight update — no recalculation of totals or personal bests needed
     await workoutSession.update(updateData);
 
     // Fetch the updated session with relations for the response
@@ -870,8 +896,7 @@ export const patchWorkoutSessionDetails = async (
       ],
     });
 
-    // Note: We don't need to update user metrics since duration doesn't affect strength/volume metrics
-    // Only notes and duration changed, not actual workout performance data
+    // Notes/duration don't affect performance metrics or personal bests — no background jobs needed
 
     res.status(200).json({
       success: true,

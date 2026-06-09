@@ -13,6 +13,7 @@ import chatHistoryRoutes from './chatHistoryRoutes.js';
 import conversationRoutes from './conversationRoutes.js';
 import presenceRoutes from './presenceRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
+import personalBestRoutes from './personalBestRoutes.js';
 
 const router = Router();
 
@@ -31,5 +32,6 @@ router.use('/chat-history', chatHistoryRoutes);
 router.use('/conversations', conversationRoutes);
 router.use('/presence', presenceRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/personal-bests', personalBestRoutes);
 
 export default router;
