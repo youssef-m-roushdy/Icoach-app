@@ -14,10 +14,14 @@ import UserInjury from './UserInjury.js';
 import WorkoutSession from './WorkoutSession.js';
 import UserMetrics from './UserMetrics.js';
 import PersonalBest from './PersonalBest.js';
-import DailyActivity from './DailyActivity.js'; // ✅ Already imported
+import DailyActivity from './DailyActivity.js';
 import WaterIntake from './WaterIntake.js';
 import WorkoutSessionSet from './WorkoutSessionSet.js';
 import ExpoToken from './ExpoToken.js';
+// NEW: Allergy models
+import Allergen from './Allergen.js';
+import FoodAllergen from './FoodAllergen.js';
+import UserAllergy from './UserAllergy.js';
 
 // Define associations
 
@@ -57,7 +61,7 @@ User.hasMany(ChatMessage, { foreignKey: 'senderId', as: 'sentMessages' });
 ChatMessage.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 // ============================================
-// NEW ASSOCIATIONS for WorkoutSession, UserMetrics, PersonalBest
+// ASSOCIATIONS for WorkoutSession, UserMetrics, PersonalBest
 // ============================================
 
 // User ↔ WorkoutSession (one-to-many)
@@ -84,9 +88,9 @@ PersonalBest.belongsTo(Workout, { foreignKey: 'workoutId', as: 'workout' });
 User.hasMany(DailyActivity, { foreignKey: 'userId', as: 'activities' });
 DailyActivity.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-// WaterIntake model associations (if you have a WaterIntake model, you would define it similarly to DailyActivity)
- User.hasMany(WaterIntake, { foreignKey: 'userId', as: 'waterIntakes' });
- WaterIntake.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+// WaterIntake model associations
+User.hasMany(WaterIntake, { foreignKey: 'userId', as: 'waterIntakes' });
+WaterIntake.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // WorkoutSession -> WorkoutSessionSet (one-to-many)
 WorkoutSession.hasMany(WorkoutSessionSet, {
@@ -109,6 +113,50 @@ ExpoToken.belongsTo(User, {
   foreignKey: 'userId', 
   as: 'user' 
 });
+
+// ============================================
+// NEW ASSOCIATIONS for Allergy module
+// ============================================
+
+// Food ↔ Allergen (many-to-many through FoodAllergen)
+Food.belongsToMany(Allergen, { 
+  through: FoodAllergen, 
+  foreignKey: 'foodId', 
+  otherKey: 'allergenId',
+  as: 'allergens' 
+});
+Allergen.belongsToMany(Food, { 
+  through: FoodAllergen, 
+  foreignKey: 'allergenId', 
+  otherKey: 'foodId',
+  as: 'foods' 
+});
+
+// User ↔ Allergen (many-to-many through UserAllergy)
+User.belongsToMany(Allergen, { 
+  through: UserAllergy, 
+  foreignKey: 'userId', 
+  otherKey: 'allergenId',
+  as: 'allergies' 
+});
+Allergen.belongsToMany(User, { 
+  through: UserAllergy, 
+  foreignKey: 'allergenId', 
+  otherKey: 'userId',
+  as: 'users' 
+});
+
+// FoodAllergen associations (for direct queries if needed)
+FoodAllergen.belongsTo(Food, { foreignKey: 'foodId', as: 'food' });
+FoodAllergen.belongsTo(Allergen, { foreignKey: 'allergenId', as: 'allergen' });
+Food.hasMany(FoodAllergen, { foreignKey: 'foodId', as: 'foodAllergens' });
+Allergen.hasMany(FoodAllergen, { foreignKey: 'allergenId', as: 'foodAllergens' });
+
+// UserAllergy associations (for direct queries if needed)
+UserAllergy.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+UserAllergy.belongsTo(Allergen, { foreignKey: 'allergenId', as: 'allergen' });
+User.hasMany(UserAllergy, { foreignKey: 'userId', as: 'userAllergies' });
+Allergen.hasMany(UserAllergy, { foreignKey: 'allergenId', as: 'userAllergies' });
 
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
@@ -135,7 +183,11 @@ export {
   UserInjury,
   WaterIntake,
   WorkoutSessionSet,
-  ExpoToken
+  ExpoToken,
+  // NEW: Allergy models
+  Allergen,
+  FoodAllergen,
+  UserAllergy,
 };
 
 // Export types
@@ -158,6 +210,8 @@ export type { DailyActivityAttributes, DailyActivityCreationAttributes } from '.
 export type { WaterIntakeAttributes, WaterIntakeCreationAttributes } from './WaterIntake.js'; 
 export type { WorkoutSessionSetAttributes, WorkoutSessionSetCreationAttributes } from './WorkoutSessionSet.js';
 export type { ExpoTokenAttributes, ExpoTokenCreationAttributes } from './ExpoToken.js';
+// NEW: Allergy types (only Allergen exports types, junction tables don't)
+export type { AllergenAttributes, AllergenCreationAttributes } from './Allergen.js';
 
 // Default export with all models for convenience
 const sqlModels = {
@@ -179,7 +233,11 @@ const sqlModels = {
   DailyActivity, 
   WaterIntake, 
   WorkoutSessionSet,
-  ExpoToken
+  ExpoToken,
+  // NEW: Allergy models
+  Allergen,
+  FoodAllergen,
+  UserAllergy,
 };
 
 export default sqlModels;

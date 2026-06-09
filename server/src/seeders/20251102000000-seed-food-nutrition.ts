@@ -36,6 +36,7 @@ export async function up (queryInterface: QueryInterface, Sequelize: typeof Data
 
     // Transform the JSON data - images are already uploaded to Cloudinary
     const foodRecords = foodData.map((food: any) => ({
+      id: food.id,
       name: food.name,
       calories: food.per_100g.calories_kcal,
       protein: food.per_100g.protein_g,

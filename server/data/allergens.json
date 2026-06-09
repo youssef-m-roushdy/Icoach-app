@@ -1,0 +1,86 @@
+[
+  {
+    "id": 1,
+    "name": "Gluten",
+    "category": "food",
+    "description": "Found in wheat, barley, rye. Present in breads, pastas, cereals, baked goods."
+  },
+  {
+    "id": 2,
+    "name": "Dairy",
+    "category": "food",
+    "description": "Milk, cheese, yogurt, butter. Present in cheesecake, lasagna, pizza, ice cream."
+  },
+  {
+    "id": 3,
+    "name": "Eggs",
+    "category": "food",
+    "description": "Present in omelettes, baked goods, mayonnaise, some pasta and sauces."
+  },
+  {
+    "id": 4,
+    "name": "Peanuts",
+    "category": "food",
+    "description": "Peanut butter, satay sauces, groundnut oil, some Asian dishes."
+  },
+  {
+    "id": 5,
+    "name": "Tree Nuts",
+    "category": "food",
+    "description": "Almonds, walnuts, cashews, pistachios, hazelnuts. Present in basbousa, konafa, desserts."
+  },
+  {
+    "id": 6,
+    "name": "Soy",
+    "category": "food",
+    "description": "Soy sauce, tofu, edamame, soy protein. Present in sushi, spring rolls, Asian dishes."
+  },
+  {
+    "id": 7,
+    "name": "Fish",
+    "category": "food",
+    "description": "All fin fish including salmon, tuna, cod. Present in sushi, grilled fish, tuna tartare."
+  },
+  {
+    "id": 8,
+    "name": "Shellfish",
+    "category": "food",
+    "description": "Shrimp, crab, lobster, prawns, squid, calamari. Present in shrimp dishes, takoyaki."
+  },
+  {
+    "id": 9,
+    "name": "Sesame",
+    "category": "food",
+    "description": "Sesame seeds, tahini, sesame oil. Present in falafel, hummus, sushi, pastries."
+  },
+  {
+    "id": 10,
+    "name": "Sulfites",
+    "category": "food",
+    "description": "Preservatives in dried fruits, wine, processed foods, some salads."
+  },
+  {
+    "id": 11,
+    "name": "Lupin",
+    "category": "food",
+    "description": "Lupin flour in gluten-free products, Mediterranean baked goods."
+  },
+  {
+    "id": 12,
+    "name": "Mustard",
+    "category": "food",
+    "description": "Mustard seeds, powder, sauce. Present in dressings, sauces, some marinades."
+  },
+  {
+    "id": 13,
+    "name": "Celery",
+    "category": "food",
+    "description": "Celery stalks, seeds, celeriac. Present in soups, stocks, some salads."
+  },
+  {
+    "id": 14,
+    "name": "Crustaceans",
+    "category": "food",
+    "description": "Specific shellfish subgroup including shrimp, crab, lobster."
+  }
+]

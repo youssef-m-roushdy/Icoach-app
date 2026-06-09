@@ -7,6 +7,8 @@ npx sequelize-cli db:seed:all
 
 seed through docker:
 docker-compose exec server npx sequelize-cli db:seed:all
+undo seed
+docker-compose exec server npx sequelize-cli db:seed:undo:all
 
 migrate through docker:
 docker-compose exec server npx sequelize-cli db:migrate
