@@ -22,6 +22,7 @@ import ExpoToken from './ExpoToken.js';
 import Allergen from './Allergen.js';
 import FoodAllergen from './FoodAllergen.js';
 import UserAllergy from './UserAllergy.js';
+import Notification from './Notification.js';
 
 // Define associations
 
@@ -158,6 +159,10 @@ UserAllergy.belongsTo(Allergen, { foreignKey: 'allergenId', as: 'allergen' });
 User.hasMany(UserAllergy, { foreignKey: 'userId', as: 'userAllergies' });
 Allergen.hasMany(UserAllergy, { foreignKey: 'allergenId', as: 'userAllergies' });
 
+// Notification associations
+User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -184,10 +189,10 @@ export {
   WaterIntake,
   WorkoutSessionSet,
   ExpoToken,
-  // NEW: Allergy models
   Allergen,
   FoodAllergen,
   UserAllergy,
+  Notification,
 };
 
 // Export types
@@ -212,6 +217,7 @@ export type { WorkoutSessionSetAttributes, WorkoutSessionSetCreationAttributes }
 export type { ExpoTokenAttributes, ExpoTokenCreationAttributes } from './ExpoToken.js';
 // NEW: Allergy types (only Allergen exports types, junction tables don't)
 export type { AllergenAttributes, AllergenCreationAttributes } from './Allergen.js';
+export type { NotificationAttributes, NotificationCreationAttributes } from './Notification.js';
 
 // Default export with all models for convenience
 const sqlModels = {
@@ -234,10 +240,10 @@ const sqlModels = {
   WaterIntake, 
   WorkoutSessionSet,
   ExpoToken,
-  // NEW: Allergy models
   Allergen,
   FoodAllergen,
   UserAllergy,
+  Notification,
 };
 
 export default sqlModels;

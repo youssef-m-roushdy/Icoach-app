@@ -203,3 +203,16 @@ export {
   validateGetUserAllergyStatistics,
   validateGetFoodsWithUserAllergens,
 } from './userAllergyValidation.js';
+
+export {
+  validateCreateNotification,
+  validateGetUserNotifications,
+  validateGetNotificationById,
+  validateMarkAsRead,
+  validateDeleteNotification,
+  validateGetNotificationsByType,
+  validateSendTestNotification,
+  validateMarkAllAsRead,
+  validateDeleteReadNotifications,
+  validateGetUnreadCount,
+} from './notificationValidation.js';
