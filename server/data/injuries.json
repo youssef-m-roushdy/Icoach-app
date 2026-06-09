@@ -1,0 +1,275 @@
+[
+  {
+    "id": 1,
+    "name": "Rotator Cuff Tendinopathy",
+    "bodyPart": "shoulder",
+    "severity": "mild",
+    "description": "Overuse injury from repetitive overhead pressing, leading to inflammation of the rotator cuff tendons."
+  },
+  {
+    "id": 2,
+    "name": "Rotator Cuff Tear",
+    "bodyPart": "shoulder",
+    "severity": "severe",
+    "description": "Partial or complete tear of the rotator cuff, often from heavy pressing or sudden explosive movements."
+  },
+  {
+    "id": 3,
+    "name": "Glenohumeral Instability",
+    "bodyPart": "shoulder",
+    "severity": "moderate",
+    "description": "Loose shoulder joint, causing excessive movement and a risk of subluxation or dislocation."
+  },
+  {
+    "id": 4,
+    "name": "Acromioclavicular (AC) Joint Sprain",
+    "bodyPart": "shoulder",
+    "severity": "moderate",
+    "description": "Injury to the AC joint, often from a direct fall or impact on the point of the shoulder."
+  },
+  {
+    "id": 5,
+    "name": "Pectoralis Major Strain",
+    "bodyPart": "chest",
+    "severity": "moderate",
+    "description": "Overstretching or tearing of the pectoral muscle, common during heavy bench pressing."
+  },
+  {
+    "id": 6,
+    "name": "Pectoralis Major Rupture",
+    "bodyPart": "chest",
+    "severity": "severe",
+    "description": "Complete tear of the pectoral tendon from the bone, a serious injury occurring during maximal eccentric loading."
+  },
+  {
+    "id": 7,
+    "name": "Costochondritis",
+    "bodyPart": "chest",
+    "severity": "mild",
+    "description": "Inflammation of the cartilage connecting a rib to the breastbone (sternum), causing chest wall pain."
+  },
+  {
+    "id": 8,
+    "name": "Sternoclavicular (SC) Joint Sprain",
+    "bodyPart": "chest",
+    "severity": "mild",
+    "description": "Sprain of the joint between the breastbone and collarbone, often from a direct blow."
+  },
+  {
+    "id": 9,
+    "name": "Lower Back Muscle Strain",
+    "bodyPart": "back",
+    "severity": "mild",
+    "description": "Stretching or tearing of muscles in the lower back, common in deadlifts and bent-over rows."
+  },
+  {
+    "id": 10,
+    "name": "Lumbar Disc Herniation",
+    "bodyPart": "back",
+    "severity": "severe",
+    "description": "The soft center of a spinal disc leaks through a tear in the outer layer, potentially pressing on nerves."
+  },
+  {
+    "id": 11,
+    "name": "Spondylolysis",
+    "bodyPart": "back",
+    "severity": "moderate",
+    "description": "Stress fracture of the vertebra, often from repeated hyperextension (e.g., in deadlifts or squats)."
+  },
+  {
+    "id": 12,
+    "name": "Latissimus Dorsi Strain",
+    "bodyPart": "back",
+    "severity": "mild",
+    "description": "Strain of the large back muscle, often felt during pull-ups, rows, or deadlifts."
+  },
+  {
+    "id": 13,
+    "name": "Patellar Tendinopathy",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Overuse injury causing pain in the patellar tendon, common from jumping and squatting ('Jumper's Knee')."
+  },
+  {
+    "id": 14,
+    "name": "Patellar Tendon Tear",
+    "bodyPart": "legs",
+    "severity": "severe",
+    "description": "Complete rupture of the patellar tendon, requiring surgical intervention."
+  },
+  {
+    "id": 15,
+    "name": "Anterior Cruciate Ligament (ACL) Sprain",
+    "bodyPart": "legs",
+    "severity": "severe",
+    "description": "Injury to the ACL, often a non-contact injury from sudden stopping or direction change."
+  },
+  {
+    "id": 16,
+    "name": "Medial Collateral Ligament (MCL) Sprain",
+    "bodyPart": "legs",
+    "severity": "moderate",
+    "description": "Sprain of the inner knee ligament, often from a direct blow to the outer knee."
+  },
+  {
+    "id": 17,
+    "name": "Meniscal Tear",
+    "bodyPart": "legs",
+    "severity": "moderate",
+    "description": "Tear in the knee cartilage, often from twisting the knee under load (e.g., in a squat)."
+  },
+  {
+    "id": 18,
+    "name": "Quadriceps Strain",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Strain of the quadriceps muscle from sprinting, jumping, or squatting."
+  },
+  {
+    "id": 19,
+    "name": "Hamstrings Strain",
+    "bodyPart": "legs",
+    "severity": "moderate",
+    "description": "Strain of the hamstring muscle, common in running, jumping, and Romanian deadlifts."
+  },
+  {
+    "id": 20,
+    "name": "Hamstrings Tear",
+    "bodyPart": "legs",
+    "severity": "severe",
+    "description": "Complete tear of the hamstring muscle or tendon, a severe injury with significant bruising."
+  },
+  {
+    "id": 21,
+    "name": "Groin Strain",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Strain of the inner thigh muscles (adductors), common in lateral movements and sumo squats."
+  },
+  {
+    "id": 22,
+    "name": "Plantar Fasciitis",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Inflammation of the thick tissue on the bottom of the foot, causing heel pain."
+  },
+  {
+    "id": 23,
+    "name": "Achilles Tendinopathy",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Overuse injury causing pain and stiffness in the Achilles tendon, common in runners."
+  },
+  {
+    "id": 24,
+    "name": "Achilles Tendon Rupture",
+    "bodyPart": "legs",
+    "severity": "severe",
+    "description": "Complete tear of the Achilles tendon, a sudden and serious injury."
+  },
+  {
+    "id": 25,
+    "name": "Shin Splints",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Pain along the shin bone, common from high-impact running or jumping."
+  },
+  {
+    "id": 26,
+    "name": "Tibial Stress Fracture",
+    "bodyPart": "legs",
+    "severity": "moderate",
+    "description": "A small crack in the shinbone, from repetitive, high-impact load (a 'bone strain')."
+  },
+  {
+    "id": 27,
+    "name": "Ankle Sprain",
+    "bodyPart": "legs",
+    "severity": "mild",
+    "description": "Stretching or tearing of ankle ligaments, often from rolling the ankle."
+  },
+  {
+    "id": 28,
+    "name": "Biceps Brachii Strain",
+    "bodyPart": "arms",
+    "severity": "mild",
+    "description": "Strain of the biceps muscle, common during heavy curling motions."
+  },
+  {
+    "id": 29,
+    "name": "Distal Biceps Tendon Rupture",
+    "bodyPart": "arms",
+    "severity": "severe",
+    "description": "Rupture of the biceps tendon at the elbow, a sudden injury from an unexpected load."
+  },
+  {
+    "id": 30,
+    "name": "Triceps Tendon Strain",
+    "bodyPart": "arms",
+    "severity": "mild",
+    "description": "Overstretching of the triceps tendon, from heavy pressing or extension movements."
+  },
+  {
+    "id": 31,
+    "name": "Triceps Tendon Rupture",
+    "bodyPart": "arms",
+    "severity": "severe",
+    "description": "Complete tear of the triceps tendon, a rare but serious injury."
+  },
+  {
+    "id": 32,
+    "name": "Medial Epicondylitis",
+    "bodyPart": "arms",
+    "severity": "mild",
+    "description": "Inflammation where the forearm flexor tendons attach to the inner elbow, 'Golfer's Elbow'."
+  },
+  {
+    "id": 33,
+    "name": "Lateral Epicondylitis",
+    "bodyPart": "arms",
+    "severity": "mild",
+    "description": "Inflammation where the forearm extensor tendons attach to the outer elbow, 'Tennis Elbow'."
+  },
+  {
+    "id": 34,
+    "name": "Wrist Sprain",
+    "bodyPart": "arms",
+    "severity": "mild",
+    "description": "Stretching or tearing of wrist ligaments, often from a fall on an outstretched hand."
+  },
+  {
+    "id": 35,
+    "name": "Rectus Abdominis Strain",
+    "bodyPart": "abs",
+    "severity": "mild",
+    "description": "Strain of the 'six-pack' muscles, common during heavy sit-ups or leg raises."
+  },
+  {
+    "id": 36,
+    "name": "Oblique Strain",
+    "bodyPart": "abs",
+    "severity": "moderate",
+    "description": "Strain of the side abdominal muscles, often from twisting movements."
+  },
+  {
+    "id": 37,
+    "name": "Hernia",
+    "bodyPart": "abs",
+    "severity": "severe",
+    "description": "An organ pushes through a weak spot in the abdominal wall, aggravated by heavy lifting."
+  },
+  {
+    "id": 38,
+    "name": "Neck Muscle Strain",
+    "bodyPart": "neck",
+    "severity": "mild",
+    "description": "Stretching or tearing of the neck's muscles, often from poor posture during heavy lifts."
+  },
+  {
+    "id": 39,
+    "name": "Cervical Radiculopathy",
+    "bodyPart": "neck",
+    "severity": "moderate",
+    "description": "Pinched nerve in the neck that can cause pain, numbness, or weakness radiating into the arm."
+  }
+]

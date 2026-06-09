@@ -1,3 +1,4 @@
+import type { validateUpdateInjury } from './injuryValidation.js';
 import type { validateUpdateExpoToken } from './notificationValidations.js';
 
 // User validations
@@ -140,3 +141,27 @@ export {
   validateRemoveExpoToken,
   validateUpdateExpoToken,
 } from './notificationValidations.js';
+
+export {
+  validateCreateInjury,
+  validateUpdateInjury,
+  validateInjuryQuery,
+  validateInjuryId,
+  validateGetWorkoutsByInjuryId,
+  validateGetInjuriesByWorkoutId,
+  validateAssociateInjuryWithWorkout,
+  validateDissociateInjuryFromWorkout,
+  validateGetInjuryStatistics,
+  validateGetInjuryFilters
+} from './injuryValidation.js';
+
+export {
+  validateCreateUserInjury,
+  validateDeleteUserInjury,
+  validateGetUserInjuryById,
+  validateCheckUserInjury,
+  validateBulkCreateUserInjuries,
+  validateGetUserInjuries,
+  validateGetUserInjuryStatistics,
+  validateGetAggravatingWorkouts,
+} from './userInjuryValidation.js';

@@ -675,7 +675,9 @@ const options = {
         './src/routes/v1/chatHistoryRoutes.ts',
         './src/routes/v1/notificationRoutes.ts',
         './src/routes/v1/conversationRoutes.ts',
-        './src/routes/v1/personalBestRoutes.ts'
+        './src/routes/v1/personalBestRoutes.ts',
+        './src/routes/v1/injuryRoutes.ts',
+        './src/routes/v1/userInjuryRoutes.ts'
       ],  // In development, explicitly list all route files
 };
 

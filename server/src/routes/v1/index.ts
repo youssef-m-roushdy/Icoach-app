@@ -14,6 +14,8 @@ import conversationRoutes from './conversationRoutes.js';
 import presenceRoutes from './presenceRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import personalBestRoutes from './personalBestRoutes.js';
+import injuryRoutes from './injuryRoutes.js';
+import userInjuryRoutes from './userInjuryRoutes.js';
 
 const router = Router();
 
@@ -33,5 +35,7 @@ router.use('/conversations', conversationRoutes);
 router.use('/presence', presenceRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/personal-bests', personalBestRoutes);
+router.use('/injuries', injuryRoutes);
+router.use('/user-injuries', userInjuryRoutes);
 
 export default router;
