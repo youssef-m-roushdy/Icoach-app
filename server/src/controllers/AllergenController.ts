@@ -269,7 +269,7 @@ export class AllergenController {
         throw new AppError('Category is required', 400);
       }
 
-      const allergens = await Allergen.findByCategory(category);
+      const allergens = await Allergen.findByCategory(category as string);
 
       res.status(200).json({
         success: true,
@@ -407,7 +407,7 @@ export class AllergenController {
 
       const { foodId } = req.params;
 
-      if (!foodId || isNaN(parseInt(foodId))) {
+      if (!foodId || isNaN(parseInt(foodId as string))) {
         throw new AppError('Valid food ID is required', 400);
       }
 
@@ -439,7 +439,7 @@ export class AllergenController {
       // Check if food contains any of user's allergens
       const foodAllergens = await FoodAllergen.findAll({
         where: {
-          foodId: parseInt(foodId),
+          foodId: parseInt(foodId as string),
           allergenId: { [Op.in]: userAllergenIds },
           contains: true,
         },

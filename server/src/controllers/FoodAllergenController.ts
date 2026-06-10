@@ -104,7 +104,7 @@ export class FoodAllergenController {
    */
   static async getFoodAllergenById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       
       if (!id || isNaN(parseInt(id))) {
         throw new AppError('Valid relationship ID is required', 400);
@@ -208,7 +208,7 @@ export class FoodAllergenController {
    */
   static async updateFoodAllergen(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       
       if (!id || isNaN(parseInt(id))) {
         throw new AppError('Valid relationship ID is required', 400);
@@ -258,7 +258,7 @@ export class FoodAllergenController {
    */
   static async deleteFoodAllergen(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const id = req.params.id;
+      const id = req.params.id as string;
       
       if (!id || isNaN(parseInt(id))) {
         throw new AppError('Valid relationship ID is required', 400);
@@ -355,7 +355,7 @@ export class FoodAllergenController {
    */
   static async getRelationshipsByFood(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const foodId = req.params.foodId;
+      const foodId = req.params.foodId as string;
       
       if (!foodId || isNaN(parseInt(foodId))) {
         throw new AppError('Valid food ID is required', 400);
@@ -399,7 +399,7 @@ export class FoodAllergenController {
    */
   static async getRelationshipsByAllergen(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const allergenId = req.params.allergenId;
+      const allergenId = req.params.allergenId as string;
       
       if (!allergenId || isNaN(parseInt(allergenId))) {
         throw new AppError('Valid allergen ID is required', 400);
@@ -443,8 +443,8 @@ export class FoodAllergenController {
    */
   static async toggleContains(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const foodId = req.params.foodId;
-      const allergenId = req.params.allergenId;
+      const foodId = req.params.foodId as string;
+      const allergenId = req.params.allergenId as string;
 
       if (!foodId || isNaN(parseInt(foodId))) {
         throw new AppError('Valid food ID is required', 400);

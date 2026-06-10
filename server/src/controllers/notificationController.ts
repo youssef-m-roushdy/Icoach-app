@@ -132,7 +132,7 @@ export const getNotificationById = async (
       throw new AppError('Notification ID is required', 400);
     }
 
-    const id = parseInt(idParam, 10);
+    const id = parseInt(idParam as string, 10);
     if (isNaN(id)) {
       throw new AppError('Valid notification ID is required', 400);
     }
@@ -183,7 +183,7 @@ export const markAsRead = async (
       throw new AppError('Notification ID is required', 400);
     }
 
-    const id = parseInt(idParam, 10);
+    const id = parseInt(idParam as string, 10);
     if (isNaN(id)) {
       throw new AppError('Valid notification ID is required', 400);
     }
@@ -260,7 +260,7 @@ export const deleteNotification = async (
       throw new AppError('Notification ID is required', 400);
     }
 
-    const id = parseInt(idParam, 10);
+    const id = parseInt(idParam as string, 10);
     if (isNaN(id)) {
       throw new AppError('Valid notification ID is required', 400);
     }
@@ -399,7 +399,7 @@ export const getNotificationsByType = async (
       throw new AppError('User not authenticated', 401);
     }
 
-    const { type } = req.params;
+    const type = req.params.type as string;
     if (!type) {
       throw new AppError('Notification type is required', 400);
     }
