@@ -6,6 +6,7 @@ import React, {
   ReactNode,
   useEffect,
   useCallback,
+  useRef,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services';
@@ -44,6 +45,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isLoggingOutRef = useRef(false);
   
   // Success Modal state
   const [successModalVisible, setSuccessModalVisible] = useState(false);
@@ -144,75 +146,90 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout
   // =========================================
   const logout = useCallback(async () => {
+    if (isLoggingOutRef.current) {
+      console.log('⏳ Logout already in progress, skipping...');
+      return;
+    }
+    
+    isLoggingOutRef.current = true;
     console.log('🚪 Starting logout process...');
 
-    // 1. Remove Expo push token from backend and storage
-    if (token) {
-      try {
-        const expoToken = await AsyncStorage.getItem(EXPO_TOKEN_KEY);
-        
-        if (expoToken) {
-          console.log('🧹 Removing push token from backend...');
+    try {
+      // 1. Remove Expo push token from backend and storage
+      if (token) {
+        try {
+          const expoToken = await AsyncStorage.getItem(EXPO_TOKEN_KEY);
           
-          await notificationService.removeExpoToken(expoToken, token)
-            .then(() => console.log('✅ Push token removed from backend'))
-            .catch(err => console.error('❌ Failed to remove push token from backend:', err));
-          
-          await AsyncStorage.removeItem(EXPO_TOKEN_KEY)
-            .then(() => console.log('✅ Push token removed from storage'))
-            .catch(err => console.error('❌ Failed to remove push token from storage:', err));
+          if (expoToken) {
+            console.log('🧹 Removing push token from backend...');
+            
+            await notificationService.removeExpoToken(expoToken, token)
+              .then(() => console.log('✅ Push token removed from backend'))
+              .catch(err => console.error('❌ Failed to remove push token from backend:', err));
+            
+            await AsyncStorage.removeItem(EXPO_TOKEN_KEY)
+              .then(() => console.log('✅ Push token removed from storage'))
+              .catch(err => console.error('❌ Failed to remove push token from storage:', err));
+          }
+
+          const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
+
+          if (fcmToken) {
+            console.log('🧹 Removing FCM token from backend...');
+
+            await notificationService.removeExpoToken(fcmToken, token)
+              .then(() => console.log('✅ FCM token removed from backend'))
+              .catch(err => console.error('❌ Failed to remove FCM token from backend:', err));
+
+            await AsyncStorage.removeItem(FCM_TOKEN_KEY)
+              .then(() => console.log('✅ FCM token removed from storage'))
+              .catch(err => console.error('❌ Failed to remove FCM token from storage:', err));
+          }
+
+          // 2. Call logout API (fire and forget)
+          authService.logout(token).catch(error => {
+            console.error('Logout API error:', error);
+          });
+        } catch (error) {
+          console.error('Error during push token cleanup:', error);
         }
-
-        const fcmToken = await AsyncStorage.getItem(FCM_TOKEN_KEY);
-
-        if (fcmToken) {
-          console.log('🧹 Removing FCM token from backend...');
-
-          await notificationService.removeExpoToken(fcmToken, token)
-            .then(() => console.log('✅ FCM token removed from backend'))
-            .catch(err => console.error('❌ Failed to remove FCM token from backend:', err));
-
-          await AsyncStorage.removeItem(FCM_TOKEN_KEY)
-            .then(() => console.log('✅ FCM token removed from storage'))
-            .catch(err => console.error('❌ Failed to remove FCM token from storage:', err));
-        }
-
-        // 2. Call logout API (fire and forget)
-        authService.logout(token).catch(error => {
-          console.error('Logout API error:', error);
-        });
-      } catch (error) {
-        console.error('Error during push token cleanup:', error);
       }
+
+      // 3. Disconnect socket
+      socketService.disconnect();
+      console.log('🔌 Socket disconnected');
+
+      // 4. Clear auth state immediately (triggers UI update)
+      setUser(null);
+      setToken(null);
+      console.log('👤 User state cleared');
+
+      // 5. Clear all auth storage
+      await AsyncStorage.multiRemove([
+        TOKEN_KEY, 
+        REFRESH_TOKEN_KEY, 
+        USER_KEY
+      ]).then(() => {
+        console.log('🗑️ Auth storage cleared');
+      }).catch(err => {
+        console.error('Failed to clear storage:', err);
+      });
+
+      console.log('✅ Logout complete');
+    } finally {
+      isLoggingOutRef.current = false;
     }
-
-    // 3. Disconnect socket
-    socketService.disconnect();
-    console.log('🔌 Socket disconnected');
-
-    // 4. Clear auth state immediately (triggers UI update)
-    setUser(null);
-    setToken(null);
-    console.log('👤 User state cleared');
-
-    // 5. Clear all auth storage
-    await AsyncStorage.multiRemove([
-      TOKEN_KEY, 
-      REFRESH_TOKEN_KEY, 
-      USER_KEY
-    ]).then(() => {
-      console.log('🗑️ Auth storage cleared');
-    }).catch(err => {
-      console.error('Failed to clear storage:', err);
-    });
-
-    console.log('✅ Logout complete');
   }, [token]);
 
   // =========================================
   // Refresh access token
   // =========================================
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    if (isLoggingOutRef.current) {
+      console.log('⏳ Logout in progress, skipping token refresh...');
+      return null;
+    }
+
     try {
       console.log('🔄 Attempting to refresh access token...');
 
@@ -250,7 +267,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await logout();
       return null;
     } catch (error) {
-      console.error('❌ Token refresh failed:', error);
+      console.log('ℹ️ Session expired (Invalid refresh token). Logging out silently...');
 
       // If refresh fails, do a full logout
       await logout();
