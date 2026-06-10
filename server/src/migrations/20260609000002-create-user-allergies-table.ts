@@ -10,7 +10,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       autoIncrement: true,
       primaryKey: true,
     },
-    user_id: {
+    userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -20,7 +20,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
-    allergen_id: {
+    allergenId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -39,11 +39,11 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    diagnosis_date: {
+    diagnosisDate: {
       type: DataTypes.DATEONLY,
       allowNull: true,
     },
-    diagnosed_by: {
+    diagnosedBy: {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
@@ -51,31 +51,31 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
   });
 
-  // Add unique constraint for user_id and allergen_id
+  // Add unique constraint for userId and allergenId
   await queryInterface.addConstraint('user_allergies', {
-    fields: ['user_id', 'allergen_id'],
+    fields: ['userId', 'allergenId'],
     type: 'unique',
     name: 'user_allergies_user_allergen_unique',
   });
 
   // Add indexes
-  await queryInterface.addIndex('user_allergies', ['user_id'], {
+  await queryInterface.addIndex('user_allergies', ['userId'], {
     name: 'user_allergies_user_id_idx',
   });
 
-  await queryInterface.addIndex('user_allergies', ['allergen_id'], {
+  await queryInterface.addIndex('user_allergies', ['allergenId'], {
     name: 'user_allergies_allergen_id_idx',
   });
 

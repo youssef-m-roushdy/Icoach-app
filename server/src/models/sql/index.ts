@@ -36,8 +36,20 @@ SavedWorkout.belongsTo(Workout, { foreignKey: 'workoutId', as: 'workout' });
 Workout.belongsToMany(Injury, { through: WorkoutInjury, foreignKey: 'workoutId', as: 'injuries' });
 Injury.belongsToMany(Workout, { through: WorkoutInjury, foreignKey: 'injuryId', as: 'workouts' });
 
+// WorkoutInjury associations (for direct queries if needed)
+WorkoutInjury.belongsTo(Workout, { foreignKey: 'workoutId', as: 'workout' });
+WorkoutInjury.belongsTo(Injury, { foreignKey: 'injuryId', as: 'injury' });
+Workout.hasMany(WorkoutInjury, { foreignKey: 'workoutId', as: 'workoutInjuries' });
+Injury.hasMany(WorkoutInjury, { foreignKey: 'injuryId', as: 'workoutInjuries' });
+
 User.belongsToMany(Injury, { through: UserInjury, foreignKey: 'userId', as: 'injuries' });
 Injury.belongsToMany(User, { through: UserInjury, foreignKey: 'injuryId', as: 'users' });
+
+// UserInjury associations (for direct queries if needed)
+UserInjury.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+UserInjury.belongsTo(Injury, { foreignKey: 'injuryId', as: 'injury' });
+User.hasMany(UserInjury, { foreignKey: 'userId', as: 'userInjuries' });
+Injury.hasMany(UserInjury, { foreignKey: 'injuryId', as: 'userInjuries' });
 
 User.hasMany(FitnessPlan, { foreignKey: 'userId', as: 'plans' });
 FitnessPlan.belongsTo(User, { foreignKey: 'userId', as: 'user' });

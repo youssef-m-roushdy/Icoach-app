@@ -10,7 +10,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       autoIncrement: true,
       primaryKey: true,
     },
-    food_id: {
+    foodId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -20,7 +20,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
-    allergen_id: {
+    allergenId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -39,31 +39,31 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
   });
 
-  // Add unique constraint for food_id and allergen_id
+  // Add unique constraint for foodId and allergenId
   await queryInterface.addConstraint('food_allergens', {
-    fields: ['food_id', 'allergen_id'],
+    fields: ['foodId', 'allergenId'],
     type: 'unique',
     name: 'food_allergens_food_allergen_unique',
   });
 
   // Add indexes
-  await queryInterface.addIndex('food_allergens', ['food_id'], {
+  await queryInterface.addIndex('food_allergens', ['foodId'], {
     name: 'food_allergens_food_id_idx',
   });
 
-  await queryInterface.addIndex('food_allergens', ['allergen_id'], {
+  await queryInterface.addIndex('food_allergens', ['allergenId'], {
     name: 'food_allergens_allergen_id_idx',
   });
 

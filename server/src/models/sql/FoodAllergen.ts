@@ -87,7 +87,6 @@ FoodAllergen.init(
     tableName: 'food_allergens',
     modelName: 'FoodAllergen',
     timestamps: true,
-    updatedAt: false, // Like UserInjury, disable updatedAt if you want
   }
 );
 

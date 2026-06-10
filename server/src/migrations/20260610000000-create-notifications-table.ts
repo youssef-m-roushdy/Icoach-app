@@ -9,7 +9,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       autoIncrement: true,
       primaryKey: true,
     },
-    user_id: {
+    userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -36,30 +36,30 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: true,
       defaultValue: null,
     },
-    is_read: {
+    isRead: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
     },
-    read_at: {
+    readAt: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    is_deleted: {
+    isDeleted: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
     },
-    deleted_at: {
+    deletedAt: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    created_at: {
+    createdAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
-    updated_at: {
+    updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -67,15 +67,15 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   });
 
   // Add indexes for performance
-  await queryInterface.addIndex('notifications', ['user_id', 'is_read', 'created_at'], {
+  await queryInterface.addIndex('notifications', ['userId', 'isRead', 'createdAt'], {
     name: 'notifications_user_read_idx',
   });
 
-  await queryInterface.addIndex('notifications', ['user_id', 'created_at'], {
+  await queryInterface.addIndex('notifications', ['userId', 'createdAt'], {
     name: 'notifications_user_created_idx',
   });
 
-  await queryInterface.addIndex('notifications', ['user_id', 'is_deleted', 'created_at'], {
+  await queryInterface.addIndex('notifications', ['userId', 'isDeleted', 'createdAt'], {
     name: 'notifications_user_deleted_idx',
   });
 
@@ -83,7 +83,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: 'notifications_type_idx',
   });
 
-  await queryInterface.addIndex('notifications', ['created_at'], {
+  await queryInterface.addIndex('notifications', ['createdAt'], {
     name: 'notifications_created_at_idx',
   });
 
