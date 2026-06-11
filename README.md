@@ -4,6 +4,13 @@
 
 > **ICoach** is a comprehensive AI-powered fitness and nutrition platform designed to help users achieve their health goals through intelligent workout tracking, food recognition, AI coaching, and personalized guidance.
 
+## 🎥 Project Preview
+
+Watch a full demonstration of the application:
+
+🔗 **[View Preview Video](https://drive.google.com/file/d/1gh2xj6AqmlcCrkqD-PLtGKkz-HWZHwjI/view?usp=sharing)**
+
+> The video showcases the main features, user workflow, and overall functionality of the project.
 
 ### Your AI-Powered Personal Fitness & Nutrition Assistant
 
