@@ -19,6 +19,7 @@ import userInjuryRoutes from './userInjuryRoutes.js';
 import allergenRoutes from './allergenRoutes.js';
 import foodAllergenRoutes from './foodAllergenRoutes.js';
 import userAllergyRoutes from './userAllergyRoutes.js';
+import workoutInjuryRoutes from './workoutInjuryRoutes.js'; 
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use('/user-injuries', userInjuryRoutes);
 router.use('/allergens', allergenRoutes);
 router.use('/food-allergens', foodAllergenRoutes);
 router.use('/user-allergies', userAllergyRoutes);
+router.use('/workout-injuries', workoutInjuryRoutes);
 
 export default router;

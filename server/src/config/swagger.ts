@@ -680,7 +680,8 @@ const options = {
         './src/routes/v1/userInjuryRoutes.ts',
         './src/routes/v1/allergenRoutes.ts',
         './src/routes/v1/foodAllergenRoutes.ts',
-        './src/routes/v1/userAllergyRoutes.ts'
+        './src/routes/v1/userAllergyRoutes.ts',
+        './src/routes/v1/workoutInjuryRoutes.ts'
       ],  // In development, explicitly list all route files
 };
 

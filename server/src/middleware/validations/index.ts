@@ -216,3 +216,14 @@ export {
   validateDeleteReadNotifications,
   validateGetUnreadCount,
 } from './notificationValidation.js';
+
+export {
+  validateCreateWorkoutInjury,
+  validateDeleteWorkoutInjury,
+  validateGetWorkoutInjuryById,
+  validateWorkoutInjuryQuery,
+  validateGetInjuriesByWorkout,
+  validateGetWorkoutsByInjury,
+  validateBulkCreateWorkoutInjuries,
+  validateCheckWorkoutInjuryExists,
+} from './workoutInjuryValidation.js';
