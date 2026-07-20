@@ -227,3 +227,23 @@ export {
   validateBulkCreateWorkoutInjuries,
   validateCheckWorkoutInjuryExists,
 } from './workoutInjuryValidation.js';
+
+// Chat Participant validations
+export {
+  validateCreateChatParticipant,
+  validateUpdateChatParticipant,
+  validateRemoveChatParticipant,
+  validateDeleteChatParticipant,
+  validateGetChatParticipantById,
+  validateGetChatParticipants,
+  validateUpdateLastRead,
+  validateGetParticipantsByConversation,
+  validateBulkAddParticipants,
+  validateGetConversationParticipantStats,
+  validateTransferOwnership,
+  validateParticipantId,
+  validateConversationId,
+  validateNotSelfAdd,
+  validateCreateParticipantFull,
+  validateBulkAddParticipantsFull,
+} from './chatParticipantValidations.js';
