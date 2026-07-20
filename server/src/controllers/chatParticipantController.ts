@@ -69,13 +69,13 @@ export const getChatParticipants = async (
       {
         model: User,
         as: 'user',
-        attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl'],
+        attributes: ['id', 'email', 'firstName', 'lastName', 'avatar'],
         required: true,
       },
       {
         model: ChatConversation,
         as: 'conversation',
-        attributes: ['id', 'name', 'type', 'isArchived'],
+        attributes: ['id', 'title'],
         required: conversationId ? true : false,
       },
     ];
@@ -139,12 +139,12 @@ export const getChatParticipantById = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl', 'bio'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar', 'bio'],
         },
         {
           model: ChatConversation,
           as: 'conversation',
-          attributes: ['id', 'name', 'type', 'isArchived', 'createdAt'],
+          attributes: ['id', 'title', 'createdAt'],
         },
       ],
     });
@@ -274,12 +274,12 @@ export const createChatParticipant = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar'],
         },
         {
           model: ChatConversation,
           as: 'conversation',
-          attributes: ['id', 'name', 'type'],
+          attributes: ['id', 'title'],
         },
       ],
     });
@@ -390,12 +390,12 @@ export const updateChatParticipant = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar'],
         },
         {
           model: ChatConversation,
           as: 'conversation',
-          attributes: ['id', 'name', 'type'],
+          attributes: ['id', 'title'],
         },
       ],
     });
@@ -726,7 +726,7 @@ export const getParticipantsByConversation = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl', 'isOnline'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar', 'isOnline'],
         },
       ],
       order: [
@@ -878,7 +878,7 @@ export const bulkAddParticipants = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar'],
         },
       ],
       order: [['role', 'ASC']],
@@ -1051,7 +1051,7 @@ export const transferOwnership = async (
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'firstName', 'lastName', 'avatarUrl'],
+          attributes: ['id', 'email', 'firstName', 'lastName', 'avatar'],
         },
       ],
       order: [['role', 'ASC']],
