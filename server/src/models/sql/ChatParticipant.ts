@@ -12,7 +12,7 @@ export interface ChatParticipantAttributes {
   id: number;
   conversationId: number;
   userId: number;
-  role: 'member' | 'admin';
+  role: 'member' | 'admin' | 'owner';
   lastReadAt?: Date | null;
   leftAt?: Date | null;
   createdAt: Date;
@@ -37,7 +37,7 @@ class ChatParticipant extends Model<
   declare id: CreationOptional<number>;
   declare conversationId: number;
   declare userId: number;
-  declare role: CreationOptional<'member' | 'admin'>;
+  declare role: CreationOptional<'member' | 'admin' | 'owner'>;
   declare lastReadAt: CreationOptional<Date | null>;
   declare leftAt: CreationOptional<Date | null>;
   declare readonly createdAt: CreationOptional<Date>;
@@ -73,7 +73,7 @@ ChatParticipant.init(
       onDelete: 'CASCADE',
     },
     role: {
-      type: DataTypes.ENUM('member', 'admin'),
+      type: DataTypes.ENUM('member', 'admin', 'owner'),
       allowNull: false,
       defaultValue: 'member',
       field: 'role',

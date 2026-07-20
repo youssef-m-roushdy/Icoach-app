@@ -24,6 +24,16 @@ import FoodAllergen from './FoodAllergen.js';
 import UserAllergy from './UserAllergy.js';
 import Notification from './Notification.js';
 
+// Community platform models
+import Friendship from './Friendship.js';
+import Post from './Post.js';
+import PostLike from './PostLike.js';
+import PostComment from './PostComment.js';
+import Story from './Story.js';
+import StoryView from './StoryView.js';
+import Store, { StoreStatus } from './Store.js';
+import StoreProduct, { ProductStatus } from './StoreProduct.js';
+
 // Define associations
 
 // Existing associations...
@@ -175,6 +185,54 @@ Allergen.hasMany(UserAllergy, { foreignKey: 'allergenId', as: 'userAllergies' })
 User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// ============================================
+// COMMUNITY PLATFORM ASSOCIATIONS
+// ============================================
+
+// Friendships
+User.hasMany(Friendship, { foreignKey: 'requesterId', as: 'sentFriendRequests' });
+Friendship.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
+
+User.hasMany(Friendship, { foreignKey: 'addresseeId', as: 'receivedFriendRequests' });
+Friendship.belongsTo(User, { foreignKey: 'addresseeId', as: 'addressee' });
+
+// Posts
+User.hasMany(Post, { foreignKey: 'userId', as: 'posts' });
+Post.belongsTo(User, { foreignKey: 'userId', as: 'author' });
+
+// Post likes
+Post.hasMany(PostLike, { foreignKey: 'postId', as: 'likes', onDelete: 'CASCADE' });
+PostLike.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
+
+User.hasMany(PostLike, { foreignKey: 'userId', as: 'postLikes', onDelete: 'CASCADE' });
+PostLike.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Post comments
+Post.hasMany(PostComment, { foreignKey: 'postId', as: 'comments', onDelete: 'CASCADE' });
+PostComment.belongsTo(Post, { foreignKey: 'postId', as: 'post' });
+
+User.hasMany(PostComment, { foreignKey: 'userId', as: 'postComments', onDelete: 'CASCADE' });
+PostComment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Stories
+User.hasMany(Story, { foreignKey: 'userId', as: 'stories', onDelete: 'CASCADE' });
+Story.belongsTo(User, { foreignKey: 'userId', as: 'author' });
+
+// Story views
+Story.hasMany(StoryView, { foreignKey: 'storyId', as: 'views', onDelete: 'CASCADE' });
+StoryView.belongsTo(Story, { foreignKey: 'storyId', as: 'story' });
+
+User.hasMany(StoryView, { foreignKey: 'userId', as: 'storyViews', onDelete: 'CASCADE' });
+StoryView.belongsTo(User, { foreignKey: 'userId', as: 'viewer' });
+
+// Stores
+User.hasMany(Store, { foreignKey: 'ownerId', as: 'stores', onDelete: 'CASCADE' });
+Store.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
+
+// Store products
+Store.hasMany(StoreProduct, { foreignKey: 'storeId', as: 'products', onDelete: 'CASCADE' });
+StoreProduct.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -205,6 +263,17 @@ export {
   FoodAllergen,
   UserAllergy,
   Notification,
+  // Community platform models
+  Friendship,
+  Post,
+  PostLike,
+  PostComment,
+  Story,
+  StoryView,
+  Store,
+  StoreProduct,
+  StoreStatus,
+  ProductStatus,
 };
 
 // Export types
@@ -231,6 +300,20 @@ export type { ExpoTokenAttributes, ExpoTokenCreationAttributes } from './ExpoTok
 export type { AllergenAttributes, AllergenCreationAttributes } from './Allergen.js';
 export type { NotificationAttributes, NotificationCreationAttributes } from './Notification.js';
 
+// Community platform types
+export type { PostAttributes, PostCreationAttributes, PostMedia } from './Post.js';
+export type { PostLikeAttributes, PostLikeCreationAttributes } from './PostLike.js';
+export type { PostCommentAttributes, PostCommentCreationAttributes } from './PostComment.js';
+export type { StoryAttributes, StoryCreationAttributes, StoryMedia } from './Story.js';
+export type { StoryViewAttributes, StoryViewCreationAttributes } from './StoryView.js';
+export type { StoreAttributes, StoreCreationAttributes, StoreStatusValue } from './Store.js';
+export type {
+  StoreProductAttributes,
+  StoreProductCreationAttributes,
+  ProductStatusValue,
+  ProductMedia,
+} from './StoreProduct.js';
+
 // Default export with all models for convenience
 const sqlModels = {
   User,
@@ -256,6 +339,15 @@ const sqlModels = {
   FoodAllergen,
   UserAllergy,
   Notification,
+  // Community platform models
+  Friendship,
+  Post,
+  PostLike,
+  PostComment,
+  Story,
+  StoryView,
+  Store,
+  StoreProduct,
 };
 
 export default sqlModels;
