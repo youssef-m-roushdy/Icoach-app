@@ -1,0 +1,98 @@
+# -----------------------------------------------------------------------------
+# .NET Core / .NET 8 Build Artifacts & Dependencies
+# -----------------------------------------------------------------------------
+**/bin/
+**/obj/
+**/artifacts/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.suo
+
+# -----------------------------------------------------------------------------
+# User-specific files (IDE Settings & Local Configs)
+# -----------------------------------------------------------------------------
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.rsuser
+
+# Visual Studio & VS Code local workspace files
+.vs/
+.vscode/
+.idea/
+
+# -----------------------------------------------------------------------------
+# NuGet
+# -----------------------------------------------------------------------------
+# NuGet Packages are restored automatically, no need to commit them
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+# NuGet v3's project.json files produces more ignorable files
+*.nuget.props
+*.nuget.targets
+
+# -----------------------------------------------------------------------------
+# Secrets & Environment Configurations (CRITICAL FOR SECURITY)
+# -----------------------------------------------------------------------------
+# Never commit local secrets or environment overrides
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+*.env
+.env
+.env.local
+secrets.json
+
+# -----------------------------------------------------------------------------
+# Logs & Serilog Output
+# -----------------------------------------------------------------------------
+*.log
+logs/
+serilog-*.txt
+
+# -----------------------------------------------------------------------------
+# Entity Framework Core
+# -----------------------------------------------------------------------------
+# We DO commit the Migrations folder, but ignore local DB snapshot locks
+*.dbmdl
+*.ldf
+*.mdb
+*.db
+*.db-shm
+*.db-wal
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+# Ignore local docker volume mounts or overrides if used for local dev
+docker-compose.override.yml
+.docker/
+
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+ $RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# -----------------------------------------------------------------------------
+# gRPC / Proto generated files (if generated locally outside obj/)
+# -----------------------------------------------------------------------------
+# Usually generated into obj/ which is ignored, but just in case
+*Grpc.cs
