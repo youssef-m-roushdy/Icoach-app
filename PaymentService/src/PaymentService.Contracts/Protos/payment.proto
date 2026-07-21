@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+option csharp_namespace = "PaymentService.Contracts.Grpc";
+
+package payments;
+
+service PaymentGrpcService {
+  // One-off Payment Operations
+  rpc CreatePayment (CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc GetPayment (GetPaymentRequest) returns (PaymentResponse);
+  rpc RefundPayment (RefundPaymentRequest) returns (RefundResponse);
+  rpc GetPaymentStatus (GetPaymentStatusRequest) returns (PaymentStatusResponse);
+
+  // Recurring Subscription Operations
+  rpc CreateSubscription (CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
+  rpc CancelSubscription (CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
+  rpc GetSubscriptionStatus (GetSubscriptionStatusRequest) returns (SubscriptionStatusResponse);
+}
+
+// --- Payment Messages ---
+
+message CreatePaymentRequest {
+  string user_id = 1;
+  string order_id = 2;
+  double amount = 3;
+  string currency = 4;
+  string gateway = 5; // Stripe, Paymob, PayPal
+}
+
+message CreatePaymentResponse {
+  string payment_id = 1;
+  string checkout_url = 2;
+  string status = 3;
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+message PaymentResponse {
+  string payment_id = 1;
+  string user_id = 2;
+  string order_id = 3;
+  double amount = 4;
+  string currency = 5;
+  string gateway = 6;
+  string status = 7;
+  string external_payment_id = 8;
+  string checkout_url = 9;
+  string created_at = 10;
+  string completed_at = 11;
+}
+
+message RefundPaymentRequest {
+  string payment_id = 1;
+}
+
+message RefundResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetPaymentStatusRequest {
+  string payment_id = 1;
+}
+
+message PaymentStatusResponse {
+  string status = 1;
+}
+
+// --- Subscription Messages ---
+
+message CreateSubscriptionRequest {
+  string user_id = 1;
+  string plan_type = 2; // AppMonthly, AppYearly, CoachMonthly, CoachYearly
+  string gateway = 3;
+  string coach_id = 4; // Empty if App subscription
+}
+
+message CreateSubscriptionResponse {
+  string subscription_id = 1;
+  string checkout_url = 2;
+}
+
+message CancelSubscriptionRequest {
+  string subscription_id = 1;
+}
+
+message CancelSubscriptionResponse {
+  bool success = 1;
+  string status = 2;
+}
+
+message GetSubscriptionStatusRequest {
+  string user_id = 1;
+}
+
+message SubscriptionStatusResponse {
+  bool is_active = 1;
+  string plan_type = 2;
+  string current_period_end = 3;
+  string coach_id = 4; // Empty if not a coach subscription
+}

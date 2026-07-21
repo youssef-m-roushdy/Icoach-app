@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Include proto file in build -->
+  <ItemGroup>
+    <Protobuf Include="Protos\payment.proto" GrpcServices="None" />
+  </ItemGroup>
+
 </Project>
