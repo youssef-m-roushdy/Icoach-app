@@ -96,3 +96,11 @@ Desktop.ini
 # -----------------------------------------------------------------------------
 # Usually generated into obj/ which is ignored, but just in case
 *Grpc.cs
+
+# RSA Keys (sensitive authentication)
+keys/
+*.pem
+*.key
+*.crt
+*.cert
+test_sprint1.py
