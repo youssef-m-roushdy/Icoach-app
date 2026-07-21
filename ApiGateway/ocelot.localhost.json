@@ -3,7 +3,7 @@
     {
       "DownstreamPathTemplate": "/api/v1/auth/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/auth/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
       "RateLimitOptions": {
@@ -18,35 +18,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/users/profile/avatar",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/users/profile/avatar",
       "UpstreamHttpMethod": ["POST","PUT","DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/users/profile",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/users/profile",
       "UpstreamHttpMethod": ["GET","PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/users/body-information",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/users/body-information",
       "UpstreamHttpMethod": ["PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/users/change-password",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/users/change-password",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/users/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/users/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
       "RateLimitOptions": {
@@ -61,21 +61,21 @@
     {
       "DownstreamPathTemplate": "/api/v1/progress/dashboard",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/progress/dashboard",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/progress/history",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/progress/history",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/progress/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/progress/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"]
     },
@@ -83,70 +83,70 @@
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/bulk",
       "UpstreamHttpMethod": ["POST","PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/reorder",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/reorder",
       "UpstreamHttpMethod": ["PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/{setId}/complete",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/{setId}/complete",
       "UpstreamHttpMethod": ["PATCH"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/{setId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets/{setId}",
       "UpstreamHttpMethod": ["GET","PUT","DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{sessionId}/sets",
       "UpstreamHttpMethod": ["GET","POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{id}/details",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{id}/details",
       "UpstreamHttpMethod": ["PATCH"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{id}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{id}",
       "UpstreamHttpMethod": ["GET","PUT","DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-sessions/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-sessions/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
       "RateLimitOptions": {
@@ -161,14 +161,14 @@
     {
       "DownstreamPathTemplate": "/api/v1/workouts/filters",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workouts/filters",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workouts/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workouts/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"]
     },
@@ -176,28 +176,28 @@
     {
       "DownstreamPathTemplate": "/api/v1/foods/search",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/foods/search",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/foods/high-protein",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/foods/high-protein",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/foods/low-calorie",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/foods/low-calorie",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/foods/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/foods/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
     },
@@ -205,14 +205,14 @@
     {
       "DownstreamPathTemplate": "/api/v1/saved-workouts/check/{workoutId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/saved-workouts/check/{workoutId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/saved-workouts/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/saved-workouts/{everything}",
       "UpstreamHttpMethod": ["GET","POST","DELETE"]
     },
@@ -220,63 +220,63 @@
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/sync",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/sync",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/today",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/today",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/weekly-summary",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/weekly-summary",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/points",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/points",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/streak",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/streak",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/history",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/history",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/goal",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/goal",
       "UpstreamHttpMethod": ["GET","PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/daily-active/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/daily-active/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"]
     },
@@ -284,77 +284,77 @@
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/sync",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/sync",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/add",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/add",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/today",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/today",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/weekly-summary",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/weekly-summary",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/monthly-summary",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/monthly-summary",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/total",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/total",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/streak",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/streak",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/history",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/history",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/goal",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/goal",
       "UpstreamHttpMethod": ["GET","PUT"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/water-intake/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/water-intake/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"]
     },
@@ -362,35 +362,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/chat-history/batch",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-history/batch",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-history/context",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-history/context",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-history/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-history/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-history/clear/all",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-history/clear/all",
       "UpstreamHttpMethod": ["DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-history/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-history/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PATCH","DELETE"],
       "RateLimitOptions": {
@@ -405,7 +405,7 @@
     {
       "DownstreamPathTemplate": "/api/v1/conversations/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/conversations/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","PATCH","DELETE"],
       "RateLimitOptions": {
@@ -420,49 +420,49 @@
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/read",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/read",
       "UpstreamHttpMethod": ["PATCH"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/stats",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/stats",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/transfer-ownership",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}/transfer-ownership",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/conversations/{conversationId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/{id}/leave",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/{id}/leave",
       "UpstreamHttpMethod": ["PATCH"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/chat-participants/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/chat-participants/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE","PATCH"],
       "RateLimitOptions": {
@@ -477,7 +477,7 @@
     {
       "DownstreamPathTemplate": "/api/v1/personal-bests/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/personal-bests/{everything}",
       "UpstreamHttpMethod": ["GET"]
     },
@@ -485,7 +485,7 @@
     {
       "DownstreamPathTemplate": "/api/v1/presence",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/presence",
       "UpstreamHttpMethod": ["GET"]
     },
@@ -493,14 +493,14 @@
     {
       "DownstreamPathTemplate": "/api/v1/notifications/expo-tokens/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/notifications/expo-tokens/{everything}",
       "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/notifications/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/notifications/{everything}",
       "UpstreamHttpMethod": ["GET", "POST", "PUT", "PATCH", "DELETE"],
       "RateLimitOptions": {
@@ -515,35 +515,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/injuries/filters",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/injuries/filters",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/injuries/statistics",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/injuries/statistics",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/injuries/associate",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/injuries/associate",
       "UpstreamHttpMethod": ["POST","DELETE"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/injuries/by-workout",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/injuries/by-workout",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/injuries/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/injuries/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
     },
@@ -551,35 +551,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/user-injuries/statistics",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-injuries/statistics",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-injuries/aggravating-workouts",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-injuries/aggravating-workouts",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-injuries/check/{injuryId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-injuries/check/{injuryId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-injuries/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-injuries/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-injuries/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-injuries/{everything}",
       "UpstreamHttpMethod": ["GET","POST","DELETE"]
     },
@@ -587,35 +587,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/workout-injuries/workout/{workoutId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-injuries/workout/{workoutId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-injuries/injury/{injuryId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-injuries/injury/{injuryId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-injuries/check/{workoutId}/{injuryId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-injuries/check/{workoutId}/{injuryId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-injuries/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-injuries/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/workout-injuries/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/workout-injuries/{everything}",
       "UpstreamHttpMethod": ["GET","POST","DELETE"]
     },
@@ -623,42 +623,42 @@
     {
       "DownstreamPathTemplate": "/api/v1/allergens/search",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/search",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/allergens/food",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/food",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/allergens/check/food/{foodId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/check/food/{foodId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/allergens/category/{category}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/category/{category}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/allergens/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/allergens/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/allergens/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
     },
@@ -666,35 +666,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/user-allergies/statistics",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-allergies/statistics",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-allergies/foods-with-allergens",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-allergies/foods-with-allergens",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-allergies/check/{allergenId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-allergies/check/{allergenId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-allergies/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-allergies/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/user-allergies/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/user-allergies/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
     },
@@ -702,35 +702,35 @@
     {
       "DownstreamPathTemplate": "/api/v1/food-allergens/food/{foodId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/food-allergens/food/{foodId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/food-allergens/allergen/{allergenId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/food-allergens/allergen/{allergenId}",
       "UpstreamHttpMethod": ["GET"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/food-allergens/toggle/{foodId}/{allergenId}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/food-allergens/toggle/{foodId}/{allergenId}",
       "UpstreamHttpMethod": ["PATCH"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/food-allergens/bulk",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/food-allergens/bulk",
       "UpstreamHttpMethod": ["POST"]
     },
     {
       "DownstreamPathTemplate": "/api/v1/food-allergens/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/api/v1/food-allergens/{everything}",
       "UpstreamHttpMethod": ["GET","POST","PUT","DELETE"]
     },
@@ -739,7 +739,7 @@
       "Key": "websocket-raw",
       "DownstreamPathTemplate": "/hub/{everything}",
       "DownstreamScheme": "ws",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/hub/{everything}",
       "UpstreamHttpMethod": ["GET"]
     },
@@ -747,7 +747,7 @@
       "Key": "socketio-all",
       "DownstreamPathTemplate": "/socket.io/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 5000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 5000 }],
       "UpstreamPathTemplate": "/socket.io/{everything}",
       "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
       "AddHeadersToRequest": {
@@ -762,7 +762,7 @@
     {
       "DownstreamPathTemplate": "/api/food/predict",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 8000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
       "UpstreamPathTemplate": "/api/v1/food-recognition/predict",
       "UpstreamHttpMethod": ["POST"],
       "RateLimitOptions": {
@@ -776,7 +776,7 @@
     {
       "DownstreamPathTemplate": "/api/food/predict-top",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 8000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
       "UpstreamPathTemplate": "/api/v1/food-recognition/predict-top",
       "UpstreamHttpMethod": ["POST"],
       "RateLimitOptions": {
@@ -790,7 +790,7 @@
     {
       "DownstreamPathTemplate": "/api/chat",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 8000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
       "UpstreamPathTemplate": "/api/v1/ai/chat",
       "UpstreamHttpMethod": ["POST"],
       "RateLimitOptions": {
@@ -804,7 +804,7 @@
     {
       "DownstreamPathTemplate": "/api/chat/tokens/usage",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [{ "Host": "host.docker.internal", "Port": 8000 }],
+      "DownstreamHostAndPorts": [{ "Host": "localhost", "Port": 8000 }],
       "UpstreamPathTemplate": "/api/v1/ai/chat/tokens/usage",
       "UpstreamHttpMethod": ["GET"]
     }

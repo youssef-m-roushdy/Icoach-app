@@ -84,19 +84,16 @@ router.use(authenticate);
  *               type: string
  *             lastName:
  *               type: string
- *             avatarUrl:
+ *             avatar:
  *               type: string
  *         conversation:
  *           type: object
  *           properties:
  *             id:
  *               type: integer
- *             name:
+ *             title:
  *               type: string
- *             type:
- *               type: string
- *               enum: [direct, group]
- *             isArchived:
+ *             isGroup:
  *               type: boolean
  */
 

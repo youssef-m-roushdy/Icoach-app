@@ -283,6 +283,7 @@ ocelot.*.json
 !ocelot.json
 !ocelot.Development.json
 !ocelot.Production.json
+!ocelot.localhost.json
 
 # Cache files
 cache/

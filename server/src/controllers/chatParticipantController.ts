@@ -144,7 +144,7 @@ export const getChatParticipantById = async (
         {
           model: ChatConversation,
           as: 'conversation',
-          attributes: ['id', 'title', 'createdAt'],
+          attributes: ['id', 'title', 'isGroup', 'createdAt'],
         },
       ],
     });
