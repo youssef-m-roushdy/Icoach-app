@@ -13,6 +13,7 @@ import { initializeDatabases } from './config/database.js';
 import { initializeFirebase } from './config/firebase.js';
 import { setupSwagger } from './config/swagger.js';
 import apiRoutes from './routes/index.js';
+import webhooksRoutes from './routes/webhooks.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { socketService } from './services/socketService.js';
 
@@ -108,6 +109,19 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(':method :url :status :response-time ms - :client-ip'));
 }
 
+// ============= PAYMENT WEBHOOKS (RAW BODY) =============
+// IMPORTANT: Must be registered BEFORE the global express.json() below,
+// because HMAC signature verification needs the exact raw request body.
+app.use(
+  '/api/webhooks',
+  express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf.toString();
+    },
+  }),
+  webhooksRoutes
+);
+
 // ============= BODY PARSING MIDDLEWARE =============
 app.use(express.json({ 
   limit: process.env.MAX_FILE_SIZE || '10mb',
@@ -174,6 +188,37 @@ app.use(notFoundHandler);
 // Global error handling middleware (must be last)
 app.use(errorHandler);
 
+// ============= PAYMENT SERVICE HEALTH CHECK =============
+// Pings the .NET PaymentService's /health and /ready endpoints at startup.
+// This is informational only — it does not block or fail Node server startup
+// if PaymentService happens to be down, since they are independent microservices.
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || 'http://localhost:8001';
+
+const checkPaymentServiceHealth = async () => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const [healthRes, readyRes] = await Promise.all([
+      fetch(`${PAYMENT_SERVICE_URL}/health`, { signal: controller.signal }),
+      fetch(`${PAYMENT_SERVICE_URL}/ready`, { signal: controller.signal }),
+    ]);
+
+    clearTimeout(timeout);
+
+    const healthText = await healthRes.text();
+    const readyText = await readyRes.text();
+
+    if (healthRes.ok && readyRes.ok) {
+      console.log(`💳 PaymentService is ${healthText} and ${readyText} at ${PAYMENT_SERVICE_URL}`);
+    } else {
+      console.warn(`⚠️  PaymentService responded but not fully healthy (health: ${healthRes.status}, ready: ${readyRes.status})`);
+    }
+  } catch (error) {
+    console.warn(`⚠️  PaymentService is unreachable at ${PAYMENT_SERVICE_URL} — payments/subscriptions will not work until it's running`);
+  }
+};
+
 // ============= SERVER STARTUP =============
 const startServer = async () => {
   try {
@@ -190,6 +235,9 @@ const startServer = async () => {
       console.log(`🔌 WebSocket server ready for connections`);
       console.log(`🛡️ Rate limiting DISABLED - Handled by API Gateway`);
     });
+
+    // Check PaymentService connectivity (non-blocking, informational only)
+    checkPaymentServiceHealth();
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddHttpClient<StripeGateway>();
         services.AddHttpClient<PaymobGateway>();
         services.AddHttpClient<PayPalGateway>();
+        services.AddHttpClient("PaymentWebhookClient");
         
         services.AddSingleton<IPaymentGatewayFactory, GatewayFactory>();
         services.AddSingleton<IIntegrationEventPublisher, IntegrationEventPublisher>();

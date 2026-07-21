@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Domain.AggregateRoots;
+using PaymentService.Domain.Common;
 using PaymentService.Domain.Events;
 using PaymentService.Infrastructure.Persistence.Configurations;
 
@@ -13,6 +14,7 @@ public class PaymentDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +24,7 @@ public class PaymentDbContext : DbContext
         modelBuilder.ApplyConfiguration(new SubscriptionConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentTransactionConfiguration());
         modelBuilder.ApplyConfiguration(new WebhookEventConfiguration());
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
         
         base.OnModelCreating(modelBuilder);
     }

@@ -1,5 +1,10 @@
+using System;
+using System.IO;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using PaymentService.Api.Middleware;
 using PaymentService.Api.Services;
@@ -22,6 +27,9 @@ builder.Services.AddApplicationServices();
 
 // gRPC
 builder.Services.AddGrpc();
+
+// Outbox background processor
+builder.Services.AddHostedService<OutboxProcessorService>();
 
 // JWT Authentication using RSA Public Key from File
 var publicKeyPath = Path.Combine(AppContext.BaseDirectory, builder.Configuration["Jwt:PublicKeyPath"]!);
@@ -48,7 +56,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new RsaSecurityKey(rsa)
         };
 
-        // Allow gRPC to pass token in Authorization header
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
@@ -80,7 +87,6 @@ app.MapControllers();
 app.MapGet("/health", () => "Healthy");
 app.MapGet("/ready", () => "Ready");
 
-// Apply Migrations on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();

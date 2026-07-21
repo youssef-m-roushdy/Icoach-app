@@ -33,6 +33,7 @@ import Story from './Story.js';
 import StoryView from './StoryView.js';
 import Store, { StoreStatus } from './Store.js';
 import StoreProduct, { ProductStatus } from './StoreProduct.js';
+import UserSubscription from './UserSubscription.js';
 
 // Define associations
 
@@ -233,6 +234,18 @@ Store.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
 Store.hasMany(StoreProduct, { foreignKey: 'storeId', as: 'products', onDelete: 'CASCADE' });
 StoreProduct.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
 
+// ============================================
+// PAYMENT / SUBSCRIPTION ASSOCIATIONS
+// ============================================
+
+// User ↔ UserSubscription (one-to-many, as the subscriber)
+User.hasMany(UserSubscription, { foreignKey: 'userId', as: 'subscriptions' });
+UserSubscription.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// User ↔ UserSubscription (one-to-many, as the coach being subscribed to)
+User.hasMany(UserSubscription, { foreignKey: 'coachId', as: 'coachSubscriptions' });
+UserSubscription.belongsTo(User, { foreignKey: 'coachId', as: 'coach' });
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -274,6 +287,7 @@ export {
   StoreProduct,
   StoreStatus,
   ProductStatus,
+  UserSubscription,
 };
 
 // Export types
@@ -339,7 +353,6 @@ const sqlModels = {
   FoodAllergen,
   UserAllergy,
   Notification,
-  // Community platform models
   Friendship,
   Post,
   PostLike,
@@ -348,6 +361,7 @@ const sqlModels = {
   StoryView,
   Store,
   StoreProduct,
+  UserSubscription,
 };
 
 export default sqlModels;
