@@ -6,7 +6,7 @@ namespace PaymentService.Domain.AggregateRoots;
 public class Payment
 {
     public Guid Id { get; private set; }
-    public string UserId { get; private set; }
+    public int UserId { get; private set; }
     public string OrderId { get; private set; }
     public decimal Amount { get; private set; }
     public string Currency { get; private set; }
@@ -24,7 +24,7 @@ public class Payment
 
     private Payment() { }
 
-    public Payment(string userId, string orderId, decimal amount, string currency, GatewayType gateway)
+    public Payment(int userId, string orderId, decimal amount, string currency, GatewayType gateway)
     {
         Id = Guid.NewGuid();
         UserId = userId;

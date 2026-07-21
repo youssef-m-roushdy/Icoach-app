@@ -20,7 +20,7 @@ service PaymentGrpcService {
 // --- Payment Messages ---
 
 message CreatePaymentRequest {
-  string user_id = 1;
+  int32 user_id = 1;
   string order_id = 2;
   double amount = 3;
   string currency = 4;
@@ -39,7 +39,7 @@ message GetPaymentRequest {
 
 message PaymentResponse {
   string payment_id = 1;
-  string user_id = 2;
+  int32 user_id = 2;
   string order_id = 3;
   double amount = 4;
   string currency = 5;
@@ -71,10 +71,10 @@ message PaymentStatusResponse {
 // --- Subscription Messages ---
 
 message CreateSubscriptionRequest {
-  string user_id = 1;
-  string plan_type = 2; // AppMonthly, AppYearly, CoachMonthly, CoachYearly
+  int32 user_id = 1;
+  string plan_type = 2;
   string gateway = 3;
-  string coach_id = 4; // Empty if App subscription
+  int32 coach_id = 4; // 0 if App subscription
 }
 
 message CreateSubscriptionResponse {
@@ -92,12 +92,12 @@ message CancelSubscriptionResponse {
 }
 
 message GetSubscriptionStatusRequest {
-  string user_id = 1;
+  int32 user_id = 1;
 }
 
 message SubscriptionStatusResponse {
   bool is_active = 1;
   string plan_type = 2;
   string current_period_end = 3;
-  string coach_id = 4; // Empty if not a coach subscription
+  int32 coach_id = 4; // 0 if not a coach subscription
 }

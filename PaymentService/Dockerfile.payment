@@ -1,0 +1,35 @@
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Copy csproj files and restore dependencies
+COPY ["src/PaymentService.Api/PaymentService.Api.csproj", "src/PaymentService.Api/"]
+COPY ["src/PaymentService.Application/PaymentService.Application.csproj", "src/PaymentService.Application/"]
+COPY ["src/PaymentService.Domain/PaymentService.Domain.csproj", "src/PaymentService.Domain/"]
+COPY ["src/PaymentService.Infrastructure/PaymentService.Infrastructure.csproj", "src/PaymentService.Infrastructure/"]
+COPY ["src/PaymentService.Contracts/PaymentService.Contracts.csproj", "src/PaymentService.Contracts/"]
+
+# Run restore
+RUN dotnet restore "src/PaymentService.Api/PaymentService.Api.csproj"
+
+# Copy everything else and build
+COPY . .
+WORKDIR "/src/src/PaymentService.Api"
+RUN dotnet publish "PaymentService.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+
+# Expose HTTP and gRPC ports
+EXPOSE 8001
+EXPOSE 5001
+
+# Copy built application
+COPY --from=build /app/publish .
+
+# Set environment variables for Docker
+ENV ASPNETCORE_URLS="http://+:8001;http://+:5001"
+ENV Kestrel__Endpoints__gRPC__Protocols="Http2"
+
+ENTRYPOINT ["dotnet", "PaymentService.Api.dll"]

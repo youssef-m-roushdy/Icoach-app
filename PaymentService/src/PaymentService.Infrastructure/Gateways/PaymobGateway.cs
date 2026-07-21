@@ -15,7 +15,7 @@ public class PaymobGateway : IPaymentGateway
         throw new NotImplementedException("Paymob integration is not yet implemented.");
     }
 
-    public Task<(string CheckoutUrl, string ExternalSubscriptionId)> CreateSubscriptionCheckoutAsync(string userId, SubscriptionPlanType planType, Guid? coachId, CancellationToken ct)
+    public Task<(string CheckoutUrl, string ExternalSubscriptionId)> CreateSubscriptionCheckoutAsync(int userId, SubscriptionPlanType planType, int? coachId, CancellationToken ct)
     {
         throw new NotImplementedException("Paymob integration is not yet implemented.");
     }

@@ -1,3 +1,3 @@
 namespace PaymentService.Domain.Events;
 
-public record PaymentRefundedEvent(Guid PaymentId, string UserId, string OrderId) : BaseDomainEvent;
+public record PaymentRefundedEvent(Guid PaymentId, int UserId, string OrderId) : BaseDomainEvent;

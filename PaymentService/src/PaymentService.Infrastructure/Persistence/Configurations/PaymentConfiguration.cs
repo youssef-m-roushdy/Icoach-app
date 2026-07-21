@@ -10,7 +10,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
     {
         builder.HasKey(p => p.Id);
         
-        builder.Property(p => p.UserId).IsRequired().HasMaxLength(100);
+        builder.Property(p => p.UserId).IsRequired();
         builder.Property(p => p.OrderId).IsRequired().HasMaxLength(100);
         builder.Property(p => p.Amount).HasColumnType("decimal(18,2)");
         builder.Property(p => p.Currency).IsRequired().HasMaxLength(3);
@@ -22,6 +22,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.CheckoutUrl).HasMaxLength(2048);
         builder.Property(p => p.FailureReason).HasMaxLength(500);
 
+        builder.HasIndex(p => p.UserId);
         builder.HasIndex(p => p.OrderId);
         builder.HasIndex(p => p.ExternalPaymentId);
     }

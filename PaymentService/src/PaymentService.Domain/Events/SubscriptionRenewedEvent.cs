@@ -1,3 +1,3 @@
 namespace PaymentService.Domain.Events;
 
-public record SubscriptionRenewedEvent(Guid SubscriptionId, string UserId, DateTime NewExpiryDate) : BaseDomainEvent;
+public record SubscriptionRenewedEvent(Guid SubscriptionId, int UserId, DateTime NewExpiryDate) : BaseDomainEvent;

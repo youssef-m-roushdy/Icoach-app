@@ -1,5 +1,8 @@
+using System;
+using System.Threading.Tasks;
 using Grpc.Core;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using PaymentService.Application.Commands.CancelSubscription;
 using PaymentService.Application.Commands.CreatePayment;
 using PaymentService.Application.Commands.CreateSubscription;
@@ -11,7 +14,7 @@ using PaymentService.Contracts.Grpc;
 
 namespace PaymentService.Api.Services;
 
-public class PaymentGrpcService : PaymentGrpcService.PaymentGrpcServiceBase
+public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcService.PaymentGrpcServiceBase
 {
     private readonly IMediator _mediator;
     private readonly ILogger<PaymentGrpcService> _logger;
@@ -41,7 +44,7 @@ public class PaymentGrpcService : PaymentGrpcService.PaymentGrpcServiceBase
     {
         _logger.LogInformation("Processing gRPC CreateSubscription for User {UserId}", request.UserId);
         
-        var coachId = string.IsNullOrEmpty(request.CoachId) ? null : request.CoachId;
+        int? coachId = request.CoachId == 0 ? null : request.CoachId;
         var command = new CreateSubscriptionCommand(request.UserId, request.PlanType, request.Gateway, coachId);
         var result = await _mediator.Send(command, context.CancellationToken);
         
@@ -110,7 +113,7 @@ public class PaymentGrpcService : PaymentGrpcService.PaymentGrpcServiceBase
             IsActive = sub.Status == Domain.Enums.SubscriptionStatus.Active || sub.Status == Domain.Enums.SubscriptionStatus.Trialing,
             PlanType = sub.PlanType.ToString(),
             CurrentPeriodEnd = sub.CurrentPeriodEnd.ToString("O"),
-            CoachId = sub.CoachId?.ToString() ?? ""
+            CoachId = sub.CoachId ?? 0
         };
     }
 }

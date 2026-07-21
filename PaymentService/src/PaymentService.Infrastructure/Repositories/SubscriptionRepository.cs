@@ -20,7 +20,7 @@ public class SubscriptionRepository : ISubscriptionRepository
         return await _context.Subscriptions.FindAsync(new object[] { id }, cancellationToken);
     }
 
-    public async Task<Subscription?> GetActiveByUserIdAsync(string userId, CancellationToken cancellationToken)
+    public async Task<Subscription?> GetActiveByUserIdAsync(int userId, CancellationToken cancellationToken)
     {
         return await _context.Subscriptions
             .Where(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trialing))

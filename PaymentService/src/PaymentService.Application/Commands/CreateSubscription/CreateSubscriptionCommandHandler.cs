@@ -23,14 +23,12 @@ public class CreateSubscriptionCommandHandler : IRequestHandler<CreateSubscripti
     {
         var planType = Enum.Parse<SubscriptionPlanType>(request.PlanType, true);
         var gatewayType = Enum.Parse<GatewayType>(request.Gateway, true);
-        
-        Guid? coachId = string.IsNullOrEmpty(request.CoachId) ? null : Guid.Parse(request.CoachId);
-        
-        var subscription = new Subscription(request.UserId, planType, coachId);
+
+        var subscription = new Subscription(request.UserId, planType, gatewayType, request.CoachId);
         await _subscriptionRepo.AddAsync(subscription, cancellationToken);
 
         var gateway = _gatewayFactory.Create(gatewayType);
-        var (checkoutUrl, _) = await gateway.CreateSubscriptionCheckoutAsync(request.UserId, planType, coachId, cancellationToken);
+        var (checkoutUrl, _) = await gateway.CreateSubscriptionCheckoutAsync(request.UserId, planType, request.CoachId, cancellationToken);
         
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

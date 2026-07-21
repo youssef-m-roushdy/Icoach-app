@@ -1,0 +1,5 @@
+migrate:
+dotnet ef migrations add InitialPaymentDb --project src/PaymentService.Infrastructure --startup-project src/PaymentService.Api -o Persistence/Migrations
+
+update:
+dotnet ef database update --project src/PaymentService.Infrastructure --startup-project src/PaymentService.Api

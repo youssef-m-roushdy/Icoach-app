@@ -42,7 +42,7 @@ public class StripeGateway : IPaymentGateway
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<(string CheckoutUrl, string ExternalSubscriptionId)> CreateSubscriptionCheckoutAsync(string userId, SubscriptionPlanType planType, Guid? coachId, CancellationToken ct)
+    public async Task<(string CheckoutUrl, string ExternalSubscriptionId)> CreateSubscriptionCheckoutAsync(int userId, SubscriptionPlanType planType, int? coachId, CancellationToken ct)
     {
         var priceId = planType switch
         {
@@ -60,7 +60,7 @@ public class StripeGateway : IPaymentGateway
             { "line_items[0][quantity]", "1" },
             { "success_url", $"https://app.com/sub-success?userId={userId}" },
             { "cancel_url", "https://app.com/sub-cancel" },
-            { "client_reference_id", userId }
+            { "client_reference_id", userId.ToString() }
         };
 
         var response = await _httpClient.PostAsync("https://api.stripe.com/v1/checkout/sessions", new FormUrlEncodedContent(form), ct);

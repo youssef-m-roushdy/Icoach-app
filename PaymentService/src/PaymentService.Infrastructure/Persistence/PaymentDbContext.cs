@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Domain.AggregateRoots;
+using PaymentService.Domain.Events;
 using PaymentService.Infrastructure.Persistence.Configurations;
 
 namespace PaymentService.Infrastructure.Persistence;
@@ -15,6 +16,8 @@ public class PaymentDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Ignore<BaseDomainEvent>();
+
         modelBuilder.ApplyConfiguration(new PaymentConfiguration());
         modelBuilder.ApplyConfiguration(new SubscriptionConfiguration());
         modelBuilder.ApplyConfiguration(new PaymentTransactionConfiguration());
