@@ -683,6 +683,7 @@ const options = {
         './src/routes/v1/userAllergyRoutes.ts',
         './src/routes/v1/workoutInjuryRoutes.ts',
         './src/routes/v1/chatParticipantRoutes.ts',
+        './src/routes/v1/subscriptionRoutes.ts'
       ],  // In development, explicitly list all route files
 };
 

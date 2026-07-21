@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
 
         services.AddHttpClient<StripeGateway>();
         services.AddHttpClient<PaymobGateway>();

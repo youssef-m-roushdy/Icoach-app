@@ -28,10 +28,10 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     public override async Task<CreatePaymentResponse> CreatePayment(CreatePaymentRequest request, ServerCallContext context)
     {
         _logger.LogInformation("Processing gRPC CreatePayment for Order {OrderId}", request.OrderId);
-        
-        var command = new CreatePaymentCommand(request.UserId, request.OrderId, (decimal)request.Amount, request.Currency, request.Gateway);
+
+        var command = new CreatePaymentCommand(request.UserId, request.OrderId, (decimal)request.Amount, request.Currency, request.Gateway, request.IdempotencyKey);
         var result = await _mediator.Send(command, context.CancellationToken);
-        
+
         return new CreatePaymentResponse
         {
             PaymentId = result.PaymentId.ToString(),
@@ -43,11 +43,11 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     public override async Task<CreateSubscriptionResponse> CreateSubscription(CreateSubscriptionRequest request, ServerCallContext context)
     {
         _logger.LogInformation("Processing gRPC CreateSubscription for User {UserId}", request.UserId);
-        
+
         int? coachId = request.CoachId == 0 ? null : request.CoachId;
-        var command = new CreateSubscriptionCommand(request.UserId, request.PlanType, request.Gateway, coachId);
+        var command = new CreateSubscriptionCommand(request.UserId, request.PlanType, request.Gateway, coachId, request.IdempotencyKey);
         var result = await _mediator.Send(command, context.CancellationToken);
-        
+
         return new CreateSubscriptionResponse
         {
             SubscriptionId = result.SubscriptionId.ToString(),
@@ -59,7 +59,7 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     {
         var query = new GetPaymentQuery(Guid.Parse(request.PaymentId));
         var payment = await _mediator.Send(query, context.CancellationToken);
-        
+
         if (payment == null) throw new RpcException(new Status(StatusCode.NotFound, "Payment not found"));
 
         return new PaymentResponse
@@ -81,7 +81,7 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     {
         var query = new GetPaymentStatusQuery(Guid.Parse(request.PaymentId));
         var status = await _mediator.Send(query, context.CancellationToken);
-        
+
         return new PaymentStatusResponse { Status = status };
     }
 
@@ -89,7 +89,7 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     {
         var command = new RefundPaymentCommand(Guid.Parse(request.PaymentId));
         var result = await _mediator.Send(command, context.CancellationToken);
-        
+
         return new RefundResponse { Success = result.Success, Message = result.Message };
     }
 
@@ -97,7 +97,7 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     {
         var command = new CancelSubscriptionCommand(Guid.Parse(request.SubscriptionId));
         var result = await _mediator.Send(command, context.CancellationToken);
-        
+
         return new CancelSubscriptionResponse { Success = result.Success, Status = result.Status };
     }
 
@@ -105,7 +105,7 @@ public class PaymentGrpcService : PaymentService.Contracts.Grpc.PaymentGrpcServi
     {
         var query = new GetSubscriptionStatusQuery(request.UserId);
         var sub = await _mediator.Send(query, context.CancellationToken);
-        
+
         if (sub == null) throw new RpcException(new Status(StatusCode.NotFound, "Active subscription not found"));
 
         return new SubscriptionStatusResponse

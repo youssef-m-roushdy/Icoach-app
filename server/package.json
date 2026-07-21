@@ -47,6 +47,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@types/cookie-parser": "^1.4.10",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.41.3",
@@ -55,9 +57,11 @@
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.3",
     "ejs": "^3.1.10",
+    "expo-server-sdk": "^4.0.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.2.1",
+    "firebase-admin": "^12.0.0",
     "google-auth-library": "^10.5.0",
     "helmet": "^8.1.0",
     "joi": "^18.0.1",
@@ -77,8 +81,6 @@
     "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "winston": "^3.18.3",
-    "firebase-admin": "^12.0.0",
-    "expo-server-sdk": "^4.0.0"
+    "winston": "^3.18.3"
   }
 }

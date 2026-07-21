@@ -15,6 +15,7 @@ public class PaymentDbContext : DbContext
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,7 +26,8 @@ public class PaymentDbContext : DbContext
         modelBuilder.ApplyConfiguration(new PaymentTransactionConfiguration());
         modelBuilder.ApplyConfiguration(new WebhookEventConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
-        
+        modelBuilder.ApplyConfiguration(new IdempotencyRecordConfiguration());
+
         base.OnModelCreating(modelBuilder);
     }
 }
