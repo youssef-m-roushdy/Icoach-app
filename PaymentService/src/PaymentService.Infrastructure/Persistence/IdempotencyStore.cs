@@ -1,10 +1,14 @@
-// Infrastructure/Persistence/IdempotencyStore.cs
 using Microsoft.EntityFrameworkCore;
 using PaymentService.Application.Interfaces;
 using PaymentService.Domain.Common;
 
 namespace PaymentService.Infrastructure.Persistence;
 
+/// <summary>
+/// Stages idempotency records on the shared DbContext.
+/// Persistence is owned exclusively by <c>IUnitOfWork.SaveChangesAsync</c>
+/// so domain changes, outbox messages, and idempotency share one transaction.
+/// </summary>
 public class IdempotencyStore : IIdempotencyStore
 {
     private readonly PaymentDbContext _context;
@@ -23,19 +27,17 @@ public class IdempotencyStore : IIdempotencyStore
         return record?.ResponsePayload;
     }
 
-    public async Task SaveResponseAsync(string key, string requestType, string responsePayload, CancellationToken ct)
+    public Task SaveResponseAsync(string key, string requestType, string responsePayload, CancellationToken ct)
     {
-        var record = new IdempotencyRecord(key, requestType, responsePayload);
-        _context.IdempotencyRecords.Add(record);
+        // Avoid duplicate tracked inserts within the same unit of work.
+        var alreadyTracked = _context.ChangeTracker
+            .Entries<IdempotencyRecord>()
+            .Any(e => e.Entity.Key == key);
 
-        try
-        {
-            await _context.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException)
-        {
-            // Two concurrent requests raced with the same key — the other one won,
-            // its record is already saved, so there's nothing more to do here.
-        }
+        if (alreadyTracked)
+            return Task.CompletedTask;
+
+        _context.IdempotencyRecords.Add(new IdempotencyRecord(key, requestType, responsePayload));
+        return Task.CompletedTask;
     }
 }

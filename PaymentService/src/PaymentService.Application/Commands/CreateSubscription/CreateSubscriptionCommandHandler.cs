@@ -10,13 +10,13 @@ public class CreateSubscriptionCommandHandler : IRequestHandler<CreateSubscripti
 {
     private readonly ISubscriptionRepository _subscriptionRepo;
     private readonly IPaymentGatewayFactory _gatewayFactory;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public CreateSubscriptionCommandHandler(ISubscriptionRepository subscriptionRepo, IPaymentGatewayFactory gatewayFactory, IUnitOfWork unitOfWork)
+    public CreateSubscriptionCommandHandler(
+        ISubscriptionRepository subscriptionRepo,
+        IPaymentGatewayFactory gatewayFactory)
     {
         _subscriptionRepo = subscriptionRepo;
         _gatewayFactory = gatewayFactory;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<CreateSubscriptionResult> Handle(CreateSubscriptionCommand request, CancellationToken cancellationToken)
@@ -28,10 +28,12 @@ public class CreateSubscriptionCommandHandler : IRequestHandler<CreateSubscripti
         await _subscriptionRepo.AddAsync(subscription, cancellationToken);
 
         var gateway = _gatewayFactory.Create(gatewayType);
-        var (checkoutUrl, _) = await gateway.CreateSubscriptionCheckoutAsync(request.UserId, planType, request.CoachId, cancellationToken);
-        
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        var (checkoutUrl, externalSessionId) = await gateway.CreateSubscriptionCheckoutAsync(
+            subscription.Id, request.UserId, planType, request.CoachId, cancellationToken);
 
+        subscription.SetExternalSessionId(externalSessionId);
+
+        // Commit is performed by IdempotencyBehavior (single transaction with idempotency record).
         return new CreateSubscriptionResult(subscription.Id, checkoutUrl);
     }
 }

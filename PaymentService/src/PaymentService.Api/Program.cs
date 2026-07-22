@@ -1,10 +1,7 @@
-using System;
-using System.IO;
 using System.Security.Cryptography;
-using System.Threading.Tasks;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using PaymentService.Api.Middleware;
 using PaymentService.Api.Services;
@@ -15,23 +12,27 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .Enrich.FromLogContext()
     .WriteTo.Console());
 
-// Database & Infrastructure
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddApplicationServices();
-
-// gRPC
 builder.Services.AddGrpc();
-
-// Outbox background processor
 builder.Services.AddHostedService<OutboxProcessorService>();
 
-// JWT Authentication using RSA Public Key from File
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("webhooks", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = 120;
+        limiter.QueueLimit = 0;
+    });
+});
+
 var publicKeyPath = Path.Combine(AppContext.BaseDirectory, builder.Configuration["Jwt:PublicKeyPath"]!);
 if (!File.Exists(publicKeyPath))
 {
@@ -77,6 +78,7 @@ var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -102,3 +104,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program;

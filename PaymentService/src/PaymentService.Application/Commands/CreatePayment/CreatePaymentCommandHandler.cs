@@ -10,29 +10,29 @@ public class CreatePaymentCommandHandler : IRequestHandler<CreatePaymentCommand,
 {
     private readonly IPaymentRepository _paymentRepository;
     private readonly IPaymentGatewayFactory _gatewayFactory;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public CreatePaymentCommandHandler(IPaymentRepository paymentRepository, IPaymentGatewayFactory gatewayFactory, IUnitOfWork unitOfWork)
+    public CreatePaymentCommandHandler(
+        IPaymentRepository paymentRepository,
+        IPaymentGatewayFactory gatewayFactory)
     {
         _paymentRepository = paymentRepository;
         _gatewayFactory = gatewayFactory;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<CreatePaymentResult> Handle(CreatePaymentCommand request, CancellationToken cancellationToken)
     {
         var gatewayType = Enum.Parse<GatewayType>(request.Gateway, true);
         var payment = new Payment(request.UserId, request.OrderId, request.Amount, request.Currency, gatewayType);
-        
+
         await _paymentRepository.AddAsync(payment, cancellationToken);
-        
+
         var gatewayService = _gatewayFactory.Create(gatewayType);
-        var (checkoutUrl, externalId) = await gatewayService.CreateCheckoutAsync(payment.Id, payment.Amount, payment.Currency, cancellationToken);
-        
-        payment.SetCheckoutUrl(checkoutUrl);
-        
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        
+        var (checkoutUrl, externalSessionId) = await gatewayService.CreateCheckoutAsync(
+            payment.Id, payment.Amount, payment.Currency, payment.UserId, payment.OrderId, cancellationToken);
+
+        payment.SetCheckoutUrl(checkoutUrl, externalSessionId);
+
+        // Commit is performed by IdempotencyBehavior (single transaction with idempotency record).
         return new CreatePaymentResult(payment.Id, checkoutUrl, payment.Status.ToString());
     }
 }

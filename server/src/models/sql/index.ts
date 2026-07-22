@@ -34,6 +34,10 @@ import StoryView from './StoryView.js';
 import Store, { StoreStatus } from './Store.js';
 import StoreProduct, { ProductStatus } from './StoreProduct.js';
 import UserSubscription from './UserSubscription.js';
+import Order, { OrderStatus } from './Order.js';
+import OrderItem from './OrderItem.js';
+import Cart from './Cart.js';
+import CartItem from './Cartitem.js';
 
 // Define associations
 
@@ -246,6 +250,28 @@ UserSubscription.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(UserSubscription, { foreignKey: 'coachId', as: 'coachSubscriptions' });
 UserSubscription.belongsTo(User, { foreignKey: 'coachId', as: 'coach' });
 
+// Orders
+User.hasMany(Order, { foreignKey: 'userId', as: 'orders' });
+Order.belongsTo(User, { foreignKey: 'userId', as: 'buyer' });
+
+Store.hasMany(Order, { foreignKey: 'storeId', as: 'orders' });
+Order.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
+
+Order.hasMany(OrderItem, { foreignKey: 'orderId', as: 'items', onDelete: 'CASCADE' });
+OrderItem.belongsTo(Order, { foreignKey: 'orderId', as: 'order' });
+
+StoreProduct.hasMany(OrderItem, { foreignKey: 'productId', as: 'orderItems' });
+OrderItem.belongsTo(StoreProduct, { foreignKey: 'productId', as: 'product' });
+
+User.hasOne(Cart, { foreignKey: 'userId', as: 'cart' });
+Cart.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+Cart.hasMany(CartItem, { foreignKey: 'cartId', as: 'items', onDelete: 'CASCADE' });
+CartItem.belongsTo(Cart, { foreignKey: 'cartId', as: 'cart' });
+
+StoreProduct.hasMany(CartItem, { foreignKey: 'productId', as: 'cartItems' });
+CartItem.belongsTo(StoreProduct, { foreignKey: 'productId', as: 'product' });
+
 // Optional: WorkoutSession ↔ PersonalBest (if you want to track which session set a PB)
 // This would require adding workoutSessionId to PersonalBest model first
 // PersonalBest.belongsTo(WorkoutSession, { foreignKey: 'workoutSessionId', as: 'session' });
@@ -288,6 +314,11 @@ export {
   StoreStatus,
   ProductStatus,
   UserSubscription,
+  Order,        
+  OrderItem,    
+  OrderStatus,
+  Cart,
+  CartItem
 };
 
 // Export types
@@ -328,6 +359,10 @@ export type {
   ProductMedia,
 } from './StoreProduct.js';
 
+// Order types
+export type { OrderAttributes, OrderCreationAttributes, OrderStatusValue } from './Order.js';
+export type { OrderItemAttributes, OrderItemCreationAttributes } from './OrderItem.js';
+
 // Default export with all models for convenience
 const sqlModels = {
   User,
@@ -362,6 +397,10 @@ const sqlModels = {
   Store,
   StoreProduct,
   UserSubscription,
+  Order,
+  OrderItem,
+  Cart,
+  CartItem
 };
 
 export default sqlModels;

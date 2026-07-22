@@ -50,6 +50,10 @@ namespace PaymentService.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("ExternalSessionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -75,9 +79,17 @@ namespace PaymentService.Infrastructure.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalPaymentId");
+
+                    b.HasIndex("ExternalSessionId");
 
                     b.HasIndex("OrderId");
 
@@ -143,6 +155,10 @@ namespace PaymentService.Infrastructure.Migrations
                     b.Property<DateTime>("CurrentPeriodStart")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExternalSessionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("ExternalSubscriptionId")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
@@ -162,48 +178,27 @@ namespace PaymentService.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ExternalSessionId");
+
+                    b.HasIndex("ExternalSubscriptionId");
 
                     b.HasIndex("UserId", "CoachId");
 
                     b.ToTable("Subscriptions");
-                });
-
-            modelBuilder.Entity("PaymentService.Domain.AggregateRoots.WebhookEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("EventType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("Processed")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId")
-                        .IsUnique();
-
-                    b.ToTable("WebhookEvents");
                 });
 
             modelBuilder.Entity("PaymentService.Domain.Common.IdempotencyRecord", b =>
@@ -243,6 +238,14 @@ namespace PaymentService.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("AvailableAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeadLettered")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("LastError")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
@@ -267,7 +270,8 @@ namespace PaymentService.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessedAt", "OccurredAt");
+                    b.HasIndex("ProcessedAt", "IsDeadLettered", "AvailableAt", "OccurredAt")
+                        .HasDatabaseName("IX_OutboxMessages_Pending");
 
                     b.ToTable("OutboxMessages");
                 });

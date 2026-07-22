@@ -17,13 +17,28 @@ public class SubscriptionRepository : ISubscriptionRepository
 
     public async Task<Subscription?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await _context.Subscriptions.FindAsync(new object[] { id }, cancellationToken);
+        return await _context.Subscriptions.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+    }
+
+    public async Task<Subscription?> GetByExternalSubscriptionIdAsync(string externalSubscriptionId, CancellationToken cancellationToken)
+    {
+        return await _context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ExternalSubscriptionId == externalSubscriptionId, cancellationToken);
+    }
+
+    public async Task<Subscription?> GetByExternalSessionIdAsync(string sessionId, CancellationToken cancellationToken)
+    {
+        return await _context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ExternalSessionId == sessionId, cancellationToken);
     }
 
     public async Task<Subscription?> GetActiveByUserIdAsync(int userId, CancellationToken cancellationToken)
     {
         return await _context.Subscriptions
-            .Where(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trialing))
+            .Where(s => s.UserId == userId &&
+                        (s.Status == SubscriptionStatus.Active ||
+                         s.Status == SubscriptionStatus.Trialing ||
+                         s.Status == SubscriptionStatus.PastDue))
             .OrderByDescending(s => s.CurrentPeriodEnd)
             .FirstOrDefaultAsync(cancellationToken);
     }
