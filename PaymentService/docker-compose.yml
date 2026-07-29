@@ -4,171 +4,29 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: icoach-postgres
+    container_name: icoach-payment-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-icoach_db}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-payment-db.sql:/docker-entrypoint-initdb.d/init-payment-db.sql # Auto-create payments_db
     networks:
       - icoach-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # MongoDB Database
-  mongodb:
-    image: mongo:7-jammy
-    container_name: icoach-mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin}
-      MONGO_INITDB_DATABASE: ${MONGO_DB:-icoach_nosql}
-    ports:
-      - "${MONGO_PORT:-27018}:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - icoach-network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis (optional - for sessions/cache)
-  redis:
-    image: redis:7-alpine
-    container_name: icoach-redis
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6380}:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - icoach-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # pgAdmin - PostgreSQL UI
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: icoach-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@icoach.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - icoach-network
-    depends_on:
-      - postgres
-
-  # Node.js Server
-  server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: icoach-server
-    restart: unless-stopped
-    ports:
-      - "${PORT:-5000}:5000"
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-5000}
-      
-      # gRPC Payment Service URL (Uses Docker service name 'payment-service')
-      PAYMENT_GRPC_URL: payment-service:5001
-      
-      # JWT Configuration
-      JWT_ACCESS_PRIVATE_KEY_PATH: ${JWT_ACCESS_PRIVATE_KEY_PATH:-/app/keys/private.pem}
-      JWT_ACCESS_PUBLIC_KEY_PATH: ${JWT_ACCESS_PUBLIC_KEY_PATH:-/app/keys/public.pem}
-      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
-      JWT_ISSUER: ${JWT_ISSUER:-icoach-app}
-      JWT_AUDIENCE: ${JWT_AUDIENCE:-icoach-users}
-      
-      # PostgreSQL
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-icoach_db}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      
-      # MongoDB
-      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-admin}@mongodb:27017/${MONGO_DB:-icoach_nosql}?authSource=admin
-      
-      # Redis
-      REDIS_URL: redis://redis:6379
-      
-      # OAuth
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
-      
-      # Email
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      EMAIL_FROM: ${EMAIL_FROM}
-      
-      # URLs
-      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:5173}
-      
-      # File Upload
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
-      UPLOAD_DIR: /app/uploads
-      
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_FILE: /app/logs/app.log
-      
-      # Cloudinary
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
-    
-    volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
-      - ./keys:/app/keys
-    
-    networks:
-      - icoach-network
-    
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   # .NET 8 Payment Service
   payment-service:
     build:
-      context: ./PaymentService
+      context: .
       dockerfile: Dockerfile.payment
     container_name: icoach-payment-service
     restart: unless-stopped
@@ -176,13 +34,12 @@ services:
       - "8001:8001" # HTTP (Webhooks / Health)
       - "5001:5001" # gRPC (Node.js calls this)
     environment:
-      # Use Docker service name 'postgres' as host
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=payments_db;Username=postgres;Password=postgres"
-      Jwt__Issuer: "icoach-app"
-      Jwt__Audience: "icoach-users"
-      Jwt__PublicKeyPath: "/app/keys/public.pem"
-      Stripe__SecretKey: ${STRIPE_SECRET_KEY:-sk_test_default}
-      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-whsec_default}
+      ConnectionStrings__Postgres: ${PAYMENT_DB_CONNECTION_STRING}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__PublicKeyPath: ${JWT_PUBLIC_KEY_PATH}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
     volumes:
       - ./keys:/app/keys # Share the public key with Node.js
     networks:
@@ -197,10 +54,4 @@ networks:
 
 volumes:
   postgres_data:
-    driver: local
-  mongodb_data:
-    driver: local
-  redis_data:
-    driver: local
-  pgadmin_data:
     driver: local
